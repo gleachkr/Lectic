@@ -1,5 +1,8 @@
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use llm::{
+    chat::{ChatMessage, ChatRole},     // Chat-related structures
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Interlocutor {
@@ -15,6 +18,12 @@ pub struct LecticHeader {
 pub struct LecticData<'a> {
     pub header : LecticHeader,
     pub body : Vec<LecticBlock<'a>>,
+}
+
+impl LecticData<'_> {
+    pub fn to_chat(blocks : &Vec<LecticBlock>) -> Vec<ChatMessage> {
+        blocks.into_iter().map(|b| b.to_msg()).collect()
+    }
 }
 
 #[derive(Debug)]
@@ -40,5 +49,18 @@ impl LecticBlock<'_> {
 
     pub fn is_nonempty(&self) -> bool {
          !self.is_empty()
+    }
+
+    fn to_msg(&self) -> ChatMessage {
+        match self {
+            LecticBlock::InterlocBlock{content,..} => ChatMessage {
+                role: ChatRole::Assistant, 
+                content: content.to_string(),
+            },
+            LecticBlock::UserBlock{content} => ChatMessage {
+                role: ChatRole::User,
+                content: content.to_string(),
+            },
+        }
     }
 }

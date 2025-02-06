@@ -1,29 +1,7 @@
-use crate::types::{
-    LecticData,
-    LecticBlock
-};
-
+use crate::types::LecticData;
 use llm::{
     builder::{LLMBackend, LLMBuilder}, // Builder pattern components
-    chat::{ChatMessage, ChatRole},     // Chat-related structures
 };
-
-fn lectic_block_to_msg(block : &LecticBlock) -> ChatMessage {
-    match block {
-        LecticBlock::InterlocBlock{content,..} => ChatMessage {
-            role: ChatRole::Assistant, 
-            content: content.to_string(),
-        },
-        LecticBlock::UserBlock{content} => ChatMessage {
-            role: ChatRole::User,
-            content: content.to_string(),
-        },
-    }
-}
-
-fn lectic_to_chat_data(blocks : &Vec<LecticBlock>) -> Vec<ChatMessage> {
-    blocks.into_iter().map(lectic_block_to_msg).collect()
-}
 
 #[tokio::main]
 pub async fn handle(ld : LecticData) -> Result<(), Box<dyn std::error::Error>> {
@@ -41,10 +19,10 @@ pub async fn handle(ld : LecticData) -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .expect("Failed to build LLM (Anthropic)");
 
-    let messages = lectic_to_chat_data(&ld.body);
-
-    match llm.chat(&messages).await {
-        Ok(text) => println!("::: {}\n\n{}\n\n:::", ld.header.interlocutor.name, text),
+    match llm.chat(&LecticData::to_chat(&ld.body)).await {
+        Ok(text) => {
+            println!("::: {}\n\n{}\n\n:::", ld.header.interlocutor.name, text)
+        }
         Err(e) => eprintln!("Chat error: {}", e),
     }
 
