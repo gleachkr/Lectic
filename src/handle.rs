@@ -15,7 +15,7 @@ pub async fn handle(ld : LecticData) -> Result<(), Box<dyn std::error::Error>> {
         .model("claude-3-5-sonnet-20240620") // Use Claude Instant model
         .max_tokens(512) // Limit response length
         .temperature(0.7) // Control response randomness (0.0-1.0)
-        .system(ld.header.interlocutor.prompt)
+        .system(ld.to_prompt())
         .build()
         .expect("Failed to build LLM (Anthropic)");
 

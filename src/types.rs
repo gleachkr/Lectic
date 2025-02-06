@@ -24,6 +24,18 @@ impl LecticData<'_> {
     pub fn to_chat(blocks : &Vec<LecticBlock>) -> Vec<ChatMessage> {
         blocks.into_iter().map(|b| b.to_msg()).collect()
     }
+
+    pub fn to_prompt(&self) -> String {
+        format!(r#"
+"{}
+
+You should use unicode symbols instead of LaTeX for mathematical notation.
+
+You must line wrap at approximately 78 characters unless this harms readability.
+"#,
+            self.header.interlocutor.prompt
+        )
+    }
 }
 
 #[derive(Debug)]
