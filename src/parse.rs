@@ -1,5 +1,9 @@
-use serde_derive::Deserialize;
-use serde_derive::Serialize;
+use crate::types::{
+    LecticHeader,
+    LecticBlock,
+    LecticData,
+};
+
 use nom::{
   IResult,
   Parser,
@@ -14,48 +18,6 @@ use nom::{
   combinator::complete,
   bytes::tag
 };
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct Interlocutor {
-    name : String,
-    prompt : String,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct LecticHeader {
-    interlocutor : Interlocutor,
-}
-
-pub struct LecticData<'a> {
-    header : LecticHeader,
-    body : Vec<LecticBlock<'a>>,
-}
-
-#[derive(Debug)]
-enum LecticBlock<'a> {
-    InterlocBlock{ name : &'a str, content : &'a str},
-    UserBlock{ content: &'a str},
-}
-
-impl LecticBlock<'_> {
-
-    fn content(&self) -> &str{
-        match self {
-            Self::InterlocBlock{name : _, content} => content,
-            Self::UserBlock{content} => content,
-        }
-    }
-
-    fn is_empty(&self) -> bool {
-         self.content()
-             .chars()
-             .all(char::is_whitespace)
-    }
-
-    fn is_nonempty(&self) -> bool {
-         !self.is_empty()
-    }
-}
 
 fn yaml_header(input: &str) -> IResult<&str, &str> {
   delimited(tag("---"), is_not("---"), tag("---")).parse(input)
