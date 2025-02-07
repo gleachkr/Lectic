@@ -21,7 +21,7 @@ pub async fn handle(ld : LecticData) -> Result<(), Box<dyn std::error::Error>> {
 
     match llm.chat(&LecticData::to_chat(&ld.body)).await {
         Ok(text) => {
-            println!("::: {}\n\n{}\n\n:::", ld.header.interlocutor.name, text)
+            println!("::: {}\n\n{}\n\n:::", ld.header.interlocutor.name, text.trim())
         }
         Err(e) => eprintln!("Chat error: {}", e),
     }
