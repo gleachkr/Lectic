@@ -1,10 +1,12 @@
+use crate::args::Args;
 use crate::types::LecticData;
+
 use llm::{
     builder::{LLMBackend, LLMBuilder}, // Builder pattern components
 };
 
 #[tokio::main]
-pub async fn handle(ld : LecticData) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn handle(args: &Args, ld : LecticData) -> Result<String, Box<dyn std::error::Error>> {
     // Get Anthropic API key from environment variable or use test key as fallback
     let api_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or("anthro-key".into());
 
