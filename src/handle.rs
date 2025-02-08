@@ -4,7 +4,7 @@ use llm::{
 };
 
 #[tokio::main]
-pub async fn handle(ld : LecticData) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn handle(ld : LecticData) -> Result<String, Box<dyn std::error::Error>> {
     // Get Anthropic API key from environment variable or use test key as fallback
     let api_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or("anthro-key".into());
 
@@ -19,12 +19,12 @@ pub async fn handle(ld : LecticData) -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .expect("Failed to build LLM (Anthropic)");
 
-    match llm.chat(&LecticData::to_chat(&ld.body)).await {
+    let rslt = match llm.chat(&LecticData::to_chat(&ld.body)).await {
         Ok(text) => {
-            println!("::: {}\n\n{}\n\n:::", ld.header.interlocutor.name, text.trim())
+            Ok(format!("::: {}\n\n{}\n\n:::", ld.header.interlocutor.name, text.trim()))
         }
-        Err(e) => eprintln!("Chat error: {}", e),
-    }
+        Err(e) => Err(e)
+    }?;
 
-    Ok(())
+    Ok(rslt)
 }

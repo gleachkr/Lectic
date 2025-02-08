@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::{fs, path::PathBuf};
+use std::{fs, process, path::PathBuf};
 use lectic::parse;
 use lectic::handle;
 
@@ -18,8 +18,15 @@ fn main() {
         Ok(lectic_str) => {
             let lectic_data = parse::parse(&lectic_str)
                 .expect("data parsing failed");
-            let _ = handle::handle(lectic_data)
-                .expect("chat handling failed");
+            match handle::handle(lectic_data) {
+                Ok(rslt) => {
+                    print!("{}", rslt);
+                }
+                Err(e) => {
+                    eprintln!("Chat error: {}", e);
+                    process::exit(1)
+                }
+            }
         }
         Err(e) => {
             println!("Can't read file {}", e)
