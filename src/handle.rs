@@ -23,7 +23,7 @@ pub async fn handle(args: &Args, ld : LecticData) -> Result<String, Box<dyn std:
 
     let rslt = match llm.chat(&LecticData::to_chat(&ld.body)).await {
         Ok(text) => {
-            Ok(format!("::: {}\n\n{}\n\n:::", ld.header.interlocutor.name, text.trim()))
+            Ok(format!("::: {}\n\n{}\n\n:::\n", ld.header.interlocutor.name, text.trim()))
         }
         Err(e) => Err(e)
     }?;

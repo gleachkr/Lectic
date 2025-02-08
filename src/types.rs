@@ -26,13 +26,14 @@ impl LecticData<'_> {
     }
 
     pub fn to_prompt(&self) -> String {
-        format!(r#"
-"{}
+        format!(r#"Your name is {}.
+{}
 
 You should use unicode symbols instead of LaTeX for mathematical notation.
 
 You must line wrap at approximately 78 characters unless this harms readability.
 "#,
+            self.header.interlocutor.name,
             self.header.interlocutor.prompt
         )
     }
