@@ -8,6 +8,8 @@ use llm::{
 pub struct Interlocutor {
     pub name : String,
     pub prompt : String,
+    pub temperature : Option<u8>,
+    pub token_limit: Option<u32>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -21,11 +23,11 @@ pub struct LecticData<'a> {
 }
 
 impl LecticData<'_> {
-    pub fn to_chat(blocks : &Vec<LecticBlock>) -> Vec<ChatMessage> {
+    pub fn as_chat(blocks : &Vec<LecticBlock>) -> Vec<ChatMessage> {
         blocks.into_iter().map(|b| b.to_msg()).collect()
     }
 
-    pub fn to_prompt(&self) -> String {
+    pub fn get_prompt(&self) -> String {
         format!(r#"Your name is {}.
 {}
 
@@ -36,6 +38,20 @@ You must line wrap at approximately 78 characters unless this harms readability.
             self.header.interlocutor.name,
             self.header.interlocutor.prompt
         )
+    }
+
+    pub fn get_temp(&self) -> f32 {
+        match self.header.interlocutor.temperature {
+            None => 0.7,
+            Some(temp) => temp as f32 / 255.0
+        }
+    }
+
+    pub fn get_token_limit(&self) -> u32 {
+        match self.header.interlocutor.token_limit {
+            None => 512,
+            Some(limit) => limit,
+        }
     }
 }
 

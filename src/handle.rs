@@ -14,14 +14,14 @@ pub async fn handle(args: &Args, ld : LecticData) -> Result<String, Box<dyn std:
     let llm = LLMBuilder::new()
         .backend(LLMBackend::Anthropic) // Use Anthropic (Claude) as the LLM provider
         .api_key(api_key) // Set the API key
-        .model("claude-3-5-sonnet-20240620") // Use Claude Instant model
-        .max_tokens(512) // Limit response length
-        .temperature(0.7) // Control response randomness (0.0-1.0)
-        .system(ld.to_prompt())
+        .model("claude-3-5-sonnet-20241022")
+        .max_tokens(ld.get_token_limit()) // Limit response length
+        .temperature(ld.get_temp()) // Control response randomness (0.0-1.0)
+        .system(ld.get_prompt())
         .build()
         .expect("Failed to build LLM (Anthropic)");
 
-    let rslt = match llm.chat(&LecticData::to_chat(&ld.body)).await {
+    let rslt = match llm.chat(&LecticData::as_chat(&ld.body)).await {
         Ok(text) => {
             Ok(format!("::: {}\n\n{}\n\n:::\n", ld.header.interlocutor.name, text.trim()))
         }
