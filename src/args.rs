@@ -8,6 +8,7 @@ pub struct Args {
     #[arg(default_value="-")]
     pub lectic: PathBuf,
 
+    /// Return only the response rather than the updated lectic
     #[arg(long, short)]
-    pub verbose: bool,
+    pub short: bool,
 }
