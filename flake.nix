@@ -1,31 +1,43 @@
 {
   inputs = {
-    crane.url = "github:ipetkov/crane";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
   };
+  outputs = { self, nixpkgs, utils }: utils.lib.eachDefaultSystem (system:
+    let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in
+    {
 
-  outputs = { self, nixpkgs, utils, crane }:
-    utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        cranelib = crane.mkLib pkgs;
-      in
-      {
-
-        defaultPackage = cranelib.buildPackage { 
-          src = cranelib.cleanCargoSource ./.; 
-          buildInputs = [
-            pkgs.pkg-config
-            pkgs.openssl
-          ];
+      packages.default = with pkgs; stdenv.mkDerivation {
+        name = "lectic";
+        src = ./.;
+        buildPhase = ''
+          mkdir -p $out/bin
+          bun build --compile src/main.ts --outfile lectic
+          mv lectic $out/bin
+        '';
+        buildInputs = [
+          importNpmLock.hooks.linkNodeModulesHook
+          nodejs
+          bun
+        ];
+        npmDeps = importNpmLock.buildNodeModules {
+          npmRoot = ./.;
+          inherit nodejs;
         };
+      };
 
-        devShell = with pkgs; mkShell {
-          buildInputs = [ cargo rustc rustfmt pre-commit rustPackages.clippy ];
-          RUST_SRC_PATH = rustPlatform.rustLibSrc;
+      devShell = with pkgs; mkShell {
+        buildInputs =  [
+          importNpmLock.hooks.linkNodeModulesHook
+          nodejs
+          bun
+        ];
+        npmDeps = importNpmLock.buildNodeModules {
+          npmRoot = ./.;
+          inherit nodejs;
         };
-
-      }
-    );
+      };
+    }
+  );
 }
