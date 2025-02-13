@@ -9,13 +9,31 @@
     {
 
       packages.default = with pkgs; stdenv.mkDerivation {
+        pname = "lectic";
         name = "lectic";
         src = ./.;
         buildPhase = ''
-          mkdir -p $out/bin
-          bun build --compile src/main.ts --outfile lectic
-          mv lectic $out/bin
+          runHook preBuild
+          
+          bun build src/main.ts --compile --outfile lectic
+
+          runHook postBuild
         '';
+
+        installPhase = ''
+          runHook preInstall
+
+          mkdir -p $out/bin
+
+          cp lectic $out/bin/
+
+          du $out/bin/lectic > $out/usage
+
+          runHook postInstall
+        '';
+
+        dontFixup = true;
+
         buildInputs = [
           importNpmLock.hooks.linkNodeModulesHook
           nodejs

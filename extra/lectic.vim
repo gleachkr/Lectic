@@ -1,4 +1,4 @@
-sign define lecticHighlightBlock texthl=CursorLine linehl=CursorLine
+sign define lecticHighlightBlock texthl=CursorLine linehl=CursorLine numhl=CursorLine
 
 function! HighlightBlocks()
   let l:line_number = 1

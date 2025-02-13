@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
+    "@types/bun": "^1.2.2",
+    "commander": "^13.1.0",
     "yaml": "^2.7.0"
   }
 }
