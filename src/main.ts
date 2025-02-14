@@ -1,11 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { parseLectic } from "./parse"
 import { program } from 'commander'
-import * as AnthropicUtil from "./backends/anthopic"
-
-const client = new Anthropic({
-  apiKey: process.env['ANTHROPIC_API_KEY'], // This is the default and can be omitted
-});
+import { AnthropicBackend } from "./backends/anthopic"
 
 async function main() {
 
@@ -20,19 +15,8 @@ async function main() {
       process.exit(1)
   }
 
-  const message = await client.messages.create({
-    max_tokens: 1024,
-    system: `
-Your name is ${lectic.header.interlocutor.name}
+  const message = await AnthropicBackend.nextMessage(lectic)
 
-${lectic.header.interlocutor.prompt}
-
-Use unicode rather than latex for mathematical notation. 
-
-Line break at around 78 characters except in cases where this harms readability.`,
-    messages: lectic.body.messages,
-    model: 'claude-3-5-sonnet-latest',
-  });
 
   if (!program.opts().short) {
       console.log(lecticString.trim());
@@ -41,7 +25,7 @@ Line break at around 78 characters except in cases where this harms readability.
   console.log(`
 ::: ${lectic.header.interlocutor.name}
 
-  ${AnthropicUtil.getText(message)}
+  ${message.content}
   
 :::`)
 }

@@ -15,7 +15,7 @@
         buildPhase = ''
           runHook preBuild
           
-          bun build src/main.ts --compile --outfile lectic
+          bun build src/main.ts --compile --minify --bytecode --sourcemap --outfile lectic
 
           runHook postBuild
         '';

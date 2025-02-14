@@ -23,7 +23,7 @@ export type LecticHeader = {
     interlocutor : Interlocutor
 }
 
-export function isLecticHeader(raw: any): raw is LecticHeader {
+export function isLecticHeader(raw: unknown): raw is LecticHeader {
     return raw != null &&
         typeof raw === 'object' &&
         'interlocutor' in raw &&
@@ -35,7 +35,7 @@ export type Message = {
     content : string
 }
 
-export function isMessage(raw: any): raw is Message {
+export function isMessage(raw: unknown): raw is Message {
     return raw != null &&
         typeof raw === 'object' &&
         'role' in raw &&
@@ -48,7 +48,7 @@ export type LecticBody = {
     messages : Message[];
 }
 
-export function isLecticBody(raw: any): raw is LecticBody {
+export function isLecticBody(raw: unknown): raw is LecticBody {
     return raw != null &&
         typeof raw === 'object' &&
         'messages' in raw &&
@@ -61,7 +61,7 @@ export type Lectic = {
     body : LecticBody
 }
 
-export function isLectic(raw: any): raw is Lectic {
+export function isLectic(raw: unknown): raw is Lectic {
     return raw != null &&
         typeof raw === 'object' &&
         'header' in raw &&
