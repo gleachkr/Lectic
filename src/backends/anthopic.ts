@@ -33,7 +33,8 @@ class AnthropicFile {
 
     async toSource() {
         const bytes = await this.file.bytes()
-        switch(this.file.type.replace(/^text\/.+$/,"text/plain")) {
+        const media_type = this.file.type.replace(/^text\/.+$/,"text/plain")
+        switch(media_type) {
             case "image/gif" : 
             case "image/jpeg": 
             case "image/webp": 
@@ -41,7 +42,7 @@ class AnthropicFile {
                 type : "image",
                 source : {
                     "type" : "base64",
-                    "media_type" : this.file.type,
+                    "media_type" : media_type,
                     "data" : Buffer.from(bytes).toString("base64")
                 }
             } as const
