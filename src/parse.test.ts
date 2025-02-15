@@ -204,7 +204,7 @@ Header
   expect(getBody(noBodyContent)).toBe("\n:::\n:::\n");
 });
       
-test("parseLectic-validInput", () => {
+test("parseLectic-validInput", async () => {
     const validInput = `---
 interlocutor:
     prompt: value
@@ -218,7 +218,7 @@ User text
 Content B
 :::`;
 
-    const result = parseLectic(validInput);
+    const result = await parseLectic(validInput);
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toBeTruthy();
@@ -230,20 +230,20 @@ Content B
     ]);
 });
 
-test("parseLectic-invalidYaml", () => {
+test("parseLectic-invalidYaml", async () => {
     const invalidYaml = `---
 interlocutor:
     prompt: value
 ---
 Body content`;
 
-    const result = parseLectic(invalidYaml);
+    const result = await parseLectic(invalidYaml);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
 });
 
-test("parseLectic-invalidYaml", () => {
+test("parseLectic-invalidYaml", async () => {
     const invalidYaml = `---
 interlocutor:
     prompt: value
@@ -251,13 +251,13 @@ interlocutor:
 ---
 Body content`;
 
-    const result = parseLectic(invalidYaml);
+    const result = await parseLectic(invalidYaml);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
 });
 
-test("parseLectic-noBody", () => {
+test("parseLectic-noBody", async () => {
     const noBody = `---
 interlocutor:
     prompt: value
@@ -265,42 +265,42 @@ interlocutor:
 ---
 `;
 
-    const result = parseLectic(noBody);
+    const result = await parseLectic(noBody);
 
     expect((result as Lectic).body.messages).toEqual([]);
 });
 
-test("parseLectic-noHeaderNoBody", () => {
+test("parseLectic-noHeaderNoBody", async () => {
     const invalidInput = ``;
-    const result = parseLectic(invalidInput);
+    const result = await parseLectic(invalidInput);
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe('could not parse YAML header');
 });
 
-test("parseLectic-invalidDivider", () => {
+test("parseLectic-invalidDivider", async () => {
     const invalidDivider = `-BAD-
 interlocutor:
   prompt: value
   name: sam
 -BAD-
 Text without proper body markers`;
-    const result = parseLectic(invalidDivider);
+    const result = await parseLectic(invalidDivider);
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe('could not parse YAML header');
 });
 
-test("parseLectic-nestedYAMLDelimiters", () => {
+test("parseLectic-nestedYAMLDelimiters", async () => {
     const nestedDelimiters = `---
 Header
 --- Content does not start
 --- More content
 --- End`;
-    const result = parseLectic(nestedDelimiters);
+    const result = await parseLectic(nestedDelimiters);
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
 });
 
-test("parseLectic-emptyContent", () => {
+test("parseLectic-emptyContent", async () => {
     const emptyContent = `---
 interlocutor:
   prompt: value
@@ -308,20 +308,20 @@ interlocutor:
 ---
 ::: :::
 `;
-    const result = parseLectic(emptyContent);
+    const result = await parseLectic(emptyContent);
     expect(result).not.toBeInstanceOf(Error);
     expect((result as Lectic).body.messages).toEqual(
         [new Message({ role: "user", content: "::: :::" })]);
 });
 
-test("parseLectic-nonStringContent", () => {
+test("parseLectic-nonStringContent", async () => {
     const nonStringContent = `---
 interlocutor:
   prompt: value
   name: sam
 ---
 ["array", "of", "strings"]`;
-    const result = parseLectic(nonStringContent);
+    const result = await parseLectic(nonStringContent);
     expect(result).not.toBeInstanceOf(Error);
     expect((result as Lectic).body.messages).toEqual(
         [new Message({ role: "user", content: '["array", "of", "strings"]' })]);

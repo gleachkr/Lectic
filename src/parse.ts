@@ -53,7 +53,7 @@ export function splitBodyChunks(input: string): string[] {
     return matches;
 }
 
-export function parseLectic(raw: string) : Lectic | Error {
+export async function parseLectic(raw: string) : Promise<Lectic | Error> {
     const rawYaml = getYaml(raw)
     const rawBody = getBody(raw)
 
@@ -63,6 +63,10 @@ export function parseLectic(raw: string) : Lectic | Error {
     const header: unknown = YAML.parse(rawYaml)
 
     if (!isLecticHeader(header)) return Error("YAML Header contains either unrecognized fields or is missing a field")
+
+    if (await Bun.file(header.interlocutor.prompt.trim()).exists()) {
+        header.interlocutor.prompt = await Bun.file(header.interlocutor.prompt.trim()).text()
+    }
 
     const messages : Message[] = []
 

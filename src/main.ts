@@ -8,7 +8,7 @@ async function main() {
       ? await Bun.stdin.text()
       : await Bun.file(program.opts()["file"]).text()
 
-  const lectic = parseLectic(lecticString)
+  const lectic = await parseLectic(lecticString)
 
   if (lectic instanceof Error) {
       console.error(lectic.message)
@@ -25,7 +25,7 @@ async function main() {
   console.log(`
 ::: ${lectic.header.interlocutor.name}
 
-  ${message.content}
+${message.content}
   
 :::`)
 }
