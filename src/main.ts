@@ -4,9 +4,9 @@ import { AnthropicBackend } from "./backends/anthopic"
 
 async function main() {
 
-  let lecticString = program.opts().file == '-' 
+  let lecticString = program.opts()["file"] == '-' 
       ? await Bun.stdin.text()
-      : await Bun.file(program.opts().file).text()
+      : await Bun.file(program.opts()["file"]).text()
 
   const lectic = parseLectic(lecticString)
 
@@ -18,7 +18,7 @@ async function main() {
   const message = await AnthropicBackend.nextMessage(lectic)
 
 
-  if (!program.opts().short) {
+  if (!program.opts()["short"]) {
       console.log(lecticString.trim());
   }
 

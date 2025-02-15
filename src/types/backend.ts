@@ -1,5 +1,6 @@
-import { Lectic, Message } from "./lectic"
-import { LLMProvider } from "./provider.ts"
+import type { Lectic  } from "./lectic"
+import type { Message } from "./message"
+import { LLMProvider } from "./provider"
 
 export type Backend = {
 

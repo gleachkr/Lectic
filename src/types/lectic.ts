@@ -1,4 +1,5 @@
-import { LLMProvider, isLLMProvider } from "./provider.ts"
+import { LLMProvider, isLLMProvider } from "./provider"
+import { Message } from "./message"
 
 export type Interlocutor = {
     provider? : LLMProvider
@@ -30,20 +31,6 @@ export function isLecticHeader(raw: unknown): raw is LecticHeader {
         isInterlocutor(raw.interlocutor);
 }
 
-export type Message = {
-    role : "user" | "assistant" // openAI will require "tool" eventually?
-    content : string
-}
-
-export function isMessage(raw: unknown): raw is Message {
-    return raw != null &&
-        typeof raw === 'object' &&
-        'role' in raw &&
-        'content' in raw &&
-        typeof raw.role === 'string' &&
-        typeof raw.content === 'string';
-}
-
 export type LecticBody = {
     messages : Message[];
 }
@@ -53,7 +40,7 @@ export function isLecticBody(raw: unknown): raw is LecticBody {
         typeof raw === 'object' &&
         'messages' in raw &&
         Array.isArray(raw.messages) &&
-        raw.messages.every(isMessage);
+        raw.messages.every(m => m instanceof Message);
 }
 
 export type Lectic = {

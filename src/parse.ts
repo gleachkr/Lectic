@@ -1,4 +1,6 @@
-import { Lectic, Message, isLecticHeader } from "./types/lectic"
+import {  isLecticHeader } from "./types/lectic"
+import { Message } from "./types/message"
+import type { Lectic } from "./types/lectic"
 import * as YAML from "yaml"
 
 export function getYaml(raw:string) : string | null {
@@ -67,15 +69,15 @@ export function parseLectic(raw: string) : Lectic | Error {
     for (const chunk of splitBodyChunks(rawBody)) {
         const match = /:::(.*?)\n([\s\S]*?):::/.exec(chunk)
         if (match) {
-            messages.push({
-                role: "assistant",
-                content: match[2].trim(),
-            })
+            messages.push(new Message({ 
+                role : "assistant", 
+                content : match[2].trim()
+            }))
         } else {
-            messages.push({
-                role: "user",
-                content: chunk,
-            })
+            messages.push(new Message({
+                role : "user",
+                content : chunk
+            }))
         }
     }
 

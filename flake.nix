@@ -10,7 +10,7 @@
 
       packages.default = with pkgs; stdenv.mkDerivation {
         pname = "lectic";
-        name = "lectic";
+        version = "0.0.0";
         src = ./.;
         buildPhase = ''
           runHook preBuild
@@ -27,8 +27,6 @@
 
           cp lectic $out/bin/
 
-          du $out/bin/lectic > $out/usage
-
           runHook postInstall
         '';
 
@@ -36,7 +34,6 @@
 
         buildInputs = [
           importNpmLock.hooks.linkNodeModulesHook
-          nodejs
           bun
         ];
         npmDeps = importNpmLock.buildNodeModules {
@@ -48,7 +45,6 @@
       devShell = with pkgs; mkShell {
         buildInputs =  [
           importNpmLock.hooks.linkNodeModulesHook
-          nodejs
           bun
         ];
         npmDeps = importNpmLock.buildNodeModules {

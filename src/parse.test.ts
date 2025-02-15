@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { getYaml, getBody, splitBodyChunks, parseLectic } from "./parse"
-import { Lectic } from "./types/lectic"
+import type { Lectic } from "./types/lectic"
 
 function template(header: string, body: string) : string {
 return (
