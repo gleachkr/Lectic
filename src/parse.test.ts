@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { getYaml, getBody, splitBodyChunks, parseLectic } from "./parse"
 import type { Lectic } from "./types/lectic"
+import { Message } from "./types/message"
 
 function template(header: string, body: string) : string {
 return (
@@ -223,9 +224,9 @@ Content B
     expect(result).toBeTruthy();
     expect((result as Lectic).header).toEqual({interlocutor: { prompt: "value", name: "sam" }});
     expect((result as Lectic).body.messages).toEqual([
-        { role: "assistant", content: "Content A" },
-        { role: "user", content: "User text" },
-        { role: "assistant", content: "Content B" }
+        new Message({ role: "assistant", content: "Content A" }),
+        new Message({ role: "user", content: "User text" }),
+        new Message({ role: "assistant", content: "Content B" })
     ]);
 });
 
@@ -309,7 +310,8 @@ interlocutor:
 `;
     const result = parseLectic(emptyContent);
     expect(result).not.toBeInstanceOf(Error);
-    expect((result as Lectic).body.messages).toEqual([{ role: "user", content: "::: :::" }]);
+    expect((result as Lectic).body.messages).toEqual(
+        [new Message({ role: "user", content: "::: :::" })]);
 });
 
 test("parseLectic-nonStringContent", () => {
@@ -321,5 +323,6 @@ interlocutor:
 ["array", "of", "strings"]`;
     const result = parseLectic(nonStringContent);
     expect(result).not.toBeInstanceOf(Error);
-    expect((result as Lectic).body.messages).toEqual([{ role: "user", content: '["array", "of", "strings"]' }]);
+    expect((result as Lectic).body.messages).toEqual(
+        [new Message({ role: "user", content: '["array", "of", "strings"]' })]);
 });
