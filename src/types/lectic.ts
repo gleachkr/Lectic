@@ -6,6 +6,7 @@ export type Interlocutor = {
     model? : string
     prompt : string
     name : string
+    memories? : string
 }
 
 export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
@@ -16,6 +17,7 @@ export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
         typeof raw.prompt == "string" &&
         typeof raw.name == "string" &&
         (("model" in raw) ? typeof raw.model == "string" : true) &&
+        (("memories" in raw) ? typeof raw.memories == "string" : true) &&
         (("provider" in raw) ? isLLMProvider(raw.provider) : true)
 }
 
