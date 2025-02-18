@@ -1,24 +1,28 @@
 import { LLMProvider, isLLMProvider } from "./provider"
+import type { ToolSpec } from "./tools"
+import { isToolSpec } from "./tools"
 import { Message } from "./message"
 
 export type Interlocutor = {
-    provider? : LLMProvider
-    model? : string
     prompt : string
     name : string
+    provider? : LLMProvider
+    tools? : ToolSpec[]
+    model? : string
     memories? : string
 }
 
 export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
     return raw != null &&
-        typeof raw == "object" &&
+        typeof raw === "object" &&
         ("prompt" in raw) &&
         ("name" in raw) &&
-        typeof raw.prompt == "string" &&
-        typeof raw.name == "string" &&
-        (("model" in raw) ? typeof raw.model == "string" : true) &&
-        (("memories" in raw) ? typeof raw.memories == "string" : true) &&
-        (("provider" in raw) ? isLLMProvider(raw.provider) : true)
+        typeof raw.prompt === "string" &&
+        typeof raw.name === "string" &&
+        (("model" in raw) ? typeof raw.model === "string" : true) &&
+        (("memories" in raw) ? typeof raw.memories === "string" : true) &&
+        (("provider" in raw) ? isLLMProvider(raw.provider) : true) &&
+        (("tools" in raw) ? typeof raw.tools === "object" && isToolSpec(raw.tools) : true)
 }
 
 
@@ -27,7 +31,7 @@ export type LecticHeader = {
 }
 
 export function isLecticHeader(raw: unknown): raw is LecticHeader {
-    return raw != null &&
+    return raw !== null &&
         typeof raw === 'object' &&
         'interlocutor' in raw &&
         isInterlocutor(raw.interlocutor);
@@ -38,7 +42,7 @@ export type LecticBody = {
 }
 
 export function isLecticBody(raw: unknown): raw is LecticBody {
-    return raw != null &&
+    return raw !== null &&
         typeof raw === 'object' &&
         'messages' in raw &&
         Array.isArray(raw.messages) &&
@@ -51,7 +55,7 @@ export type Lectic = {
 }
 
 export function isLectic(raw: unknown): raw is Lectic {
-    return raw != null &&
+    return raw !== null &&
         typeof raw === 'object' &&
         'header' in raw &&
         'body' in raw &&
