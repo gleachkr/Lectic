@@ -4,18 +4,27 @@ import type { MessageLink } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
+import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import type { BunFile } from "bun"
 
 function getText(msg : Anthropic.Messages.Message) : string {
     if (msg.content.length == 0) {
         return "…"
+    } else {
+        let rslt = ""
+        for (const block of msg.content) {
+            if (block.type == "text") {
+                rslt += block.text
+            }
+
+            if (block.type == "tool_use") {
+                rslt += JSON.stringify(block)
+            }
+        }
+
+        return rslt
     }
 
-    if (msg.content[0].type == "text") {
-        return msg.content[0].text
-    }
-
-    return `Unhandled Message Type: ${msg.content[0].type}`
 }
 
 class AnthropicFile {
@@ -109,8 +118,78 @@ Use unicode rather than latex for mathematical notation.
 Line break at around 78 characters except in cases where this harms readability.`
 }
 
+function getTools() : Anthropic.Messages.Tool[] {
+    const tools : Anthropic.Messages.Tool[] = []
+    for (const tool of Object.values(ToolRegistry)) {
+        tools.push({
+            name : tool.name,
+            description : tool.description,
+            input_schema : {
+                "type" : "object",
+                "properties" : tool.parameters
+            }
+        })
+    }
+    return tools
+}
+
+async function handleToolUse(
+    message: Anthropic.Messages.Message, 
+    messages : Anthropic.Messages.MessageParam[], 
+    lectic : Lectic) : Promise<Anthropic.Messages.Message> {
+
+    const client = new Anthropic({
+        apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
+    })
+
+    for (let max_recur = 10; max_recur >= 0; max_recur--) {
+        if (message.stop_reason != "tool_use") break
+
+        messages.push({
+            role: "assistant",
+            content: message.content
+        })
+
+        const tool_results : Anthropic.Messages.ToolResultBlockParam[] = []
+
+        for (const block of message.content) {
+            if (block.type == "tool_use") {
+                if (block.name in ToolRegistry) {
+                    // TODO error handling
+                    const rslt = await ToolRegistry[block.name].call(block.input)
+                    tool_results.push({
+                        type : "tool_result",
+                        tool_use_id : block.id,
+                        content : rslt,
+                    })
+                }
+            }
+        }
+
+        messages.push({
+            role: "user",
+            content: tool_results
+        })
+
+        message = await (client as Anthropic).messages.create({
+            max_tokens: 1024,
+            system: systemPrompt(lectic),
+            messages: messages,
+            model: 'claude-3-5-sonnet-latest',
+            tools: getTools()
+        });
+    }
+
+    return message
+}
+
 export const AnthropicBackend : Backend & { client : Anthropic } = {
+
     async nextMessage(lectic : Lectic) : Promise<Message> {
+
+      if (lectic.header.interlocutor.tools) {
+        initRegistry(lectic.header.interlocutor.tools)
+      }
 
       const messages : Anthropic.Messages.MessageParam[] = []
 
@@ -118,12 +197,15 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
           messages.push(await handleMessage(msg))
       }
 
-      const msg = await (this.client as Anthropic).messages.create({
+      let msg = await (this.client as Anthropic).messages.create({
         max_tokens: 1024,
         system: systemPrompt(lectic),
         messages: messages,
         model: 'claude-3-5-sonnet-latest',
+        tools: getTools()
       });
+
+      msg = await handleToolUse(msg, messages, lectic)
 
       return new Message({
           role: "assistant", 

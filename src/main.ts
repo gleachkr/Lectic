@@ -4,7 +4,7 @@ import { AnthropicBackend } from "./backends/anthopic"
 
 async function main() {
 
-  let lecticString = program.opts()["file"] == '-' 
+  let lecticString = program.opts()["file"] === '-' 
       ? await Bun.stdin.text()
       : await Bun.file(program.opts()["file"]).text()
 
