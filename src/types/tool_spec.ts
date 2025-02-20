@@ -14,12 +14,16 @@ export function isToolSpec(spec : unknown) : spec is ToolSpec {
 export function initRegistry(specs : ToolSpec[]) : {[key : string] : Tool} {
     if (Object.keys(ToolRegistry).length > 0) return ToolRegistry
     for (const spec of specs) {
+        let tool
         if (isExecToolSpec(spec)) {
-            const tool = new ExecTool(spec)
-            ToolRegistry[tool.name] = tool
-        } 
-        // TODO: need to decide how to handle malformed specs.
+            tool = new ExecTool(spec)
+        }
+        // TODO: need to better decide how to handle malformed specs.
         // Throw error? Return error? log warning?
+        if (!tool) throw Error("One or more tools provided were not recognized. Check the tool section of your YAML header.")
+        // TODO: need to better handle name collisions, maybe namespacing default/custom names in some way.
+        if (tool.name in ToolRegistry) throw Error("Two tools were given the same name. Check the tool section of your YAML header.") 
+        ToolRegistry[tool.name] = tool
     }
     return ToolRegistry
 }

@@ -3,30 +3,32 @@ import { $ } from "bun"
 
 export type ExecToolSpec = {
     exec: string
-    usage? : string
+    usage?: string
+    name?: string
 }
 
 export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
     return raw !== null &&
         typeof raw === "object" &&
         "exec" in raw &&
-        ("usage" in raw ? typeof raw.exec === "string" : true)
+        ("usage" in raw ? typeof raw.exec === "string" : true) &&
+        ("name" in raw ? typeof raw.exec === "string" : true)
 }
 
 
 export class ExecTool implements Tool {
 
     name: string
-    command: string
+    exec: string
     description: string
     static count : number = 0
 
     constructor(spec: ExecToolSpec) {
-        this.command = spec.exec
-        this.name = `exec_tool_${ExecTool.count}`
+        this.exec = spec.exec
+        this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.description = 
-            `This tool executes \`${this.command}\` in a bash shell with the arguments (including command line flags) that you supply.` +
-            `So for example if you supply \`$arguments\`, what is run is literally \`bash -c "${this.command} $arguments"\`.` +
+            `This tool executes \`${this.exec}\` in a bash shell with the arguments (including command line flags) that you supply.` +
+            `So for example if you supply \`$arguments\`, what is run is literally \`bash -c "${this.exec} $arguments"\`.` +
             `The stdout resulting from the command will be returned to you as the tool call result.` +
             (spec.usage ?? "")
         ExecTool.count++
@@ -41,7 +43,6 @@ export class ExecTool implements Tool {
 
     async call(args : { arguments : string }) : Promise<string> {
         // neet better error handling here
-        return $`bash -c '${this.command} ${args.arguments}'`.text()
+        return $`bash -c '${this.exec} ${args.arguments}'`.text()
     }
-
 }
