@@ -42,7 +42,7 @@ export class ExecTool implements Tool {
     } as const
 
     async call(args : { arguments : string }) : Promise<string> {
-        // neet better error handling here
+        // need better error handling here
         return $`bash -c '${this.exec} ${args.arguments}'`.text()
     }
 }

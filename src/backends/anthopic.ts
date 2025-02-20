@@ -16,10 +16,6 @@ function getText(msg : Anthropic.Messages.Message) : string {
             if (block.type == "text") {
                 rslt += block.text
             }
-
-            if (block.type == "tool_use") {
-                rslt += JSON.stringify(block)
-            }
         }
 
         return rslt
@@ -136,11 +132,13 @@ function getTools() : Anthropic.Messages.Tool[] {
 async function handleToolUse(
     message: Anthropic.Messages.Message, 
     messages : Anthropic.Messages.MessageParam[], 
-    lectic : Lectic) : Promise<Anthropic.Messages.Message> {
+    lectic : Lectic) : Promise<[Anthropic.Messages.Message, string]> {
 
     const client = new Anthropic({
         apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
     })
+
+    let text_results = ""
 
     for (let max_recur = 10; max_recur >= 0; max_recur--) {
         if (message.stop_reason != "tool_use") break
@@ -171,6 +169,8 @@ async function handleToolUse(
             content: tool_results
         })
 
+        text_results += `${getText(message)}\n\n`
+
         message = await (client as Anthropic).messages.create({
             max_tokens: 1024,
             system: systemPrompt(lectic),
@@ -180,7 +180,7 @@ async function handleToolUse(
         });
     }
 
-    return message
+    return [message, text_results]
 }
 
 export const AnthropicBackend : Backend & { client : Anthropic } = {
@@ -205,11 +205,12 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
         tools: getTools()
       });
 
-      msg = await handleToolUse(msg, messages, lectic)
+      let tool_text : string = ""; // text generated during tool use
+      [msg, tool_text] = await handleToolUse(msg, messages, lectic)
 
       return new Message({
           role: "assistant", 
-          content: getText(msg)
+          content: tool_text + getText(msg)
       })
     },
 
