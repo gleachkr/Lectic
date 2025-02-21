@@ -27,22 +27,32 @@ export class ExecTool implements Tool {
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.description = 
-            `This tool executes \`${this.exec}\` in a bash shell with the arguments (including command line flags) that you supply.` +
+            `This tool executes \`${this.exec}\` directly, with the array of arguments (including command line flags) that you supply.` +
             `So for example if you supply \`$arguments\`, what is run is literally \`bash -c "${this.exec} $arguments"\`.` +
+            `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features.` +
             `The stdout resulting from the command will be returned to you as the tool call result.` +
+            `The user cannot see the tool call result. You must explicitly report any requested information to the user.` +
             (spec.usage ?? "")
         ExecTool.count++
     }
 
     parameters = {
         arguments : {
-            type : "string",
-            description : "the arguments to the command"
+            type : "array",
+            description : "the arguments to the command",
+            items : {
+                type: "string"
+            }
         }
     } as const
 
-    async call(args : { arguments : string }) : Promise<string> {
+    async call(args : { arguments : string[] }) : Promise<string> {
         // need better error handling here
-        return $`bash -c '${this.exec} ${args.arguments}'`.text()
+        const proc = Bun.spawnSync([this.exec].concat(args.arguments))
+        if (proc.exitCode !== 0) {
+            throw Error(proc.stderr.toString())
+        } else {
+            return proc.stdout.toString()
+        }
     }
 }

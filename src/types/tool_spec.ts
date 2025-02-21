@@ -1,6 +1,6 @@
-import type { ExecToolSpec } from "../tools/exec_tool"
+import type { ExecToolSpec } from "../tools/exec"
 import type { Tool } from "./tool"
-import { isExecToolSpec, ExecTool } from "../tools/exec_tool"
+import { isExecToolSpec, ExecTool } from "../tools/exec"
 
 export type ToolSpec = ExecToolSpec
 

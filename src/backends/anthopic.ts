@@ -154,12 +154,17 @@ async function handleToolUse(
             if (block.type == "tool_use") {
                 if (block.name in ToolRegistry) {
                     // TODO error handling
-                    const rslt = await ToolRegistry[block.name].call(block.input)
-                    tool_results.push({
-                        type : "tool_result",
-                        tool_use_id : block.id,
-                        content : rslt,
-                    })
+                    ToolRegistry[block.name].call(block.input)
+                        .then(rslt => tool_results.push({
+                                type : "tool_result",
+                                tool_use_id : block.id,
+                                content : rslt,
+                        })).catch((e : Error) => tool_results.push({
+                                type : "tool_result",
+                                tool_use_id : block.id,
+                                content: e.message,
+                                is_error: true,
+                        }))
                 }
             }
         }
@@ -206,6 +211,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
       });
 
       let tool_text : string = ""; // text generated during tool use
+
       [msg, tool_text] = await handleToolUse(msg, messages, lectic)
 
       return new Message({
