@@ -64,8 +64,15 @@ export async function parseLectic(raw: string) : Promise<Lectic | Error> {
 
     if (!isLecticHeader(header)) return Error("YAML Header contains either unrecognized fields or is missing a field")
 
+    // load prompt from file if available
     if (await Bun.file(header.interlocutor.prompt.trim()).exists()) {
         header.interlocutor.prompt = await Bun.file(header.interlocutor.prompt.trim()).text()
+    }
+
+    // load memories from file if available
+    if (header.interlocutor.memories && 
+        await Bun.file(header.interlocutor.memories.trim()).exists()) {
+        header.interlocutor.prompt = await Bun.file(header.interlocutor.memories.trim()).text()
     }
 
     const messages : Message[] = []
@@ -85,5 +92,5 @@ export async function parseLectic(raw: string) : Promise<Lectic | Error> {
         }
     }
 
-    return { header, body : {messages}}
+    return { header, body : { messages }}
 }
