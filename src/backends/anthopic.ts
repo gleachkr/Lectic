@@ -23,17 +23,23 @@ function getText(msg : Anthropic.Messages.Message) : string {
 
 }
 
-class AnthropicFile {
-    file : BunFile
+//TODO: this is pretty generic and could be factored out
+class AnthropicLink {
+    file : BunFile | undefined
+    response : Promise<Response> | undefined
     title : string
 
     constructor(link : MessageLink) {
         try {
             const url = new URL(link.URI)
-            if (url.protocol == "file:") {
-                this.file = Bun.file(Bun.fileURLToPath(link.URI))
-            } else {
-                this.file = Bun.file(link.URI)
+            switch(url.protocol) {
+                case "file:" : {
+                    this.file = Bun.file(Bun.fileURLToPath(link.URI)); break
+                }
+                case "http:" :
+                case "https:" : {
+                    this.response = Bun.fetch(link.URI)
+                }
             }
         } catch {
             this.file = Bun.file(link.URI)
@@ -42,12 +48,37 @@ class AnthropicFile {
     }
 
     async exists() : Promise<boolean> {
-        return this.file.exists()
+        if (this.response) return true
+        if (this.file?.exists()) return true
+        return false
+    }
+
+    async getType() {
+        if (this.file) {
+            return this.file.type.replace(/^text\/.+$/,"text/plain")
+        } else if (this.response) {
+            const headers = (await this.response).headers
+            return headers.get("Content-Type")?.replace(/^text\/.+$/,"text/plain")
+        }
+        return null
+    }
+
+    async getBytes() {
+        if (this.file) {
+            return this.file.bytes()
+        } else if (this.response) {
+            // this is probably unnecessary, but typescript LSP doesn't seem to
+            // recognize Bun's Response.bytes()
+            return (await (await this.response).blob()).bytes()
+            // TODO error handling in case of a failed fetch
+        }
+        return null
     }
 
     async toSource() {
-        const bytes = await this.file.bytes()
-        const media_type = this.file.type.replace(/^text\/.+$/,"text/plain")
+        const media_type = await this.getType()
+        const bytes = await this.getBytes()
+        if (!(media_type && bytes)) return null
         switch(media_type) {
             case "image/gif" : 
             case "image/jpeg": 
@@ -93,7 +124,7 @@ async function handleMessage(msg : Message) : Promise<Anthropic.Messages.Message
             text: msg.content
         }]
         for (const link of links) {
-            const file = new AnthropicFile(link)
+            const file = new AnthropicLink(link)
             const exists = await file.exists()
             if (exists) {
                 const source = await file.toSource()
@@ -118,7 +149,6 @@ ${memories
 }
 
 Use unicode rather than latex for mathematical notation. 
-
 
 Line break at around 78 characters except in cases where this harms readability.`
 }
