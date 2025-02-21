@@ -1,5 +1,4 @@
 import type { Tool } from "../types/tool"
-import { $ } from "bun"
 
 export type ExecToolSpec = {
     exec: string

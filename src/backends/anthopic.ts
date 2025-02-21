@@ -28,7 +28,16 @@ class AnthropicFile {
     title : string
 
     constructor(link : MessageLink) {
-        this.file = Bun.file(link.URI)
+        try {
+            const url = new URL(link.URI)
+            if (url.protocol == "file:") {
+                this.file = Bun.file(Bun.fileURLToPath(link.URI))
+            } else {
+                this.file = Bun.file(link.URI)
+            }
+        } catch {
+            this.file = Bun.file(link.URI)
+        }
         this.title = link.text
     }
 
