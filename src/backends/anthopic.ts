@@ -203,10 +203,11 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
       }
 
       let msg = await (this.client as Anthropic).messages.create({
-        max_tokens: 1024,
         system: systemPrompt(lectic),
         messages: messages,
-        model: 'claude-3-5-sonnet-latest',
+        model: lectic.header.interlocutor.model || 'claude-3-5-sonnet-latest',
+        temperature: lectic.header.interlocutor.temperature,
+        max_tokens: lectic.header.interlocutor.max_tokens || 1024,
         tools: getTools()
       });
 
