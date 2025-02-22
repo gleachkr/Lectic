@@ -1,11 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Message } from "../types/message"
-import type { MessageLink } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
+import { FileLink } from "../types/link.ts"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
-import type { BunFile } from "bun"
 
 function getText(msg : Anthropic.Messages.Message) : string {
     if (msg.content.length == 0) {
@@ -17,100 +16,46 @@ function getText(msg : Anthropic.Messages.Message) : string {
                 rslt += block.text
             }
         }
-
         return rslt
     }
 
 }
 
-//TODO: this is pretty generic and could be factored out
-class AnthropicLink {
-    file : BunFile | undefined
-    response : Promise<Response> | undefined
-    title : string
-
-    constructor(link : MessageLink) {
-        try {
-            const url = new URL(link.URI)
-            switch(url.protocol) {
-                case "file:" : {
-                    this.file = Bun.file(Bun.fileURLToPath(link.URI)); break
-                }
-                case "http:" :
-                case "https:" : {
-                    this.response = Bun.fetch(link.URI)
-                }
+async function linkToContent(link : FileLink) {
+    const media_type = await link.getType()
+    const bytes = await link.getBytes()
+    if (!(media_type && bytes)) return null
+    switch(media_type) {
+        case "image/gif" : 
+        case "image/jpeg": 
+        case "image/webp": 
+        case "image/png": return {
+            type : "image",
+            source : {
+                "type" : "base64",
+                "media_type" : media_type,
+                "data" : Buffer.from(bytes).toString("base64")
             }
-        } catch {
-            this.file = Bun.file(link.URI)
-        }
-        this.title = link.text
-    }
-
-    async exists() : Promise<boolean> {
-        if (this.response) return true
-        if (this.file?.exists()) return true
-        return false
-    }
-
-    async getType() {
-        if (this.file) {
-            return this.file.type.replace(/^text\/.+$/,"text/plain")
-        } else if (this.response) {
-            const headers = (await this.response).headers
-            return headers.get("Content-Type")?.replace(/^text\/.+$/,"text/plain")
-        }
-        return null
-    }
-
-    async getBytes() {
-        if (this.file) {
-            return this.file.bytes()
-        } else if (this.response) {
-            // this is probably unnecessary, but typescript LSP doesn't seem to
-            // recognize Bun's Response.bytes()
-            return (await (await this.response).blob()).bytes()
-            // TODO error handling in case of a failed fetch
-        }
-        return null
-    }
-
-    async toSource() {
-        const media_type = await this.getType()
-        const bytes = await this.getBytes()
-        if (!(media_type && bytes)) return null
-        switch(media_type) {
-            case "image/gif" : 
-            case "image/jpeg": 
-            case "image/webp": 
-            case "image/png": return {
-                type : "image",
-                source : {
-                    "type" : "base64",
-                    "media_type" : media_type,
-                    "data" : Buffer.from(bytes).toString("base64")
-                }
-            } as const
-            case "application/pdf" : return {
-                type : "document", 
-                title : this.title,
-                source : {
-                    "type" : "base64",
-                    "media_type" : "application/pdf",
-                    "data" : Buffer.from(bytes).toString("base64")
-                }
-            } as const
-            default: 
-            case "text/plain" : return {
-                type : "document", 
-                title : this.title,
-                source : {
-                    "type" : "text",
-                    "media_type" : "text/plain",
-                    "data" : Buffer.from(bytes).toString()
-                }
-            } as const
-        }
+        } as const
+        case "application/pdf" : return {
+            type : "document", 
+            title : link.title,
+            source : {
+                "type" : "base64",
+                "media_type" : "application/pdf",
+                "data" : Buffer.from(bytes).toString("base64")
+            }
+        } as const
+        default: 
+        case "text/plain" : return {
+            type : "document", 
+            title : link.title,
+            source : {
+                "type" : "text",
+                "media_type" : "text/plain",
+                "data" : Buffer.from(bytes).toString()
+            }
+        } as const
     }
 }
 
@@ -124,10 +69,10 @@ async function handleMessage(msg : Message) : Promise<Anthropic.Messages.Message
             text: msg.content
         }]
         for (const link of links) {
-            const file = new AnthropicLink(link)
+            const file = new FileLink(link)
             const exists = await file.exists()
             if (exists) {
-                const source = await file.toSource()
+                const source = await linkToContent(file)
                 if (source) content.push(source)
             }
         }
