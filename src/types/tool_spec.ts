@@ -1,13 +1,15 @@
 import type { ExecToolSpec } from "../tools/exec"
 import type { Tool } from "./tool"
 import { isExecToolSpec, ExecTool } from "../tools/exec"
+import type { SQLiteToolSpec } from "../tools/sqlite"
+import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
 
-export type ToolSpec = ExecToolSpec
+export type ToolSpec = ExecToolSpec | SQLiteToolSpec
 
 export const ToolRegistry : {[key : string] : Tool} = {}
 
 export function isToolSpec(spec : unknown) : spec is ToolSpec {
-    return isExecToolSpec(spec)
+    return isExecToolSpec(spec) || isSQLiteToolSpec(spec)
 }
 
 export function initRegistry(specs : ToolSpec[]) : {[key : string] : Tool} {
@@ -17,6 +19,8 @@ export function initRegistry(specs : ToolSpec[]) : {[key : string] : Tool} {
         let tool
         if (isExecToolSpec(spec)) {
             tool = new ExecTool(spec)
+        } else if (isSQLiteToolSpec(spec)) {
+            tool = new SQLiteTool(spec)
         }
         
         // TODO: need to better decide how to handle malformed specs.
