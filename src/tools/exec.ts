@@ -10,8 +10,8 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
     return raw !== null &&
         typeof raw === "object" &&
         "exec" in raw &&
-        ("usage" in raw ? typeof raw.exec === "string" : true) &&
-        ("name" in raw ? typeof raw.exec === "string" : true)
+        ("usage" in raw ? typeof raw.usage=== "string" : true) &&
+        ("name" in raw ? typeof raw.name === "string" : true)
 }
 
 
