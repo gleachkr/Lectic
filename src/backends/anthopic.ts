@@ -72,8 +72,15 @@ async function handleMessage(msg : Message) : Promise<Anthropic.Messages.Message
             const file = new FileLink(link)
             const exists = await file.exists()
             if (exists) {
-                const source = await linkToContent(file)
-                if (source) content.push(source)
+                try {
+                    const source = await linkToContent(file)
+                    if (source) content.push(source)
+                } catch (e) {
+                    content.push({
+                        type: "text",
+                        text: `<error>Something went wrong while retriveving ${file.title} from ${link}:${(e as Error).message}</error>`
+                    })
+                }
             }
         }
         return { role : msg.role, content }
