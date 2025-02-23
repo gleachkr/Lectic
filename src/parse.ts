@@ -2,6 +2,7 @@ import {  isLecticHeader } from "./types/lectic"
 import { Message } from "./types/message"
 import type { Lectic } from "./types/lectic"
 import * as YAML from "yaml"
+import { isExecToolSpec } from "./tools/exec"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n---/m
@@ -64,6 +65,8 @@ export async function parseLectic(raw: string) : Promise<Lectic | Error> {
 
     if (!isLecticHeader(header)) return Error("YAML Header contains either unrecognized fields or is missing a field")
 
+    // TODO DRY the "load from file" pattern
+
     // load prompt from file if available
     if (await Bun.file(header.interlocutor.prompt.trim()).exists()) {
         header.interlocutor.prompt = await Bun.file(header.interlocutor.prompt.trim()).text()
@@ -73,6 +76,16 @@ export async function parseLectic(raw: string) : Promise<Lectic | Error> {
     if (header.interlocutor.memories && 
         await Bun.file(header.interlocutor.memories.trim()).exists()) {
         header.interlocutor.prompt = await Bun.file(header.interlocutor.memories.trim()).text()
+    }
+
+    // load usage from file if available
+    if (header.interlocutor.tools) {
+        for (const tool of header.interlocutor.tools) {
+            if (isExecToolSpec(tool) && tool.usage &&
+                await Bun.file(tool.usage.trim()).exists()) {
+                tool.usage = await Bun.file(tool.usage.trim()).text()
+            }
+        }
     }
 
     const messages : Message[] = []
