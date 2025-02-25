@@ -48,49 +48,153 @@ Most text editors support filtering through external commands. Consider:
 
 ## Features
 
-### Markdown-Based Conversations
-- Each conversation is stored in a single, human-readable markdown file
-- Uses standard pandoc-style fenced divs for message formatting
-- Easy to version control, search, and edit with standard text tools
+### Markdown Format
+Lectic uses pandoc-compatible markdown, with LLM responses formatted as fenced
+divs:
 
-### Flexible Configuration
-Each conversation file includes a YAML header that configures:
+```markdown
+Your question or prompt here
+
+::: Assistant
+The LLM's response appears here, wrapped in fenced div markers.
+Multiple paragraphs are preserved.
+
+Code blocks and other markdown features work normally:
+```python
+print("Hello, world!")
+```
+:::
+
+Your next prompt...
+```
+
+### Content References
+Include local or remote content in conversations:
+
+```markdown
+[Local Document](./notes.pdf)
+[Remote Paper](https://arxiv.org/pdf/2201.12345.pdf)
+[Web Image](https://example.com/diagram.png)
+[Local Data](./results.csv)
+```
+
+Supported content types:
+- Text files (automatically included as plain text)
+- Images (PNG, JPEG, GIF, WebP)
+- PDFs (included with title for reference)
+- Remote content via HTTP/HTTPS
+- Large files or failed remote fetches will produce error messages in context
+
+### Configuration Reference
+
 ```yaml
 interlocutor:
+    # Required fields
     name: Assistant              # Name shown in responses
     prompt: Base prompt          # Core personality/instruction
+                                # Can be string or file path
+
+    # Optional model configuration
     model: claude-3-5-sonnet    # Model selection
-    temperature: 0.7            # Response variability
+    temperature: 0.7            # Response variability (0-1)
     max_tokens: 1024            # Maximum response length
-    memories: previous.txt      # Context from other conversations
-```
 
-### Tool Integration
-Enrich conversations with external tools:
-```yaml
-interlocutor:
-    name: Assistant
-    prompt: Your prompt
+    # Context management
+    memories: previous.txt      # Additional context
+                               # Can be string or file path
+    
+    # Tool integration
     tools:
-        - exec: calculator       # Run command-line tools
-          usage: calc_help.txt   # Optional usage documentation
-        
-        - sqlite: database.db    # Query SQLite databases
-          limit: 10000          # Maximum result size
+        # Command execution tool
+        - exec: python3         # Command to execute
+          name: python          # Optional custom name
+          usage: "Usage: ..."   # String or file path for usage guide
+
+        # Database tool
+        - sqlite: data.db       # Database file
+          name: query          # Optional custom name
+          limit: 10000         # Max result size
+          details: schema.txt  # Optional DB documentation
 ```
 
-### Content Handling
-Include and reference various content types:
+### Example Conversation
+
 ```markdown
-[Document Title](path/to/file.pdf)
-[Image Description](path/to/image.png)
-```
+---
+interlocutor:
+    name: Mathematician
+    prompt: >
+      You are a mathematics tutor, focusing on clear explanations
+      and step-by-step problem solving.
+    tools:
+        - exec: python3
+---
 
-Supports:
-- Text documents
-- Images (PNG, JPEG, GIF, WebP)
-- PDFs
-- Automatic content type detection
+Can you help me understand the Fibonacci sequence? Maybe we could
+calculate some terms?
+
+::: Mathematician
+The Fibonacci sequence is a series of numbers where each number is the sum
+of the two preceding ones. Usually, the sequence starts with 0 and 1.
+
+Let's calculate the first 10 terms. I'll use Python to help us:
+
+    def fib(n):
+        a, b = 0, 1
+        for _ in range(n):
+            print(a, end=' ')
+            a, b = b, a + b
+
+    fib(10)
+
+Here are the first 10 terms:
+0 1 1 2 3 5 8 13 21 34
+
+Each number is the sum of the two before it. For example:
+- 1 + 1 = 2
+- 1 + 2 = 3
+- 2 + 3 = 5
+And so on...
+:::
+
+That's interesting! What's the ratio between consecutive terms?
+
+::: Mathematician
+The ratio between consecutive Fibonacci numbers approaches the golden ratio
+(φ ≈ 1.618033988749895). Let's calculate these ratios:
+
+    def fib_ratios(n):
+        a, b = 0, 1
+        fibs = []
+        for _ in range(n):
+            fibs.append(a)
+            a, b = b, a + b
+        
+        print("Term Ratio")
+        print("-----------")
+        for i in range(1, len(fibs)):
+            if fibs[i-1] != 0:
+                ratio = fibs[i] / fibs[i-1]
+                print(f"{i:4d} {ratio:.6f}")
+
+    fib_ratios(10)
+
+Here we can see how the ratios converge to φ:
+Term Ratio
+-----------
+   2 1.000000
+   3 2.000000
+   4 1.500000
+   5 1.666667
+   6 1.600000
+   7 1.625000
+   8 1.615385
+   9 1.619048
+
+Notice how each ratio gets closer to the golden ratio!
+:::
+
+```
 
 ## Command Line Interface
 ```bash
