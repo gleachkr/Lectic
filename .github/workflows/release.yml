@@ -1,0 +1,27 @@
+name: Build and Release with Nix
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-unstable
+
+      - name: Build application
+        run: nix bundle . -o lectic
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: lectic
