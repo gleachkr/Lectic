@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
 
       - name: Checkout
@@ -23,7 +25,5 @@ jobs:
 
       - name: Release
         uses: softprops/action-gh-release@v2
-        permissions:
-          contents: write
         with:
           files: lectic
