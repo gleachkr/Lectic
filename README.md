@@ -52,7 +52,7 @@ Most text editors support filtering through external commands. Consider:
 Lectic uses pandoc-compatible markdown, with LLM responses formatted as fenced
 divs:
 
-```markdown
+````markdown
 Your question or prompt here
 
 ::: Assistant
@@ -60,13 +60,15 @@ The LLM's response appears here, wrapped in fenced div markers.
 Multiple paragraphs are preserved.
 
 Code blocks and other markdown features work normally:
+
 ```python
 print("Hello, world!")
 ```
+
 :::
 
 Your next prompt...
-```
+````
 
 ### Content References
 Include local or remote content in conversations:
@@ -84,6 +86,30 @@ Supported content types:
 - PDFs (included with title for reference)
 - Remote content via HTTP/HTTPS
 - Large files or failed remote fetches will produce error messages in context
+
+### Command Output References
+Include the output of shell commands directly in your conversations using the `$` prefix in file links:
+
+```markdown
+[System Info]($uname -a)
+[Directory Listing]($ls)
+[Git Status]($git status)
+[Complex Pipeline]($ps aux | grep python)
+```
+
+When Lectic encounters a link with a `$` prefix, it:
+1. Executes the specified command (using the [bun
+   shell](https://bun.sh/docs/runtime/shell).
+2. Captures the output
+3. Includes the output as if it were a text file
+
+This is particularly useful for:
+- Including system information in debugging conversations
+- Showing the current state of a project or environment
+- Incorporating dynamic data into your conversations
+- Running analysis tools and discussing their output
+
+Pairs nicely with [files-to-prompt](https://github.com/simonw/files-to-prompt)
 
 ### Configuration Reference
 
@@ -119,7 +145,7 @@ interlocutor:
 
 ### Example Conversation
 
-```markdown
+````markdown
 ---
 interlocutor:
     name: Mathematician
@@ -140,13 +166,15 @@ of the two preceding ones. Usually, the sequence starts with 0 and 1.
 
 Let's calculate the first 10 terms. I'll use Python to help us:
 
-    def fib(n):
-        a, b = 0, 1
-        for _ in range(n):
-            print(a, end=' ')
-            a, b = b, a + b
+```python
+def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        print(a, end=' ')
+        a, b = b, a + b
 
-    fib(10)
+fib(10)
+```
 
 Here are the first 10 terms:
 0 1 1 2 3 5 8 13 21 34
@@ -164,6 +192,7 @@ That's interesting! What's the ratio between consecutive terms?
 The ratio between consecutive Fibonacci numbers approaches the golden ratio
 (φ ≈ 1.618033988749895). Let's calculate these ratios:
 
+```python
     def fib_ratios(n):
         a, b = 0, 1
         fibs = []
@@ -179,6 +208,7 @@ The ratio between consecutive Fibonacci numbers approaches the golden ratio
                 print(f"{i:4d} {ratio:.6f}")
 
     fib_ratios(10)
+```
 
 Here we can see how the ratios converge to φ:
 Term Ratio
@@ -195,7 +225,7 @@ Term Ratio
 Notice how each ratio gets closer to the golden ratio!
 :::
 
-```
+````
 
 ## Command Line Interface
 ```bash

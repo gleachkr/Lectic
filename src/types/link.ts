@@ -1,10 +1,11 @@
 import type { MessageLink } from "../types/message"
 import type { BunFile } from "bun"
+import { $ } from "bun"
 
-//TODO: this is pretty generic and could be factored out
 export class FileLink {
     file : BunFile | undefined
     response : Promise<Response> | undefined
+    result : Promise<String> | undefined
     title : string
 
     constructor(link : MessageLink) {
@@ -20,7 +21,11 @@ export class FileLink {
                 }
             }
         } catch {
-            this.file = Bun.file(link.URI)
+            if (link.URI[0] == "$") {
+                this.result = $`${link.URI.substring(1).trim()}`.text()
+            } else {
+                this.file = Bun.file(link.URI)
+            }
         }
         this.title = link.text
     }
@@ -37,6 +42,8 @@ export class FileLink {
         } else if (this.response) {
             const headers = (await this.response).headers
             return headers.get("Content-Type")?.replace(/^text\/.+$/,"text/plain")
+        } else if (this.result) {
+            return "text/plain"
         }
         return null
     }
@@ -49,6 +56,8 @@ export class FileLink {
             // recognize Bun's Response.bytes()
             return (await (await this.response).blob()).bytes()
             // TODO error handling in case of a failed fetch
+        } else if (this.result) {
+            return this.result.then(rslt => Buffer.from(rslt))
         }
         return null
     }
