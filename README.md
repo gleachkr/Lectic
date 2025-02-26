@@ -128,6 +128,7 @@ interlocutor:
       and step-by-step problem solving.
     tools:
         - exec: python3
+        - usage: Before running any code, show the code snippet to the user.
 ---
 
 Can you help me understand the Fibonacci sequence? Maybe we could

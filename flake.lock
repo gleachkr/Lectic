@@ -17,7 +17,24 @@
     "root": {
       "inputs": {
         "nixpkgs": "nixpkgs",
+        "sqlite-vec-repo": "sqlite-vec-repo",
         "utils": "utils"
+      }
+    },
+    "sqlite-vec-repo": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1737754218,
+        "narHash": "sha256-X2HaEgqOUqk+/BikgIvk0UOdaH+qvkHo4QeuXRz6FpM=",
+        "owner": "asg017",
+        "repo": "sqlite-vec",
+        "rev": "a2dd24f27ec7e4a5743e58f5ab6835deea5db58d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "asg017",
+        "repo": "sqlite-vec",
+        "type": "github"
       }
     },
     "systems": {
