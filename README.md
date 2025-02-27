@@ -9,6 +9,7 @@ for research, learning, and knowledge management.
 ## Getting Started
 
 ### Basic Workflow
+
 1. Create a new conversation file with a YAML header:
    ```yaml
    ---
@@ -30,6 +31,7 @@ for research, learning, and knowledge management.
 ### Editor Integration
 
 #### Vim
+
 A Vim plugin is provided in `extra/lectic.vim` that offers:
 - The `:Lectic` command to update conversations
 - Automatic highlighting of LLM responses
@@ -41,6 +43,7 @@ source path/to/lectic/extra/lectic.vim
 ```
 
 #### Other Editors
+
 Most text editors support filtering through external commands. Consider:
 - Setting up key bindings for frequent operations
 - Using markdown preview features
@@ -49,6 +52,7 @@ Most text editors support filtering through external commands. Consider:
 ## Features
 
 ### Markdown Format
+
 Lectic uses pandoc-compatible markdown, with LLM responses formatted as fenced
 divs:
 
@@ -71,6 +75,7 @@ Your next prompt...
 ````
 
 ### Content References
+
 Include local or remote content in conversations:
 
 ```markdown
@@ -88,6 +93,7 @@ Supported content types:
 - Large files or failed remote fetches will produce error messages in context
 
 ### Command Output References
+
 Include the output of shell commands directly in your conversations using the `$` prefix in file links:
 
 ```markdown
@@ -110,6 +116,80 @@ This is particularly useful for:
 - Running analysis tools and discussing their output
 
 Pairs nicely with [files-to-prompt](https://github.com/simonw/files-to-prompt)
+
+### Tools
+
+#### Command Execution Tool
+
+The exec tool allows the LLM to execute commands directly. For security, you can
+configure which commands are available and optionally run them in a sandbox.
+
+```yaml
+tools:
+    - exec: python3             # Allow LLM to run Python
+      name: python              # Optional custom name
+      usage: "Usage guide..."   # Instructions for the LLM
+      sandbox: ./sandbox.sh     # Optional sandboxing script
+
+    - exec: git status         # Another allowed command
+      name: git-status         # Custom name for this specific command
+```
+
+When configured with a sandbox script, the command and its arguments are passed to
+the sandbox script which is responsible for executing them in a controlled
+environment. For example, the provided `extra/bwrap-sandbox.sh` uses bubblewrap
+to create a basic sandbox with a temporary home directory.
+
+Example conversation using the exec tool:
+
+```markdown
+Could you check if this code works?
+
+::: Assistant
+I'll test it using Python:
+
+{python}
+print("Hello, world!")
+{/python}
+
+The code executed successfully and output: Hello, world!
+:::
+```
+
+#### SQLite Query Tool
+
+The sqlite tool gives the LLM the ability to query SQLite databases. You can
+configure limits and provide schema documentation. The schema is automatically
+supplied to the LLM.
+
+```yaml
+tools:
+    - sqlite: ./data.db         # Path to SQLite database
+      name: query               # Optional custom name
+      limit: 10000              # Maximum rows returned
+      details: this contains... # extra details about the DB
+```
+
+Example conversation using the sqlite tool:
+
+```markdown
+What are the top 5 orders by value?
+
+::: Assistant
+I'll query the orders table:
+
+{query}
+SELECT 
+    order_id,
+    total_value
+FROM orders
+ORDER BY total_value DESC
+LIMIT 5;
+{/query}
+
+Here are the results showing the largest orders...
+:::
+```
 
 ### Configuration Reference
 

@@ -4,6 +4,7 @@ export type ExecToolSpec = {
     exec: string
     usage?: string
     name?: string
+    sandbox?: string
 }
 
 export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
@@ -19,12 +20,14 @@ export class ExecTool implements Tool {
 
     name: string
     exec: string
+    sandbox: string | undefined
     description: string
     static count : number = 0
 
     constructor(spec: ExecToolSpec) {
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
+        this.sandbox = spec.sandbox
         this.description = 
             `This tool executes \`${this.exec}\` directly, with the array of arguments (including command line flags) that you supply.` +
             `So for example if you supply \`$arguments\`, what is run is literally \`bash -c "${this.exec} $arguments"\`.` +
@@ -47,7 +50,12 @@ export class ExecTool implements Tool {
 
     async call(args : { arguments : string[] }) : Promise<string> {
         // need better error handling here
-        const proc = Bun.spawnSync([this.exec].concat(args.arguments))
+
+        const spawned = this.sandbox 
+            ? [this.sandbox, this.exec].concat(args.arguments)
+            : [this.exec].concat(args.arguments)
+
+        const proc = Bun.spawnSync(spawned)
         if (proc.exitCode !== 0) {
             throw Error(proc.stderr.toString())
         } else {
