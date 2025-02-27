@@ -105,7 +105,7 @@ Include the output of shell commands directly in your conversations using the `$
 
 When Lectic encounters a link with a `$` prefix, it:
 1. Executes the specified command (using the [bun
-   shell](https://bun.sh/docs/runtime/shell).
+   shell](https://bun.sh/docs/runtime/shell)).
 2. Captures the output
 3. Includes the output as if it were a text file
 
@@ -166,8 +166,8 @@ supplied to the LLM.
 tools:
     - sqlite: ./data.db         # Path to SQLite database
       name: query               # Optional custom name
-      limit: 10000              # Maximum rows returned
-      details: this contains... # extra details about the DB
+      limit: 10000              # Maximum size of serialized response
+      details: this contains... # Extra details about the DB
 ```
 
 Example conversation using the sqlite tool:
@@ -198,7 +198,7 @@ interlocutor:
     # Required fields
     name: Assistant              # Name shown in responses
     prompt: Base prompt          # Core personality/instruction
-                                # Can be string or file path
+                                 # Can be string or file path
 
     # Optional model configuration
     model: claude-3-5-sonnet    # Model selection
@@ -207,7 +207,7 @@ interlocutor:
 
     # Context management
     memories: previous.txt      # Additional context
-                               # Can be string or file path
+                                # Can be string or file path
     
     # Tool integration
     tools:
@@ -218,9 +218,9 @@ interlocutor:
 
         # Database tool
         - sqlite: data.db       # Database file
-          name: query          # Optional custom name
-          limit: 10000         # Max result size
-          details: schema.txt  # Optional DB documentation
+          name: query           # Optional custom name
+          limit: 10000          # Max result size
+          details: schema.txt   # Optional DB documentation
 ```
 
 ### Example Conversation
