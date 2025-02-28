@@ -22,8 +22,24 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixpkgs-unstable
 
+      - name: Detect architecture
+        run: |
+          ARCH=$(uname -m)
+          case "$ARCH" in
+            x86_64) ARCH="x86_64" ;;
+            i686) ARCH="i386" ;;
+            aarch64) ARCH="aarch64" ;;
+            armv7l) ARCH="armv7l" ;;
+            armhf) ARCH="armhf" ;;
+            *) echo "Unknown architecture: $ARCH"; exit 1 ;;
+          esac
+          echo "ARCH=$ARCH" >> $GITHUB_ENV
+
+      - name: Get tag name
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
       - name: Build application
-        run: nix bundle . -o lectic
+        run: nix build .#lectic-appimage -o "lectic-$TAG_NAME-$ARCH.appImage"
 
       - name: Release
         uses: softprops/action-gh-release@v2

@@ -1,12 +1,13 @@
 {
   inputs = {
     utils.url = "github:numtide/flake-utils";
+    nix-appimage.url = "github:ralismark/nix-appimage";
     sqlite-vec-repo = {
       url = "github:asg017/sqlite-vec";
       flake = false;
     };
   };
-  outputs = { self, nixpkgs, utils, sqlite-vec-repo }: utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, utils, sqlite-vec-repo, nix-appimage }: utils.lib.eachDefaultSystem (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
       sqlite-vec = with pkgs; stdenv.mkDerivation (finalAttrs: {
@@ -41,12 +42,7 @@
           homepage = "https://github.com/asg017/sqlite-vec";
         };
       });
-    in
-    {
-
-      packages.sqlite-vec = sqlite-vec;
-
-      packages.default = with pkgs; stdenv.mkDerivation {
+      lectic = with pkgs; stdenv.mkDerivation {
         pname = "lectic";
         version = "0.0.0";
         src = ./.;
@@ -79,6 +75,16 @@
           inherit nodejs;
         };
       };
+    in
+    {
+
+      packages.sqlite-vec = sqlite-vec;
+
+      packages.default = lectic;
+
+      packages.lectic = lectic;
+
+      packages.lectic-appimage = nix-appimage.bundlers.${system}.default lectic;
 
       apps.default = {
         type = "app";
