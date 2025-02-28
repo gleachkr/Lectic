@@ -11,15 +11,19 @@ for research, learning, and knowledge management.
 ### Basic Workflow
 
 1. Create a new conversation file with a YAML header:
+
    ```yaml
    ---
    interlocutor:
        name: Assistant
+       provider: anthropic|openai
        prompt: Your base prompt here
    ---
 
    Your initial message here
-   ```
+   ``` 
+
+   You'll need `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`
 
 2. Use your text editor to interact with the LLM:
    - In Vim: Use `%!lectic` to update the conversation
@@ -38,6 +42,7 @@ A Vim plugin is provided in `extra/lectic.vim` that offers:
 - Cursor placement at the end of the conversation after updates
 
 Install by adding to your `.vimrc`:
+
 ```vim
 source path/to/lectic/extra/lectic.vim
 ```
@@ -201,7 +206,8 @@ interlocutor:
                                  # Can be string or file path
 
     # Optional model configuration
-    model: claude-3-5-sonnet    # Model selection
+    provider: anthropic         # Optional, default anthropic
+    model: claude-3-7-sonnet    # Model selection
     temperature: 0.7            # Response variability (0-1)
     max_tokens: 1024            # Maximum response length
 
@@ -324,10 +330,8 @@ cat convo.md | lectic -     # Read from stdin
 
 ## Current Limitations
 
-- Currently supports only Anthropic's Claude models
 - One LLM participant per conversation (multi-LLM support planned)
 - No built-in conversation linking (use standard markdown links)
-- Requires ANTHROPIC_API_KEY environment variable
 
 ## Contributing
 
