@@ -125,7 +125,7 @@ async function handleToolUse(
             if (block.type == "tool_use") {
                 if (block.name in ToolRegistry) {
                     // TODO error handling
-                    ToolRegistry[block.name].call(block.input)
+                    await ToolRegistry[block.name].call(block.input)
                         .then(rslt => tool_results.push({
                                 type : "tool_result",
                                 tool_use_id : block.id,

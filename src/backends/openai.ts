@@ -45,15 +45,14 @@ async function handleToolUse(
 
         messages.push({
             role: "assistant",
-            content: message.choices[0].message.content
+            tool_calls: message.choices[0].message.tool_calls
         })
-
 
         for (const call of message.choices[0].message.tool_calls) {
             if (call.function.name in ToolRegistry) {
                  // TODO error handling
                 const inputs = JSON.parse(call.function.arguments)
-                ToolRegistry[call.function.name].call(inputs)
+                await ToolRegistry[call.function.name].call(inputs)
                     .then(rslt => messages.push({
                             role: "tool",
                             tool_call_id : call.id,

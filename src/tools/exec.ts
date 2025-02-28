@@ -48,6 +48,8 @@ export class ExecTool implements Tool {
         }
     } as const
 
+    required = ["arguments"]
+
     async call(args : { arguments : string[] }) : Promise<string> {
         // need better error handling here
 

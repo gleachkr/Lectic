@@ -53,6 +53,8 @@ export class SQLiteTool implements Tool {
         }
     } as const
 
+    required = ["query"]
+
     async call(args : { query : string }) : Promise<string> {
         // need better error handling here
         const rslt = JSON.stringify(this.db.query(args.query).all())
