@@ -1,4 +1,4 @@
-import {  isLecticHeader } from "./types/lectic"
+import { isLecticHeader } from "./types/lectic"
 import { Message } from "./types/message"
 import type { Lectic } from "./types/lectic"
 import * as YAML from "yaml"

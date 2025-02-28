@@ -5,6 +5,7 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { FileLink } from "../types/link.ts"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
+import { systemPrompt } from "./util"
 
 function getText(msg : Anthropic.Messages.Message) : string {
     if (msg.content.length == 0) {
@@ -18,7 +19,6 @@ function getText(msg : Anthropic.Messages.Message) : string {
         }
         return rslt
     }
-
 }
 
 async function linkToContent(link : FileLink) {
@@ -78,7 +78,7 @@ async function handleMessage(msg : Message) : Promise<Anthropic.Messages.Message
                 } catch (e) {
                     content.push({
                         type: "text",
-                        text: `<error>Something went wrong while retriveving ${file.title} from ${link}:${(e as Error).message}</error>`
+                        text: `<error>Something went wrong while retrieving ${file.title} from ${link}:${(e as Error).message}</error>`
                     })
                 }
             }
@@ -87,23 +87,6 @@ async function handleMessage(msg : Message) : Promise<Anthropic.Messages.Message
     }
 }
 
-const systemPrompt = (lectic : Lectic) => {
-
-const memories = lectic.header.interlocutor.memories
-
-return `Your name is ${lectic.header.interlocutor.name}
-
-${lectic.header.interlocutor.prompt}
-
-${memories 
-    ? `You have memories from previous conversations: <memories>${memories}</memories>`
-    : ""
-}
-
-Use unicode rather than latex for mathematical notation. 
-
-Line break at around 78 characters except in cases where this harms readability.`
-}
 
 function getTools() : Anthropic.Messages.Tool[] {
     const tools : Anthropic.Messages.Tool[] = []
@@ -123,11 +106,8 @@ function getTools() : Anthropic.Messages.Tool[] {
 async function handleToolUse(
     message: Anthropic.Messages.Message, 
     messages : Anthropic.Messages.MessageParam[], 
-    lectic : Lectic) : Promise<[Anthropic.Messages.Message, string]> {
-
-    const client = new Anthropic({
-        apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
-    })
+    lectic : Lectic,
+    client : Anthropic) : Promise<Message> {
 
     let text_results = ""
 
@@ -171,12 +151,16 @@ async function handleToolUse(
             max_tokens: 1024,
             system: systemPrompt(lectic),
             messages: messages,
-            model: 'claude-3-5-sonnet-latest',
+            model: lectic.header.interlocutor.model ?? 
+                'claude-3-7-sonnet-latest',
             tools: getTools()
         });
     }
 
-    return [message, text_results]
+    return new Message({
+        role: "assistant", 
+        content: text_results + getText(message)
+    })
 }
 
 export const AnthropicBackend : Backend & { client : Anthropic } = {
@@ -193,28 +177,22 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
           messages.push(await handleMessage(msg))
       }
 
-      let msg = await (this.client as Anthropic).messages.create({
+      let msg = await this.client.messages.create({
         system: systemPrompt(lectic),
         messages: messages,
-        model: lectic.header.interlocutor.model || 'claude-3-5-sonnet-latest',
+        model: lectic.header.interlocutor.model ?? 'claude-3-7-sonnet-latest',
         temperature: lectic.header.interlocutor.temperature,
         max_tokens: lectic.header.interlocutor.max_tokens || 1024,
         tools: getTools()
       });
 
-      let tool_text : string = ""; // text generated during tool use
-
-      [msg, tool_text] = await handleToolUse(msg, messages, lectic)
-
-      return new Message({
-          role: "assistant", 
-          content: tool_text + getText(msg)
-      })
+      return handleToolUse(msg, messages, lectic, this.client)
     },
-
-    provider : LLMProvider.Anthropic,
 
     client : new Anthropic({
         apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
     }),
+
+    provider : LLMProvider.Anthropic,
+
 }

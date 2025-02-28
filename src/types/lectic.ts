@@ -31,7 +31,6 @@ export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
             && raw.temperature >= 0 && raw.temperature <= 1 : true)
 }
 
-
 export type LecticHeader = {
     interlocutor : Interlocutor
 }

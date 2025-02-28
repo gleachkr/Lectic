@@ -1,6 +1,23 @@
 import { parseLectic } from "./parse"
 import { program } from 'commander'
 import { AnthropicBackend } from "./backends/anthopic"
+import { OpenAIBackend } from "./backends/openai"
+import { LLMProvider } from "./types/provider"
+import type { Lectic } from "./types/lectic"
+
+async function get_message(lectic : Lectic) {
+  switch (lectic.header.interlocutor.provider) {
+      case LLMProvider.OpenAI: {
+          return OpenAIBackend.nextMessage(lectic)
+      }
+      case LLMProvider.Anthropic: {
+          return AnthropicBackend.nextMessage(lectic)
+      }
+      default : {
+          return AnthropicBackend.nextMessage(lectic)
+      }
+  }
+}
 
 async function main() {
 
@@ -15,8 +32,7 @@ async function main() {
       process.exit(1)
   }
 
-  const message = await AnthropicBackend.nextMessage(lectic)
-
+  const message = await get_message(lectic)
 
   if (!program.opts()["short"]) {
       console.log(lecticString.trim());
