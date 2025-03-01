@@ -13,7 +13,11 @@ ${memories
     : ""
 }
 
-Use unicode rather than latex for mathematical notation. 
+1. Use Unicode rather than LaTeX for mathematical notation.
 
-Line break at around 78 characters except in cases where this harms readability.`
+2. IMPORTANT: Always break paragraph lines at approximately 78 characters. This is crucial for readability and proper formatting. For example:
+
+   This is an example of how your response should be formatted. Notice how the
+   lines break at around 78 characters, ensuring a consistent and readable
+   layout. This formatting must be applied to all of your responses.`
 }
