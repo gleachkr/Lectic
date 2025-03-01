@@ -29,8 +29,8 @@ export class ExecTool implements Tool {
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.sandbox = spec.sandbox
         this.description = 
-            `This tool executes \`${this.exec}\` directly, with the array of arguments (including command line flags) that you supply.` +
-            `So for example if you supply \`$arguments\`, what is run is literally \`bash -c "${this.exec} $arguments"\`.` +
+            `This tool executes the command \`${this.exec}\` directly, applied to the array of arguments (including command line flags)`
+            + `that you supply. So for example if you supply \`$arguments\`, what is run is literally \`"${this.exec} $arguments"\`.` +
             `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features.` +
             `The stdout resulting from the command will be returned to you as the tool call result.` +
             `The user cannot see the tool call result. You must explicitly report any requested information to the user.` +

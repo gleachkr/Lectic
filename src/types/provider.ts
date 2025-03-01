@@ -3,9 +3,11 @@
 export enum LLMProvider {
     Anthropic = "anthropic",
     OpenAI = "openai",
+    Ollama = "ollama",
 }
 
 export function isLLMProvider(raw : unknown) : raw is LLMProvider {
     return raw == LLMProvider.Anthropic ||
-        raw == LLMProvider.OpenAI
+        raw == LLMProvider.OpenAI ||
+        raw == LLMProvider.Ollama
 }

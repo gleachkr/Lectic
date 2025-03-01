@@ -16,14 +16,15 @@ for research, learning, and knowledge management.
    ---
    interlocutor:
        name: Assistant
-       provider: anthropic|openai
+       provider: anthropic|openai|ollama
        prompt: Your base prompt here
    ---
 
    Your initial message here
    ``` 
 
-   You'll need `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`
+   To use the anthropic or openai providers, you'll need `ANTHROPIC_API_KEY` or
+   `OPENAI_API_KEY` set in your environment.
 
 2. Use your text editor to interact with the LLM:
    - In Vim: Use `%!lectic` to update the conversation
@@ -93,7 +94,7 @@ Include local or remote content in conversations:
 Supported content types:
 - Text files (automatically included as plain text)
 - Images (PNG, JPEG, GIF, WebP)
-- PDFs (included with title for reference)
+- PDFs (anthropic provider only right now)
 - Remote content via HTTP/HTTPS
 - Large files or failed remote fetches will produce error messages in context
 

@@ -2,6 +2,7 @@ import { parseLectic } from "./parse"
 import { program } from 'commander'
 import { AnthropicBackend } from "./backends/anthopic"
 import { OpenAIBackend } from "./backends/openai"
+import { OllamaBackend } from "./backends/ollama"
 import { LLMProvider } from "./types/provider"
 import type { Lectic } from "./types/lectic"
 
@@ -9,6 +10,9 @@ async function get_message(lectic : Lectic) {
   switch (lectic.header.interlocutor.provider) {
       case LLMProvider.OpenAI: {
           return OpenAIBackend.nextMessage(lectic)
+      }
+      case LLMProvider.Ollama: {
+          return OllamaBackend.nextMessage(lectic)
       }
       case LLMProvider.Anthropic: {
           return AnthropicBackend.nextMessage(lectic)
