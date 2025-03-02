@@ -37,8 +37,6 @@ async function handleToolUse(
     lectic : Lectic,
     ) : Promise<Message> {
 
-    let text_results = ""
-
     for (let max_recur = 10; max_recur >= 0; max_recur--) {
         if (!response.message.tool_calls) break
 
@@ -64,8 +62,6 @@ async function handleToolUse(
             }
         }
 
-        text_results += `${getText(response)}\n\n`
-
         response = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model ?? 'llama-3.2',
@@ -73,11 +69,9 @@ async function handleToolUse(
         });
     }
 
-    console.log(JSON.stringify(messages))
-
     return new Message({
         role: "assistant", 
-        content: text_results + getText(response)
+        content: getText(response)
     })
 }
 

@@ -38,8 +38,6 @@ async function handleToolUse(
     lectic : Lectic,
     client : OpenAI) : Promise<Message> {
 
-    let text_results = ""
-
     for (let max_recur = 10; max_recur >= 0; max_recur--) {
         if (!message.choices[0].message.tool_calls) break
 
@@ -65,8 +63,6 @@ async function handleToolUse(
             }
         }
 
-        text_results += `${getText(message)}\n\n`
-
         message = await (client as OpenAI).chat.completions.create({
             max_tokens: 1024,
             messages: messages.concat([developerMessage(lectic)]),
@@ -77,7 +73,7 @@ async function handleToolUse(
 
     return new Message({
         role: "assistant", 
-        content: text_results + getText(message)
+        content: getText(message)
     })
 }
 

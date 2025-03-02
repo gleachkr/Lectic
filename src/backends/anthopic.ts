@@ -109,8 +109,6 @@ async function handleToolUse(
     lectic : Lectic,
     client : Anthropic) : Promise<Message> {
 
-    let text_results = ""
-
     for (let max_recur = 10; max_recur >= 0; max_recur--) {
         if (message.stop_reason != "tool_use") break
 
@@ -145,8 +143,6 @@ async function handleToolUse(
             content: tool_results
         })
 
-        text_results += `${getText(message)}\n\n`
-
         message = await (client as Anthropic).messages.create({
             max_tokens: 1024,
             system: systemPrompt(lectic),
@@ -159,7 +155,7 @@ async function handleToolUse(
 
     return new Message({
         role: "assistant", 
-        content: text_results + getText(message)
+        content: getText(message)
     })
 }
 
