@@ -13,11 +13,16 @@ ${memories
     : ""
 }
 
-1. Use Unicode rather than LaTeX for mathematical notation.
+1. **IMPORTANT: You must write text so that each line is no longer than 78 characters.**
 
-2. IMPORTANT: Always break paragraph lines at approximately 78 characters. This is crucial for readability and proper formatting. For example:
+2. If a sentence or phrase exceeds the 78 character limit, wrap it to the next line. 
 
-   This is an example of how your response should be formatted. Notice how the
-   lines break at around 78 characters, ensuring a consistent and readable
-   layout. This formatting must be applied to all of your responses.`
+   For example:
+
+       This is an example of how your response should be formatted. Notice how the
+       lines break at around 78 characters, ensuring a consistent and readable
+       layout. This formatting must be applied to all of your responses.
+
+3. Use Unicode rather than LaTeX for mathematical notation.`
+
 }
