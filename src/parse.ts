@@ -105,5 +105,9 @@ export async function parseLectic(raw: string) : Promise<Lectic | Error> {
         }
     }
 
+    if (messages[messages.length - 1]?.role == "user" && header.interlocutor.reminder) {
+        messages[messages.length - 1].content += `\n\n${header.interlocutor.reminder}`
+    }
+
     return { header, body : { messages }}
 }

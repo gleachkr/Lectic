@@ -13,6 +13,7 @@ export type Interlocutor = {
     memories? : string
     temperature? : number
     max_tokens? : number
+    reminder? : string
 }
 
 export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
@@ -25,6 +26,7 @@ export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
         (("model" in raw) ? typeof raw.model === "string" : true) &&
         (("memories" in raw) ? typeof raw.memories === "string" : true) &&
         (("provider" in raw) ? isLLMProvider(raw.provider) : true) &&
+        (("reminder" in raw) ? typeof raw.reminder === "string" : true) &&
         (("tools" in raw) ? typeof raw.tools === "object" 
             && raw.tools instanceof Array && raw.tools.every(isToolSpec) : true) &&
         (("temperature" in raw) ? typeof raw.temperature === "number" 

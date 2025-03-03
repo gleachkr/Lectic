@@ -213,8 +213,10 @@ interlocutor:
     max_tokens: 1024            # Maximum response length
 
     # Context management
-    memories: previous.txt      # Additional context
+    memories: previous.txt      # Additional system prompt 
                                 # Can be string or file path
+    reminder: Be nice.          # Reminder, a string invisibly added to user messages
+                                
     
     # Tool integration
     tools:
