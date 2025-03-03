@@ -84,6 +84,12 @@
 
       packages.lectic = lectic;
 
+      packages.lectic-nvim = pkgs.vimUtils.buildVimPlugin {
+        pname = "lectic-nvim";
+        version = "0.0.1";
+        src = ./extra/lectic.nvim;
+      };
+
       packages.lectic-appimage = nix-appimage.bundlers.${system}.default lectic;
 
       apps.default = {

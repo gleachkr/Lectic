@@ -220,7 +220,6 @@ interlocutor:
     reminder: Be nice.          # Reminder string, added to 
                                 # user message invisibly.
                                 
-    
     # Tool integration
     tools:
         # Command execution tool
