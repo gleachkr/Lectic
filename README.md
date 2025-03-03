@@ -212,10 +212,13 @@ interlocutor:
     temperature: 0.7            # Response variability (0-1)
     max_tokens: 1024            # Maximum response length
 
-    # Context management
-    memories: previous.txt      # Additional system prompt 
+    # Optional Context management
+    memories: previous.txt      # Context from previous conversations.
+                                # Added to system prompt.
                                 # Can be string or file path
-    reminder: Be nice.          # Reminder, a string invisibly added to user messages
+
+    reminder: Be nice.          # Reminder string, added to 
+                                # user message invisibly.
                                 
     
     # Tool integration
