@@ -109,7 +109,7 @@ async function handleToolUse(
     lectic : Lectic,
     client : Anthropic) : Promise<Message> {
 
-    for (let max_recur = 10; max_recur >= 0; max_recur--) {
+    for (let recur = 12; recur >= 0; recur--) {
         if (message.stop_reason != "tool_use") break
 
         messages.push({
@@ -121,20 +121,28 @@ async function handleToolUse(
 
         for (const block of message.content) {
             if (block.type == "tool_use") {
-                if (block.name in ToolRegistry) {
-                    // TODO error handling
-                    await ToolRegistry[block.name].call(block.input)
+                if (recur < 2) {
+                    tool_results.push({
+                        type : "tool_result",
+                        tool_use_id : block.id,
+                        content: "Tool usage limit exceeded, no further tool calls will be allowed",
+                        is_error: true,
+                    })
+                } else
+                    if (block.name in ToolRegistry) {
+                        // TODO error handling
+                        await ToolRegistry[block.name].call(block.input)
                         .then(rslt => tool_results.push({
-                                type : "tool_result",
-                                tool_use_id : block.id,
-                                content : rslt,
+                            type : "tool_result",
+                            tool_use_id : block.id,
+                            content : rslt,
                         })).catch((e : Error) => tool_results.push({
-                                type : "tool_result",
-                                tool_use_id : block.id,
-                                content: e.message,
-                                is_error: true,
+                            type : "tool_result",
+                            tool_use_id : block.id,
+                            content: e.message,
+                            is_error: true,
                         }))
-                }
+                    }
             }
         }
 

@@ -37,7 +37,7 @@ async function handleToolUse(
     lectic : Lectic,
     ) : Promise<Message> {
 
-    for (let max_recur = 10; max_recur >= 0; max_recur--) {
+    for (let recur = 12; recur >= 0; recur--) {
         if (!response.message.tool_calls) break
 
         messages.push({
@@ -47,7 +47,12 @@ async function handleToolUse(
         })
 
         for (const call of response.message.tool_calls) {
-            if (call.function.name in ToolRegistry) {
+            if (recur < 2) {
+                messages.push({
+                    role: "tool",
+                    content: "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>",
+                })
+            } else if (call.function.name in ToolRegistry) {
                  // TODO error handling
                 const inputs = call.function.arguments
                 //weirdly, ollama doesn't track tool_id

@@ -38,7 +38,7 @@ async function handleToolUse(
     lectic : Lectic,
     client : OpenAI) : Promise<Message> {
 
-    for (let max_recur = 10; max_recur >= 0; max_recur--) {
+    for (let recur = 10; recur >= 0; recur--) {
         if (!message.choices[0].message.tool_calls) break
 
         messages.push({
@@ -47,7 +47,13 @@ async function handleToolUse(
         })
 
         for (const call of message.choices[0].message.tool_calls) {
-            if (call.function.name in ToolRegistry) {
+            if (recur < 2) {
+                messages.push({
+                    role: "tool",
+                    tool_call_id : call.id,
+                    content: "Tool usage limit exceeded, no further tool calls will be allowed",
+                })
+            } else if (call.function.name in ToolRegistry) {
                  // TODO error handling
                 const inputs = JSON.parse(call.function.arguments)
                 await ToolRegistry[call.function.name].call(inputs)
