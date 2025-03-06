@@ -5,6 +5,7 @@ import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { FileLink } from "../types/link"
+import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
 
@@ -67,11 +68,15 @@ async function handleToolUse(
             }
         }
 
+        Logger.log("ollama - messages", messages)
+
         response = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model ?? 'llama-3.2',
             tools: getTools()
         });
+
+        Logger.log("ollama - reply (tool)", response)
     }
 
     return new Message({
@@ -150,6 +155,8 @@ export const OllamaBackend : Backend = {
           messages.push(await handleMessage(msg))
       }
 
+      Logger.log("ollama - messages", messages)
+
       let msg = await ollama.chat({
         messages: [developerMessage(lectic), ...messages],
         model: lectic.header.interlocutor.model || 'llama3.2',
@@ -159,7 +166,7 @@ export const OllamaBackend : Backend = {
         }
       });
       
-      console.log(JSON.stringify(msg))
+      Logger.log("ollama - reply", msg)
 
       return handleToolUse(msg, messages, lectic)
     },

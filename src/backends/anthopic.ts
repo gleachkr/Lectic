@@ -4,6 +4,7 @@ import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { FileLink } from "../types/link.ts"
+import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from "./util"
 
@@ -151,6 +152,8 @@ async function handleToolUse(
             content: tool_results
         })
 
+        Logger.log("anthropic - messages (tool)", messages)
+
         message = await (client as Anthropic).messages.create({
             max_tokens: 1024,
             system: systemPrompt(lectic),
@@ -159,6 +162,8 @@ async function handleToolUse(
                 'claude-3-7-sonnet-latest',
             tools: getTools()
         });
+
+        Logger.log("anthropic - reply (tool)", message)
     }
 
     return new Message({
@@ -181,6 +186,8 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
           messages.push(await handleMessage(msg))
       }
 
+      Logger.log("anthropic - messages", messages)
+
       let msg = await this.client.messages.create({
         system: systemPrompt(lectic),
         messages: messages,
@@ -189,6 +196,8 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
         max_tokens: lectic.header.interlocutor.max_tokens || 1024,
         tools: getTools()
       });
+
+      Logger.log("anthropic - reply", msg)
 
       return handleToolUse(msg, messages, lectic, this.client)
     },

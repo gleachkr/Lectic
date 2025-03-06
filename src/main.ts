@@ -4,6 +4,7 @@ import { AnthropicBackend } from "./backends/anthopic"
 import { OpenAIBackend } from "./backends/openai"
 import { OllamaBackend } from "./backends/ollama"
 import { LLMProvider } from "./types/provider"
+import { Logger } from "./logging/logger"
 import type { Lectic } from "./types/lectic"
 
 async function get_message(lectic : Lectic) {
@@ -36,6 +37,10 @@ async function main() {
       process.exit(1)
   }
 
+  if (program.opts()["log"]) {
+      Logger.logfile = program.opts()["log"]
+  }
+
   const message = await get_message(lectic)
 
   if (!program.opts()["short"]) {
@@ -54,6 +59,7 @@ program
     .name('lectic')
     .option('-s, --short', 'only emit last message rather than updated lectic')
     .option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
+    .option('-l, --log <logfile>',  'log debugging information')
 
 program.parse()
 

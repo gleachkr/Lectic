@@ -4,6 +4,7 @@ import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { FileLink } from "../types/link"
+import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
 
@@ -38,7 +39,7 @@ async function handleToolUse(
     lectic : Lectic,
     client : OpenAI) : Promise<Message> {
 
-    for (let recur = 10; recur >= 0; recur--) {
+    for (let recur = 12; recur >= 0; recur--) {
         if (!message.choices[0].message.tool_calls) break
 
         messages.push({
@@ -69,12 +70,17 @@ async function handleToolUse(
             }
         }
 
+        Logger.log("openai - messages (tool)", messages)
+
         message = await (client as OpenAI).chat.completions.create({
             max_tokens: 1024,
             messages: messages.concat([developerMessage(lectic)]),
             model: lectic.header.interlocutor.model ?? 'gpt-4o',
             tools: getTools()
         });
+
+        Logger.log("openai - reply (tool)", message)
+
     }
 
     return new Message({
@@ -159,6 +165,8 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
           messages.push(await handleMessage(msg))
       }
 
+      Logger.log("openai - messages", messages)
+
       let msg = await (this.client as OpenAI).chat.completions.create({
         messages: messages.concat([developerMessage(lectic)]),
         model: lectic.header.interlocutor.model || 'gpt-4o',
@@ -166,6 +174,8 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
         max_tokens: lectic.header.interlocutor.max_tokens || 1024,
         tools: getTools()
       });
+
+      Logger.log("openai - reply", msg)
 
       return handleToolUse(msg, messages, lectic, this.client)
     },
