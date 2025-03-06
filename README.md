@@ -320,9 +320,10 @@ Notice how each ratio gets closer to the golden ratio!
 
 ## Command Line Interface
 ```bash
-lectic -f conversation.md    # Process a conversation file
-lectic -s -f convo.md       # Only show the last message
-cat convo.md | lectic -     # Read from stdin
+lectic -f conversation.md                 # Process a conversation file
+lectic -l debug.log -f conversation.md    # Write debug logs to debug.log
+lectic -s -f convo.md                     # Only show the last message
+cat convo.md | lectic -                   # Read from stdin
 ```
 
 ## Best Practices
