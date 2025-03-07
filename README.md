@@ -16,7 +16,7 @@ for research, learning, and knowledge management.
    ---
    interlocutor:
        name: Assistant
-       provider: anthropic|openai|ollama
+       provider: anthropic|openai|ollama|gemini
        prompt: Your base prompt here
    ---
 
