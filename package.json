@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
+    "@google/generative-ai": "^0.23.0",
     "@types/bun": "^1.2.2",
     "commander": "^13.1.0",
     "ollama": "^0.5.14",

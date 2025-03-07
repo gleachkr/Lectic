@@ -43,7 +43,8 @@ export class ExecTool implements Tool {
             type : "array",
             description : "the arguments to the command",
             items : {
-                type: "string"
+                type: "string",
+                description: "a command argument"
             }
         }
     } as const

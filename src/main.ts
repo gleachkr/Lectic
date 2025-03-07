@@ -3,6 +3,7 @@ import { program } from 'commander'
 import { AnthropicBackend } from "./backends/anthopic"
 import { OpenAIBackend } from "./backends/openai"
 import { OllamaBackend } from "./backends/ollama"
+import { GeminiBackend } from "./backends/gemini"
 import { LLMProvider } from "./types/provider"
 import { Logger } from "./logging/logger"
 import type { Lectic } from "./types/lectic"
@@ -17,6 +18,9 @@ async function get_message(lectic : Lectic) {
       }
       case LLMProvider.Anthropic: {
           return AnthropicBackend.nextMessage(lectic)
+      }
+      case LLMProvider.Gemini: {
+          return GeminiBackend.nextMessage(lectic)
       }
       default : {
           return AnthropicBackend.nextMessage(lectic)
