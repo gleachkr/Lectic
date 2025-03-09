@@ -112,6 +112,8 @@ async function handleToolUse(
             }
         }
 
+        messages.push({ role: "user", parts })
+
         Logger.log("gemini - messages (tool)", messages)
 
         message = await model.generateContent({

@@ -1,6 +1,6 @@
 import { parseLectic } from "./parse"
 import { program } from 'commander'
-import { AnthropicBackend } from "./backends/anthopic"
+import { AnthropicBackend } from "./backends/anthropic"
 import { OpenAIBackend } from "./backends/openai"
 import { OllamaBackend } from "./backends/ollama"
 import { GeminiBackend } from "./backends/gemini"

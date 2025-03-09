@@ -118,12 +118,12 @@ async function handleToolUse(
             content: message.content
         })
 
-        const tool_results : Anthropic.Messages.ToolResultBlockParam[] = []
+        const content: Anthropic.Messages.ToolResultBlockParam[] = []
 
         for (const block of message.content) {
             if (block.type == "tool_use") {
                 if (recur < 2) {
-                    tool_results.push({
+                    content.push({
                         type : "tool_result",
                         tool_use_id : block.id,
                         content: "Tool usage limit exceeded, no further tool calls will be allowed",
@@ -133,11 +133,11 @@ async function handleToolUse(
                     if (block.name in ToolRegistry) {
                         // TODO error handling
                         await ToolRegistry[block.name].call(block.input)
-                        .then(rslt => tool_results.push({
+                        .then(rslt => content.push({
                             type : "tool_result",
                             tool_use_id : block.id,
                             content : rslt,
-                        })).catch((e : Error) => tool_results.push({
+                        })).catch((e : Error) => content.push({
                             type : "tool_result",
                             tool_use_id : block.id,
                             content: e.message,
@@ -147,10 +147,7 @@ async function handleToolUse(
             }
         }
 
-        messages.push({
-            role: "user",
-            content: tool_results
-        })
+        messages.push({ role: "user", content })
 
         Logger.log("anthropic - messages (tool)", messages)
 
