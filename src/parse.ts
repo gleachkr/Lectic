@@ -54,16 +54,16 @@ export function splitBodyChunks(input: string): string[] {
     return matches;
 }
 
-export async function parseLectic(raw: string) : Promise<Lectic | Error> {
+export async function parseLectic(raw: string) : Promise<Lectic> {
     const rawYaml = getYaml(raw)
     const rawBody = getBody(raw)
 
-    if (!rawYaml) return Error('could not parse YAML header')
-    if (!rawBody) return Error('could not parse Lectic Body')
+    if (!rawYaml) throw Error('could not parse YAML header')
+    if (!rawBody) throw Error('could not parse Lectic Body')
 
     const header: unknown = YAML.parse(rawYaml)
 
-    if (!isLecticHeader(header)) return Error("YAML Header contains either unrecognized fields or is missing a field")
+    if (!isLecticHeader(header)) throw Error("YAML Header contains either unrecognized fields or is missing a field")
 
     // TODO DRY the "load from file" pattern
 

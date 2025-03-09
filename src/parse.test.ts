@@ -237,10 +237,11 @@ interlocutor:
 ---
 Body content`;
 
-    const result = await parseLectic(invalidYaml);
+    parseLectic(invalidYaml).catch(error => {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
+    })
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
 });
 
 test("parseLectic-invalidYaml", async () => {
@@ -251,10 +252,11 @@ interlocutor:
 ---
 Body content`;
 
-    const result = await parseLectic(invalidYaml);
+    parseLectic(invalidYaml).catch(error => {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
+    })
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
 });
 
 test("parseLectic-noBody", async () => {
@@ -272,9 +274,10 @@ interlocutor:
 
 test("parseLectic-noHeaderNoBody", async () => {
     const invalidInput = ``;
-    const result = await parseLectic(invalidInput);
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe('could not parse YAML header');
+    parseLectic(invalidInput).catch(error => {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe('could not parse YAML header');
+    });
 });
 
 test("parseLectic-invalidDivider", async () => {
@@ -284,9 +287,10 @@ interlocutor:
   name: sam
 -BAD-
 Text without proper body markers`;
-    const result = await parseLectic(invalidDivider);
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe('could not parse YAML header');
+    parseLectic(invalidDivider).catch(error => {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe('could not parse YAML header')
+    });
 });
 
 test("parseLectic-nestedYAMLDelimiters", async () => {
@@ -295,9 +299,10 @@ Header
 --- Content does not start
 --- More content
 --- End`;
-    const result = await parseLectic(nestedDelimiters);
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field');
+    parseLectic(nestedDelimiters).catch(error => {
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe('YAML Header contains either unrecognized fields or is missing a field')
+    });
 });
 
 test("parseLectic-emptyContent", async () => {

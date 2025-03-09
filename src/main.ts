@@ -9,61 +9,54 @@ import { Logger } from "./logging/logger"
 import type { Lectic } from "./types/lectic"
 
 async function get_message(lectic : Lectic) {
-  switch (lectic.header.interlocutor.provider) {
-      case LLMProvider.OpenAI: {
-          return OpenAIBackend.nextMessage(lectic)
-      }
-      case LLMProvider.Ollama: {
-          return OllamaBackend.nextMessage(lectic)
-      }
-      case LLMProvider.Anthropic: {
-          return AnthropicBackend.nextMessage(lectic)
-      }
-      case LLMProvider.Gemini: {
-          return GeminiBackend.nextMessage(lectic)
-      }
-      default : {
-          return AnthropicBackend.nextMessage(lectic)
-      }
-  }
+    switch (lectic.header.interlocutor.provider) {
+        case LLMProvider.OpenAI: {
+            return OpenAIBackend.nextMessage(lectic)
+        }
+        case LLMProvider.Ollama: {
+            return OllamaBackend.nextMessage(lectic)
+        }
+        case LLMProvider.Anthropic: {
+            return AnthropicBackend.nextMessage(lectic)
+        }
+        case LLMProvider.Gemini: {
+            return GeminiBackend.nextMessage(lectic)
+        }
+        default : {
+            return AnthropicBackend.nextMessage(lectic)
+        }
+    }
 }
 
 async function main() {
 
-  let lecticString = program.opts()["file"] === '-' 
-      ? await Bun.stdin.text()
-      : await Bun.file(program.opts()["file"]).text()
+    let lecticString = program.opts()["file"] === '-' 
+        ? await Bun.stdin.text()
+        : await Bun.file(program.opts()["file"]).text()
 
-  const lectic = await parseLectic(lecticString)
+    if (program.opts()["log"]) {
+        Logger.logfile = program.opts()["log"]
+    }
 
-  if (lectic instanceof Error) {
-      console.error(lectic.message)
-      process.exit(1)
-  }
+    if (!program.opts()["short"]) {
+        console.log(lecticString.trim());
+    }
 
-  if (program.opts()["log"]) {
-      Logger.logfile = program.opts()["log"]
-  }
+    await parseLectic(lecticString).then(async lectic => {
+        const message =  await get_message(lectic)
+        console.log(`\n::: ${lectic.header.interlocutor.name}\n\n${message.content}\n\n:::`)
+    }).catch(error => {
+        console.error(`\n<error>\n${error.message}\n</error>`)
+        process.exit(1)
+    })
 
-  const message = await get_message(lectic)
-
-  if (!program.opts()["short"]) {
-      console.log(lecticString.trim());
-  }
-
-  console.log(`
-::: ${lectic.header.interlocutor.name}
-
-${message.content}
-  
-:::`)
 }
 
 program
-    .name('lectic')
-    .option('-s, --short', 'only emit last message rather than updated lectic')
-    .option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
-    .option('-l, --log <logfile>',  'log debugging information')
+.name('lectic')
+.option('-s, --short', 'only emit last message rather than updated lectic')
+.option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
+.option('-l, --log <logfile>',  'log debugging information')
 
 program.parse()
 
