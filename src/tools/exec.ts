@@ -62,7 +62,7 @@ export class ExecTool implements Tool {
         if (proc.exitCode !== 0) {
             throw Error(proc.stderr.toString())
         } else {
-            return proc.stdout.toString()
+            return `<stdout>${proc.stdout.toString()}</stdout>`
         }
     }
 }

@@ -124,7 +124,7 @@ async function handleToolUse(
           }
         });
 
-        Logger.log("openai - reply (tool)", message)
+        Logger.log("gemini - reply (tool)", message)
 
     }
 
@@ -173,6 +173,11 @@ async function linkToContent(link : FileLink)
 
 async function handleMessage(msg : Message) : Promise<Content> {
     const links = msg.containedLinks()
+
+    if (msg.content.length == 0) {
+        msg.content = "…"
+    }
+
     if (links.length == 0 || msg.role != "user") {
         return {
             role: msg.role,
@@ -222,7 +227,7 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
           messages.push(await handleMessage(msg))
       }
 
-      Logger.log("openai - messages", messages)
+      Logger.log("gemini - messages", messages)
 
       let msg = await model.generateContent({
         contents: messages,
@@ -232,7 +237,7 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
         }
       });
 
-      Logger.log("openai - reply", msg)
+      Logger.log("gemini - reply", msg)
 
       return handleToolUse(msg, messages, lectic, this.client)
     },
