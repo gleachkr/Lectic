@@ -58,8 +58,8 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
     const rawYaml = getYaml(raw)
     const rawBody = getBody(raw)
 
-    if (!rawYaml) throw Error('could not parse YAML header')
-    if (!rawBody) throw Error('could not parse Lectic Body')
+    if (!rawYaml) throw new Error('could not parse YAML header')
+    if (!rawBody) throw new Error('could not parse Lectic Body')
 
     const header: unknown = YAML.parse(rawYaml)
 

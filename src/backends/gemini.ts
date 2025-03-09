@@ -72,11 +72,9 @@ async function handleToolUse(
 
         messages.push({
             role: "model",
-            parts: [{
-                text: message.response.text()
-            },
-            ... calls.map(call => ({ functionCall: call }))
-            ]
+            parts: message.response.text().length > 0 
+                ? [{ text: message.response.text() }, ...calls.map(call => ({ functionCall: call }))]
+                : calls.map(call => ({ functionCall: call }))
         })
 
         const parts : Part[] = []
@@ -124,7 +122,12 @@ async function handleToolUse(
           }
         });
 
-        Logger.log("gemini - reply (tool)", message)
+        Logger.log("gemini - reply (tool)", {
+          text: message.response.text(),
+          calls: message.response.functionCalls(),
+          usage: message.response.usageMetadata,
+          feedback: message.response.promptFeedback
+        })
 
     }
 
@@ -237,7 +240,12 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
         }
       });
 
-      Logger.log("gemini - reply", msg)
+      Logger.log("gemini - reply", {
+          text: msg.response.text(),
+          calls: msg.response.functionCalls(),
+          usage: msg.response.usageMetadata,
+          feedback: msg.response.promptFeedback
+      })
 
       return handleToolUse(msg, messages, lectic, this.client)
     },
