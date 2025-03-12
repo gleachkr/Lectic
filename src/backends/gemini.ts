@@ -30,7 +30,7 @@ function googleParameters(params: { [key: string] : JSONSchema }) : { [key: stri
     const rslt : { [key: string] : Schema } = {}
     for (const key of Object.keys(params)) {
         const param = googleParameter(params[key])
-        if (!param) throw Error("Google parameter cooercion failed")
+        if (!param) throw Error("Google parameter coercion failed")
         rslt[key] = param
     }
     return rslt
@@ -162,6 +162,14 @@ async function linkToContent(link : FileLink)
         case "video/webm":
         case "video/wmv":
         case "video/3gpp":
+        case "audio/wav":
+        case "audio/mp3":
+        case "audio/mpeg":
+        case "audio/x-m4a":
+        case "audio/aiff":
+        case "audio/aac":
+        case "audio/ogg":
+        case "audio/flac":
         case "application/pdf":
         return {
             inlineData : {
@@ -172,7 +180,9 @@ async function linkToContent(link : FileLink)
         case "text/plain" : return {
             text: `<file title="${link.title}">${Buffer.from(bytes).toString()}</file>`
         } as const
-        default: return null
+        default: return {
+            text: `<error>Media type ${media_type} is not supported.</error>` 
+        }
     }
 }
 

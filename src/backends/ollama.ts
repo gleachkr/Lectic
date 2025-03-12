@@ -100,10 +100,12 @@ async function linkToContent(link : FileLink)
         case "application/pdf" : return {
             text: `<error>couldn't upload ${link.title}. PDFs are not currently supported</error>`
         } as const
-        default: 
         case "text/plain" : return {
             text: `<file title="${link.title}">${Buffer.from(bytes).toString()}</file>`
         } as const
+        default: return {
+            text: `<error>Media type ${media_type} is not supported.</error>` 
+        }
     }
 }
 

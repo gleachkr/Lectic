@@ -108,11 +108,14 @@ async function linkToContent(link : FileLink)
             type : "text", 
             text: `<error>couldn't upload ${link.title}. PDFs are not currently supported</error>`
         } as const
-        default: 
         case "text/plain" : return {
             type : "text", 
             text: `<file title="${link.title}">${Buffer.from(bytes).toString()}</file>`
         } as const
+        default: return {
+            type : "text", 
+            text: `<error>Media type ${media_type} is not supported.</error>` 
+        }
     }
 }
 

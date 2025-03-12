@@ -47,7 +47,6 @@ async function linkToContent(link : FileLink) {
                 "data" : Buffer.from(bytes).toString("base64")
             }
         } as const
-        default: 
         case "text/plain" : return {
             type : "document", 
             title : link.title,
@@ -56,6 +55,10 @@ async function linkToContent(link : FileLink) {
                 "media_type" : "text/plain",
                 "data" : Buffer.from(bytes).toString()
             }
+        } as const
+        default : return {
+            type: "text",
+            text: `<error>Media type ${media_type} is not supported.</error>` 
         } as const
     }
 }
