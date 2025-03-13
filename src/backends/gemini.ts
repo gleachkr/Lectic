@@ -65,7 +65,7 @@ async function handleToolUse(
         if (!calls || calls.length == 0) break
 
         const model = client.getGenerativeModel({ 
-            model: lectic.header.interlocutor.model || "gemini-2.0-flash",
+            model: lectic.header.interlocutor.model || "gemini-2.0-pro",
             tools: getTools(),
             systemInstruction: systemPrompt(lectic),
         })
