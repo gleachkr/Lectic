@@ -65,7 +65,7 @@ async function handleToolUse(
         if (!calls || calls.length == 0) break
 
         const model = client.getGenerativeModel({ 
-            model: lectic.header.interlocutor.model || "gemini-2.0-pro",
+            model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
             tools: getTools(),
             systemInstruction: systemPrompt(lectic),
         })
@@ -195,7 +195,7 @@ async function handleMessage(msg : Message) : Promise<Content> {
 
     if (links.length == 0 || msg.role != "user") {
         return {
-            role: msg.role,
+            role: msg.role == "user" ? "user" : "model",
             parts: [{
                 "text": msg.content
             }]
