@@ -5,27 +5,26 @@ import { OpenAIBackend } from "./backends/openai"
 import { OllamaBackend } from "./backends/ollama"
 import { GeminiBackend } from "./backends/gemini"
 import { LLMProvider } from "./types/provider"
+import { consolidateMemories } from "./types/backend"
 import { Logger } from "./logging/logger"
+import { Message } from "./types/message"
+import * as YAML from "yaml"
 import type { Lectic } from "./types/lectic"
+import type { Backend } from "./types/backend"
 
-async function get_message(lectic : Lectic) {
+// This  really should be factored out.
+function getBackend(lectic : Lectic) : Backend {
     switch (lectic.header.interlocutor.provider) {
-        case LLMProvider.OpenAI: {
-            return OpenAIBackend.nextMessage(lectic)
-        }
-        case LLMProvider.Ollama: {
-            return OllamaBackend.nextMessage(lectic)
-        }
-        case LLMProvider.Anthropic: {
-            return AnthropicBackend.nextMessage(lectic)
-        }
-        case LLMProvider.Gemini: {
-            return GeminiBackend.nextMessage(lectic)
-        }
-        default : {
-            return AnthropicBackend.nextMessage(lectic)
-        }
+        case LLMProvider.OpenAI:  return OpenAIBackend
+        case LLMProvider.Ollama: return OllamaBackend
+        case LLMProvider.Anthropic: return AnthropicBackend
+        case LLMProvider.Gemini: return GeminiBackend
+        default : return AnthropicBackend
     }
+}
+
+async function get_message(lectic : Lectic) : Promise<Message> {
+    return getBackend(lectic).nextMessage(lectic)
 }
 
 async function main() {
@@ -38,13 +37,19 @@ async function main() {
         Logger.logfile = program.opts()["log"]
     }
 
-    if (!program.opts()["short"]) {
+    if (!program.opts()["short"] && !program.opts()["consolidate"]) {
         console.log(lecticString.trim());
     }
 
     await parseLectic(lecticString).then(async lectic => {
-        const message =  await get_message(lectic)
-        console.log(`\n::: ${lectic.header.interlocutor.name}\n\n${message.content}\n\n:::`)
+        if (program.opts()["consolidate"]) {
+            const new_lectic = await consolidateMemories(lectic, getBackend(lectic))
+            console.log(`---\n${YAML.stringify(new_lectic.header)}...`)
+        } else {
+            get_message(lectic)
+            const message =  await get_message(lectic)
+            console.log(`\n::: ${lectic.header.interlocutor.name}\n\n${message.content.trim()}\n\n:::`)
+        }
     }).catch(error => {
         console.error(`\n<error>\n${error.message}\n</error>`)
         process.exit(1)
@@ -55,6 +60,7 @@ async function main() {
 program
 .name('lectic')
 .option('-s, --short', 'only emit last message rather than updated lectic')
+.option('-c, --consolidate',  'emit a new YAML header consolidating memories of this conversation')
 .option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
 .option('-l, --log <logfile>',  'log debugging information')
 

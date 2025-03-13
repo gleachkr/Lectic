@@ -5,7 +5,7 @@ import * as YAML from "yaml"
 import { isExecToolSpec } from "./tools/exec"
 
 export function getYaml(raw:string) : string | null {
-    let expr = /^---\n([\s\S]*?)\n---/m
+    let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
     let match = expr.exec(raw)
     if (match?.[1]) {
         return match[1]
@@ -15,7 +15,7 @@ export function getYaml(raw:string) : string | null {
 }
 
 export function getBody(raw:string) : string | null {
-    let expr = /^---[\s\S]*?---([\s\S]*)$/m
+    let expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/m
     let match = expr.exec(raw)
     if (match?.[1]) {
         return match[1]
