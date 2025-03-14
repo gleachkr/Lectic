@@ -8,6 +8,14 @@ for research, learning, and knowledge management.
 
 ## Getting Started
 
+### Installation
+
+If you're using [nix](https://nixos.org), then `nix profile install github:gleachkr/lectic` will
+install the latest. If you're not, but you're using a Linux system (or WSL on
+windows), you can download an app image from the
+[releases](https://github.com/gleachkr/Lectic/releases), and place it somewhere
+on your `$PATH`.
+
 ### Basic Workflow
 
 1. Create a new conversation file with a YAML header:
@@ -30,23 +38,18 @@ for research, learning, and knowledge management.
    - In Vim: Use `%!lectic` to update the conversation
    - In other editors: Set up a key binding or command to pipe the current file
      through `lectic`
-   - From the command line: `lectic -f conversation.md > tmp && mv tmp
-     conversation.md`
+   - From the command line: `lectic -f conversation.lec > tmp && mv tmp
+     conversation.lec`
 
 ### Editor Integration
 
-#### Vim
+#### Neovim
 
-A Vim plugin is provided in `extra/lectic.vim` that offers:
+A Neovim plugin is provided in `extra/lectic.nvim` that offers: 
+* support for the `.lec` filetype
 - The `:Lectic` command to update conversations
 - Automatic highlighting of LLM responses
 - Cursor placement at the end of the conversation after updates
-
-Install by adding to your `.vimrc`:
-
-```vim
-source path/to/lectic/extra/lectic.vim
-```
 
 #### Other Editors
 
@@ -105,7 +108,7 @@ Include the output of shell commands directly in your conversations using the `$
 ```markdown
 [System Info]($uname -a)
 [Directory Listing]($ls)
-[Git Status]($git status)
+[Latest Git Changes]($git diff)
 [Complex Pipeline]($ps aux | grep python)
 ```
 
@@ -122,6 +125,45 @@ This is particularly useful for:
 - Running analysis tools and discussing their output
 
 Pairs nicely with [files-to-prompt](https://github.com/simonw/files-to-prompt)
+
+### Memory Consolidation
+
+Lectic can consolidate the memories of a conversation into the YAML header,
+allowing the LLM to retain context from previous interactions. This feature
+summarizes the conversation so far and stores it in the `memories` field of
+the YAML header.
+
+To use this feature, use the `-c` or `--consolidate` flag:
+
+```bash
+lectic -c -f conversation-today.lec > conversation-tomorrow.lec
+```
+
+This command will:
+
+1.  Send the current conversation to the LLM.
+2.  Instruct the LLM to summarize the conversation, combining any existing
+    memories with the current discussion.
+3.  Update the YAML header with the summarized memory in the
+    `interlocutor.memories` field.
+
+The updated YAML header will look something like this:
+
+````yaml
+---
+interlocutor:
+    name: Assistant
+    provider: anthropic
+    prompt: Your base prompt here
+    memories: >
+      This is a summary of the conversation so far, including
+      key details and topics discussed. It will be used to
+      maintain context in future interactions.
+--- 
+````
+
+The quality of the memory consolidation depends on the LLM's ability to
+summarize the conversation effectively.
 
 ### Tools
 
@@ -197,7 +239,7 @@ Here are the results showing the largest orders...
 :::
 ```
 
-### Configuration Reference
+## Configuration Reference
 
 ```yaml
 interlocutor:
@@ -234,7 +276,7 @@ interlocutor:
           details: schema.txt   # Optional DB documentation
 ```
 
-### Example Conversation
+## Example Conversation
 
 ````markdown
 ---
@@ -320,10 +362,10 @@ Notice how each ratio gets closer to the golden ratio!
 
 ## Command Line Interface
 ```bash
-lectic -f conversation.md                 # Process a conversation file
-lectic -l debug.log -f conversation.md    # Write debug logs to debug.log
-lectic -s -f convo.md                     # Only show the last message
-cat convo.md | lectic -                   # Read from stdin
+lectic -f conversation.lec                 # Process a conversation file
+lectic -l debug.log -f conversation.lec    # Write debug logs to debug.log
+lectic -s -f convo.lec                     # Only show the last message
+cat convo.lec | lectic -                   # Read from stdin
 ```
 
 ## Best Practices
@@ -337,12 +379,12 @@ cat convo.md | lectic -                   # Read from stdin
 ## Current Limitations
 
 - One LLM participant per conversation (multi-LLM support planned)
-- No built-in conversation linking (use standard markdown links)
 
 ## Contributing
 
 Lectic is open to contributions. Areas of particular interest:
 - Additional LLM backend support
-- Editor integrations
+- More Editor integrations
 - New tool types
+* Good lectic templates
 - Documentation improvements
