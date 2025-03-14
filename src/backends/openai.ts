@@ -186,7 +186,10 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
     provider : LLMProvider.Anthropic,
 
     client : new OpenAI({
-        apiKey: process.env['OPENAI_API_KEY'], // TODO api key on cli or in lectic
+        apiKey: process.env['OPENAI_API_KEY'] || "", 
+        // quirk: OPENAI throws an error if the key is not in the environment. 
+        // Need to think about this for providers more generally in case one of them changes their interface.
+        // TODO api key on cli or in lectic
     }),
 
 }
