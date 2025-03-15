@@ -110,23 +110,23 @@ async function linkToContent(link : FileLink)
 }
 
 async function handleMessage(msg : Message) : Promise<Ollama.Message> {
-    const links = msg.containedLinks()
+    const links = msg.containedLinks().flatMap(FileLink.fromGlob)
+
     if (links.length == 0 || msg.role != "user") {
         return msg
     } else {
         const images : string[] = []
 
         for (const link of links) {
-            const file = new FileLink(link)
-            const exists = await file.exists()
+            const exists = await link.exists()
             if (exists) {
                 try {
-                    const source = await linkToContent(file)
+                    const source = await linkToContent(link)
                     if (source && source.image_data) images.push(source.image_data)
                     if (source && source.text) msg.content += source.text
                 } catch (e) {
                     msg.content += 
-                        `<error>Something went wrong while retrieving ${file.title} from ${link}:${(e as Error).message}</error>`
+                        `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
                 }
             }
         }

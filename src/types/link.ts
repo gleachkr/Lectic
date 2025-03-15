@@ -1,12 +1,14 @@
 import type { MessageLink } from "../types/message"
 import type { BunFile } from "bun"
 import { $ } from "bun"
+import { Glob } from "bun"
 
 export class FileLink {
     file : BunFile | undefined
     response : Promise<Response> | undefined
     result : Promise<String> | undefined
     title : string
+    URI : string
 
     constructor(link : MessageLink) {
         try {
@@ -28,6 +30,7 @@ export class FileLink {
             }
         }
         this.title = link.text
+        this.URI = link.URI
     }
 
     async exists() : Promise<boolean> {
@@ -62,4 +65,23 @@ export class FileLink {
         return null
     }
 
+    static fromGlob(link : MessageLink) : FileLink[] {
+        let path = ""
+        try {
+            const url = new URL(link.URI)
+            if (url.protocol == "file:") {
+                path = Bun.fileURLToPath(link.URI)
+            } else {
+                return [new FileLink(link)]
+            }
+        } catch { 
+            path = link.URI
+        }
+        const files = Array(...new Glob(path).scanSync())
+        if (files.length < 2) {
+            return [new FileLink(link)]
+        } else {
+            return files.map(file => new FileLink({text: link.text, URI: file}))
+        }
+    }
 }

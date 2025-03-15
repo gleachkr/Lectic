@@ -187,7 +187,7 @@ async function linkToContent(link : FileLink)
 }
 
 async function handleMessage(msg : Message) : Promise<Content> {
-    const links = msg.containedLinks()
+    const links = msg.containedLinks().flatMap(FileLink.fromGlob)
 
     if (msg.content.length == 0) {
         msg.content = "…"
@@ -205,15 +205,14 @@ async function handleMessage(msg : Message) : Promise<Content> {
             text: msg.content
         }]
         for (const link of links) {
-            const file = new FileLink(link)
-            const exists = await file.exists()
+            const exists = await link.exists()
             if (exists) {
                 try {
-                    const source = await linkToContent(file)
+                    const source = await linkToContent(link)
                     if (source) content.push(source)
                 } catch (e) {
                     content.push({
-                        text: `<error>Something went wrong while retrieving ${file.title} from ${link}:${(e as Error).message}</error>`
+                        text: `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
                     })
                 }
             }
