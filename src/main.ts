@@ -46,7 +46,6 @@ async function main() {
             const new_lectic = await consolidateMemories(lectic, getBackend(lectic))
             console.log(`---\n${YAML.stringify(new_lectic.header)}...`)
         } else {
-            get_message(lectic)
             const message =  await get_message(lectic)
             console.log(`\n::: ${lectic.header.interlocutor.name}\n\n${message.content.trim()}\n\n:::`)
         }
