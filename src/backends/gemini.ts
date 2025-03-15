@@ -12,6 +12,7 @@ import { systemPrompt } from './util'
 
 function googleParameter(param: JSONSchema ) : Schema | undefined {
     switch (param.type) {
+        case "string" : return { type: SchemaType.STRING }
         case "number" : return { type: SchemaType.NUMBER }
         case "integer" : return { type: SchemaType.INTEGER }
         case "boolean" : return { type: SchemaType.BOOLEAN }
