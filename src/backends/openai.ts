@@ -39,8 +39,16 @@ async function handleToolUse(
     lectic : Lectic,
     client : OpenAI) : Promise<Message> {
 
-    for (let recur = 12; recur >= 0; recur--) {
-        if (!message.choices[0].message.tool_calls) break
+    let recur = 0
+    while (message.choices[0].message.tool_calls) {
+        recur++
+
+        if (recur > 12) {
+            return new Message({
+                role: "assistant", 
+                content: "<error>Runaway tool use!</error>"
+            })
+        }
 
         messages.push({
             role: "assistant",
@@ -48,7 +56,7 @@ async function handleToolUse(
         })
 
         for (const call of message.choices[0].message.tool_calls) {
-            if (recur < 2) {
+            if (recur > 10) {
                 messages.push({
                     role: "tool",
                     tool_call_id : call.id,
@@ -70,7 +78,7 @@ async function handleToolUse(
             }
         }
 
-        Logger.log("openai - messages (tool)", messages)
+        Logger.debug("openai - messages (tool)", messages)
 
         message = await (client as OpenAI).chat.completions.create({
             max_tokens: 1024,
@@ -79,7 +87,7 @@ async function handleToolUse(
             tools: getTools()
         });
 
-        Logger.log("openai - reply (tool)", message)
+        Logger.debug("openai - reply (tool)", message)
 
     }
 
@@ -155,32 +163,41 @@ function developerMessage(lectic : Lectic) {
 
 export const OpenAIBackend : Backend & { client : OpenAI} = {
 
+
     async nextMessage(lectic : Lectic) : Promise<Message> {
 
-      if (lectic.header.interlocutor.tools) {
-        initRegistry(lectic.header.interlocutor.tools)
-      }
+        if (lectic.header.interlocutor.tools) {
+            initRegistry(lectic.header.interlocutor.tools)
+        }
 
-      const messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
+        const messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
 
-      for (const msg of lectic.body.messages) {
-          messages.push(await handleMessage(msg))
-      }
+        for (const msg of lectic.body.messages) {
+            messages.push(await handleMessage(msg))
+        }
 
-      Logger.log("openai - messages", messages)
+        Logger.debug("openai - messages", messages)
 
-      let msg = await (this.client as OpenAI).chat.completions.create({
-        messages: messages.concat([developerMessage(lectic)]),
-        model: lectic.header.interlocutor.model || 'gpt-4o',
-        temperature: lectic.header.interlocutor.temperature,
-        max_tokens: lectic.header.interlocutor.max_tokens || 1024,
-        tools: getTools()
-      });
+        let msg = await (this.client as OpenAI).chat.completions.create({
+            messages: messages.concat([developerMessage(lectic)]),
+            model: lectic.header.interlocutor.model || 'gpt-4o',
+            temperature: lectic.header.interlocutor.temperature,
+            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            tools: getTools()
+        });
 
-      Logger.log("openai - reply", msg)
+        Logger.debug("openai - reply", msg)
 
-      return handleToolUse(msg, messages, lectic, this.client)
+        if (msg.choices[0].message.tool_calls) {
+            return handleToolUse(msg, messages, lectic, this.client);
+        } else {
+            return new Message({
+                role: "assistant",
+                content: getText(msg)
+            })
+        }
     },
+      
 
     provider : LLMProvider.Anthropic,
 

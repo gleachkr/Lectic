@@ -38,8 +38,17 @@ async function handleToolUse(
     lectic : Lectic,
     ) : Promise<Message> {
 
-    for (let recur = 12; recur >= 0; recur--) {
-        if (!response.message.tool_calls) break
+    let recur = 0
+
+    while (response.message.tool_calls) {
+        recur++
+        
+        if (recur > 12) {
+            return new Message({
+                role: "assistant", 
+                content: "<error>Runaway tool use!</error>"
+            })
+        }
 
         messages.push({
             role: "assistant",
@@ -48,7 +57,7 @@ async function handleToolUse(
         })
 
         for (const call of response.message.tool_calls) {
-            if (recur < 2) {
+            if (recur > 10) {
                 messages.push({
                     role: "tool",
                     content: "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>",
@@ -68,7 +77,7 @@ async function handleToolUse(
             }
         }
 
-        Logger.log("ollama - messages", messages)
+        Logger.debug("ollama - messages", messages)
 
         response = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
@@ -76,7 +85,7 @@ async function handleToolUse(
             tools: getTools()
         });
 
-        Logger.log("ollama - reply (tool)", response)
+        Logger.debug("ollama - reply (tool)", response)
     }
 
     return new Message({
@@ -147,30 +156,37 @@ export const OllamaBackend : Backend = {
 
     async nextMessage(lectic : Lectic) : Promise<Message> {
 
-      if (lectic.header.interlocutor.tools) {
-        initRegistry(lectic.header.interlocutor.tools)
-      }
-
-      const messages : Ollama.Message[] = []
-
-      for (const msg of lectic.body.messages) {
-          messages.push(await handleMessage(msg))
-      }
-
-      Logger.log("ollama - messages", messages)
-
-      let msg = await ollama.chat({
-        messages: [developerMessage(lectic), ...messages],
-        model: lectic.header.interlocutor.model || 'llama3.2',
-        tools: getTools(),
-        options: {
-            temperature: lectic.header.interlocutor.temperature,
+        if (lectic.header.interlocutor.tools) {
+            initRegistry(lectic.header.interlocutor.tools)
         }
-      });
-      
-      Logger.log("ollama - reply", msg)
 
-      return handleToolUse(msg, messages, lectic)
+        const messages : Ollama.Message[] = []
+
+        for (const msg of lectic.body.messages) {
+            messages.push(await handleMessage(msg))
+        }
+
+        Logger.debug("ollama - messages", messages)
+
+        let msg = await ollama.chat({
+            messages: [developerMessage(lectic), ...messages],
+            model: lectic.header.interlocutor.model || 'llama3.2',
+            tools: getTools(),
+            options: {
+                temperature: lectic.header.interlocutor.temperature,
+            }
+        });
+
+        Logger.debug("ollama - reply", msg)
+
+        if (msg.message.tool_calls) {
+            return handleToolUse(msg, messages, lectic)
+        } else {
+            return new Message({
+                role: "assistant",
+                content: getText(msg)
+            })
+        }
     },
 
     provider : LLMProvider.Ollama,

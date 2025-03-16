@@ -22,16 +22,28 @@ ${YAML.stringify(logged, null, { blockQuote: "literal" })}
 
 export const Logger : {
     logfile : null | string,
-    log(context : string, logged: any) : void,
+    debug(context : string, logged: any) : void,
+    stdout(output : string | AsyncIterable<string>) : void
 } = {
 
     logfile: null,
 
-    log(context, logged) {
+    debug(context, logged) {
         if (!this.logfile) return
         const fd = fs.openSync(this.logfile, 'a')
 
         fs.appendFileSync(fd, formattedMsg(context, logged))
         fs.closeSync(fd)
     },
+
+    async stdout(output) {
+        if (typeof output == "string") {
+            console.log(output)
+            return
+        }
+
+        for await (const chunk of output) {
+            console.log(chunk)
+        }
+    }
 }

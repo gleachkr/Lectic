@@ -61,9 +61,18 @@ async function handleToolUse(
     lectic : Lectic,
     client : GoogleGenerativeAI) : Promise<Message> {
 
-    for (let recur = 12; recur >= 0; recur--) {
-        const calls = message.response.functionCalls()
-        if (!calls || calls.length == 0) break
+    let calls = message.response.functionCalls()
+    let recur = 0
+
+    while (calls && calls.length > 0) {
+        recur++
+
+        if (recur > 12) {
+            return new Message({
+                role: "assistant", 
+                content: "<error>Runaway tool use!</error>"
+            })
+        }
 
         const model = client.getGenerativeModel({ 
             model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
@@ -81,7 +90,7 @@ async function handleToolUse(
         const parts : Part[] = []
 
         for (const call of calls) {
-            if (recur < 2) {
+            if (recur > 10) {
                 parts.push({
                     functionResponse: {
                         name: call.name,
@@ -115,7 +124,7 @@ async function handleToolUse(
 
         messages.push({ role: "user", parts })
 
-        Logger.log("gemini - messages (tool)", messages)
+        Logger.debug("gemini - messages (tool)", messages)
 
         message = await model.generateContent({
           contents: messages,
@@ -125,12 +134,14 @@ async function handleToolUse(
           }
         });
 
-        Logger.log("gemini - reply (tool)", {
+        Logger.debug("gemini - reply (tool)", {
           text: message.response.text(),
           calls: message.response.functionCalls(),
           usage: message.response.usageMetadata,
           feedback: message.response.promptFeedback
         })
+
+        calls = message.response.functionCalls()
 
     }
 
@@ -242,7 +253,7 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
           messages.push(await handleMessage(msg))
       }
 
-      Logger.log("gemini - messages", messages)
+      Logger.debug("gemini - messages", messages)
 
       let msg = await model.generateContent({
         contents: messages,
@@ -252,14 +263,23 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
         }
       });
 
-      Logger.log("gemini - reply", {
+      Logger.debug("gemini - reply", {
           text: msg.response.text(),
           calls: msg.response.functionCalls(),
           usage: msg.response.usageMetadata,
           feedback: msg.response.promptFeedback
       })
 
-      return handleToolUse(msg, messages, lectic, this.client)
+      const calls = msg.response.functionCalls()
+
+      if (calls && calls.length > 0) {
+          return handleToolUse(msg, messages, lectic, this.client);
+      } else {
+          return new Message({
+              role: "assistant",
+              content: msg.response.text()
+          })
+      }
     },
 
     provider : LLMProvider.Anthropic,

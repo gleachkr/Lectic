@@ -112,8 +112,17 @@ async function handleToolUse(
     lectic : Lectic,
     client : Anthropic) : Promise<Message> {
 
-    for (let recur = 12; recur >= 0; recur--) {
-        if (message.stop_reason != "tool_use") break
+    let recur = 0
+
+    while (message.stop_reason == "tool_use") {
+        recur++
+
+        if (recur > 12) {
+            return new Message({
+                role: "assistant", 
+                content: "<error>Runaway tool use!</error>"
+            })
+        }
 
         messages.push({
             role: "assistant",
@@ -124,7 +133,7 @@ async function handleToolUse(
 
         for (const block of message.content) {
             if (block.type == "tool_use") {
-                if (recur < 2) {
+                if (recur > 10) {
                     content.push({
                         type : "tool_result",
                         tool_use_id : block.id,
@@ -151,7 +160,7 @@ async function handleToolUse(
 
         messages.push({ role: "user", content })
 
-        Logger.log("anthropic - messages (tool)", messages)
+        Logger.debug("anthropic - messages (tool)", messages)
 
         message = await (client as Anthropic).messages.create({
             max_tokens: 1024,
@@ -162,7 +171,8 @@ async function handleToolUse(
             tools: getTools()
         });
 
-        Logger.log("anthropic - reply (tool)", message)
+        Logger.debug("anthropic - reply (tool)", message)
+
     }
 
     return new Message({
@@ -185,7 +195,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
           messages.push(await handleMessage(msg))
       }
 
-      Logger.log("anthropic - messages", messages)
+      Logger.debug("anthropic - messages", messages)
 
       let msg = await this.client.messages.create({
         system: systemPrompt(lectic),
@@ -196,9 +206,16 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
         tools: getTools()
       });
 
-      Logger.log("anthropic - reply", msg)
+      Logger.debug("anthropic - reply", msg)
 
-      return handleToolUse(msg, messages, lectic, this.client)
+    if (msg.stop_reason == "tool_use") {
+            return handleToolUse(msg, messages, lectic, this.client)
+        } else {
+            return new Message({
+                role: "assistant",
+                content: getText(msg)
+            })
+        }
     },
 
     client : new Anthropic({
