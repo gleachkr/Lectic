@@ -10,9 +10,9 @@ for research, learning, and knowledge management.
 
 ### Installation
 
-If you're using [nix](https://nixos.org), then `nix profile install github:gleachkr/lectic` will
-install the latest. If you're not, but you're using a Linux system (or WSL on
-windows), you can download an app image from the
+If you're using [nix](https://nixos.org), then `nix profile install github:gleachkr/lectic` will install lectic from the lastest git commit. If
+you're not using nix, but you're using a Linux system (or WSL on windows), you
+can download an app image from the
 [releases](https://github.com/gleachkr/Lectic/releases), and place it somewhere
 on your `$PATH`.
 
@@ -38,8 +38,9 @@ on your `$PATH`.
    - In Vim: Use `%!lectic` to update the conversation
    - In other editors: Set up a key binding or command to pipe the current file
      through `lectic`
-   - From the command line: `lectic -f conversation.lec > tmp && mv tmp
-     conversation.lec`
+
+3. Or, From the command line: `lectic -f conversation.lec > tmp && mv tmp
+   conversation.lec`
 
 ### Editor Integration
 
@@ -62,13 +63,18 @@ Most text editors support filtering through external commands. Consider:
 
 ### Markdown Format
 
-Lectic uses pandoc-compatible markdown, with LLM responses formatted as fenced
-divs:
+Lectic uses a superset of commonmark markdown, using micromark's implementation
+of *[container
+directives](https://github.com/microma/syrk/micromark-extension-directive?tab=readme-ov-file#syntax)*
+to represent LLM responses. These allow the insertion of special blocks of
+content, opened by a sequence of colons followed by an alphanumeric name, and
+closed by a matching sequence of colons. For example:
 
 ````markdown
 Your question or prompt here
 
-::: Assistant
+:::Assistant
+
 The LLM's response appears here, wrapped in fenced div markers.
 Multiple paragraphs are preserved.
 
@@ -82,6 +88,9 @@ print("Hello, world!")
 
 Your next prompt...
 ````
+
+The front matter should be YAML, and should open with three dashes and close
+with three dashes or three periods.
 
 ### Content References
 
@@ -97,13 +106,24 @@ Include local or remote content in conversations:
 Supported content types:
 - Text files (automatically included as plain text)
 - Images (PNG, JPEG, GIF, WebP)
-- PDFs (anthropic provider only right now)
+- PDFs (anthropic and gemini providers only right now)
 - Remote content via HTTP/HTTPS
 - Large files or failed remote fetches will produce error messages in context
 
+Local content references can also use globbing to include multiple files:
+
+```markdown
+[Code](./src/**)
+[Images](./images/*.jpg)
+```
+
+Supported glob syntax is determined by bun's [glob
+api](https://bun.sh/docs/api/glob).
+
 ### Command Output References
 
-Include the output of shell commands directly in your conversations using the `$` prefix in file links:
+Include the output of shell commands directly in your conversations by using
+the `$` prefix in the URI part of a markdown link:
 
 ```markdown
 [System Info]($uname -a)
@@ -123,8 +143,6 @@ This is particularly useful for:
 - Showing the current state of a project or environment
 - Incorporating dynamic data into your conversations
 - Running analysis tools and discussing their output
-
-Pairs nicely with [files-to-prompt](https://github.com/simonw/files-to-prompt)
 
 ### Memory Consolidation
 
@@ -193,7 +211,8 @@ Example conversation using the exec tool:
 ```markdown
 Could you check if this code works?
 
-::: Assistant
+:::Assistant
+
 I'll test it using Python:
 
 {python}
@@ -201,6 +220,7 @@ print("Hello, world!")
 {/python}
 
 The code executed successfully and output: Hello, world!
+
 :::
 ```
 
@@ -223,7 +243,8 @@ Example conversation using the sqlite tool:
 ```markdown
 What are the top 5 orders by value?
 
-::: Assistant
+:::Assistant
+
 I'll query the orders table:
 
 {query}
@@ -236,6 +257,7 @@ LIMIT 5;
 {/query}
 
 Here are the results showing the largest orders...
+
 :::
 ```
 
@@ -268,7 +290,8 @@ Example conversation using the tavily tool:
 ```markdown
 What are the latest headlines about AI ethics?
 
-::: Assistant
+:::Assistant
+
 I'll search for recent news articles on AI ethics:
 
 {search}
@@ -278,6 +301,7 @@ What are the latest headlines about AI ethics?
 Here are some of the top headlines:
 - Article 1: ...
 - Article 2: ...
+
 :::
 ```
 
@@ -335,7 +359,8 @@ interlocutor:
 Can you help me understand the Fibonacci sequence? Maybe we could
 calculate some terms?
 
-::: Mathematician
+:::Mathematician
+
 The Fibonacci sequence is a series of numbers where each number is the sum
 of the two preceding ones. Usually, the sequence starts with 0 and 1.
 
@@ -359,11 +384,13 @@ Each number is the sum of the two before it. For example:
 - 1 + 2 = 3
 - 2 + 3 = 5
 And so on...
+
 :::
 
 That's interesting! What's the ratio between consecutive terms?
 
-::: Mathematician
+:::Mathematician
+
 The ratio between consecutive Fibonacci numbers approaches the golden ratio
 (φ ≈ 1.618033988749895). Let's calculate these ratios:
 
@@ -398,6 +425,7 @@ Term Ratio
    9 1.619048
 
 Notice how each ratio gets closer to the golden ratio!
+
 :::
 
 ````

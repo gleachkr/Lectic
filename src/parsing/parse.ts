@@ -1,8 +1,11 @@
-import { isLecticHeader } from "./types/lectic"
-import { Message } from "./types/message"
-import type { Lectic } from "./types/lectic"
+import { isLecticHeader } from "../types/lectic"
+import { Message } from "../types/message"
+import type { Lectic } from "../types/lectic"
 import * as YAML from "yaml"
-import { isExecToolSpec } from "./tools/exec"
+import { isExecToolSpec } from "../tools/exec"
+import { remark } from "remark"
+import { nodeRaw, nodeContentRaw } from "./markdown"
+import remarkDirective from "remark-directive"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -24,34 +27,41 @@ export function getBody(raw:string) : string | null {
     }
 }
 
-export function splitBodyChunks(input: string): string[] {
-    const lines = input.split('\n')
-    let matches : string[] = []
-    let match : string[] = []
-    let user = true
-    for (const line of lines) {
-        if (/^:::/.exec(line)) {
-            if (user) {
-                user = false
-                matches.push(match.join('\n'))
-                match = [line]
-            } else {
-                user = true
-                match.push(line)
-                matches.push(match.join('\n'))
-                match = []
-            }
+
+export function bodyToMessages(raw : string) : Message[] {
+
+    const ast = remark()
+        .use(remarkDirective)
+        .parse(raw)
+
+    const messages : Message[] = []
+
+    let cur = ""
+
+    for (const node of ast.children) {
+        if (node.type == "containerDirective") {
+            messages.push(new Message({
+                role: "user",
+                content: cur
+            }))
+            cur = ""
+            messages.push(new Message({
+                role: "assistant",
+                content: nodeContentRaw(node, raw)
+            }))
         } else {
-            match.push(line)
+            cur += `\n\n${nodeRaw(node, raw)}`
         }
     }
-    matches.push(match.join('\n'))
 
-    matches = matches
-        .map(m => m.trim())
-        .filter(m => m.length > 0)
+    if (cur.length > 0) {
+        messages.push(new Message({
+            role: "user",
+            content: cur
+        }))
+    }
 
-    return matches;
+    return messages
 }
 
 export async function parseLectic(raw: string) : Promise<Lectic> {
@@ -88,26 +98,7 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
         }
     }
 
-    const messages : Message[] = []
-
-    for (const chunk of splitBodyChunks(rawBody)) {
-        const match = /:::(.*?)\n([\s\S]*?):::/.exec(chunk)
-        if (match) {
-            messages.push(new Message({ 
-                role : "assistant", 
-                content : match[2].trim()
-            }))
-        } else {
-            messages.push(new Message({
-                role : "user",
-                content : chunk
-            }))
-        }
-    }
-
-    if (messages[messages.length - 1]?.role == "user" && header.interlocutor.reminder) {
-        messages[messages.length - 1].content += `\n\n${header.interlocutor.reminder}`
-    }
+    const messages = bodyToMessages(rawBody)
 
     return { header, body : { messages }}
 }

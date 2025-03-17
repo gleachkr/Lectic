@@ -1,4 +1,4 @@
-import { parseLectic } from "./parse"
+import { parseLectic } from "./parsing/parse"
 import { program } from 'commander'
 import { AnthropicBackend } from "./backends/anthropic"
 import { OpenAIBackend } from "./backends/openai"
@@ -47,7 +47,7 @@ async function main() {
             console.log(`---\n${YAML.stringify(new_lectic.header)}...`)
         } else {
             const message =  await get_message(lectic)
-            console.log(`\n::: ${lectic.header.interlocutor.name}\n\n${message.content.trim()}\n\n:::`)
+            console.log(`\n:::${lectic.header.interlocutor.name}\n\n${message.content.trim()}\n\n:::`)
         }
     }).catch(error => {
         console.error(`\n<error>\n${error.message}\n</error>`)
