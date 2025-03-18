@@ -113,8 +113,11 @@ async function linkToContent(link : FileLink)
             }
         } as const
         case "application/pdf" : return {
-            type : "text", 
-            text: `<error>couldn't upload ${link.title}. PDFs are not currently supported</error>`
+            type : "file", 
+            file: {
+                file_name : link.title,
+                file_data : Buffer.from(bytes).toString("base64"),
+            }
         } as const
         case "text/plain" : return {
             type : "text", 
