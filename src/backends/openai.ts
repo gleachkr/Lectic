@@ -3,7 +3,8 @@ import { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { FileLink } from "../types/link"
+import { MessageAttachment } from "../types/attachment"
+import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
@@ -97,7 +98,7 @@ async function handleToolUse(
     })
 }
 
-async function linkToContent(link : FileLink) 
+async function linkToContent(link : MessageAttachment) 
     : Promise<OpenAI.Chat.Completions.ChatCompletionContentPart | null> {
     const media_type = await link.getType()
     const bytes = await link.getBytes()
@@ -131,30 +132,50 @@ async function linkToContent(link : FileLink)
 }
 
 async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam> {
-    const links = msg.containedLinks().flatMap(FileLink.fromGlob)
-    if (links.length == 0 || msg.role != "user") {
-        return msg
-    } else {
-        const content : OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{
-            type: "text" as "text",
-            text: msg.content
-        }]
-        for (const link of links) {
-            const exists = await link.exists()
-            if (exists) {
-                try {
-                    const source = await linkToContent(link)
-                    if (source) content.push(source)
-                } catch (e) {
-                    content.push({
-                        type: "text",
-                        text: `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
-                    })
-                }
+    if (msg.role != "user") { return msg }
+
+    const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+    const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+
+    const content : OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{
+        type: "text" as "text",
+        text: msg.content
+    }]
+
+    for (const link of links) {
+        const exists = await link.exists()
+        if (exists) {
+            try {
+                const source = await linkToContent(link)
+                if (source) content.push(source)
+            } catch (e) {
+                content.push({
+                    type: "text",
+                    text: `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
+                })
             }
         }
-        return { role : msg.role, content }
     }
+
+    for (const command of commands) {
+        await command.execute()
+        if (command.success) {
+            content.push({
+                type: "text",
+                text: `<stdout from="${command.command}">${command.stdout}</stdout>`
+            })
+        } else {
+            content.push({
+                type: "text",
+                text: `<error>Something went wrong when executing a command:` + 
+                    `<stdout from="${command.command}">${command.stdout}</stdout>` +
+                    `<stderr from="${command.command}">${command.stderr}</stderr>` +
+                `</error>`
+            })
+        }
+    }
+
+    return { role : msg.role, content }
 }
 
 function developerMessage(lectic : Lectic) {

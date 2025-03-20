@@ -4,7 +4,8 @@ import { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { FileLink } from "../types/link"
+import { MessageCommand } from "../types/directive.ts"
+import { MessageAttachment } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
@@ -94,7 +95,7 @@ async function handleToolUse(
     })
 }
 
-async function linkToContent(link : FileLink) 
+async function linkToContent(link : MessageAttachment) 
     : Promise<{text?: string, image_data?: string} | null> {
     const media_type = await link.getType()
     const bytes = await link.getBytes()
@@ -119,30 +120,40 @@ async function linkToContent(link : FileLink)
 }
 
 async function handleMessage(msg : Message) : Promise<Ollama.Message> {
-    const links = msg.containedLinks().flatMap(FileLink.fromGlob)
+    if (msg.role != "user") { return msg }
 
-    if (links.length == 0 || msg.role != "user") {
-        return msg
-    } else {
-        const images : string[] = []
+    const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+    const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
-        for (const link of links) {
-            const exists = await link.exists()
-            if (exists) {
-                try {
-                    const source = await linkToContent(link)
-                    if (source && source.image_data) images.push(source.image_data)
-                    if (source && source.text) msg.content += source.text
-                } catch (e) {
-                    msg.content += 
-                        `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
-                }
+    const images : string[] = []
+
+    for (const link of links) {
+        const exists = await link.exists()
+        if (exists) {
+            try {
+                const source = await linkToContent(link)
+                if (source && source.image_data) images.push(source.image_data)
+                if (source && source.text) msg.content += source.text
+            } catch (e) {
+                msg.content += 
+                    `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
             }
         }
-
-
-        return { role : msg.role, content : msg.content, images : images}
     }
+
+    for (const command of commands) {
+        await command.execute()
+        if (command.success) {
+            msg.content += `<stdout from="${command.command}">${command.stdout}</stdout>`
+        } else {
+            msg.content += `<error>Something went wrong when executing a command:` + 
+                `<stdout from="${command.command}">${command.stdout}</stdout>` +
+                `<stderr from="${command.command}">${command.stderr}</stderr>` +
+            `</error>`
+        }
+    }
+
+    return { role : msg.role, content : msg.content, images : images}
 }
 
 function developerMessage(lectic : Lectic): Ollama.Message {

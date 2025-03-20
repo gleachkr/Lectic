@@ -1,12 +1,10 @@
-import type { MessageLink } from "../types/message"
+import type { MessageLink } from "./message"
 import type { BunFile } from "bun"
-import { $ } from "bun"
 import { Glob } from "bun"
 
-export class FileLink {
+export class MessageAttachment {
     file : BunFile | undefined
     response : Promise<Response> | undefined
-    result : Promise<String> | undefined
     title : string
     URI : string
 
@@ -23,11 +21,7 @@ export class FileLink {
                 }
             }
         } catch {
-            if (link.URI[0] == "$") {
-                this.result = $`${link.URI.substring(1).trim()}`.text()
-            } else {
-                this.file = Bun.file(link.URI)
-            }
+            this.file = Bun.file(link.URI)
         }
         this.title = link.text
         this.URI = link.URI
@@ -45,9 +39,7 @@ export class FileLink {
         } else if (this.response) {
             const headers = (await this.response).headers
             return headers.get("Content-Type")?.replace(/^text\/.+$/,"text/plain")
-        } else if (this.result) {
-            return "text/plain"
-        }
+        } 
         return null
     }
 
@@ -59,29 +51,27 @@ export class FileLink {
             // recognize Bun's Response.bytes()
             return (await (await this.response).blob()).bytes()
             // TODO error handling in case of a failed fetch
-        } else if (this.result) {
-            return this.result.then(rslt => Buffer.from(rslt))
-        }
+        } 
         return null
     }
 
-    static fromGlob(link : MessageLink) : FileLink[] {
+    static fromGlob(link : MessageLink) : MessageAttachment[] {
         let path = ""
         try {
             const url = new URL(link.URI)
             if (url.protocol == "file:") {
                 path = Bun.fileURLToPath(link.URI)
             } else {
-                return [new FileLink(link)]
+                return [new MessageAttachment(link)]
             }
         } catch { 
             path = link.URI
         }
         const files = Array(...new Glob(path).scanSync())
-        if (files.length < 2) {
-            return [new FileLink(link)]
+        if (files.length < 1) {
+            return [new MessageAttachment(link)]
         } else {
-            return files.map(file => new FileLink({text: link.text, URI: file}))
+            return files.map(file => new MessageAttachment({text: link.text, URI: file}))
         }
     }
 }

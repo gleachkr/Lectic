@@ -10,11 +10,11 @@ for research, learning, and knowledge management.
 
 ### Installation
 
-If you're using [nix](https://nixos.org), then `nix profile install github:gleachkr/lectic` will install lectic from the lastest git commit. If
-you're not using nix, but you're using a Linux system (or WSL on windows), you
-can download an app image from the
-[releases](https://github.com/gleachkr/Lectic/releases), and place it somewhere
-on your `$PATH`.
+If you're using [nix](https://nixos.org), then `nix profile install github:gleachkr/lectic` 
+will install lectic from the lastest git commit. If you're not using nix, but
+you're using a Linux system (or WSL on windows), you can download an app image
+from the [releases](https://github.com/gleachkr/Lectic/releases), and place it
+somewhere on your `$PATH`.
 
 ### Basic Workflow
 
@@ -122,21 +122,22 @@ api](https://bun.sh/docs/api/glob).
 
 ### Command Output References
 
-Include the output of shell commands directly in your conversations by using
-the `$` prefix in the URI part of a markdown link:
+Include the output of shell commands directly in your conversations by using a
+markdown directive.
 
 ```markdown
-[System Info]($uname -a)
-[Directory Listing]($ls)
-[Latest Git Changes]($git diff)
-[Complex Pipeline]($ps aux | grep python)
+:cmd[uname -a]                  #add system info to context
+:cmd[ls]                        #add directory contents to context
+:cmd[git diff]                  #add the latest diff to the context
+:cmd[ps aux | grep python]      #add the output of a pipeline to the context
 ```
 
-When Lectic encounters a link with a `$` prefix, it:
+When Lectic encounters a `cmd` [directive](https://talk.commonmark.org/t/generic-directives-plugins-syntax/444), 
+(inline text of the form `:cmd[COMMAND]`) it:
 1. Executes the specified command (using the [bun
    shell](https://bun.sh/docs/runtime/shell)).
 2. Captures the output
-3. Includes the output as if it were a text file
+3. Includes the output in the user message.
 
 This is particularly useful for:
 - Including system information in debugging conversations

@@ -5,7 +5,8 @@ import type { Lectic } from "../types/lectic"
 import type { JSONSchema } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { FileLink } from "../types/link"
+import { MessageAttachment } from "../types/attachment"
+import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
@@ -151,7 +152,7 @@ async function handleToolUse(
     })
 }
 
-async function linkToContent(link : FileLink) 
+async function linkToContent(link : MessageAttachment) 
     : Promise<Part | null> {
     const media_type = await link.getType()
     const bytes = await link.getBytes()
@@ -199,38 +200,55 @@ async function linkToContent(link : FileLink)
 }
 
 async function handleMessage(msg : Message) : Promise<Content> {
-    const links = msg.containedLinks().flatMap(FileLink.fromGlob)
-
-    if (msg.content.length == 0) {
-        msg.content = "…"
-    }
-
-    if (links.length == 0 || msg.role != "user") {
+    if (msg.role != "user") {
         return {
-            role: msg.role == "user" ? "user" : "model",
+            role: msg.role,
             parts: [{
                 "text": msg.content
             }]
         }
-    } else {
-        const content : Part[] = [{
-            text: msg.content
-        }]
-        for (const link of links) {
-            const exists = await link.exists()
-            if (exists) {
-                try {
-                    const source = await linkToContent(link)
-                    if (source) content.push(source)
-                } catch (e) {
-                    content.push({
-                        text: `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
-                    })
-                }
+    }
+
+    const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+    const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+
+    if (msg.content.length == 0) { msg.content = "…" }
+
+    const content : Part[] = [{ text: msg.content }]
+
+    for (const link of links) {
+        const exists = await link.exists()
+        if (exists) {
+            try {
+                const source = await linkToContent(link)
+                if (source) content.push(source)
+            } catch (e) {
+                content.push({
+                    text:`<error>` +
+                        `Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}` +
+                    `</error>`
+                })
             }
         }
-        return { role : msg.role, parts: content }
     }
+
+    for (const command of commands) {
+        await command.execute()
+        if (command.success) {
+            content.push({
+                text: `<stdout from="${command.command}">${command.stdout}</stdout>`
+            })
+        } else {
+            content.push({
+                text: `<error>Something went wrong when executing a command:` + 
+                    `<stdout from="${command.command}">${command.stdout}</stdout>` +
+                    `<stderr from="${command.command}">${command.stderr}</stderr>` +
+                `</error>`
+            })
+        }
+    }
+
+    return { role : msg.role, parts: content }
 }
 
 export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {

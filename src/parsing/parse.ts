@@ -27,7 +27,6 @@ export function getBody(raw:string) : string | null {
     }
 }
 
-
 export function bodyToMessages(raw : string) : Message[] {
 
     const ast = remark()
