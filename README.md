@@ -457,5 +457,5 @@ Lectic is open to contributions. Areas of particular interest:
 - Additional LLM backend support
 - More Editor integrations
 - New tool types
-* Good lectic templates
+- Good lectic templates
 - Documentation improvements

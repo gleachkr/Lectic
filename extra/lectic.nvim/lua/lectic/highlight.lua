@@ -65,4 +65,53 @@ function M.submit_lectic()
     end
 end
 
+function M.submit_lectic_async()
+    if vim.fn.executable('lectic') ~= 1 then
+        vim.notify("Error: `lectic` binary is not found in the PATH.", vim.log.levels.ERROR)
+        return
+    end
+
+    local uv = vim.uv
+
+    local buf = vim.api.nvim_get_current_buf()
+    local total_lines = vim.api.nvim_buf_line_count(buf)
+    local buffer_content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local stdin = uv.new_pipe()
+    local stdout = uv.new_pipe()
+    local stderr = uv.new_pipe()
+
+    local function on_exit(code, signal) end --unused exit handler
+
+    local extmark_id = vim.api.nvim_buf_set_extmark(buf, ns_id, total_lines - 1, 0, {
+      end_row = vim.api.nvim_buf_line_count(buf) - 1,
+      line_hl_group = 'LecticBlock',
+      strict = false
+    })
+
+    local function on_stdout(err, data)
+      assert(not err, err)
+        if data then
+          vim.schedule(function()
+            vim.api.nvim_buf_set_lines(buf, -1, -1, false, vim.split(data, '\n'))
+            vim.api.nvim_buf_set_extmark(buf, ns_id, total_lines, 0, {
+                end_row = vim.api.nvim_buf_line_count(buf) - 1,
+                line_hl_group = 'LecticBlock',
+                id = extmark_id,
+                strict = false
+            })
+          end)
+        end
+    end
+
+    local handle, pid = uv.spawn("lectic", {
+      stdio = {stdin, stdout, stderr},
+      args = {"-s"}
+    }, on_exit)
+
+    uv.read_start(stdout, on_stdout)
+
+    stdin:write(table.concat(buffer_content, '\n'), function() stdin:close(); print("closed") end)
+
+end
+
 return M
