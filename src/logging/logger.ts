@@ -24,6 +24,7 @@ export const Logger : {
     logfile : null | string,
     debug(context : string, logged: any) : void,
     stdout(output : string | AsyncIterable<string>) : void
+    fromStream<A>(generator : AsyncIterable<string | A>) : { strings : AsyncIterable<string>, rest : Promise<A[]> }
 } = {
 
     logfile: null,
@@ -38,12 +39,29 @@ export const Logger : {
 
     async stdout(output) {
         if (typeof output == "string") {
-            console.log(output)
+            process.stdout.write(output)
             return
         }
 
         for await (const chunk of output) {
-            console.log(chunk)
+            process.stdout.write(chunk)
         }
+    },
+
+    fromStream<A>(generator : AsyncIterable<string | A>) {
+        let resolver : (result : A[]) => void
+        let accumulator : A[] = []
+        let rest : Promise<A[]> = new Promise(resolve => resolver = resolve)
+        let strings = async function*() {
+            try {
+                for await (const x of generator) {
+                    if (typeof x == "string") { yield x }
+                    else { accumulator.push(x) }
+                }
+            } finally {
+                resolver(accumulator)
+            }
+        }
+        return { strings: strings(), rest }
     }
 }
