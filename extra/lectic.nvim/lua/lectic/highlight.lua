@@ -79,26 +79,31 @@ function M.submit_lectic_async()
     local stdin = uv.new_pipe()
     local stdout = uv.new_pipe()
     local stderr = uv.new_pipe()
+    local extmark_id = nil
 
-    local function on_exit(code, signal) end --unused exit handler
+    local function on_exit(code, signal)
+        vim.schedule(function()
+            vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+        end)
+    end
 
-    local extmark_id = vim.api.nvim_buf_set_extmark(buf, ns_id, total_lines - 1, 0, {
-      end_row = vim.api.nvim_buf_line_count(buf) - 1,
-      line_hl_group = 'LecticBlock',
-      strict = false
-    })
 
     local function on_stdout(err, data)
       assert(not err, err)
         if data then
           vim.schedule(function()
-            vim.api.nvim_buf_set_lines(buf, -1, -1, false, vim.split(data, '\n'))
-            vim.api.nvim_buf_set_extmark(buf, ns_id, total_lines, 0, {
+            vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+            local cur_lines = vim.api.nvim_buf_get_lines(buf, -2, -1, true)
+            local new_lines = vim.split(data, '\n')
+            new_lines[1] = cur_lines[1] .. new_lines[1]
+            vim.api.nvim_buf_set_lines(buf, -2, -1, false, new_lines)
+            extmark_id = vim.api.nvim_buf_set_extmark(buf, ns_id, total_lines, 0, {
                 end_row = vim.api.nvim_buf_line_count(buf) - 1,
                 line_hl_group = 'LecticBlock',
                 id = extmark_id,
                 strict = false
             })
+            vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
           end)
         end
     end
@@ -109,6 +114,10 @@ function M.submit_lectic_async()
     }, on_exit)
 
     uv.read_start(stdout, on_stdout)
+
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""})
+
+    vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
     stdin:write(table.concat(buffer_content, '\n'), function() stdin:close(); print("closed") end)
 
