@@ -31,8 +31,6 @@ export class Message {
 
     containedDirectives() : MessageDirective[] {
         return parseDirectives(this.content).map(directive => {
-            console.log(directive.children[0].position)
-            console.log(this.content.length)
             return {
             text: nodeContentRaw(directive, this.content),
             name: directive.name,
