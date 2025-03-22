@@ -1,4 +1,4 @@
-import type { Content, Part, Tool, Schema, GenerateContentResult } from '@google/generative-ai'
+import type { Content, Part, Tool, Schema, EnhancedGenerateContentResponse } from '@google/generative-ai'
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
@@ -56,23 +56,26 @@ function getTools() : Tool[] {
     return tools
 }
 
-async function handleToolUse(
-    message : GenerateContentResult, 
+async function *handleToolUse(
+    response : EnhancedGenerateContentResponse, 
     messages : Content[], 
     lectic : Lectic,
-    client : GoogleGenerativeAI) : Promise<Message> {
+    client : GoogleGenerativeAI) : AsyncGenerator<string | Message> {
 
-    let calls = message.response.functionCalls()
+    let calls = response.functionCalls()
     let recur = 0
 
     while (calls && calls.length > 0) {
+        yield "\n\n"
         recur++
 
         if (recur > 12) {
-            return new Message({
+            yield "<error>Runaway tool use!</error>"
+            yield new Message({
                 role: "assistant", 
                 content: "<error>Runaway tool use!</error>"
             })
+            return
         }
 
         const model = client.getGenerativeModel({ 
@@ -83,8 +86,8 @@ async function handleToolUse(
 
         messages.push({
             role: "model",
-            parts: message.response.text().length > 0 
-                ? [{ text: message.response.text() }, ...calls.map(call => ({ functionCall: call }))]
+            parts: response.text().length > 0 
+                ? [{ text: response.text() }, ...calls.map(call => ({ functionCall: call }))]
                 : calls.map(call => ({ functionCall: call }))
         })
 
@@ -127,7 +130,7 @@ async function handleToolUse(
 
         Logger.debug("gemini - messages (tool)", messages)
 
-        message = await model.generateContent({
+        const result = await model.generateContentStream({
           contents: messages,
           generationConfig: {
               temperature: lectic.header.interlocutor.temperature,
@@ -135,21 +138,27 @@ async function handleToolUse(
           }
         });
 
+        for await (const chunk of result.stream) {
+            yield chunk.text()
+        }
+
+        response = await result.response
+
         Logger.debug("gemini - reply (tool)", {
-          text: message.response.text(),
-          calls: message.response.functionCalls(),
-          usage: message.response.usageMetadata,
-          feedback: message.response.promptFeedback
+          text: response.text(),
+          calls: response.functionCalls(),
+          usage: response.usageMetadata,
+          feedback: response.promptFeedback
         })
 
-        calls = message.response.functionCalls()
+        calls = response.functionCalls()
 
+        yield new Message({
+            role: "assistant", 
+            content: response.text()
+        })
     }
 
-    return new Message({
-        role: "assistant", 
-        content: message.response.text()
-    })
 }
 
 async function linkToContent(link : MessageAttachment) 
@@ -253,7 +262,7 @@ async function handleMessage(msg : Message) : Promise<Content> {
 
 export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
 
-    async nextMessage(lectic : Lectic) : Promise<Message> {
+    async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
       if (lectic.header.interlocutor.tools) {
         initRegistry(lectic.header.interlocutor.tools)
@@ -273,7 +282,7 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
 
       Logger.debug("gemini - messages", messages)
 
-      let msg = await model.generateContent({
+      let result = await model.generateContentStream({
         contents: messages,
         generationConfig: {
             temperature: lectic.header.interlocutor.temperature,
@@ -281,21 +290,27 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
         }
       });
 
+      for await (const chunk of result.stream) {
+          yield chunk.text()
+      }
+
+      const msg = await result.response
+
       Logger.debug("gemini - reply", {
-          text: msg.response.text(),
-          calls: msg.response.functionCalls(),
-          usage: msg.response.usageMetadata,
-          feedback: msg.response.promptFeedback
+          text: msg.text(),
+          calls: msg.functionCalls(),
+          usage: msg.usageMetadata,
+          feedback: msg.promptFeedback
       })
 
-      const calls = msg.response.functionCalls()
+      const calls = msg.functionCalls()
 
       if (calls && calls.length > 0) {
-          return handleToolUse(msg, messages, lectic, this.client);
+          yield* handleToolUse(msg, messages, lectic, this.client);
       } else {
-          return new Message({
+          yield new Message({
               role: "assistant",
-              content: msg.response.text()
+              content: msg.text()
           })
       }
     },

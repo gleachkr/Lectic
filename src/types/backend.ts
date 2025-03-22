@@ -4,7 +4,7 @@ import { LLMProvider } from "./provider"
 
 export type Backend = {
 
-    nextMessage(lectic : Lectic) : Promise<Message>,
+    evaluate(lectic : Lectic) : AsyncIterable<string | Message>,
 
     provider : LLMProvider,
 
@@ -21,9 +21,15 @@ export async function consolidateMemories(lectic : Lectic, backend : Backend) : 
             "State only the summary, do not include any commentary."
     }))
 
-    lectic.header.interlocutor.memories = (await backend.nextMessage(lectic)).content
+    let message : Message | undefined = undefined
+
+    for await (const entry of backend.evaluate(lectic)) {
+        if (typeof entry != "string") {
+            message = entry
+        }
+    }
+
+    lectic.header.interlocutor.memories = message?.content
 
     return lectic
 }
-
-

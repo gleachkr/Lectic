@@ -38,19 +38,28 @@ async function main() {
     }
 
     if (!program.opts()["short"] && !program.opts()["consolidate"]) {
-        console.log(lecticString.trim());
+        Logger.stdout(`${lecticString.trim()}\n\n`);
     }
 
     await parseLectic(lecticString).then(async lectic => {
+        const backend = getBackend(lectic)
         if (program.opts()["consolidate"]) {
-            const new_lectic = await consolidateMemories(lectic, getBackend(lectic))
-            console.log(`---\n${YAML.stringify(new_lectic.header)}...`)
+            const new_lectic = await consolidateMemories(lectic, backend)
+            Logger.stdout(`---\n${YAML.stringify(new_lectic.header)}...`)
         } else {
-            const message =  await get_message(lectic)
-            console.log(`\n:::${lectic.header.interlocutor.name}\n\n${message.content.trim()}\n\n:::`)
+            Logger.stdout(`:::${lectic.header.interlocutor.name}\n\n`)
+            if (backend.evaluate) {
+                const result = Logger.fromStream(backend.evaluate(lectic))
+                Logger.stdout(result.strings)
+                await result.rest
+            } else {
+                const message = await get_message(lectic)
+                Logger.stdout(message.content.trim())
+            }
+            Logger.stdout(`\n\n:::`)
         }
     }).catch(error => {
-        console.error(`\n<error>\n${error.message}\n</error>`)
+        Logger.stdout(`\n<error>\n${error.message}\n</error>`)
         process.exit(1)
     })
 

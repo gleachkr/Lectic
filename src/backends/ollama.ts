@@ -14,6 +14,30 @@ function getText(response : Ollama.ChatResponse) : string {
     return response.message.content ?? "…"
 }
 
+// this implementation is pretty conjectural. It would be good to consult some other implementations
+function messageReducer(
+    previous: Ollama.ChatResponse,
+    item: Ollama.ChatResponse
+  ): Ollama.ChatResponse {
+
+  const reduce = (acc: any, delta: any) => {
+    acc = { ...acc };
+    for (const [key, value] of Object.entries(delta)) {
+      if (typeof acc[key] === 'string' && typeof value === 'string') {
+        if (key == "content") (acc[key] as string) += value;
+        else acc[key] = value;
+      } else if (typeof acc[key] === 'object' && !Array.isArray(acc[key])) {
+        acc[key] = reduce(acc[key], value);
+      } else {
+        acc[key] = value;
+      }
+    }
+    return acc;
+  };
+
+  return reduce(previous, item) as Ollama.ChatResponse;
+}
+
 function getTools() : Ollama.Tool[] {
     const tools : Ollama.Tool[] = []
     for (const tool of Object.values(ToolRegistry)) {
@@ -33,22 +57,25 @@ function getTools() : Ollama.Tool[] {
     return tools
 }
 
-async function handleToolUse(
+async function* handleToolUse(
     response : Ollama.ChatResponse, 
     messages : Ollama.Message[], 
     lectic : Lectic,
-    ) : Promise<Message> {
+    ) : AsyncGenerator<string | Message> {
 
     let recur = 0
 
     while (response.message.tool_calls) {
+        yield "\n\n"
         recur++
         
         if (recur > 12) {
-            return new Message({
+            yield "<error>Runaway tool use!</error>"
+            yield new Message({
                 role: "assistant", 
                 content: "<error>Runaway tool use!</error>"
             })
+            return
         }
 
         messages.push({
@@ -80,11 +107,23 @@ async function handleToolUse(
 
         Logger.debug("ollama - messages", messages)
 
-        response = await ollama.chat({
+        const stream = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model ?? 'llama-3.2',
-            tools: getTools()
+            stream: true,
+            tools: getTools(),
+            options: {
+                temperature: lectic.header.interlocutor.temperature,
+            }
         });
+
+
+        response = {} as Ollama.ChatResponse
+
+        for await (const event of stream) {
+            yield event.message.content
+            response = messageReducer(response, event)
+        }
 
         Logger.debug("ollama - reply (tool)", response)
     }
@@ -165,7 +204,7 @@ function developerMessage(lectic : Lectic): Ollama.Message {
 
 export const OllamaBackend : Backend = {
 
-    async nextMessage(lectic : Lectic) : Promise<Message> {
+    async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
         if (lectic.header.interlocutor.tools) {
             initRegistry(lectic.header.interlocutor.tools)
@@ -179,21 +218,29 @@ export const OllamaBackend : Backend = {
 
         Logger.debug("ollama - messages", messages)
 
-        let msg = await ollama.chat({
+        let stream = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model || 'llama3.2',
             tools: getTools(),
+            stream: true,
             options: {
                 temperature: lectic.header.interlocutor.temperature,
             }
         });
 
+        let msg = {} as Ollama.ChatResponse
+
+        for await (const event of stream) {
+            yield event.message.content
+            msg = messageReducer(msg, event)
+        }
+
         Logger.debug("ollama - reply", msg)
 
         if (msg.message.tool_calls) {
-            return handleToolUse(msg, messages, lectic)
+            yield* handleToolUse(msg, messages, lectic)
         } else {
-            return new Message({
+            yield new Message({
                 role: "assistant",
                 content: getText(msg)
             })

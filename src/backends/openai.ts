@@ -9,8 +9,8 @@ import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
 
-function getText(msg : OpenAI.Chat.ChatCompletion) : string {
-    return msg.choices[0].message.content ?? "…"
+function getText(msg : OpenAI.Chat.ChatCompletionMessage) : string {
+    return msg.content ?? "…"
 }
 
 function getTools() : OpenAI.Chat.Completions.ChatCompletionTool[] {
@@ -34,18 +34,20 @@ function getTools() : OpenAI.Chat.Completions.ChatCompletionTool[] {
     return tools
 }
 
-async function handleToolUse(
-    message : OpenAI.Chat.ChatCompletion, 
+async function *handleToolUse(
+    message : OpenAI.Chat.ChatCompletionMessage, 
     messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[], 
     lectic : Lectic,
-    client : OpenAI) : Promise<Message> {
+    client : OpenAI) : AsyncGenerator<string | Message> {
 
     let recur = 0
-    while (message.choices[0].message.tool_calls) {
+    while (message.tool_calls) {
+        yield "\n\n"
         recur++
 
         if (recur > 12) {
-            return new Message({
+            yield "<error>Runaway tool use!</error>"
+            yield new Message({
                 role: "assistant", 
                 content: "<error>Runaway tool use!</error>"
             })
@@ -53,10 +55,11 @@ async function handleToolUse(
 
         messages.push({
             role: "assistant",
-            tool_calls: message.choices[0].message.tool_calls
+            tool_calls: message.tool_calls,
+            content: message.content
         })
 
-        for (const call of message.choices[0].message.tool_calls) {
+        for (const call of message.tool_calls) {
             if (recur > 10) {
                 messages.push({
                     role: "tool",
@@ -81,21 +84,27 @@ async function handleToolUse(
 
         Logger.debug("openai - messages (tool)", messages)
 
-        message = await (client as OpenAI).chat.completions.create({
-            max_tokens: 1024,
+        const stream = client.beta.chat.completions.stream({
             messages: messages.concat([developerMessage(lectic)]),
             model: lectic.header.interlocutor.model ?? 'gpt-4o',
+            temperature: lectic.header.interlocutor.temperature,
+            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools()
-        });
+        })
+    
+        for await (const event of stream) {
+            yield event.choices[0].delta.content || ""
+        }
+
+        message = await stream.finalMessage()
 
         Logger.debug("openai - reply (tool)", message)
 
+        yield new Message({
+            role: "assistant", 
+            content: getText(message)
+        })
     }
-
-    return new Message({
-        role: "assistant", 
-        content: getText(message)
-    })
 }
 
 async function linkToContent(link : MessageAttachment) 
@@ -185,10 +194,10 @@ function developerMessage(lectic : Lectic) {
     }
 }
 
+
 export const OpenAIBackend : Backend & { client : OpenAI} = {
 
-
-    async nextMessage(lectic : Lectic) : Promise<Message> {
+    async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
         if (lectic.header.interlocutor.tools) {
             initRegistry(lectic.header.interlocutor.tools)
@@ -202,26 +211,34 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
 
         Logger.debug("openai - messages", messages)
 
-        let msg = await (this.client as OpenAI).chat.completions.create({
+        let stream = (this.client as OpenAI).beta.chat.completions.stream({
             messages: messages.concat([developerMessage(lectic)]),
-            model: lectic.header.interlocutor.model || 'gpt-4o',
+            model: lectic.header.interlocutor.model ?? 'gpt-4o',
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            stream: true,
             tools: getTools()
         });
 
+
+        for await (const event of stream) {
+            yield event.choices[0].delta.content || ""
+        }
+
+        let msg = await stream.finalMessage()
+
         Logger.debug("openai - reply", msg)
 
-        if (msg.choices[0].message.tool_calls) {
-            return handleToolUse(msg, messages, lectic, this.client);
+        if (msg.tool_calls) {
+            yield* handleToolUse(msg, messages, lectic, this.client);
         } else {
-            return new Message({
+            yield new Message({
                 role: "assistant",
                 content: getText(msg)
             })
         }
     },
-      
+
 
     provider : LLMProvider.Anthropic,
 
