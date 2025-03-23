@@ -7,7 +7,6 @@ import { GeminiBackend } from "./backends/gemini"
 import { LLMProvider } from "./types/provider"
 import { consolidateMemories } from "./types/backend"
 import { Logger } from "./logging/logger"
-import { Message } from "./types/message"
 import * as YAML from "yaml"
 import type { Lectic } from "./types/lectic"
 import type { Backend } from "./types/backend"
@@ -21,10 +20,6 @@ function getBackend(lectic : Lectic) : Backend {
         case LLMProvider.Gemini: return GeminiBackend
         default : return AnthropicBackend
     }
-}
-
-async function get_message(lectic : Lectic) : Promise<Message> {
-    return getBackend(lectic).nextMessage(lectic)
 }
 
 async function main() {
@@ -48,14 +43,9 @@ async function main() {
             Logger.stdout(`---\n${YAML.stringify(new_lectic.header)}...`)
         } else {
             Logger.stdout(`:::${lectic.header.interlocutor.name}\n\n`)
-            if (backend.evaluate) {
-                const result = Logger.fromStream(backend.evaluate(lectic))
-                Logger.stdout(result.strings)
-                await result.rest
-            } else {
-                const message = await get_message(lectic)
-                Logger.stdout(message.content.trim())
-            }
+            const result = Logger.fromStream(backend.evaluate(lectic))
+            Logger.stdout(result.strings)
+            await result.rest
             Logger.stdout(`\n\n:::`)
         }
     }).catch(error => {
