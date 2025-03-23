@@ -62,6 +62,9 @@ function M.submit_lectic()
     local uv = vim.uv
 
     local buf = vim.api.nvim_get_current_buf()
+    if not vim.api.nvim_buf_get_lines(buf, -2,-1, false)[1]:match("^%s*$") then -- make sure we end in a blank line
+        vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""})
+    end
     local total_lines = vim.api.nvim_buf_line_count(buf)
     local buffer_content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local stdin = uv.new_pipe()
@@ -69,12 +72,12 @@ function M.submit_lectic()
     local stderr = uv.new_pipe()
     local extmark_id = nil
 
+
     local function on_exit(code, signal)
         vim.schedule(function()
             vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
         end)
     end
-
 
     local function on_stdout(err, data)
       assert(not err, err)
@@ -101,9 +104,10 @@ function M.submit_lectic()
       args = {"-s"}
     }, on_exit)
 
+
     uv.read_start(stdout, on_stdout)
 
-    vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""})
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""}) -- start a new line to work on
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
@@ -112,3 +116,4 @@ function M.submit_lectic()
 end
 
 return M
+
