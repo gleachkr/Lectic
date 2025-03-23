@@ -54,18 +54,6 @@ function M.remove_highlight_blocks()
 end
 
 function M.submit_lectic()
-    M.remove_highlight_blocks()
-    if vim.fn.executable('lectic') == 1 then
-        vim.cmd('%!lectic')
-        M.highlight_blocks()
-        vim.cmd('normal! G')
-    else
-        vim.notify("Error: `lectic` binary is not found in the PATH.",
-                  vim.log.levels.ERROR)
-    end
-end
-
-function M.submit_lectic_async()
     if vim.fn.executable('lectic') ~= 1 then
         vim.notify("Error: `lectic` binary is not found in the PATH.", vim.log.levels.ERROR)
         return
