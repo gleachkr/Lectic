@@ -211,7 +211,7 @@ async function linkToContent(link : MessageAttachment)
 async function handleMessage(msg : Message) : Promise<Content> {
     if (msg.role != "user") {
         return {
-            role: msg.role,
+            role: "model",
             parts: [{
                 "text": msg.content
             }]
@@ -257,7 +257,7 @@ async function handleMessage(msg : Message) : Promise<Content> {
         }
     }
 
-    return { role : msg.role, parts: content }
+    return { role : "user", parts: content }
 }
 
 export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
