@@ -71,13 +71,13 @@ export function serialize(arg: any, schema: JSONSchema): string {
             if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
                 throw new Error("Invalid string value");
             }
-            return arg; // No <string> tag
+            return arg;
 
         case "boolean":
             if (typeof arg !== "boolean") {
                 throw new Error("Invalid boolean value");
             }
-            return arg.toString(); // No <boolean> tag
+            return arg.toString();
 
         case "number":
             if (typeof arg !== "number" || 
@@ -86,7 +86,7 @@ export function serialize(arg: any, schema: JSONSchema): string {
                 (schema.maximum !== undefined && arg > schema.maximum)) {
                 throw new Error("Invalid number value");
             }
-            return arg.toString(); // No <number> tag
+            return arg.toString();
 
         case "integer":
             if (!Number.isInteger(arg) || 
@@ -95,7 +95,7 @@ export function serialize(arg: any, schema: JSONSchema): string {
                 (schema.maximum !== undefined && arg > schema.maximum)) {
                 throw new Error("Invalid integer value");
             }
-            return arg.toString(); // No <integer> tag
+            return arg.toString();
 
         case "array":
             if (!Array.isArray(arg)) {
@@ -217,15 +217,22 @@ export function deserialize(xml: string, schema: JSONSchema): any {
         case "object": {
             const inner = unwrap(xml, "object");
             const obj: any = {};
-            for (const key in schema.properties) {
-                const keyRegex = new RegExp(`<${key}>([\\s\\S]*?)</${key}>`);
-                const keyMatch = inner.match(keyRegex);
-                if (!keyMatch) {
-                    throw new Error(`Missing serialized property: ${key} on ${xml}`);
+            let elements = extractElements(inner)
+            for (const element of elements) {
+                const keyRegex = new RegExp(`^<(.*?)>`);
+                const keyMatch = keyRegex.exec(element)
+                if (keyMatch === null) {
+                    //should be unreachable
+                    throw new Error(`Malformed object key: "${element}" on ${xml}`);
                 }
-                // keyMatch[1] is the inner content which should be a valid serialization 
-                // of the property value (including its own type tag)
-                obj[key] = deserialize(keyMatch[1], schema.properties[key]);
+                const key = keyMatch[1]
+                if (!(key in schema.properties)) {
+                    throw new Error(`Unrecognized property: ${key} on ${xml}`);
+                }
+                if (key in obj) {
+                    throw new Error(`Duplicated property: ${key} on ${xml}`);
+                }
+                obj[key] = deserialize(unwrap(element, key), schema.properties[key])
             }
             return obj;
         }

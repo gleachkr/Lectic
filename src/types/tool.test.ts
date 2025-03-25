@@ -495,4 +495,33 @@ describe('Round-trip serialization/deserialization tests', () => {
         const result = deserialize(xml, schema);
         expect(result).toEqual(originalValue);
     });
+
+    it('should handle objects with shared keys in nested objects', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "Object with nested objects sharing keys",
+            properties: {
+                name: { type: "string", description: "Top-level name" },
+                nested: {
+                    type: "object",
+                    description: "Nested object",
+                    properties: {
+                        name: { type: "string", description: "Nested name" }
+                    }
+                }
+            }
+        };
+
+        const originalValue = {
+            name: "TopLevelName",
+            nested: {
+                name: "NestedName"
+            }
+        };
+
+        const xml = serialize(originalValue, schema);
+        const result = deserialize(xml, schema);
+        expect(result).toEqual(originalValue);
+    });
+
 });
