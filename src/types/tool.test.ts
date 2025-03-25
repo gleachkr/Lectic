@@ -1,11 +1,11 @@
 import { serialize, deserialize } from './tool';
-import type  { JSONSchema } from './tool';
+import type { JSONSchema } from './tool';
 import { expect, it, describe } from "bun:test"
 
 describe('serialize function', () => {
     it('should serialize a valid string', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
-        expect(serialize('hello', schema)).toBe('<string>hello</string>');
+        expect(serialize('hello', schema)).toBe('hello');
     });
 
     it('should throw error for invalid string', () => {
@@ -15,7 +15,7 @@ describe('serialize function', () => {
 
     it('should serialize a valid boolean', () => {
         const schema: JSONSchema = { type: "boolean", description: "A boolean" };
-        expect(serialize(true, schema)).toBe('<boolean>true</boolean>');
+        expect(serialize(true, schema)).toBe('true');
     });
 
     it('should throw error for invalid boolean', () => {
@@ -25,7 +25,7 @@ describe('serialize function', () => {
 
     it('should serialize a valid number', () => {
         const schema: JSONSchema = { type: "number", description: "A number" };
-        expect(serialize(42.5, schema)).toBe('<number>42.5</number>');
+        expect(serialize(42.5, schema)).toBe('42.5');
     });
 
     it('should throw error for number outside range', () => {
@@ -35,7 +35,7 @@ describe('serialize function', () => {
 
     it('should serialize a valid integer', () => {
         const schema: JSONSchema = { type: "integer", description: "An integer" };
-        expect(serialize(42, schema)).toBe('<integer>42</integer>');
+        expect(serialize(42, schema)).toBe('42');
     });
 
     it('should throw error for non-integer number', () => {
@@ -45,7 +45,7 @@ describe('serialize function', () => {
 
     it('should serialize an array of strings', () => {
         const schema: JSONSchema = { type: "array", description: "An array", items: { type: "string", description: "String item" } };
-        expect(serialize(['item1', 'item2'], schema)).toBe('<array><string>item1</string><string>item2</string></array>');
+        expect(serialize(['item1', 'item2'], schema)).toBe('<array><item>item1</item><item>item2</item></array>');
     });
 
     it('should throw error for non-array value', () => {
@@ -56,153 +56,106 @@ describe('serialize function', () => {
     it('should serialize an object with properties', () => {
         const schema: JSONSchema = { type: "object", description: "An object", properties: { key1: { type: "string", description: "A string" }, key2: { type: "number", description: "A number" } } };
         const obj = { key1: 'value1', key2: 42 };
-        expect(serialize(obj, schema)).toBe('<object><key1><string>value1</string></key1><key2><number>42</number></key2></object>');
+        expect(serialize(obj, schema)).toBe('<object><key1>value1</key1><key2>42</key2></object>');
     });
 
-    it('should serialize a string that matches an enum', () => {
-        const schema: JSONSchema = { type: "string", description: "Enum string", enum: ["hello", "world"] };
-        expect(serialize('hello', schema)).toBe('<string>hello</string>');
-    });
+    it('should throw an error for integer below minimum constraint', () => {
+        const schema: JSONSchema = {
+            type: "integer",
+            description: "Constrained integer",
+            minimum: 10
+        };
 
-    it('should throw error for string not in enum', () => {
-        const schema: JSONSchema = { type: "string", description: "Enum string", enum: ["hello", "world"] };
-        expect(() => serialize('notInEnum', schema)).toThrow("Invalid string value");
-    });
-
-    it('should serialize a number that matches an enum', () => {
-        const schema: JSONSchema = { type: "number", description: "Enum number", enum: [42, 100.5] };
-        expect(serialize(100.5, schema)).toBe('<number>100.5</number>');
-    });
-
-    it('should serialize an integer within bound constraints', () => {
-        const schema: JSONSchema = { type: "integer", description: "Bounded integer", minimum: 10, maximum: 50 };
-        expect(serialize(25, schema)).toBe('<integer>25</integer>');
-    });
-
-    it('should throw error for integer outside minimum range', () => {
-        const schema: JSONSchema = { type: "integer", description: "Bounded integer", minimum: 10, maximum: 50 };
         expect(() => serialize(5, schema)).toThrow("Invalid integer value");
     });
 
-    it('should throw error for integer outside maximum range', () => {
-        const schema: JSONSchema = { type: "integer", description: "Bounded integer", minimum: 10, maximum: 50 };
+    it('should throw an error for integer above maximum constraint', () => {
+        const schema: JSONSchema = {
+            type: "integer",
+            description: "Constrained integer",
+            maximum: 50
+        };
+
         expect(() => serialize(55, schema)).toThrow("Invalid integer value");
     });
 
-    it('should serialize an array with mixed types', () => {
-        const schema: JSONSchema = { type: "array", description: "Mixed array", items: { type: "string", description: "A string" } };
-        expect(serialize(["a", "b", "c"], schema)).toBe('<array><string>a</string><string>b</string><string>c</string></array>');
-    });
-
-    it('should serialize an empty array', () => {
-        const schema: JSONSchema = { type: "array", description: "Empty array", items: { type: "string", description: "A string item" } };
-        expect(serialize([], schema)).toBe('<array></array>');
-    });
-
-    it('should serialize a nested object', () => {
+    it('should throw an error for number not in enum', () => {
         const schema: JSONSchema = {
-            type: "object",
-            description: "Nested object",
-            properties: {
-                outerKey: {
-                    type: "object",
-                    description: "Inner object",
-                    properties: { innerKey: { type: "string", description: "Inner string" } }
-                }
-            }
+            type: "number",
+            description: "Enum number",
+            enum: [1.5, 2.5, 3.5]
         };
-        const obj = { outerKey: { innerKey: "innerValue" } };
-        expect(serialize(obj, schema)).toBe('<object><outerKey><object><innerKey><string>innerValue</string></innerKey></object></outerKey></object>');
+
+        expect(() => serialize(4.5, schema)).toThrow("Invalid number value");
     });
 
-    it('should throw error if array items do not match schema', () => {
-        const schema: JSONSchema = { type: "array", description: "Array of strings", items: { type: "string", description: "String item" } };
-        expect(() => serialize(["valid", 123], schema)).toThrow("Invalid string value");
-    });
-
-    it('should serialize an object where properties structurally conform to declared schema', () => {
+    it('should throw an error for string not in enum', () => {
         const schema: JSONSchema = {
-            type: "object",
-            description: "Schema object",
-            properties: {
-                id: { type: "integer", description: "ID number" },
-                isActive: { type: "boolean", description: "Active status" },
-            }
+            type: "string",
+            description: "Enum string",
+            enum: ["one", "two", "three"]
         };
-        const obj = { id: 1, isActive: true };
-        expect(serialize(obj, schema)).toBe('<object><id><integer>1</integer></id><isActive><boolean>true</boolean></isActive></object>');
+
+        expect(() => serialize('four', schema)).toThrow("Invalid string value");
+    });
+
+    it('should throw an error for boolean not recognized', () => {
+        const schema: JSONSchema = {
+            type: "boolean",
+            description: "Boolean value"
+        };
+
+        expect(() => serialize('notBoolean', schema)).toThrow("Invalid boolean value");
     });
 });
 
 describe('deserialize function', () => {
     it('should deserialize a valid string', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
-        expect(deserialize('<string>hello</string>', schema)).toBe('hello');
+        expect(deserialize('hello', schema)).toBe('hello');
     });
 
-    it('should throw error for invalid serialized string', () => {
-        const schema: JSONSchema = { type: "string", description: "A string" };
-        expect(() => deserialize('<string>123</boolean>', schema)).toThrow("Invalid serialized string");
+    it('should throw error for invalid literal as string', () => {
+        const schema: JSONSchema = { type: "string", description: "A string", enum: ["hello", "world"] };
+        expect(() => deserialize('invalidString', schema)).toThrow("Invalid serialized string");
     });
 
     it('should deserialize a valid boolean', () => {
         const schema: JSONSchema = { type: "boolean", description: "A boolean" };
-        expect(deserialize('<boolean>true</boolean>', schema)).toBe(true);
+        expect(deserialize('true', schema)).toBe(true);
     });
 
     it('should throw error for invalid serialized boolean', () => {
         const schema: JSONSchema = { type: "boolean", description: "A boolean" };
-        expect(() => deserialize('<boolean>notBoolean</boolean>', schema)).toThrow("Invalid serialized boolean");
+        expect(() => deserialize('notBoolean', schema)).toThrow("Invalid serialized boolean");
     });
 
     it('should deserialize a valid number', () => {
         const schema: JSONSchema = { type: "number", description: "A number" };
-        expect(deserialize('<number>42.5</number>', schema)).toBe(42.5);
+        expect(deserialize('42.5', schema)).toBe(42.5);
     });
 
     it('should throw error for invalid serialized number', () => {
         const schema: JSONSchema = { type: "number", description: "A number" };
-        expect(() => deserialize('<number>notNumber</number>', schema)).toThrow("Invalid serialized number");
+        expect(() => deserialize('notNumber', schema)).toThrow("Invalid serialized number");
     });
 
     it('should deserialize a valid integer', () => {
         const schema: JSONSchema = { type: "integer", description: "An integer" };
-        expect(deserialize('<integer>42</integer>', schema)).toBe(42);
-    });
-
-    it('should throw error for invalid serialized integer', () => {
-        const schema: JSONSchema = { type: "integer", description: "An integer" };
-        expect(() => deserialize('<integer>42.5</integer>', schema)).toThrow("Invalid serialized integer");
+        expect(deserialize('42', schema)).toBe(42);
     });
 
     it('should deserialize an array of strings', () => {
         const schema: JSONSchema = { type: "array", description: "An array", items: { type: "string", description: "String item" } };
-        const xml = '<array><string>item1</string><string>item2</string></array>';
+        const xml = '<array><item>item1</item><item>item2</item></array>';
         expect(deserialize(xml, schema)).toEqual(['item1', 'item2']);
     });
 
-    it('should throw error for invalid serialized array', () => {
-        const schema: JSONSchema = { type: "array", description: "An array", items: { type: "string", description: "String item" } };
-        expect(() => deserialize('<array><number>123</number></array>', schema)).toThrow("Invalid serialized string");
+    it('should throw error if array items do not match schema', () => {
+        const schema: JSONSchema = { type: "array", description: "Array of numbers", items: { type: "number", description: "Number item" } };
+        expect(() => deserialize('<array><item>item1</item><item>123</item></array>', schema)).toThrow("Invalid serialized number");
     });
 
-    it('should deserialize an object with properties', () => {
-        const schema: JSONSchema = {
-            type: "object",
-            description: "An object",
-            properties: { key1: { type: "string", description: "A string" }, key2: { type: "number", description: "A number" } }
-        };
-        const xml = '<object><key1><string>value1</string></key1><key2><number>42</number></key2></object>';
-        expect(deserialize(xml, schema)).toEqual({ key1: 'value1', key2: 42 });
-    });
-
-    it('should throw error for missing serialized object property', () => {
-        const schema: JSONSchema = { type: "object", description: "An object", properties: { key1: { type: "string", description: "A string" } } };
-        const xml = '<object><key2><string>value2</string></key2></object>';
-        expect(() => deserialize(xml, schema)).toThrow("Missing serialized property: key1");
-    });
-
-    // Round-trip tests
     it('should serialize and deserialize a string value correctly', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
         const originalValue = 'test';
@@ -225,168 +178,321 @@ describe('deserialize function', () => {
         const result = deserialize(xml, schema);
         expect(result).toEqual(originalValue);
     });
-    it('should handle complex nested objects', () => {
+
+
+});
+
+describe('Round-trip serialization/deserialization tests', () => {
+    it('should handle complex objects with nested arrays and objects', () => {
         const schema: JSONSchema = {
             type: "object",
-            description: "Complex nested object",
+            description: "Complex object",
             properties: {
-                level1: {
+                user: {
                     type: "object",
-                    description: "Level 1 object",
+                    description: "User details",
                     properties: {
-                        level2: {
-                            type: "object",
-                            description: "Level 2 object",
-                            properties: {
-                                value: { type: "string", description: "Nested string" }
+                        id: { type: "integer", description: "User ID" },
+                        name: { type: "string", description: "User Name" },
+                        roles: {
+                            type: "array",
+                            description: "Roles array",
+                            items: { type: "string", description: "Role type" }
+                        }
+                    }
+                },
+                isActive: { type: "boolean", description: "Active status" },
+                metadata: {
+                    type: "object",
+                    description: "Additional metadata",
+                    properties: {
+                        created: { type: "number", description: "Creation timestamp" },
+                        flags: {
+                            type: "array",
+                            description: "Flags",
+                            items: { type: "boolean", description: "Flag status" }
+                        }
+                    }
+                }
+            }
+        };
+
+        const originalValue = {
+            user: {
+                id: 1,
+                name: 'Alice',
+                roles: ['admin', 'editor']
+            },
+            isActive: true,
+            metadata: {
+                created: 1632838479,
+                flags: [true, false, true]
+            }
+        };
+
+        const xml = serialize(originalValue, schema);
+        const result = deserialize(xml, schema);
+        expect(result).toEqual(originalValue);
+    });
+
+    it('should manage nested arrays within objects', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "Object with nested arrays",
+            properties: {
+                dataSet: {
+                    type: "array",
+                    description: "Array of data points",
+                    items: {
+                        type: "object",
+                        description: "Data Point",
+                        properties: {
+                            id: { type: "integer", description: "Point ID" },
+                            values: {
+                                type: "array",
+                                description: "Value list",
+                                items: { type: "number", description: "Measurement value" }
                             }
                         }
                     }
                 }
             }
         };
-        const originalValue = { level1: { level2: { value: 'deep' } } };
+
+        const originalValue = {
+            dataSet: [
+                { id: 1, values: [1.1, 1.2, 1.3] },
+                { id: 2, values: [2.1, 2.2, 2.3] }
+            ]
+        };
+
         const xml = serialize(originalValue, schema);
         const result = deserialize(xml, schema);
         expect(result).toEqual(originalValue);
     });
 
-    it('should handle arrays of complex objects', () => {
+    it('should handle complex data types with enum constraints', () => {
         const schema: JSONSchema = {
-            type: "array",
-            description: "Array of objects",
-            items: {
-                type: "object",
-                description: "An object with multiple properties",
-                properties: {
-                    name: { type: "string", description: "Name" },
-                    attributes: {
-                        type: "object",
-                        description: "Attributes object",
-                        properties: {
-                            age: { type: "integer", description: "Age" },
-                            active: { type: "boolean", description: "Active status" }
-                        }
+            type: "object",
+            description: "Object with enums",
+            properties: {
+                status: {
+                    type: "string",
+                    description: "Object status",
+                    enum: ["active", "inactive", "pending"]
+                },
+                codes: {
+                    type: "array",
+                    description: "Code list",
+                    items: {
+                        type: "integer",
+                        description: "Code",
+                        enum: [100, 200, 300]
                     }
                 }
             }
         };
-        const originalValue = [
-            { name: 'John', attributes: { age: 30, active: true } },
-            { name: 'Jane', attributes: { age: 25, active: false } }
-        ];
-        const xml = serialize(originalValue, schema);
-        const result = deserialize(xml, schema);
-        expect(result).toEqual(originalValue);
-    });
 
-    it('should handle nested arrays', () => {
-        const schema: JSONSchema = {
-            type: "array",
-            description: "Array of arrays",
-            items: {
-                type: "array",
-                description: "Inner array of strings",
-                items: { type: "string", description: "String item" }
-            }
+        const originalValue = {
+            status: "active",
+            codes: [100, 200]
         };
-        const originalValue = [ ["a", "b"], ["c", "d"] ];
+
         const xml = serialize(originalValue, schema);
         const result = deserialize(xml, schema);
         expect(result).toEqual(originalValue);
     });
 
-    it('should handle a mix of data types in an array', () => {
-        const schema: JSONSchema = {
-            type: "array",
-            description: "Array with mixed data types",
-            items: { type: "string", description: "String item" }
-        };
-        const originalValue = ["a", "b", "c"];
-        const xml = serialize(originalValue, schema);
-        const result = deserialize(xml, schema);
-        expect(result).toEqual(originalValue);
-    });
-
-    it('should handle deep and mixed objects', () => {
+    it('should serialize and deserialize objects with array and boolean types correctly', () => {
         const schema: JSONSchema = {
             type: "object",
-            description: "Deep mixed object",
+            description: "Contains arrays and booleans",
             properties: {
-                id: { type: "integer", description: "ID" },
-                info: {
+                categories: {
+                    type: "array",
+                    description: "Category list",
+                    items: { type: "string", description: "Category name" }
+                },
+                isEnabled: { type: "boolean", description: "Enabled flag" }
+            }
+        };
+
+        const originalValue = {
+            categories: ['Home', 'Garden'],
+            isEnabled: true
+        };
+
+        const xml = serialize(originalValue, schema);
+        const result = deserialize(xml, schema);
+        expect(result).toEqual(originalValue);
+    });
+
+    it('should process objects with default schema constraints', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "Basic schema",
+            properties: {
+                name: { type: "string", description: "Name" },
+                level: { type: "integer", description: "Access level", minimum: 1, maximum: 10 },
+                tags: {
+                    type: "array",
+                    description: "Tags array",
+                    items: { type: "string", description: "Tag" }
+                }
+            }
+        };
+
+        const originalValue = {
+            name: 'Test',
+            level: 5,
+            tags: ['t1', 't2']
+        };
+
+        const xml = serialize(originalValue, schema);
+        const result = deserialize(xml, schema);
+        expect(result).toEqual(originalValue);
+    });
+
+    it('should handle a deeply nested structure without optional fields', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "Deeply nested object",
+            properties: {
+                level1: {
                     type: "object",
-                    description: "Info object",
+                    description: "Level 1",
                     properties: {
-                        name: { type: "string", description: "Name" },
-                        aliases: {
-                            type: "array",
-                            description: "Aliases",
-                            items: { type: "string", description: "Alias" }
+                        level2: {
+                            type: "object",
+                            description: "Level 2",
+                            properties: {
+                                level3: {
+                                    type: "object",
+                                    description: "Level 3",
+                                    properties: {
+                                        value: { type: "integer", description: "Deep value" }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         };
-        const originalValue = { id: 123, info: { name: 'Graham', aliases: ['G', 'Gr'] } };
-        const xml = serialize(originalValue, schema);
-        const result = deserialize(xml, schema);
-        expect(result).toEqual(originalValue);
-    });
 
-    it('should manage max boundary conditions for numbers', () => {
-        const schema: JSONSchema = {
-            type: "number",
-            description: "Number with max boundary",
-            maximum: 100
-        };
-        const originalValue = 100;
-        const xml = serialize(originalValue, schema);
-        const result = deserialize(xml, schema);
-        expect(result).toBe(originalValue);
-    });
-
-    it('should manage min boundary conditions for integers', () => {
-        const schema: JSONSchema = {
-            type: "integer",
-            description: "Integer with min boundary",
-            minimum: 10
-        };
-        const originalValue = 10;
-        const xml = serialize(originalValue, schema);
-        const result = deserialize(xml, schema);
-        expect(result).toBe(originalValue);
-    });
-
-    it('should handle empty nested objects', () => {
-        const schema: JSONSchema = {
-            type: "object",
-            description: "Empty nested object",
-            properties: {
-                emptyObj: {
-                    type: "object",
-                    description: "Inner empty object",
-                    properties: {}
+        const originalValue = {
+            level1: {
+                level2: {
+                    level3: {
+                        value: 99
+                    }
                 }
             }
         };
-        const originalValue = { emptyObj: {} };
+
         const xml = serialize(originalValue, schema);
         const result = deserialize(xml, schema);
         expect(result).toEqual(originalValue);
     });
 
-    it('should handle chained enums successfully', () => {
+    it('should process an object with arrays of numbers', () => {
         const schema: JSONSchema = {
-            type: "string",
-            description: "Enum string",
-            enum: ["alpha", "beta", "gamma"]
+            type: "object",
+            description: "Object containing number arrays",
+            properties: {
+                metrics: {
+                    type: "array",
+                    description: "Metric values",
+                    items: { type: "number", description: "Numerical metric" }
+                },
+                active: { type: "boolean", description: "Active status" }
+            }
         };
-        const originalValue = "beta";
+
+        const originalValue = {
+            metrics: [18.6, 22.4, 35.3],
+            active: false
+        };
+
         const xml = serialize(originalValue, schema);
         const result = deserialize(xml, schema);
-        expect(result).toBe(originalValue);
+        expect(result).toEqual(originalValue);
     });
 
-});
+    it('should handle integer fields with value constraints', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "Object with constrained integers",
+            properties: {
+                minValue: { type: "integer", description: "Minimum value", minimum: 0 },
+                maxValue: { type: "integer", description: "Maximum value", maximum: 100 }
+            }
+        };
 
+        const originalValue = {
+            minValue: 5,
+            maxValue: 95
+        };
+
+        const xml = serialize(originalValue, schema);
+        const result = deserialize(xml, schema);
+        expect(result).toEqual(originalValue);
+    });
+
+    it('should serialize and deserialize strings and enumerated integers', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "Object with enumerated integers",
+            properties: {
+                status: {
+                    type: "string",
+                    description: "Status description",
+                    enum: ["new", "in-progress", "complete"]
+                },
+                code: {
+                    type: "integer",
+                    description: "Status code",
+                    enum: [1, 2, 3]
+                }
+            }
+        };
+
+        const originalValue = {
+            status: "in-progress",
+            code: 2
+        };
+
+        const xml = serialize(originalValue, schema);
+        const result = deserialize(xml, schema);
+        expect(result).toEqual(originalValue);
+    });
+
+    it('should handle objects with nested arrays of strings', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "Object with nested string arrays",
+            properties: {
+                teams: {
+                    type: "array",
+                    description: "Team lists",
+                    items: {
+                        type: "array",
+                        description: "Team members",
+                        items: { type: "string", description: "Member name" }
+                    }
+                }
+            }
+        };
+
+        const originalValue = {
+            teams: [
+                ["Alice", "Bob"],
+                ["Charlie", "Dave"]
+            ]
+        };
+
+        const xml = serialize(originalValue, schema);
+        const result = deserialize(xml, schema);
+        expect(result).toEqual(originalValue);
+    });
+});
