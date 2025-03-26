@@ -1,6 +1,7 @@
 import type { Content, Part, Tool, Schema, EnhancedGenerateContentResponse } from '@google/generative-ai'
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
-import { Message } from "../types/message"
+import type { Message } from "../types/message"
+import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import type { JSONSchema } from "../types/tool"
 import { serializeCall } from "../types/tool"
@@ -72,10 +73,7 @@ async function *handleToolUse(
 
         if (recur > 12) {
             yield "<error>Runaway tool use!</error>"
-            yield new Message({
-                role: "assistant", 
-                content: "<error>Runaway tool use!</error>"
-            })
+            yield new AssistantMessage({ content: "<error>Runaway tool use!</error>" })
             return
         }
 
@@ -151,10 +149,7 @@ async function *handleToolUse(
 
         calls = response.functionCalls()
 
-        yield new Message({
-            role: "assistant", 
-            content: response.text()
-        })
+        yield new AssistantMessage({ content: response.text() })
     }
 
 }
@@ -306,10 +301,7 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
       if (calls && calls.length > 0) {
           yield* handleToolUse(msg, messages, lectic, this.client);
       } else {
-          yield new Message({
-              role: "assistant",
-              content: msg.text()
-          })
+          yield new AssistantMessage({ content: msg.text() })
       }
     },
 

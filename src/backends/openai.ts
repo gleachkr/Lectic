@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
-import { Message } from "../types/message"
+import type { Message } from "../types/message"
+import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
@@ -48,8 +49,7 @@ async function *handleToolUse(
 
         if (recur > 12) {
             yield "<error>Runaway tool use!</error>"
-            yield new Message({
-                role: "assistant", 
+            yield new AssistantMessage({
                 content: "<error>Runaway tool use!</error>"
             })
         }
@@ -106,8 +106,7 @@ async function *handleToolUse(
 
         Logger.debug("openai - reply (tool)", message)
 
-        yield new Message({
-            role: "assistant", 
+        yield new AssistantMessage({
             content: getText(message)
         })
     }
@@ -238,8 +237,7 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
         if (msg.tool_calls) {
             yield* handleToolUse(msg, messages, lectic, this.client);
         } else {
-            yield new Message({
-                role: "assistant",
+            yield new AssistantMessage({
                 content: getText(msg)
             })
         }

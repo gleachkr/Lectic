@@ -1,6 +1,7 @@
 import ollama from 'ollama'
 import * as Ollama from 'ollama'
-import { Message } from "../types/message"
+import type { Message } from "../types/message"
+import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
@@ -72,10 +73,7 @@ async function* handleToolUse(
         
         if (recur > 12) {
             yield "<error>Runaway tool use!</error>"
-            yield new Message({
-                role: "assistant", 
-                content: "<error>Runaway tool use!</error>"
-            })
+            yield new AssistantMessage({ content: "<error>Runaway tool use!</error>" })
             return
         }
 
@@ -132,10 +130,7 @@ async function* handleToolUse(
         Logger.debug("ollama - reply (tool)", response)
     }
 
-    return new Message({
-        role: "assistant", 
-        content: getText(response)
-    })
+    return new AssistantMessage({ content: getText(response) })
 }
 
 async function linkToContent(link : MessageAttachment) 
@@ -244,10 +239,7 @@ export const OllamaBackend : Backend = {
         if (msg.message.tool_calls) {
             yield* handleToolUse(msg, messages, lectic)
         } else {
-            yield new Message({
-                role: "assistant",
-                content: getText(msg)
-            })
+            yield new AssistantMessage({ content: getText(msg) })
         }
     },
 

@@ -1,5 +1,6 @@
 import { isLecticHeader } from "../types/lectic"
-import { Message } from "../types/message"
+import type { Message } from "../types/message"
+import { UserMessage, AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import * as YAML from "yaml"
 import { isExecToolSpec } from "../tools/exec"
@@ -39,25 +40,16 @@ export function bodyToMessages(raw : string) : Message[] {
 
     for (const node of ast.children) {
         if (node.type == "containerDirective") {
-            messages.push(new Message({
-                role: "user",
-                content: cur
-            }))
+            messages.push(new UserMessage({ content: cur }))
             cur = ""
-            messages.push(new Message({
-                role: "assistant",
-                content: nodeContentRaw(node, raw)
-            }))
+            messages.push(new AssistantMessage({ content: nodeContentRaw(node, raw) }))
         } else {
             cur += `\n\n${nodeRaw(node, raw)}`
         }
     }
 
     if (cur.length > 0) {
-        messages.push(new Message({
-            role: "user",
-            content: cur
-        }))
+        messages.push(new UserMessage({ content: cur }))
     }
 
     return messages

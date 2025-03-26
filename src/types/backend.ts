@@ -1,5 +1,6 @@
 import type { Lectic  } from "./lectic"
-import { Message } from "./message"
+import type { Message } from "./message"
+import { UserMessage } from "../types/message"
 import { LLMProvider } from "./provider"
 
 export type Backend = {
@@ -12,8 +13,7 @@ export type Backend = {
 
 export async function consolidateMemories(lectic : Lectic, backend : Backend) : Promise<Lectic> {
 
-    lectic.body.messages.push(new Message({
-        role: "user",
+    lectic.body.messages.push(new UserMessage({
         content: 
             "Please summarize the conversation so far, for storage in memory." +
             "Include any details that would be necessary for continuing the conversation at a later date." +

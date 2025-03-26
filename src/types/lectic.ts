@@ -1,7 +1,8 @@
 import { LLMProvider, isLLMProvider } from "./provider"
 import type { ToolSpec } from "./tool_spec"
 import { isToolSpec } from "./tool_spec"
-import { Message } from "./message"
+import type { Message } from "./message"
+import { isMessage } from "./message"
  
 // TODO Possibly this should be a union type over per-backend interfaces.
 export type Interlocutor = {
@@ -53,7 +54,7 @@ export function isLecticBody(raw: unknown): raw is LecticBody {
         typeof raw === 'object' &&
         'messages' in raw &&
         Array.isArray(raw.messages) &&
-        raw.messages.every(m => m instanceof Message);
+        raw.messages.every(isMessage);
 }
 
 export type Lectic = {

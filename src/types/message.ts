@@ -12,14 +12,14 @@ export type MessageDirective = {
     attributes?: { [key: string] : string | null | undefined }
 }
 
-export class Message {
-    role : "user" | "assistant"
+export class UserMessage {
     content : string
 
-    constructor({ role, content } : {role : "user" | "assistant", content : string}) {
-        this.role = role
+    constructor({content} : {content : string}) {
         this.content = content
     }
+
+    role = "user" as const
 
     containedLinks() : MessageLink[] {
         return parseLinks(this.content).map(link => ({
@@ -37,4 +37,21 @@ export class Message {
             attributes: directive.attributes === null ? undefined : directive.attributes
         }})
     }
+}
+
+export class AssistantMessage {
+    content : string
+
+    constructor({ content } : {content : string}) {
+        this.content = content
+    }
+
+    role = "assistant" as const
+}
+
+export type Message = UserMessage | AssistantMessage
+
+export function isMessage(raw : unknown): raw is Message {
+    return (raw instanceof UserMessage) || 
+        (raw instanceof AssistantMessage)
 }

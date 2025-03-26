@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { Message } from "../types/message"
+import type { Message } from "../types/message"
+import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { serializeCall } from "../types/tool"
 import { LLMProvider } from "../types/provider"
@@ -143,8 +144,7 @@ async function* handleToolUse(
 
             if (recur > 12) {
                 yield "<error>Runaway tool use!</error>"
-                yield new Message({
-                    role: "assistant", 
+                yield new AssistantMessage({
                     content: "<error>Runaway tool use!</error>"
                 })
                 return
@@ -218,8 +218,7 @@ async function* handleToolUse(
 
             Logger.debug("anthropic - reply (tool)", message)
 
-            yield new Message({
-                role: "assistant", 
+            yield new AssistantMessage({
                 content: getText(message)
             })
 
@@ -264,7 +263,7 @@ async function* handleToolUse(
             if (msg.stop_reason == "tool_use") {
                 yield* handleToolUse(msg, messages, lectic, this.client)
             } else {
-                yield new Message({ role: "assistant", content: getText(msg) })
+                yield new AssistantMessage({ content: getText(msg) })
             }
         },
 
