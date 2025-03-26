@@ -3,6 +3,7 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import type { JSONSchema } from "../types/tool"
+import { serializeCall } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment"
@@ -94,36 +95,33 @@ async function *handleToolUse(
         const parts : Part[] = []
 
         for (const call of calls) {
+            let result : string
             if (recur > 10) {
-                parts.push({
-                    functionResponse: {
-                        name: call.name,
-                        response: { 
-                            name: call.name,
-                            content: "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>",
-                        }
-                    }
-                })
+                result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
             } else if (call.name in ToolRegistry) {
-                await ToolRegistry[call.name].call(call.args)
-                    .then(rslt => parts.push({
-                        functionResponse: {
-                            name: call.name,
-                            response: {
-                                name: call.name,
-                                content: rslt
-                            }
-                        }
-                    })).catch((e : Error) => parts.push({
-                            functionResponse: {
-                                name: call.name,
-                                response: { 
-                                    name: call.name,
-                                    content: `<error>An Error Occurred: ${e.message}</error>`
-                                }
-                            }
-                    }))
+                try {
+                    result =  await ToolRegistry[call.name].call(call.args)
+                } catch (e : unknown) {
+                    if (e instanceof Error) {
+                        result = `<error>An Error Occurred: ${e.message}</error>`
+                    } else {
+                        throw e
+                    }
+                }
+                yield serializeCall(ToolRegistry[call.name], call.args, result)
+                yield "\n\n"
+            } else {
+                result = `<error>Unrecognized tool name ${call.name}</error>`
             }
+            parts.push({
+                functionResponse: {
+                    name: call.name,
+                    response: {
+                        name: call.name,
+                        content: result
+                    }
+                }
+            })
         }
 
         messages.push({ role: "user", parts })

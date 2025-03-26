@@ -6,6 +6,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
+import { serializeCall } from "../types/tool"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
 
@@ -60,26 +61,31 @@ async function *handleToolUse(
         })
 
         for (const call of message.tool_calls) {
+            let result : string
             if (recur > 10) {
-                messages.push({
-                    role: "tool",
-                    tool_call_id : call.id,
-                    content: "Tool usage limit exceeded, no further tool calls will be allowed",
-                })
+                result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
             } else if (call.function.name in ToolRegistry) {
                  // TODO error handling
                 const inputs = JSON.parse(call.function.arguments)
-                await ToolRegistry[call.function.name].call(inputs)
-                    .then(rslt => messages.push({
-                            role: "tool",
-                            tool_call_id : call.id,
-                            content : rslt,
-                    })).catch((e : Error) => messages.push({
-                            role: "tool",
-                            tool_call_id : call.id,
-                            content: `<error>An Error Occurred: ${e.message}</error>`,
-                    }))
+                try {
+                    result = await ToolRegistry[call.function.name].call(inputs)
+                } catch (e) {
+                    if (e instanceof Error) {
+                        result = `<error>An Error Occurred: ${e.message}</error>`
+                    } else {
+                        throw e
+                    }
+                }
+                yield serializeCall(ToolRegistry[call.function.name], inputs, result)
+                yield "\n\n"
+            } else {
+                result = `<error>Unrecognized tool name ${call.function.name}</error>`
             }
+            messages.push({
+                    role: "tool",
+                    tool_call_id : call.id,
+                    content: result
+            })
         }
 
         Logger.debug("openai - messages (tool)", messages)

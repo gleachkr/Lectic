@@ -6,6 +6,7 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageCommand } from "../types/directive.ts"
 import { MessageAttachment } from "../types/attachment"
+import { serializeCall } from "../types/tool"
 import { Logger } from "../logging/logger"
 import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
@@ -85,24 +86,27 @@ async function* handleToolUse(
         })
 
         for (const call of response.message.tool_calls) {
+            let result : string
             if (recur > 10) {
-                messages.push({
-                    role: "tool",
-                    content: "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>",
-                })
+                result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
             } else if (call.function.name in ToolRegistry) {
-                 // TODO error handling
                 const inputs = call.function.arguments
-                //weirdly, ollama doesn't track tool_id
-                await ToolRegistry[call.function.name].call(inputs)
-                    .then(rslt => messages.push({
-                            role: "tool",
-                            content : rslt,
-                    })).catch((e : Error) => messages.push({
-                            role: "tool",
-                            content: `<error>An Error Occurred: ${e.message}</error>`,
-                    }))
+                try {
+                    result = await ToolRegistry[call.function.name].call(inputs)
+                } catch (e) {
+                    if (e instanceof Error) {
+                        result = `<error>An Error Occurred: ${e.message}</error>`
+                    } else {
+                        throw e
+                    }
+                }
+                yield serializeCall(ToolRegistry[call.function.name], inputs, result)
+                yield "\n\n"
+            } else {
+                result = `<error>Unrecognized tool name ${call.function.name}</error>`
             }
+            
+            messages.push({ role: "tool", content: result})
         }
 
         Logger.debug("ollama - messages", messages)
