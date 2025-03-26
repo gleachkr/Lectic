@@ -52,6 +52,8 @@ export type Tool = {
     call (arg : any) : Promise<string>
 }
 
+export type ToolCall = { args : { [key : string] : any }, result : string }
+
 export function serializeCall(tool: Tool, args : { [key : string] : any }, result : string) : string {
     let values = [] 
     for (const key in tool.parameters) {
@@ -62,20 +64,45 @@ export function serializeCall(tool: Tool, args : { [key : string] : any }, resul
         `<arguments>${values.join("\n")}</arguments>\n` +
         `<result>${result}</result>\n` +
     `</tool-call>`
+}
 
+export function deserializeCall(tool: Tool, serialized : string) 
+    : ToolCall | null {
+    const inner = /^<tool-call with=".*?">([\s\S]*)<\/tool-call>$/.exec(serialized.trim())
+    if (!inner) return null
+    let [argstring, result] = extractElements(inner[1])
+    argstring = `<object>${unwrap(argstring, "arguments")}</object>`
+    result = unwrap(result, "result")
+    const argschema = {
+        type: "object" as const,
+        description: "tool call parameters",
+        properties: tool.parameters
+    }
+    const args = deserialize(argstring, argschema)
+    return {args, result}
+}
+
+export function getSerializedCallName(call : string) : string | null {
+    const result = /^<tool-call with="(.*?)">[\s\S]*<\/tool-call>$/.exec(call.trim())
+    return result && result[1]
+}
+
+export function isSerializedCall(call : string) : boolean {
+    const result = /^<tool-call with=".*?">[\s\S]*<\/tool-call>$/.test(call.trim())
+    return result
 }
 
 export function serialize(arg: any, schema: JSONSchema): string {
     switch (schema.type) {
         case "string":
             if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
-                throw new Error("Invalid string value");
+                throw new Error(`Invalid string value: ${arg}`);
             }
             return arg;
 
         case "boolean":
             if (typeof arg !== "boolean") {
-                throw new Error("Invalid boolean value");
+                throw new Error(`Invalid boolean value: ${arg}`);
             }
             return arg.toString();
 
@@ -84,7 +111,7 @@ export function serialize(arg: any, schema: JSONSchema): string {
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
-                throw new Error("Invalid number value");
+                throw new Error(`Invalid number value: ${arg}`);
             }
             return arg.toString();
 
@@ -93,19 +120,19 @@ export function serialize(arg: any, schema: JSONSchema): string {
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
-                throw new Error("Invalid integer value");
+                throw new Error(`Invalid integer value: ${arg}`);
             }
             return arg.toString();
 
         case "array":
             if (!Array.isArray(arg)) {
-                throw new Error("Invalid array value");
+                throw new Error(`Invalid array value: ${arg}`);
             }
             return `<array>${arg.map(item => `<item>${serialize(item, schema.items)}</item>`).join('')}</array>`;
 
         case "object":
             if (typeof arg !== "object" || Array.isArray(arg)) {
-                throw new Error("Invalid object value");
+                throw new Error(`Invalid object value: ${arg}`);
             }
             const properties = schema.properties;
             return `<object>${Object.keys(properties)
@@ -123,15 +150,7 @@ function unwrap(xml: string, tag: string): string {
     const openTag = `<${tag}>`;
     const closeTag = `</${tag}>`;
     if (!xml.startsWith(openTag) || !xml.endsWith(closeTag)) {
-        const errorMap: { [key: string]: string } = {
-            string: "Invalid serialized string",
-            boolean: "Invalid serialized boolean",
-            number: "Invalid serialized number",
-            integer: "Invalid serialized integer",
-            array: "Invalid serialized array",
-            object: "Invalid serialized object"
-        };
-        throw new Error(errorMap[tag] || "Invalid serialized value");
+        throw new Error(`Invalid serialized ${tag}: ${xml}`);
     }
     return xml.substring(openTag.length, xml.length - closeTag.length);
 }

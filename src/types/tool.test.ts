@@ -1,5 +1,5 @@
-import { serialize, deserialize } from './tool';
-import type { JSONSchema } from './tool';
+import { serialize, deserialize, serializeCall, deserializeCall } from './tool';
+import type { Tool, JSONSchema } from './tool';
 import { expect, it, describe } from "bun:test"
 
 describe('serialize function', () => {
@@ -54,7 +54,11 @@ describe('serialize function', () => {
     });
 
     it('should serialize an object with properties', () => {
-        const schema: JSONSchema = { type: "object", description: "An object", properties: { key1: { type: "string", description: "A string" }, key2: { type: "number", description: "A number" } } };
+        const schema: JSONSchema = { type: "object", description: "An object", properties: { 
+                key1: { type: "string", description: "A string" }, 
+                key2: { type: "number", description: "A number" }
+            }
+        };
         const obj = { key1: 'value1', key2: 42 };
         expect(serialize(obj, schema)).toBe('<object><key1>value1</key1><key2>42</key2></object>');
     });
@@ -524,4 +528,102 @@ describe('Round-trip serialization/deserialization tests', () => {
         expect(result).toEqual(originalValue);
     });
 
+});
+
+describe('Round-trip of serializeCall and deserializeCall', () => {
+    it('should roundtrip a tool call with simple string arguments', () => {
+        const tool: Tool = {
+            name: 'stringTool',
+            description: 'Tool that handles strings',
+            parameters: { message: { type: 'string', description: 'A message' } },
+            call: async (_arg) => 'success'
+        };
+
+        const args = { message: 'hello world' };
+        const result = 'success';
+
+        const serialized = serializeCall(tool, args, result);
+        const deserialized = deserializeCall(tool, serialized);
+
+        expect(deserialized).toEqual({ args, result });
+    });
+
+    it('should roundtrip a tool call with boolean arguments', () => {
+        const tool: Tool = {
+            name: 'booleanTool',
+            description: 'Tool that handles booleans',
+            parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
+            call: async (_arg) => 'done'
+        };
+
+        const args = { confirmed: true };
+        const result = 'done';
+
+        const serialized = serializeCall(tool, args, result);
+        const deserialized = deserializeCall(tool, serialized);
+
+        expect(deserialized).toEqual({ args, result });
+    });
+
+    it('should roundtrip a tool call with number arguments', () => {
+        const tool: Tool = {
+            name: 'numberTool',
+            description: 'Tool that handles numbers',
+            parameters: { amount: { type: 'number', description: 'An amount' } },
+            call: async (_arg) => 'calculated'
+        };
+
+        const args = { amount: 42.5 };
+        const result = 'calculated';
+
+        const serialized = serializeCall(tool, args, result);
+        const deserialized = deserializeCall(tool, serialized);
+
+        expect(deserialized).toEqual({ args, result });
+    });
+
+    it('should roundtrip a tool call with array arguments', () => {
+        const tool: Tool = {
+            name: 'arrayTool',
+            description: 'Tool that handles arrays',
+            parameters: {
+                items: { type: 'array', description: 'A list of items', items: { type: 'string', description: 'Item' } }
+            },
+            call: async (_arg) => 'completed'
+        };
+
+        const args = { items: ['item1', 'item2'] };
+        const result = 'completed';
+
+        const serialized = serializeCall(tool, args, result);
+        const deserialized = deserializeCall(tool, serialized);
+
+        expect(deserialized).toEqual({ args, result });
+    });
+
+    it('should roundtrip a tool call with nested object arguments', () => {
+        const tool: Tool = {
+            name: 'nestedObjectTool',
+            description: 'Tool that handles nested objects',
+            parameters: {
+                settings: {
+                    type: 'object',
+                    description: 'Settings object',
+                    properties: {
+                        volume: { type: 'integer', description: 'Volume setting' },
+                        balance: { type: 'integer', description: 'Balance setting' }
+                    }
+                }
+            },
+            call: async (_arg) => 'adjusted'
+        };
+
+        const args = { settings: { volume: 70, balance: 30 } };
+        const result = 'adjusted';
+
+        const serialized = serializeCall(tool, args, result);
+        const deserialized = deserializeCall(tool, serialized);
+
+        expect(deserialized).toEqual({ args, result });
+    });
 });
