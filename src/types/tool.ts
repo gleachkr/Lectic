@@ -54,7 +54,7 @@ export type Tool = {
 
 export type ToolCall = { args : { [key : string] : any }, result : string }
 
-export function serializeCall(tool: Tool, args : { [key : string] : any }, result : string) : string {
+export function serializeCall(tool: Tool, {args, result } : ToolCall) : string {
     let values = [] 
     for (const key in tool.parameters) {
         values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)

@@ -539,13 +539,15 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             call: async (_arg) => 'success'
         };
 
-        const args = { message: 'hello world' };
-        const result = 'success';
+        const call = {
+            args : { message: 'hello world' },
+            result : 'success'
+        }
 
-        const serialized = serializeCall(tool, args, result);
+        const serialized = serializeCall(tool, call);
         const deserialized = deserializeCall(tool, serialized);
 
-        expect(deserialized).toEqual({ args, result });
+        expect(deserialized).toEqual(call);
     });
 
     it('should roundtrip a tool call with boolean arguments', () => {
@@ -556,13 +558,15 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             call: async (_arg) => 'done'
         };
 
-        const args = { confirmed: true };
-        const result = 'done';
+        const call = {
+            args : { confirmed: true },
+            result : 'done'
+        }
 
-        const serialized = serializeCall(tool, args, result);
+        const serialized = serializeCall(tool, call);
         const deserialized = deserializeCall(tool, serialized);
 
-        expect(deserialized).toEqual({ args, result });
+        expect(deserialized).toEqual(call);
     });
 
     it('should roundtrip a tool call with number arguments', () => {
@@ -573,13 +577,15 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             call: async (_arg) => 'calculated'
         };
 
-        const args = { amount: 42.5 };
-        const result = 'calculated';
+        const call = {
+            args: { amount: 42.5 },
+            result: 'calculated'
+        }
 
-        const serialized = serializeCall(tool, args, result);
+        const serialized = serializeCall(tool, call);
         const deserialized = deserializeCall(tool, serialized);
 
-        expect(deserialized).toEqual({ args, result });
+        expect(deserialized).toEqual(call);
     });
 
     it('should roundtrip a tool call with array arguments', () => {
@@ -592,13 +598,15 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             call: async (_arg) => 'completed'
         };
 
-        const args = { items: ['item1', 'item2'] };
-        const result = 'completed';
+        const call = {
+            args : { items: ['item1', 'item2'] },
+            result :'completed'
+        }
 
-        const serialized = serializeCall(tool, args, result);
+        const serialized = serializeCall(tool, call);
         const deserialized = deserializeCall(tool, serialized);
 
-        expect(deserialized).toEqual({ args, result });
+        expect(deserialized).toEqual(call);
     });
 
     it('should roundtrip a tool call with nested object arguments', () => {
@@ -618,12 +626,14 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             call: async (_arg) => 'adjusted'
         };
 
-        const args = { settings: { volume: 70, balance: 30 } };
-        const result = 'adjusted';
+        const call = {
+            args : { settings: { volume: 70, balance: 30 } },
+            result : 'adjusted'
+        }
 
-        const serialized = serializeCall(tool, args, result);
+        const serialized = serializeCall(tool, call);
         const deserialized = deserializeCall(tool, serialized);
 
-        expect(deserialized).toEqual({ args, result });
+        expect(deserialized).toEqual(call);
     });
 });
