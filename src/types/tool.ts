@@ -44,12 +44,22 @@ export type JSONSchema = StringSchema
                 | ArraySchema
                 | ObjectSchema
 
-export type Tool = {
-    name: string
-    description: string
-    parameters: { [_ : string] : JSONSchema }
-    required? : string[]
-    call (arg : any) : Promise<string>
+export abstract class Tool {
+    abstract name: string
+    abstract description: string
+    abstract parameters: { [_ : string] : JSONSchema }
+    abstract required? : string[]
+    abstract call (arg : any) : Promise<string>
+
+    register() {
+        if (this.name in Tool.registry) {
+            throw Error("Two tools were given the same name. Check the tool section of your YAML header.") 
+        } else {
+            Tool.registry[this.name] = this
+        }
+    }
+
+    static registry : { [key: string] : Tool } = {}
 }
 
 export type ToolCall = { args : { [key : string] : any }, result : string }

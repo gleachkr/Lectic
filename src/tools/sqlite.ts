@@ -1,4 +1,4 @@
-import type { Tool } from "../types/tool"
+import { Tool } from "../types/tool"
 import { Database } from "bun:sqlite"
 
 export type SQLiteToolSpec = {
@@ -16,7 +16,7 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
 }
 
 
-export class SQLiteTool implements Tool {
+export class SQLiteTool extends Tool {
 
     name: string
     details: string | undefined
@@ -25,11 +25,13 @@ export class SQLiteTool implements Tool {
     static count : number = 0
 
     constructor(spec: SQLiteToolSpec) {
+        super()
         this.name = spec.name ?? `sqlite_tool_${SQLiteTool.count}`
         this.details = spec.details
         this.limit = spec.limit
 
         this.db = new Database(spec.sqlite)
+        this.register()
     }
 
     get description() {

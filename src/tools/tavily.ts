@@ -1,6 +1,5 @@
 import { tavily } from "@tavily/core"
-
-import type { Tool } from "../types/tool"
+import { Tool } from "../types/tool"
 
 export type TavilyToolSpec = {
     tavily_search: "basic" | "advanced"
@@ -52,7 +51,7 @@ export function isTavilyToolSpec(raw : unknown) : raw is TavilyToolSpec {
 }
 
 
-export class TavilyTool implements Tool {
+export class TavilyTool extends Tool {
 
     search_depth: "basic" | "advanced"
     name: string
@@ -67,6 +66,7 @@ export class TavilyTool implements Tool {
     static count : number = 0
 
     constructor(spec: TavilyToolSpec) {
+        super()
         this.search_depth = spec.tavily_search
         this.name = spec.name ?? `tavily_${TavilyTool.count}`
         this.max_results = spec.max_results
@@ -87,6 +87,7 @@ export class TavilyTool implements Tool {
                 : "If there's a URL you'd like to look at more closely, ask the user for help.")
 
         TavilyTool.count++
+        this.register()
     }
 
     parameters = {

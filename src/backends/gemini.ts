@@ -1,16 +1,16 @@
-import type { Content, Part, Tool, Schema, EnhancedGenerateContentResponse } from '@google/generative-ai'
+import type { Content, Part, Schema, EnhancedGenerateContentResponse } from '@google/generative-ai'
+import type * as Gemini from '@google/generative-ai' 
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import type { Message } from "../types/message"
 import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import type { JSONSchema } from "../types/tool"
-import { serializeCall } from "../types/tool"
+import { serializeCall, Tool } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
 
 function googleParameter(param: JSONSchema ) : Schema | undefined {
@@ -40,9 +40,9 @@ function googleParameters(params: { [key: string] : JSONSchema }) : { [key: stri
     return rslt
 }
 
-function getTools() : Tool[] {
-    const tools : Tool[] = []
-    for (const tool of Object.values(ToolRegistry)) {
+function getTools() : Gemini.Tool[] {
+    const tools : Gemini.Tool[] = []
+    for (const tool of Object.values(Tool.registry)) {
         tools.push({
             functionDeclarations: [{
                   name : tool.name,
@@ -96,9 +96,9 @@ async function *handleToolUse(
             let result : string
             if (recur > 10) {
                 result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
-            } else if (call.name in ToolRegistry) {
+            } else if (call.name in Tool.registry) {
                 try {
-                    result =  await ToolRegistry[call.name].call(call.args)
+                    result =  await Tool.registry[call.name].call(call.args)
                 } catch (e : unknown) {
                     if (e instanceof Error) {
                         result = `<error>An Error Occurred: ${e.message}</error>`
@@ -106,7 +106,10 @@ async function *handleToolUse(
                         throw e
                     }
                 }
-                yield serializeCall(ToolRegistry[call.name], call.args, result)
+                yield serializeCall(Tool.registry[call.name], {
+                    args: call.args, 
+                    result
+                })
                 yield "\n\n"
             } else {
                 result = `<error>Unrecognized tool name ${call.name}</error>`
@@ -256,10 +259,6 @@ async function handleMessage(msg : Message) : Promise<Content> {
 export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
-
-      if (lectic.header.interlocutor.tools) {
-        initRegistry(lectic.header.interlocutor.tools)
-      }
 
       const model = this.client.getGenerativeModel({ 
           model: lectic.header.interlocutor.model || "gemini-2.0-flash",

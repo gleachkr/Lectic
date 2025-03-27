@@ -1,4 +1,4 @@
-import type { Tool } from "../types/tool"
+import { Tool } from "../types/tool"
 
 export type ExecToolSpec = {
     exec: string
@@ -16,7 +16,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
 }
 
 
-export class ExecTool implements Tool {
+export class ExecTool extends Tool {
 
     name: string
     exec: string
@@ -25,6 +25,7 @@ export class ExecTool implements Tool {
     static count : number = 0
 
     constructor(spec: ExecToolSpec) {
+        super()
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.sandbox = spec.sandbox
@@ -36,6 +37,7 @@ export class ExecTool implements Tool {
             `The user cannot see the tool call result. You must explicitly report any requested information to the user.` +
             (spec.usage ?? "")
         ExecTool.count++
+        this.register()
     }
 
     parameters = {

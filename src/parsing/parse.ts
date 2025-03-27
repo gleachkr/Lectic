@@ -3,10 +3,12 @@ import type { Message } from "../types/message"
 import { UserMessage, AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import * as YAML from "yaml"
-import { isExecToolSpec } from "../tools/exec"
 import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
+import { isExecToolSpec, ExecTool } from "../tools/exec"
+import { isTavilyToolSpec, TavilyTool } from "../tools/tavily"
+import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -79,12 +81,20 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
         header.interlocutor.prompt = await Bun.file(header.interlocutor.memories.trim()).text()
     }
 
-    // load usage from file if available
     if (header.interlocutor.tools) {
-        for (const tool of header.interlocutor.tools) {
-            if (isExecToolSpec(tool) && tool.usage &&
-                await Bun.file(tool.usage.trim()).exists()) {
-                tool.usage = await Bun.file(tool.usage.trim()).text()
+        for (const spec of header.interlocutor.tools) {
+            // load usage from file if available
+            if (isExecToolSpec(spec)) {
+                if (spec.usage && await Bun.file(spec.usage.trim()).exists()) {
+                    spec.usage = await Bun.file(spec.usage.trim()).text()
+                }
+                new ExecTool(spec)
+            } else if (isTavilyToolSpec(spec)) {
+                new TavilyTool(spec)
+            } else if (isSQLiteToolSpec(spec)) {
+                new SQLiteTool(spec)
+            } else {
+                throw Error("One or more tools provided were not recognized. Check the tool section of your YAML header.")
             }
         }
     }

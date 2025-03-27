@@ -2,13 +2,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Message } from "../types/message"
 import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import { serializeCall } from "../types/tool"
+import { serializeCall, Tool } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment.ts"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from "./util"
 
 function getText(msg : Anthropic.Messages.Message) : string {
@@ -116,7 +115,7 @@ async function handleMessage(msg : Message) : Promise<Anthropic.Messages.Message
 
 function getTools() : Anthropic.Messages.Tool[] {
     const tools : Anthropic.Messages.Tool[] = []
-    for (const tool of Object.values(ToolRegistry)) {
+    for (const tool of Object.values(Tool.registry)) {
         tools.push({
             name : tool.name,
             description : tool.description,
@@ -168,9 +167,9 @@ async function* handleToolUse(
                         if (!(block.input instanceof Object)) {
                             result = "The tool input isn't the right type. Tool inputs need to be returned as objects."  
                             is_error = true
-                        } else if (block.name in ToolRegistry) {
+                        } else if (block.name in Tool.registry) {
                             try {
-                                result = await ToolRegistry[block.name].call(block.input)
+                                result = await Tool.registry[block.name].call(block.input)
                             } catch (e : unknown) {
                                 if (e instanceof Error) {
                                     result = e.message
@@ -179,7 +178,11 @@ async function* handleToolUse(
                                     throw e
                                 }
                             }
-                            yield serializeCall(ToolRegistry[block.name], block.input, result)
+                            yield serializeCall(Tool.registry[block.name], {
+                                args: block.input, 
+                                result
+                            })
+
                             yield "\n\n"
                         } else {
                             result = `Unrecognized tool name ${block.name}`
@@ -229,9 +232,6 @@ async function* handleToolUse(
     export const AnthropicBackend : Backend & { client : Anthropic } = {
 
         async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
-            if (lectic.header.interlocutor.tools) {
-                initRegistry(lectic.header.interlocutor.tools)
-            }
 
             const messages : Anthropic.Messages.MessageParam[] = []
 

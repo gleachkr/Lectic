@@ -536,7 +536,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'stringTool',
             description: 'Tool that handles strings',
             parameters: { message: { type: 'string', description: 'A message' } },
-            call: async (_arg) => 'success'
+            call: async (_arg) => 'success',
+            register() { }
         };
 
         const call = {
@@ -555,7 +556,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'booleanTool',
             description: 'Tool that handles booleans',
             parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
-            call: async (_arg) => 'done'
+            call: async (_arg) => 'done',
+            register() { }
         };
 
         const call = {
@@ -574,7 +576,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'numberTool',
             description: 'Tool that handles numbers',
             parameters: { amount: { type: 'number', description: 'An amount' } },
-            call: async (_arg) => 'calculated'
+            call: async (_arg) => 'calculated',
+            register() { }
         };
 
         const call = {
@@ -595,7 +598,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             parameters: {
                 items: { type: 'array', description: 'A list of items', items: { type: 'string', description: 'Item' } }
             },
-            call: async (_arg) => 'completed'
+            call: async (_arg) => 'completed',
+            register() { }
         };
 
         const call = {
@@ -623,7 +627,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
                     }
                 }
             },
-            call: async (_arg) => 'adjusted'
+            call: async (_arg) => 'adjusted',
+            register() { }
         };
 
         const call = {

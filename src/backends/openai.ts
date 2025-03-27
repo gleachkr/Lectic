@@ -7,8 +7,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { serializeCall } from "../types/tool"
-import { initRegistry, ToolRegistry } from "../types/tool_spec"
+import { serializeCall, Tool } from "../types/tool"
 import { systemPrompt } from './util'
 
 function getText(msg : OpenAI.Chat.ChatCompletionMessage) : string {
@@ -17,7 +16,7 @@ function getText(msg : OpenAI.Chat.ChatCompletionMessage) : string {
 
 function getTools() : OpenAI.Chat.Completions.ChatCompletionTool[] {
     const tools : OpenAI.Chat.Completions.ChatCompletionTool[] = []
-    for (const tool of Object.values(ToolRegistry)) {
+    for (const tool of Object.values(Tool.registry)) {
         tools.push({
             type: "function",
             function: {
@@ -64,11 +63,11 @@ async function *handleToolUse(
             let result : string
             if (recur > 10) {
                 result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
-            } else if (call.function.name in ToolRegistry) {
+            } else if (call.function.name in Tool.registry) {
                  // TODO error handling
                 const inputs = JSON.parse(call.function.arguments)
                 try {
-                    result = await ToolRegistry[call.function.name].call(inputs)
+                    result = await Tool.registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
                         result = `<error>An Error Occurred: ${e.message}</error>`
@@ -76,7 +75,10 @@ async function *handleToolUse(
                         throw e
                     }
                 }
-                yield serializeCall(ToolRegistry[call.function.name], inputs, result)
+                yield serializeCall(Tool.registry[call.function.name], {
+                    args: inputs, 
+                    result
+                })
                 yield "\n\n"
             } else {
                 result = `<error>Unrecognized tool name ${call.function.name}</error>`
@@ -199,14 +201,9 @@ function developerMessage(lectic : Lectic) {
     }
 }
 
-
 export const OpenAIBackend : Backend & { client : OpenAI} = {
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
-
-        if (lectic.header.interlocutor.tools) {
-            initRegistry(lectic.header.interlocutor.tools)
-        }
 
         const messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
 

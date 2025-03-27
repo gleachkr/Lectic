@@ -7,9 +7,8 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageCommand } from "../types/directive.ts"
 import { MessageAttachment } from "../types/attachment"
-import { serializeCall } from "../types/tool"
+import { serializeCall, Tool } from "../types/tool"
 import { Logger } from "../logging/logger"
-import { initRegistry, ToolRegistry } from "../types/tool_spec"
 import { systemPrompt } from './util'
 
 function getText(response : Ollama.ChatResponse) : string {
@@ -42,7 +41,7 @@ function messageReducer(
 
 function getTools() : Ollama.Tool[] {
     const tools : Ollama.Tool[] = []
-    for (const tool of Object.values(ToolRegistry)) {
+    for (const tool of Object.values(Tool.registry)) {
         tools.push({
             type: "function",
             function: {
@@ -87,10 +86,10 @@ async function* handleToolUse(
             let result : string
             if (recur > 10) {
                 result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
-            } else if (call.function.name in ToolRegistry) {
+            } else if (call.function.name in Tool.registry) {
                 const inputs = call.function.arguments
                 try {
-                    result = await ToolRegistry[call.function.name].call(inputs)
+                    result = await Tool.registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
                         result = `<error>An Error Occurred: ${e.message}</error>`
@@ -98,7 +97,10 @@ async function* handleToolUse(
                         throw e
                     }
                 }
-                yield serializeCall(ToolRegistry[call.function.name], inputs, result)
+                yield serializeCall(Tool.registry[call.function.name], {
+                    args: inputs, 
+                    result
+                })
                 yield "\n\n"
             } else {
                 result = `<error>Unrecognized tool name ${call.function.name}</error>`
@@ -204,10 +206,6 @@ function developerMessage(lectic : Lectic): Ollama.Message {
 export const OllamaBackend : Backend = {
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
-
-        if (lectic.header.interlocutor.tools) {
-            initRegistry(lectic.header.interlocutor.tools)
-        }
 
         const messages : Ollama.Message[] = []
 

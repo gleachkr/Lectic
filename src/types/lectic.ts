@@ -1,6 +1,4 @@
 import { LLMProvider, isLLMProvider } from "./provider"
-import type { ToolSpec } from "./tool_spec"
-import { isToolSpec } from "./tool_spec"
 import type { Message } from "./message"
 import { isMessage } from "./message"
  
@@ -9,7 +7,7 @@ export type Interlocutor = {
     prompt : string
     name : string
     provider? : LLMProvider
-    tools? : ToolSpec[]
+    tools? : object[]
     model? : string
     memories? : string
     temperature? : number
@@ -29,7 +27,7 @@ export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
         (("provider" in raw) ? isLLMProvider(raw.provider) : true) &&
         (("reminder" in raw) ? typeof raw.reminder === "string" : true) &&
         (("tools" in raw) ? typeof raw.tools === "object" 
-            && raw.tools instanceof Array && raw.tools.every(isToolSpec) : true) &&
+            && raw.tools instanceof Array && raw.tools.every(t => typeof t === "object") : true) &&
         (("temperature" in raw) ? typeof raw.temperature === "number" 
             && raw.temperature >= 0 && raw.temperature <= 1 : true)
 }
