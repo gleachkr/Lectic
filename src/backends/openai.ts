@@ -76,6 +76,7 @@ async function *handleToolUse(
                     }
                 }
                 yield serializeCall(Tool.registry[call.function.name], {
+                    name: call.function.name,
                     args: inputs, 
                     result
                 })
@@ -147,8 +148,41 @@ async function linkToContent(link : MessageAttachment)
     }
 }
 
-async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam> {
-    if (msg.role != "user") { return msg }
+async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
+    if (msg.role === "assistant") { 
+        const results : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
+        for (const interaction of msg.containedInteractions()) {
+            const modelParts : OpenAI.Chat.Completions.ChatCompletionContentPartText[] = []
+            const toolCalls : OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = []
+            if (interaction.text.length > 0) {
+                modelParts.push({
+                    type: "text" as "text",
+                    text: interaction.text
+                })
+            }
+            for (const call of interaction.calls) {
+                toolCalls.push({
+                    type: "function",
+                    id: call.id ?? "undefined",
+                    function : {
+                        name: call.name,
+                        arguments: JSON.stringify(call.args)
+                    }
+                })
+            }
+
+            results.push({ 
+                role: "assistant", 
+                content: modelParts, 
+                tool_calls: toolCalls.length > 0 ? toolCalls : undefined
+            })
+
+            for (const call of interaction.calls) {
+                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.result})
+            }
+        }
+        return results
+    }
 
     const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
     const commands = msg.containedDirectives().map(d => new MessageCommand(d))
@@ -191,7 +225,7 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
         }
     }
 
-    return { role : msg.role, content }
+    return [{ role : msg.role, content }]
 }
 
 function developerMessage(lectic : Lectic) {
@@ -208,7 +242,7 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
         const messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
 
         for (const msg of lectic.body.messages) {
-            messages.push(await handleMessage(msg))
+            messages.push(...await handleMessage(msg))
         }
 
         Logger.debug("openai - messages", messages)

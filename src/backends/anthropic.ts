@@ -65,8 +65,44 @@ async function linkToContent(link : MessageAttachment) {
         }
 }
 
-async function handleMessage(msg : Message) : Promise<Anthropic.Messages.MessageParam> {
-    if (msg.role != "user") { return msg } 
+async function handleMessage(msg : Message) : Promise<Anthropic.Messages.MessageParam[]> {
+    if (msg.role === "assistant") { 
+        const results : Anthropic.Messages.MessageParam[] = []
+        for (const interaction of msg.containedInteractions()) {
+            const modelParts : Anthropic.Messages.ContentBlockParam[] = []
+            const userParts : Anthropic.Messages.ContentBlockParam[] = []
+            if (interaction.text.length > 0) {
+                modelParts.push({
+                    type: "text" as "text",
+                    text: interaction.text
+                })
+            }
+            for (const call of interaction.calls) {
+                modelParts.push({
+                    type: "tool_use",
+                    name: call.name,
+                    id: call.id ?? "undefined",
+                    input: call.args
+                })
+            }
+
+            results.push({ role: "assistant", content: modelParts})
+
+
+            if (interaction.calls.length > 0) {
+                for (const call of interaction.calls) {
+                    userParts.push({
+                        type : "tool_result",
+                        tool_use_id : call.id ?? "undefined",
+                        content: call.result,
+                        is_error: call.isError,
+                    })
+                }
+                results.push({role : "user", content: userParts})
+            }
+        }
+        return results
+    } 
 
     const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
     const commands = msg.containedDirectives().map(d => new MessageCommand(d))
@@ -109,7 +145,7 @@ async function handleMessage(msg : Message) : Promise<Anthropic.Messages.Message
         }
     }
 
-    return { role : msg.role, content }
+    return [{ role : msg.role, content }]
 }
 
 
@@ -179,7 +215,10 @@ async function* handleToolUse(
                                 }
                             }
                             yield serializeCall(Tool.registry[block.name], {
+                                name: block.name,
                                 args: block.input, 
+                                id: block.id,
+                                isError : is_error,
                                 result
                             })
 
@@ -236,7 +275,7 @@ async function* handleToolUse(
             const messages : Anthropic.Messages.MessageParam[] = []
 
             for (const msg of lectic.body.messages) {
-                messages.push(await handleMessage(msg))
+                messages.push(...await handleMessage(msg))
             }
 
             Logger.debug("anthropic - messages", messages)

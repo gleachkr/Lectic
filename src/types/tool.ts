@@ -62,15 +62,24 @@ export abstract class Tool {
     static registry : { [key: string] : Tool } = {}
 }
 
-export type ToolCall = { args : { [key : string] : any }, result : string }
+export type ToolCall = { 
+    name: string, 
+    args : { [key : string] : any }, 
+    result : string 
+    id? : string
+    isError? : boolean
+}
 
-export function serializeCall(tool: Tool, {args, result } : ToolCall) : string {
+export function serializeCall(tool: Tool, {args, result, id, isError} : ToolCall) : string {
     let values = [] 
     for (const key in tool.parameters) {
         values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)
     }
 
-    return `<tool-call with="${tool.name}">\n` +
+    const idstring = id ? ` id="${id}"` : ""
+    const errorstring = isError !== undefined ? ` is-error="${isError}"` : ""
+
+    return `<tool-call with="${tool.name}"${idstring}${errorstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
         `<result>${result}</result>\n` +
     `</tool-call>`
@@ -78,27 +87,29 @@ export function serializeCall(tool: Tool, {args, result } : ToolCall) : string {
 
 export function deserializeCall(tool: Tool, serialized : string) 
     : ToolCall | null {
-    const inner = /^<tool-call with=".*?">([\s\S]*)<\/tool-call>$/.exec(serialized.trim())
-    if (!inner) return null
-    let [argstring, result] = extractElements(inner[1])
+    const match = /^<tool-call with=".*?"( id="(.*?)")?( is-error="(.*?)")?>([\s\S]*)<\/tool-call>$/.exec(serialized.trim())
+    if (!match) return null
+    const [,, id,, isErrorStr, inner] = match
+    let [argstring, result] = extractElements(inner)
     argstring = `<object>${unwrap(argstring, "arguments")}</object>`
     result = unwrap(result, "result")
+    const isError = isErrorStr === "true" ? true : isErrorStr === "false" ? false : undefined
     const argschema = {
         type: "object" as const,
         description: "tool call parameters",
         properties: tool.parameters
     }
     const args = deserialize(argstring, argschema)
-    return {args, result}
+    return { name: tool.name, args, result, id, isError }
 }
 
 export function getSerializedCallName(call : string) : string | null {
-    const result = /^<tool-call with="(.*?)">[\s\S]*<\/tool-call>$/.exec(call.trim())
+    const result = /^<tool-call with="(.*?)"( id="(.*?)")?( is-error="(.*?)")?>[\s\S]*<\/tool-call>$/.exec(call.trim())
     return result && result[1]
 }
 
 export function isSerializedCall(call : string) : boolean {
-    const result = /^<tool-call with=".*?">[\s\S]*<\/tool-call>$/.test(call.trim())
+    const result = /^<tool-call with=".*?"( id="(.*?)")?( is-error="(.*?)")?>[\s\S]*<\/tool-call>$/.test(call.trim())
     return result
 }
 

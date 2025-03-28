@@ -541,6 +541,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         };
 
         const call = {
+            name: 'stringTool',
             args : { message: 'hello world' },
             result : 'success'
         }
@@ -561,6 +562,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         };
 
         const call = {
+            name: 'booleanTool',
             args : { confirmed: true },
             result : 'done'
         }
@@ -581,6 +583,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         };
 
         const call = {
+            name: 'numberTool',
             args: { amount: 42.5 },
             result: 'calculated'
         }
@@ -603,6 +606,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         };
 
         const call = {
+            name: 'arrayTool',
             args : { items: ['item1', 'item2'] },
             result :'completed'
         }
@@ -632,6 +636,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         };
 
         const call = {
+            name: 'nestedObjectTool',
             args : { settings: { volume: 70, balance: 30 } },
             result : 'adjusted'
         }
@@ -641,4 +646,61 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
 
         expect(deserialized).toEqual(call);
     });
+
+    const mockTool: Tool = {
+        name: 'mockTool',
+        description: 'A mock tool',
+        parameters: { param: { type: 'string', description: 'A parameter' } },
+        call: async (_arg) => 'result',
+        register() {}
+    };
+
+    it('should correctly handle a ToolCall with an id attribute', () => {
+        const call = {
+            name: 'mockTool',
+            args: { param: 'value' },
+            result: 'result',
+            id: '12345'
+        };
+        const serialized = serializeCall(mockTool, call);
+        const deserialized = deserializeCall(mockTool, serialized);
+        expect(deserialized).toEqual(call);
+    });
+
+    it('should correctly handle a ToolCall with an isError attribute', () => {
+        const call = {
+            name: 'mockTool',
+            args: { param: 'value' },
+            result: 'result',
+            isError: true
+        };
+        const serialized = serializeCall(mockTool, call);
+        const deserialized = deserializeCall(mockTool, serialized);
+        expect(deserialized).toEqual(call);
+    });
+
+    it('should correctly handle a ToolCall with both id and isError attributes', () => {
+        const call = {
+            name: 'mockTool',
+            args: { param: 'value' },
+            result: 'result',
+            id: '67890',
+            isError: false
+        };
+        const serialized = serializeCall(mockTool, call);
+        const deserialized = deserializeCall(mockTool, serialized);
+        expect(deserialized).toEqual(call);
+    });
+
+    it('should correctly handle a ToolCall without id and isError attributes', () => {
+        const call = {
+            name: 'mockTool',
+            args: { param: 'value' },
+            result: 'result'
+        };
+        const serialized = serializeCall(mockTool, call);
+        const deserialized = deserializeCall(mockTool, serialized);
+        expect(deserialized).toEqual(call);
+    });
+
 });

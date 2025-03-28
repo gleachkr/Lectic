@@ -48,3 +48,8 @@ export function parseDirectives(raw: string) : TextDirective[] {
     }
     return directives
 }
+
+export function parseBlocks(raw: string) : RootContent[] {
+    const ast = remark().use(remarkDirective).parse(raw)
+    return ast.children
+}

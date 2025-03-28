@@ -107,6 +107,7 @@ async function *handleToolUse(
                     }
                 }
                 yield serializeCall(Tool.registry[call.name], {
+                    name: call.name,
                     args: call.args, 
                     result
                 })
@@ -204,14 +205,42 @@ async function linkToContent(link : MessageAttachment)
     }
 }
 
-async function handleMessage(msg : Message) : Promise<Content> {
-    if (msg.role != "user") {
-        return {
-            role: "model",
-            parts: [{
-                "text": msg.content
-            }]
+async function handleMessage(msg : Message) : Promise<Content[]> {
+    if (msg.role === "assistant") {
+        const results : Content[] = []
+        for (const interaction of msg.containedInteractions()) {
+            const modelParts : Part[] = []
+            const userParts : Part[] = []
+            if (interaction.text.length > 0) {
+                modelParts.push({ text : interaction.text })
+            }
+            for (const call of interaction.calls) {
+                modelParts.push({
+                    functionCall: {
+                        name: call.name,
+                        args: call.args
+                    }
+                })
+            }
+
+            results.push({ role: "model", parts: modelParts})
+
+            if (interaction.calls.length > 0) {
+                for (const call of interaction.calls) {
+                    userParts.push({
+                        functionResponse: {
+                            name: call.name,
+                            response: {
+                                name: call.name,
+                                content: call.result
+                            }
+                        }
+                    })
+                }
+                results.push({role : "user", parts: userParts})
+            }
         }
+        return results
     }
 
     const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
@@ -253,7 +282,7 @@ async function handleMessage(msg : Message) : Promise<Content> {
         }
     }
 
-    return { role : "user", parts: content }
+    return [{ role : "user", parts: content }]
 }
 
 export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
@@ -269,7 +298,7 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
       const messages : Content[] = []
 
       for (const msg of lectic.body.messages) {
-          messages.push(await handleMessage(msg))
+          messages.push(...await handleMessage(msg))
       }
 
       Logger.debug("gemini - messages", messages)

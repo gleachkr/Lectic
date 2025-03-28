@@ -98,6 +98,7 @@ async function* handleToolUse(
                     }
                 }
                 yield serializeCall(Tool.registry[call.function.name], {
+                    name: call.function.name,
                     args: inputs, 
                     result
                 })
@@ -159,8 +160,36 @@ async function linkToContent(link : MessageAttachment)
     }
 }
 
-async function handleMessage(msg : Message) : Promise<Ollama.Message> {
-    if (msg.role != "user") { return msg }
+async function handleMessage(msg : Message) : Promise<Ollama.Message[]> {
+    if (msg.role === "assistant") { 
+        const results : Ollama.Message[] = []
+        for (const interaction of msg.containedInteractions()) {
+            let content = undefined
+            const toolCalls = []
+            if (interaction.text.length > 0) {
+                content =  interaction.text
+            }
+            for (const call of interaction.calls) {
+                toolCalls.push({
+                    type: "function",
+                    id: call.id ?? "undefined",
+                    function : {
+                        name: call.name,
+                        arguments: call.args
+                    }
+                })
+            }
+            results.push({
+                role: "assistant" as "assistant",
+                content : content || "",
+                tool_calls: toolCalls.length > 0 ? toolCalls : undefined
+            })
+            for (const call of interaction.calls) {
+                results.push({role : "tool", content: call.result})
+            }
+        }
+        return results
+    }
 
     const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
     const commands = msg.containedDirectives().map(d => new MessageCommand(d))
@@ -193,7 +222,11 @@ async function handleMessage(msg : Message) : Promise<Ollama.Message> {
         }
     }
 
-    return { role : msg.role, content : msg.content, images : images}
+    return [{ 
+        role : msg.role, 
+        content : msg.content, 
+        images : images.length > 0 ? images : undefined
+    }]
 }
 
 function developerMessage(lectic : Lectic): Ollama.Message {
@@ -210,7 +243,7 @@ export const OllamaBackend : Backend = {
         const messages : Ollama.Message[] = []
 
         for (const msg of lectic.body.messages) {
-            messages.push(await handleMessage(msg))
+            messages.push(...await handleMessage(msg))
         }
 
         Logger.debug("ollama - messages", messages)
