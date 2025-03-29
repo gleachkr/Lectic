@@ -9,6 +9,7 @@ import remarkDirective from "remark-directive"
 import { isExecToolSpec, ExecTool } from "../tools/exec"
 import { isTavilyToolSpec, TavilyTool } from "../tools/tavily"
 import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
+import { isThinkToolSpec, ThinkTool } from "../tools/think"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -94,6 +95,8 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
                 new TavilyTool(spec)
             } else if (isSQLiteToolSpec(spec)) {
                 new SQLiteTool(spec)
+            } else if (isThinkToolSpec(spec)) {
+                new ThinkTool(spec)
             } else {
                 throw Error("One or more tools provided were not recognized. Check the tool section of your YAML header.")
             }

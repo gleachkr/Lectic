@@ -178,6 +178,7 @@ interlocutor:
           This is a summary of the conversation so far, including
           key details and topics discussed. It will be used to
           maintain context in future interactions.
+
 ````
 
 The quality of the memory consolidation depends on the LLM's ability to
@@ -301,6 +302,41 @@ What are the latest headlines about AI ethics?
 Here are some of the top headlines:
 - Article 1: ...
 - Article 2: ...
+
+:::
+```
+
+#### Think Tool
+
+This tool lets you give your LLM an opportunity to deliberately pause and think
+about something, in the style suggested by [anthropic's engineering
+blog](https://www.anthropic.com/engineering/claude-think-tool). It provides the
+LLM with some "scratch space" to think a little bit before speaking "out loud".
+
+```yaml
+tools:
+    - think_about: what the user is really asking   # A thing to think about
+      name: thinker                                 # Optional custom name
+      usage: Use this whenever user is imprecise.   # Optional extra usage advice
+```
+
+Example conversation using the think tool:
+
+```markdown
+So what's the best place in Boston?
+
+:::Assistant
+
+Hmmm....
+
+{think}
+What are they really asking? What might "best" mean? That probably depends on
+what kind of place they're interested in. Do they want to know about the best
+places to visit, to live, to work? I had better ask.
+{/think}
+
+What kind of place are you interested in? Places to live, places to work,
+places to visit, or something else?
 
 :::
 ```
