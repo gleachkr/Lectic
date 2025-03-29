@@ -1,5 +1,5 @@
 vim.api.nvim_buf_create_user_command(0, 'Lectic', function()
-    require('lectic.highlight').submit_lectic()
+    require('lectic.submit').submit_lectic()
 end, {})
 
 vim.api.nvim_buf_create_user_command(0, 'LecticConsolidate', function()
@@ -16,4 +16,9 @@ vim.keymap.set('n', '<localleader>c', '<cmd>LecticConsolidate<CR>', {
     desc = 'Consolidate LLM memories with lectic'
 })
 
+vim.opt_local.foldmethod = "manual"
+
+vim.opt_local.foldtext='v:lua.require("lectic.fold").foldtext()'
+
 require('lectic.highlight').highlight_blocks()
+require('lectic.fold').fold_tool_calls()
