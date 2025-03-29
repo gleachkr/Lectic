@@ -1,6 +1,8 @@
 import { LLMProvider, isLLMProvider } from "./provider"
 import type { Message } from "./message"
 import { isMessage } from "./message"
+
+type Memories = string | { [key: string] : string }
  
 // TODO Possibly this should be a union type over per-backend interfaces.
 export type Interlocutor = {
@@ -9,10 +11,23 @@ export type Interlocutor = {
     provider? : LLMProvider
     tools? : object[]
     model? : string
-    memories? : string
+    memories? : Memories
     temperature? : number
     max_tokens? : number
     reminder? : string
+}
+
+function isMemories(raw : unknown) : raw is Memories {
+    if (typeof raw === "string") {
+        return true
+    } else if (typeof raw === "object" && raw !== null) {
+        for (const [key,val] of Object.entries(raw)) {
+            if (typeof key !== "string") return false
+            if (typeof val !== "string") return false
+        }
+        return true
+    }
+    return false
 }
 
 export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
@@ -22,14 +37,16 @@ export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
         ("name" in raw) &&
         typeof raw.prompt === "string" &&
         typeof raw.name === "string" &&
-        (("model" in raw) ? typeof raw.model === "string" : true) &&
-        (("memories" in raw) ? typeof raw.memories === "string" : true) &&
-        (("provider" in raw) ? isLLMProvider(raw.provider) : true) &&
-        (("reminder" in raw) ? typeof raw.reminder === "string" : true) &&
-        (("tools" in raw) ? typeof raw.tools === "object" 
-            && raw.tools instanceof Array && raw.tools.every(t => typeof t === "object") : true) &&
-        (("temperature" in raw) ? typeof raw.temperature === "number" 
-            && raw.temperature >= 0 && raw.temperature <= 1 : true)
+        (!("model" in raw) || typeof raw.model === "string") &&
+        (!("memories" in raw) || isMemories(raw.memories)) &&
+        (!("provider" in raw) || isLLMProvider(raw.provider)) &&
+        (!("reminder" in raw) || typeof raw.reminder === "string") &&
+        (!("tools" in raw) || (typeof raw.tools === "object" 
+                               && raw.tools instanceof Array 
+                               && raw.tools.every(t => typeof t === "object"))) &&
+        (!("temperature" in raw) || (typeof raw.temperature === "number" 
+                                     && raw.temperature >= 0 
+                                     && raw.temperature <= 1))
 }
 
 export type LecticHeader = {

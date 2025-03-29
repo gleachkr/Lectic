@@ -9,7 +9,7 @@ return `Your name is ${lectic.header.interlocutor.name}
 ${lectic.header.interlocutor.prompt}
 
 ${memories 
-    ? `You have memories from previous conversations: <memories>${memories}</memories>`
+    ? `You have memories from previous conversations: <memories>${JSON.stringify(memories)}</memories>`
     : ""
 }
 

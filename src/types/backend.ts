@@ -17,7 +17,6 @@ export async function consolidateMemories(lectic : Lectic, backend : Backend) : 
         content: 
             "Please summarize the conversation so far, for storage in memory." +
             "Include any details that would be necessary for continuing the conversation at a later date." +
-            "Include any memories you had at the beginning of the conversation." +
             "State only the summary, do not include any commentary."
     }))
 
@@ -29,7 +28,18 @@ export async function consolidateMemories(lectic : Lectic, backend : Backend) : 
         }
     }
 
-    lectic.header.interlocutor.memories = message?.content
+    if (!lectic.header.interlocutor.memories) {
+        lectic.header.interlocutor.memories = {}
+    } else if (typeof lectic.header.interlocutor.memories == "string") {
+        lectic.header.interlocutor.memories = {
+            original_memories: lectic.header.interlocutor.memories
+        }
+    }
+
+    const now = new Date()
+    const date = `${now.toLocaleDateString('en-US')}-${now.toLocaleTimeString('en-US')}`
+
+    lectic.header.interlocutor.memories[date] = message?.content || "no new memories"
 
     return lectic
 }

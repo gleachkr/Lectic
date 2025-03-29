@@ -169,16 +169,15 @@ This command will:
 The updated YAML header will look something like this:
 
 ````yaml
----
 interlocutor:
     name: Assistant
     provider: anthropic
     prompt: Your base prompt here
-    memories: >
-      This is a summary of the conversation so far, including
-      key details and topics discussed. It will be used to
-      maintain context in future interactions.
---- 
+    memories:
+        3/28/2025-9:01:24 AM: >-
+          This is a summary of the conversation so far, including
+          key details and topics discussed. It will be used to
+          maintain context in future interactions.
 ````
 
 The quality of the memory consolidation depends on the LLM's ability to
