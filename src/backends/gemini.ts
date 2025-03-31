@@ -98,7 +98,7 @@ async function *handleToolUse(
                 result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
             } else if (call.name in Tool.registry) {
                 try {
-                    result =  await Tool.registry[call.name].call(call.args)
+                    result = await Tool.registry[call.name].call(call.args)
                 } catch (e : unknown) {
                     if (e instanceof Error) {
                         result = `<error>An Error Occurred: ${e.message}</error>`

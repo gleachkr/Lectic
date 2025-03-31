@@ -40,7 +40,8 @@ async function main() {
         const backend = getBackend(lectic)
         if (program.opts()["consolidate"]) {
             const new_lectic = await consolidateMemories(lectic, backend)
-            Logger.stdout(`---\n${YAML.stringify(new_lectic.header)}...`)
+            Logger.stdout(`---\n${YAML.stringify(new_lectic.header, {
+                blockQuote: "literal" })}...`, )
         } else {
             Logger.stdout(`:::${lectic.header.interlocutor.name}\n\n`)
             const result = Logger.fromStream(backend.evaluate(lectic))
