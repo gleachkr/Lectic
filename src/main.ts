@@ -50,7 +50,8 @@ async function main() {
             Logger.stdout(`\n\n:::`)
         }
     }).catch(error => {
-        Logger.stdout(`\n<error>\n${error.message}\n</error>`)
+        Logger.stdout(`<error>\n${error.message}\n</error>`)
+        Logger.stdout(`\n\n:::`)
         process.exit(1)
     })
 

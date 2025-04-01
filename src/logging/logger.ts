@@ -50,14 +50,20 @@ export const Logger : {
 
     fromStream<A>(generator : AsyncIterable<string | A>) {
         let resolver : (result : A[]) => void
+        let rejector : (result : any) => void
         let accumulator : A[] = []
-        let rest : Promise<A[]> = new Promise(resolve => resolver = resolve)
+        let rest : Promise<A[]> = new Promise((resolve, reject) => {
+            resolver = resolve
+            rejector = reject
+        })
         let strings = async function*() {
             try {
                 for await (const x of generator) {
-                    if (typeof x == "string") { yield x }
+                    if (typeof x === "string") { yield x }
                     else { accumulator.push(x) }
                 }
+            } catch (e) {
+                rejector(e)
             } finally {
                 resolver(accumulator)
             }
