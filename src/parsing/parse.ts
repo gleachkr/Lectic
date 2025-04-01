@@ -1,4 +1,4 @@
-import { isLecticHeader } from "../types/lectic"
+import { isLecticHeaderSpec, LecticHeader } from "../types/lectic"
 import type { Message } from "../types/message"
 import { UserMessage, AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
@@ -68,9 +68,11 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
     if (!rawYaml) throw new Error('could not parse YAML header')
     if (!rawBody) throw new Error('could not parse Lectic Body')
 
-    const header: unknown = YAML.parse(rawYaml)
+    const headerSpec: unknown = YAML.parse(rawYaml)
 
-    if (!isLecticHeader(header)) throw Error("YAML Header contains either unrecognized fields or is missing a field")
+    if (!isLecticHeaderSpec(headerSpec)) throw Error("YAML Header contains either unrecognized fields or is missing a field")
+
+    const header = new LecticHeader(headerSpec)
 
     // TODO DRY the "load from file" pattern
 

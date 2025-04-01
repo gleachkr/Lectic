@@ -49,11 +49,18 @@ export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
                                      && raw.temperature <= 1))
 }
 
-export type LecticHeader = {
+export type LecticHeaderSpec = {
     interlocutor : Interlocutor
 }
 
-export function isLecticHeader(raw: unknown): raw is LecticHeader {
+export class LecticHeader {
+    interlocutor : Interlocutor
+    constructor({interlocutor} : LecticHeaderSpec) {
+        this.interlocutor = interlocutor
+    }
+}
+
+export function isLecticHeaderSpec(raw: unknown): raw is LecticHeaderSpec {
     return raw !== null &&
         typeof raw === 'object' &&
         'interlocutor' in raw &&
@@ -82,6 +89,6 @@ export function isLectic(raw: unknown): raw is Lectic {
         typeof raw === 'object' &&
         'header' in raw &&
         'body' in raw &&
-        isLecticHeader(raw.header) &&
+        (raw.header instanceof LecticHeader) &&
         isLecticBody(raw.body);
 }
