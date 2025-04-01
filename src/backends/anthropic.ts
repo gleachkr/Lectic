@@ -180,7 +180,8 @@ async function* handleToolUse(
             if (recur > 12) {
                 yield "<error>Runaway tool use!</error>"
                 yield new AssistantMessage({
-                    content: "<error>Runaway tool use!</error>"
+                    content: "<error>Runaway tool use!</error>",
+                    name: lectic.header.interlocutor.name
                 })
                 return
             }
@@ -261,7 +262,8 @@ async function* handleToolUse(
             Logger.debug("anthropic - reply (tool)", message)
 
             yield new AssistantMessage({
-                content: getText(message)
+                content: getText(message),
+                name: lectic.header.interlocutor.name
             })
 
         }
@@ -302,7 +304,10 @@ async function* handleToolUse(
             if (msg.stop_reason == "tool_use") {
                 yield* handleToolUse(msg, messages, lectic, this.client)
             } else {
-                yield new AssistantMessage({ content: getText(msg) })
+                yield new AssistantMessage({
+                    content: getText(msg),
+                    name: lectic.header.interlocutor.name
+                })
             }
         },
 

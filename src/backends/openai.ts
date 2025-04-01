@@ -49,6 +49,7 @@ async function *handleToolUse(
         if (recur > 12) {
             yield "<error>Runaway tool use!</error>"
             yield new AssistantMessage({
+                name: lectic.header.interlocutor.name,
                 content: "<error>Runaway tool use!</error>"
             })
         }
@@ -110,6 +111,7 @@ async function *handleToolUse(
         Logger.debug("openai - reply (tool)", message)
 
         yield new AssistantMessage({
+            name: lectic.header.interlocutor.name,
             content: getText(message)
         })
     }
@@ -269,6 +271,7 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
             yield* handleToolUse(msg, messages, lectic, this.client);
         } else {
             yield new AssistantMessage({
+                name: lectic.header.interlocutor.name,
                 content: getText(msg)
             })
         }

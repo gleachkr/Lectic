@@ -73,7 +73,10 @@ async function *handleToolUse(
 
         if (recur > 12) {
             yield "<error>Runaway tool use!</error>"
-            yield new AssistantMessage({ content: "<error>Runaway tool use!</error>" })
+            yield new AssistantMessage({
+                name: lectic.header.interlocutor.name,
+                content: "<error>Runaway tool use!</error>" 
+            })
             return
         }
 
@@ -153,7 +156,10 @@ async function *handleToolUse(
 
         calls = response.functionCalls()
 
-        yield new AssistantMessage({ content: response.text() })
+        yield new AssistantMessage({
+            content: response.text(),
+            name: lectic.header.interlocutor.name
+        })
     }
 
 }
@@ -329,7 +335,10 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
       if (calls && calls.length > 0) {
           yield* handleToolUse(msg, messages, lectic, this.client);
       } else {
-          yield new AssistantMessage({ content: msg.text() })
+          yield new AssistantMessage({
+              name: lectic.header.interlocutor.name,
+              content: msg.text() 
+          })
       }
     },
 

@@ -72,7 +72,10 @@ async function* handleToolUse(
         
         if (recur > 12) {
             yield "<error>Runaway tool use!</error>"
-            yield new AssistantMessage({ content: "<error>Runaway tool use!</error>" })
+            yield new AssistantMessage({
+                name: lectic.header.interlocutor.name,
+                content: "<error>Runaway tool use!</error>" 
+            })
             return
         }
 
@@ -133,7 +136,10 @@ async function* handleToolUse(
         Logger.debug("ollama - reply (tool)", response)
     }
 
-    return new AssistantMessage({ content: getText(response) })
+    return new AssistantMessage({
+        name: lectic.header.interlocutor.name,
+        content: getText(response)
+    })
 }
 
 async function linkToContent(link : MessageAttachment) 
@@ -270,7 +276,10 @@ export const OllamaBackend : Backend = {
         if (msg.message.tool_calls) {
             yield* handleToolUse(msg, messages, lectic)
         } else {
-            yield new AssistantMessage({ content: getText(msg) })
+            yield new AssistantMessage({
+                name: lectic.header.interlocutor.name,
+                content: getText(msg) 
+            })
         }
     },
 

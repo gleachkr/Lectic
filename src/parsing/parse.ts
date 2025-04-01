@@ -45,7 +45,10 @@ export function bodyToMessages(raw : string) : Message[] {
         if (node.type == "containerDirective") {
             messages.push(new UserMessage({ content: cur }))
             cur = ""
-            messages.push(new AssistantMessage({ content: nodeContentRaw(node, raw) }))
+            messages.push(new AssistantMessage({ 
+                content: nodeContentRaw(node, raw),
+                name: node.name
+            }))
         } else {
             cur += `\n\n${nodeRaw(node, raw)}`
         }

@@ -48,10 +48,12 @@ export class UserMessage {
 
 export class AssistantMessage {
     content : string
+    name: string
     role = "assistant" as const
 
-    constructor({ content } : {content : string}) {
+    constructor({ content, name } : {content : string, name: string}) {
         this.content = content
+        this.name = name
     }
 
     containedInteractions() : MessageInteraction[] {
