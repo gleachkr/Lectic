@@ -70,7 +70,10 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
 
     const headerSpec: unknown = YAML.parse(rawYaml)
 
-    if (!isLecticHeaderSpec(headerSpec)) throw Error("YAML Header contains either unrecognized fields or is missing a field")
+    if (!isLecticHeaderSpec(headerSpec)) throw Error(
+         "YAML Header is missing something. " +
+         "One or more interlocutors need to be specified. " +
+         "(Use either `interlocutor:` or `interlocutors:`, and include at least a name and prompt).")
 
     const header = new LecticHeader(headerSpec)
 

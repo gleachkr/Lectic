@@ -49,22 +49,36 @@ export function isInterlocutor(raw : unknown) : raw is Interlocutor  {
                                      && raw.temperature <= 1))
 }
 
-export type LecticHeaderSpec = {
+type DialecticHeaderSpec = {
     interlocutor : Interlocutor
 }
 
+type ManylecticHeaderSpec = {
+    interlocutors : [ Interlocutor, ...Interlocutor[] ]
+}
+
+type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
+
 export class LecticHeader {
     interlocutor : Interlocutor
-    constructor({interlocutor} : LecticHeaderSpec) {
-        this.interlocutor = interlocutor
+    constructor(spec : LecticHeaderSpec) {
+        if ("interlocutor" in spec) {
+            this.interlocutor = spec.interlocutor
+        } else {
+            this.interlocutor = spec.interlocutors[0]
+        }
     }
 }
 
 export function isLecticHeaderSpec(raw: unknown): raw is LecticHeaderSpec {
     return raw !== null &&
         typeof raw === 'object' &&
-        'interlocutor' in raw &&
-        isInterlocutor(raw.interlocutor);
+        (('interlocutor' in raw 
+            && isInterlocutor(raw.interlocutor)) ||
+         ('interlocutors' in raw 
+            && Array.isArray(raw.interlocutors) 
+            && raw.interlocutors.every(isInterlocutor))
+        )
 }
 
 export type LecticBody = {
