@@ -31,8 +31,9 @@ somewhere on your `$PATH`.
    Your initial message here
    ``` 
 
-   To use the anthropic or openai providers, you'll need `ANTHROPIC_API_KEY` or
-   `OPENAI_API_KEY` set in your environment.
+   To use the anthropic, gemini, or openai providers, you'll need 
+   `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENAI_API_KEY` set in your 
+   environment. Anthropic is the default if the provider field is omitted.
 
 2. Use your text editor to interact with the LLM:
    - In Vim: Use `%!lectic` to update the conversation
