@@ -9,7 +9,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { MessageAttachment } from "../types/attachment"
 import { serializeCall, Tool } from "../types/tool"
 import { Logger } from "../logging/logger"
-import { systemPrompt } from './util'
+import { systemPrompt, wrapText } from './util'
 
 function getText(response : Ollama.ChatResponse) : string {
     return response.message.content ?? "…"
@@ -166,8 +166,8 @@ async function linkToContent(link : MessageAttachment)
     }
 }
 
-async function handleMessage(msg : Message) : Promise<Ollama.Message[]> {
-    if (msg.role === "assistant") { 
+async function handleMessage(msg : Message, lectic : Lectic) : Promise<Ollama.Message[]> {
+    if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : Ollama.Message[] = []
         for (const interaction of msg.containedInteractions()) {
             let content = undefined
@@ -195,44 +195,50 @@ async function handleMessage(msg : Message) : Promise<Ollama.Message[]> {
             }
         }
         return results
-    }
+    } else if (msg.role === "assistant") {
+        return [{ 
+            role : "user", 
+            content : wrapText({text: msg.content, name: msg.name}), 
+        }]
+    } else {
 
-    const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
-    const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+        const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
-    const images : string[] = []
+        const images : string[] = []
 
-    for (const link of links) {
-        const exists = await link.exists()
-        if (exists) {
-            try {
-                const source = await linkToContent(link)
-                if (source && source.image_data) images.push(source.image_data)
-                if (source && source.text) msg.content += source.text
-            } catch (e) {
-                msg.content += 
-                    `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
+        for (const link of links) {
+            const exists = await link.exists()
+            if (exists) {
+                try {
+                    const source = await linkToContent(link)
+                    if (source && source.image_data) images.push(source.image_data)
+                    if (source && source.text) msg.content += source.text
+                } catch (e) {
+                    msg.content += 
+                        `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
+                }
             }
         }
-    }
 
-    for (const command of commands) {
-        await command.execute()
-        if (command.success) {
-            msg.content += `<stdout from="${command.command}">${command.stdout}</stdout>`
-        } else {
-            msg.content += `<error>Something went wrong when executing a command:` + 
-                `<stdout from="${command.command}">${command.stdout}</stdout>` +
-                `<stderr from="${command.command}">${command.stderr}</stderr>` +
-            `</error>`
+        for (const command of commands) {
+            await command.execute()
+            if (command.success) {
+                msg.content += `<stdout from="${command.command}">${command.stdout}</stdout>`
+            } else {
+                msg.content += `<error>Something went wrong when executing a command:` + 
+                    `<stdout from="${command.command}">${command.stdout}</stdout>` +
+                    `<stderr from="${command.command}">${command.stderr}</stderr>` +
+                `</error>`
+            }
         }
-    }
 
-    return [{ 
-        role : msg.role, 
-        content : msg.content, 
-        images : images.length > 0 ? images : undefined
-    }]
+        return [{ 
+            role : msg.role, 
+            content : msg.content, 
+            images : images.length > 0 ? images : undefined
+        }]
+    }
 }
 
 function developerMessage(lectic : Lectic): Ollama.Message {
@@ -249,7 +255,7 @@ export const OllamaBackend : Backend = {
         const messages : Ollama.Message[] = []
 
         for (const msg of lectic.body.messages) {
-            messages.push(...await handleMessage(msg))
+            messages.push(...await handleMessage(msg, lectic))
         }
 
         Logger.debug("ollama - messages", messages)

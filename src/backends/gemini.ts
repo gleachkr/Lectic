@@ -11,7 +11,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt } from './util'
+import { systemPrompt, wrapText } from './util'
 
 function googleParameter(param: JSONSchema ) : Schema | undefined {
     switch (param.type) {
@@ -211,8 +211,8 @@ async function linkToContent(link : MessageAttachment)
     }
 }
 
-async function handleMessage(msg : Message) : Promise<Content[]> {
-    if (msg.role === "assistant") {
+async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]> {
+    if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) {
         const results : Content[] = []
         for (const interaction of msg.containedInteractions()) {
             const modelParts : Part[] = []
@@ -247,48 +247,53 @@ async function handleMessage(msg : Message) : Promise<Content[]> {
             }
         }
         return results
-    }
+    } else if (msg.role === "assistant") {
+        return [{ 
+            role : "user", 
+            parts: [{ text: wrapText({text: msg.content, name: msg.name})}]
+        }]
+    } else {
+        const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
-    const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
-    const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+        if (msg.content.length == 0) { msg.content = "…" }
 
-    if (msg.content.length == 0) { msg.content = "…" }
+        const content : Part[] = [{ text: msg.content }]
 
-    const content : Part[] = [{ text: msg.content }]
+        for (const link of links) {
+            const exists = await link.exists()
+            if (exists) {
+                try {
+                    const source = await linkToContent(link)
+                    if (source) content.push(source)
+                } catch (e) {
+                    content.push({
+                        text:`<error>` +
+                            `Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}` +
+                        `</error>`
+                    })
+                }
+            }
+        }
 
-    for (const link of links) {
-        const exists = await link.exists()
-        if (exists) {
-            try {
-                const source = await linkToContent(link)
-                if (source) content.push(source)
-            } catch (e) {
+        for (const command of commands) {
+            await command.execute()
+            if (command.success) {
                 content.push({
-                    text:`<error>` +
-                        `Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}` +
+                    text: `<stdout from="${command.command}">${command.stdout}</stdout>`
+                })
+            } else {
+                content.push({
+                    text: `<error>Something went wrong when executing a command:` + 
+                        `<stdout from="${command.command}">${command.stdout}</stdout>` +
+                        `<stderr from="${command.command}">${command.stderr}</stderr>` +
                     `</error>`
                 })
             }
         }
-    }
 
-    for (const command of commands) {
-        await command.execute()
-        if (command.success) {
-            content.push({
-                text: `<stdout from="${command.command}">${command.stdout}</stdout>`
-            })
-        } else {
-            content.push({
-                text: `<error>Something went wrong when executing a command:` + 
-                    `<stdout from="${command.command}">${command.stdout}</stdout>` +
-                    `<stderr from="${command.command}">${command.stderr}</stderr>` +
-                `</error>`
-            })
-        }
+        return [{ role : "user", parts: content }]
     }
-
-    return [{ role : "user", parts: content }]
 }
 
 export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
@@ -304,7 +309,7 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
       const messages : Content[] = []
 
       for (const msg of lectic.body.messages) {
-          messages.push(...await handleMessage(msg))
+          messages.push(...await handleMessage(msg, lectic))
       }
 
       Logger.debug("gemini - messages", messages)

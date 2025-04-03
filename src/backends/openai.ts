@@ -55,6 +55,7 @@ async function *handleToolUse(
         }
 
         messages.push({
+            name: lectic.header.interlocutor.name,
             role: "assistant",
             tool_calls: message.tool_calls,
             content: message.content
@@ -174,6 +175,7 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
             }
 
             results.push({ 
+                name: msg.name,
                 role: "assistant", 
                 content: modelParts, 
                 tool_calls: toolCalls.length > 0 ? toolCalls : undefined

@@ -61,11 +61,14 @@ type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
 
 export class LecticHeader {
     interlocutor : Interlocutor
+    interlocutors : Interlocutor[]
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             this.interlocutor = spec.interlocutor
+            this.interlocutors = [spec.interlocutor]
         } else {
             this.interlocutor = spec.interlocutors[0]
+            this.interlocutors = spec.interlocutors
         }
     }
 }
@@ -76,7 +79,7 @@ export function isLecticHeaderSpec(raw: unknown): raw is LecticHeaderSpec {
         (('interlocutor' in raw 
             && isInterlocutor(raw.interlocutor)) ||
          ('interlocutors' in raw 
-            && Array.isArray(raw.interlocutors) 
+            && Array.isArray(raw.interlocutors)
             && raw.interlocutors.every(isInterlocutor))
         )
 }
