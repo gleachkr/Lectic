@@ -58,7 +58,11 @@ async function main() {
         const backend = getBackend(lectic)
         if (program.opts()["consolidate"]) {
             const new_lectic : any = await consolidateMemories(lectic, backend)
-            delete new_lectic.header.interlocutor
+            if (new_lectic.header.interlocutors.length === 1) {
+                delete new_lectic.header.interlocutors
+            } else {
+                delete new_lectic.header.interlocutor
+            }
             Logger.stdout(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}...`, )
         } else {

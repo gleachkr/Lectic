@@ -22,6 +22,8 @@ export async function consolidateMemories(lectic : Lectic, backend : Backend) : 
 
     let message : Message | undefined = undefined
 
+    const current_interlocutor = lectic.header.interlocutor
+
     for (const interlocutor of lectic.header.interlocutors) {
         lectic.header.interlocutor = interlocutor
         for await (const entry of backend.evaluate(lectic)) {
@@ -43,6 +45,8 @@ export async function consolidateMemories(lectic : Lectic, backend : Backend) : 
 
         lectic.header.interlocutor.memories[date] = message?.content || "no new memories"
     }
+
+    lectic.header.interlocutor = current_interlocutor
 
     return lectic
 }

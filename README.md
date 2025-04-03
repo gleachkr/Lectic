@@ -195,11 +195,11 @@ lectic -c -f conversation-today.lec > conversation-tomorrow.lec
 
 This command will:
 
-1.  Send the current conversation to the LLM.
-2.  Instruct the LLM to summarize the conversation, combining any existing
-    memories with the current discussion.
-3.  Update the YAML header with the summarized memory in the
-    `interlocutor.memories` field.
+1. Send the current conversation to the LLM.
+2. Instruct the LLM to summarize the conversation as a new memory.
+3. Update the YAML header, inserting the new memory in the 
+   `interlocutor.memories` field
+4. Write the resulting YAML header to `conversation-tomorrow.lec`
 
 The updated YAML header will look something like this:
 
@@ -213,11 +213,11 @@ interlocutor:
           This is a summary of the conversation so far, including
           key details and topics discussed. It will be used to
           maintain context in future interactions.
-
 ````
 
 The quality of the memory consolidation depends on the LLM's ability to
-summarize the conversation effectively.
+summarize the conversation effectively. If a multiparty conversation is 
+consolidated, each interlocutor will consolidate their own memories.
 
 ### Tools
 
