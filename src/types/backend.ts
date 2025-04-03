@@ -22,24 +22,27 @@ export async function consolidateMemories(lectic : Lectic, backend : Backend) : 
 
     let message : Message | undefined = undefined
 
-    for await (const entry of backend.evaluate(lectic)) {
-        if (typeof entry != "string") {
-            message = entry
+    for (const interlocutor of lectic.header.interlocutors) {
+        lectic.header.interlocutor = interlocutor
+        for await (const entry of backend.evaluate(lectic)) {
+            if (typeof entry != "string") {
+                message = entry
+            }
         }
-    }
 
-    if (!lectic.header.interlocutor.memories) {
-        lectic.header.interlocutor.memories = {}
-    } else if (typeof lectic.header.interlocutor.memories == "string") {
-        lectic.header.interlocutor.memories = {
-            original_memories: lectic.header.interlocutor.memories
+        if (!lectic.header.interlocutor.memories) {
+            lectic.header.interlocutor.memories = {}
+        } else if (typeof lectic.header.interlocutor.memories == "string") {
+            lectic.header.interlocutor.memories = {
+                original_memories: lectic.header.interlocutor.memories
+            }
         }
+
+        const now = new Date()
+        const date = `${now.toLocaleDateString('en-US')}-${now.toLocaleTimeString('en-US')}`
+
+        lectic.header.interlocutor.memories[date] = message?.content || "no new memories"
     }
-
-    const now = new Date()
-    const date = `${now.toLocaleDateString('en-US')}-${now.toLocaleTimeString('en-US')}`
-
-    lectic.header.interlocutor.memories[date] = message?.content || "no new memories"
 
     return lectic
 }

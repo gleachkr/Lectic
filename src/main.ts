@@ -22,6 +22,24 @@ function getBackend(lectic : Lectic) : Backend {
     }
 }
 
+function computeSpeaker(lectic : Lectic) {
+    getSpeaker: for (let i = lectic.body.messages.length - 1; i >= 0; i--) {
+        const msg = lectic.body.messages[i]
+        if (msg.role === "user") {
+            for (const directive of msg.containedDirectives()) {
+                if (directive.name === "ask") {
+                    lectic.header.setSpeaker(directive.text)
+                    break getSpeaker
+                }
+            }
+        }
+        if (msg.role === "assistant") {
+            lectic.header.setSpeaker(msg.name)
+            break
+        }
+    }
+}
+
 async function main() {
 
     let lecticString = program.opts()["file"] === '-' 
@@ -39,10 +57,12 @@ async function main() {
     await parseLectic(lecticString).then(async lectic => {
         const backend = getBackend(lectic)
         if (program.opts()["consolidate"]) {
-            const new_lectic = await consolidateMemories(lectic, backend)
+            const new_lectic : any = await consolidateMemories(lectic, backend)
+            delete new_lectic.header.interlocutor
             Logger.stdout(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}...`, )
         } else {
+            computeSpeaker(lectic)
             Logger.stdout(`:::${lectic.header.interlocutor.name}\n\n`)
             const result = Logger.fromStream(backend.evaluate(lectic))
             Logger.stdout(result.strings)

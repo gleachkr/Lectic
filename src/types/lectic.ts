@@ -71,6 +71,15 @@ export class LecticHeader {
             this.interlocutors = spec.interlocutors
         }
     }
+
+    setSpeaker(name : string) {
+        const newSpeaker = this.interlocutors.find(inter => inter.name = name)
+        if (newSpeaker) {
+            this.interlocutor = newSpeaker
+        } else {
+            throw Error(`There's not an interlocutor named ${name}`)
+        }
+    }
 }
 
 export function isLecticHeaderSpec(raw: unknown): raw is LecticHeaderSpec {

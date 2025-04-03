@@ -23,8 +23,6 @@ export class MessageCommand {
                 break
             }
             default:
-                throw Error("Unrecognized Directive, double check your directives for typos!")
         }
     }
-
 }

@@ -92,6 +92,41 @@ Your next prompt...
 The front matter should be YAML, and should open with three dashes and close
 with three dashes or three periods.
 
+### Multiparty Conversations
+
+Instead of specifying a single interlocutor in the `interlocutor` field, you 
+can specify a list of interlocutors. The conversation will continue with the 
+last active interlocutor unless you use an `:ask[NAME]` directive (see below 
+for more about directives) to switch to a new interlocutor.
+
+````markdown
+---
+interlocutors:
+   - name: Boggle
+     provider: anthropic
+     prompt: You're trying to teach Oggle about personal finance.
+   - name: Oggle
+     provider: gemini
+     prompt: You're very skeptical of everything Boggle says.
+...
+
+So Boggle, what should Oggle know about timing the market?
+
+:::Boggle
+
+Essentially, don't try.
+
+:::
+
+:ask[Oggle] And what do you think about that?
+
+:::Oggle
+
+Nonsense! …
+
+:::
+````
+
 ### Content References
 
 Include local or remote content in conversations:
@@ -481,10 +516,6 @@ cat convo.lec | lectic -                   # Read from stdin
 - Consider using git for version control
 - Use tools like ripgrep for searching across conversations
 - Keep conversations focused on specific topics or learning goals
-
-## Current Limitations
-
-- One LLM participant per conversation (multi-LLM support planned)
 
 ## Contributing
 
