@@ -1,20 +1,25 @@
 import { Tool } from "../types/tool"
 import type { JSONSchema } from "../types/tool"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
+import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
+import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
 
 type MCPSpecSTDIO = {
     mcp_command: string
     args?: string[]
-    env: { [key: string] : string }
+    env?: { [key: string] : string }
 }
 
 type MCPSpecSSE = {
-    mcp_url: string
+    mcp_sse: string
 }
 
-type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE)
+type MCPSpecWebsocket = {
+    mcp_ws: string
+}
+
+type MCPSpec = MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket
 
 type MCPToolSpec = {
     name: string
@@ -29,18 +34,30 @@ function isMCPSpecSTDIO(raw : unknown) : raw is MCPSpecSTDIO {
         "mcp_command" in raw &&
          ("args" in raw 
              ? Array.isArray(raw.args) && raw.args.every(arg => typeof arg === "string") 
-             : true)
+             : true) &&
+         ("env" in raw 
+             ? raw.env !== null && typeof raw.env === "object" 
+             && Object.values(raw.env).every(v => typeof v === "string")
+             : true
+         )
 }
 
 function isMCPSpecSSE(raw : unknown) : raw is MCPSpecSSE {
     return raw !== null &&
         typeof raw === "object" &&
-        "mcp_url" in raw && 
-        typeof raw.mcp_url == "string" 
+        "mcp_sse" in raw && 
+        typeof raw.mcp_sse == "string" 
+}
+
+function isMCPSpecWebsocket(raw : unknown) : raw is MCPSpecWebsocket {
+    return raw !== null &&
+        typeof raw === "object" &&
+        "mcp_ws" in raw && 
+        typeof raw.mcp_ws == "string" 
 }
 
 export function isMCPSpec(raw : unknown) : raw is MCPSpec {
-    return isMCPSpecSTDIO(raw) || isMCPSpecSSE(raw)
+    return isMCPSpecSTDIO(raw) || isMCPSpecSSE(raw) || isMCPSpecWebsocket(raw)
 }
 
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
@@ -103,9 +120,12 @@ export class MCPTool extends Tool {
             ? new StdioClientTransport({ 
                 command: spec.mcp_command, 
                 args: spec.args,
-                env: spec.env
+                env: {...getDefaultEnvironment(), ...spec.env}
             })
-            : new SSEClientTransport(new URL(spec.mcp_url))
+            : "mcp_sse" in spec
+            ? new SSEClientTransport(new URL(spec.mcp_sse))
+            : new WebSocketClientTransport(new URL(spec.mcp_ws))
+
         const client = new Client({
             name: "Lectic",
             version: "0.0.0"
