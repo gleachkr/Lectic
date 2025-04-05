@@ -298,50 +298,6 @@ Here are the results showing the largest orders...
 :::
 ```
 
-#### Tavily Search Tool
-
-If you have a [tavily](https://tavily.com) API key, The tavily tool provides
-access to real-time search engine results, allowing the LLM to answer questions
-using up-to-date information from the web. You need to have `$TAVILY_API_KEY`
-set in your environment or provide the API key in the lectic. Parameters are
-based on the [tavily API](https://docs.tavily.com/documentation/api-reference/endpoint/search).
-
-```yaml
-tools:
-    - tavily_search: basic          # "basic" or "advanced" search (required)
-      name: search                  # Optional custom name
-      max_results: 5                # Max number of results (0-20)
-      time_range: week              # "day", "week", "month", "year"
-      topic: news                   # "general" or "news"
-      include_raw_content: false    # Include raw HTML from sources
-      include_domains:              # Limit search to these domains
-        - example.com
-        - example.org
-      exclude_domains:              # Exclude these domains
-        - bad-example.com
-      api_key: YOUR_API_KEY         # Optional Tavily API Key
-```
-
-Example conversation using the tavily tool:
-
-```markdown
-What are the latest headlines about AI ethics?
-
-:::Assistant
-
-I'll search for recent news articles on AI ethics:
-
-{search}
-What are the latest headlines about AI ethics?
-{/search}
-
-Here are some of the top headlines:
-- Article 1: ...
-- Article 2: ...
-
-:::
-```
-
 #### Think Tool
 
 This tool lets you give your LLM an opportunity to deliberately pause and think

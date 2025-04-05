@@ -7,7 +7,6 @@ import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
 import { isExecToolSpec, ExecTool } from "../tools/exec"
-import { isTavilyToolSpec, TavilyTool } from "../tools/tavily"
 import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
@@ -100,8 +99,6 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
                     spec.usage = await Bun.file(spec.usage.trim()).text()
                 }
                 new ExecTool(spec)
-            } else if (isTavilyToolSpec(spec)) {
-                new TavilyTool(spec)
             } else if (isSQLiteToolSpec(spec)) {
                 new SQLiteTool(spec)
             } else if (isThinkToolSpec(spec)) {
