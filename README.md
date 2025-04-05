@@ -333,6 +333,47 @@ places to visit, or something else?
 :::
 ```
 
+### MCP Tool (Beta)
+
+Lectic lets you use [model context protocol](https://modelcontextprotocol.io) 
+servers to provide tools for your LLMs. There are already a huge number of 
+servers available: check out [this list 
+](https://github.com/modelcontextprotocol/servers) provided by the MCP 
+organization, and also [awesome MCP 
+servers](https://github.com/punkpeye/awesome-mcp-servers). To provide access to 
+an MCP server, you can add the server as a tool like this:
+
+```yaml
+tools:
+    - mcp_command: npx
+      args: ["-y", "@modelcontextprotocol/server-brave-search"]
+      env:
+        - BRAVE_API_KEY: YOUR_KEY_GOES_HERE
+```
+
+It should be pretty obvious how to adapt existing instructions. Lectic also 
+supports remote MCP servers, via
+
+```yaml
+tools:
+    - mcp_sse: URL_GOES_HERE
+```
+
+or
+
+
+```yaml
+tools:
+    - mcp_ws: URL_GOES_HERE
+```
+
+for server-side-event or websocket connections respectively.
+
+> [!WARNING]
+> lectic doesn't currently ask for user confirmation for tool use, or sandbox 
+> MCP server activity. So, be really careful! Your LLM could mess up a command, 
+> or server could potentially do something malicious.
+
 ## Configuration Reference
 
 ```yaml
