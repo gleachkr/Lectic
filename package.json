@@ -11,5 +11,7 @@
     "remark": "^15.0.1",
     "remark-directive": "^4.0.0",
     "yaml": "^2.7.0"
-  }
+  },
+  "version": "0.0.0 - alpha6 - 2025-04-04"
+
 }

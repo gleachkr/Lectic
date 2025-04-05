@@ -10,6 +10,7 @@ import { Logger } from "./logging/logger"
 import * as YAML from "yaml"
 import type { Lectic } from "./types/lectic"
 import type { Backend } from "./types/backend"
+import { version } from "../package.json"
 
 // This  really should be factored out.
 function getBackend(lectic : Lectic) : Backend {
@@ -42,9 +43,19 @@ function computeSpeaker(lectic : Lectic) {
 
 async function main() {
 
+    if (program.opts()["version"]) { 
+        Logger.stdout(`${version}\n`) 
+        process.exit(0)
+    }
+
     let lecticString = program.opts()["file"] === '-' 
         ? await Bun.stdin.text()
         : await Bun.file(program.opts()["file"]).text()
+
+    if (program.opts()["log"]) {
+        Logger.logfile = program.opts()["log"]
+    }
+
 
     if (program.opts()["log"]) {
         Logger.logfile = program.opts()["log"]
@@ -87,6 +98,7 @@ program
 .option('-c, --consolidate',  'emit a new YAML header consolidating memories of this conversation')
 .option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
 .option('-l, --log <logfile>',  'log debugging information')
+.option('-v, --version',  'print version information')
 
 program.parse()
 
