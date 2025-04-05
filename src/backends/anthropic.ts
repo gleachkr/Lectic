@@ -164,8 +164,9 @@ function getTools() : Anthropic.Messages.Tool[] {
             name : tool.name,
             description : tool.description,
             input_schema : {
-                "type" : "object",
-                "properties" : tool.parameters
+                type : "object",
+                properties : tool.parameters,
+                required : tool.required
             }
         })
     }
