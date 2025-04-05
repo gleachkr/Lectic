@@ -84,6 +84,7 @@ async function main() {
             await result.rest
             Logger.stdout(`\n\n:::`)
         }
+        process.exit(0)
     }).catch(error => {
         Logger.stdout(`<error>\n${error.message}\n</error>`)
         Logger.stdout(`\n\n:::`)

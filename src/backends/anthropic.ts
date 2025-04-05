@@ -251,7 +251,7 @@ async function* handleToolUse(
             Logger.debug("anthropic - messages (tool)", messages)
 
             let stream = (client as Anthropic).messages.stream({
-                max_tokens: 1024,
+                max_tokens: lectic.header.interlocutor.max_tokens || 1024,
                 system: systemPrompt(lectic),
                 messages: messages,
                 model: lectic.header.interlocutor.model ?? 
