@@ -34,6 +34,7 @@ type ArraySchema = {
 type ObjectSchema = {
     type: "object",
     description: string
+    required?: string[]
     properties: { [key : string] : JSONSchema }
 }
 
@@ -48,12 +49,12 @@ export abstract class Tool {
     abstract name: string
     abstract description: string
     abstract parameters: { [_ : string] : JSONSchema }
-    abstract required? : string[]
+    abstract required? : string[] //TODO: this should not be optional
     abstract call (arg : any) : Promise<string>
 
     register() {
         if (this.name in Tool.registry) {
-            throw Error("Two tools were given the same name. Check the tool section of your YAML header.") 
+            throw new Error("Two tools were given the same name. Check the tool section of your YAML header.") 
         } else {
             Tool.registry[this.name] = this
         }
@@ -73,7 +74,11 @@ export type ToolCall = {
 export function serializeCall(tool: Tool, {args, result, id, isError} : ToolCall) : string {
     let values = [] 
     for (const key in tool.parameters) {
-        values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)
+        if (key in args) {
+            values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)
+        } else if (tool.required && key in tool.required) {
+            throw new Error(`missing required parameter: ${key}`)
+        }
     }
 
     const idstring = id ? ` id="${id}"` : ""
@@ -158,7 +163,13 @@ export function serialize(arg: any, schema: JSONSchema): string {
             const properties = schema.properties;
             return `<object>${Object.keys(properties)
                     .map(key => {
-                        if (!(key in arg)) throw new Error(`Missing property: ${key}`);
+                        if (!(key in arg)) {
+                            if (schema.required && key in schema.required) {
+                                throw new Error(`Missing property: ${key}`);
+                            } else {
+                                return ""
+                            }
+                        }
                         return `<${key}>${serialize(arg[key], properties[key])}</${key}>`;
                     }).join('')}</object>`;
 
@@ -274,10 +285,16 @@ export function deserialize(xml: string, schema: JSONSchema): any {
                 }
                 obj[key] = deserialize(unwrap(element, key), schema.properties[key])
             }
+            if (schema.required) {
+                for (const key in schema.required) {
+                    if (!(key in obj)) {
+                        throw new Error(`Missing required property: ${key}`)
+                    }
+                }
+            }
             return obj;
         }
 
-        default:
-            throw new Error("Unknown schema type");
+        default: throw new Error("Unknown schema type");
     }
 }

@@ -24,7 +24,7 @@ type MCPSpec = MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket
 type MCPToolSpec = {
     name: string
     description?: string
-    parameters?: { [key: string] : unknown }
+    schema: JSONSchema & { type: "object" }
     client: Client
 }
 
@@ -74,25 +74,26 @@ export class MCPTool extends Tool {
     name: string
     description: string
     parameters: { [_ : string] : JSONSchema }
-    required: string[]
+    required: string[] | undefined
     client: Client
 
-    constructor({name, description, parameters, client}: MCPToolSpec) {
+    constructor({name, description, schema, client}: MCPToolSpec) {
         super()
         this.client = client
         this.name = name
         this.name = name
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
-        if (!parameters) {
+        if (!schema) {
             this.parameters = {}
             this.required = []
         } else {
             // We cast here. The MCP docs seem to guarantee these are schemata
-            this.parameters = parameters as { [_ : string] : JSONSchema }
-            // the docs do not seem to make allowances for `required`. We
-            // assume all keys are required.
-            this.required = Object.keys(parameters)
+            this.parameters = schema.properties
+            // XXX: MCP types don't include the required property. The JSON
+            // Schema spec says that when it's omitted, nothing is required
+            // <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-validation-00#rfc.section.6.5>
+            this.required = schema.required
         }
         this.register()
     };
@@ -139,7 +140,7 @@ export class MCPTool extends Tool {
             return new MCPTool({
                 name: tool.name,
                 description: tool.description,
-                parameters: tool.inputSchema.properties,
+                schema: tool.inputSchema as JSONSchema & { type: "object" },
                 client: client // the tools share a single client
             })
         })
