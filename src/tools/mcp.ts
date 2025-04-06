@@ -19,11 +19,12 @@ type MCPSpecWebsocket = {
     mcp_ws: string
 }
 
-type MCPSpec = MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket
+type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket) & { confirm?: string }
 
 type MCPToolSpec = {
     name: string
     description?: string
+    confirm?: string
     schema: JSONSchema & { type: "object" }
     client: Client
 }
@@ -57,16 +58,15 @@ function isMCPSpecWebsocket(raw : unknown) : raw is MCPSpecWebsocket {
 }
 
 export function isMCPSpec(raw : unknown) : raw is MCPSpec {
-    return isMCPSpecSTDIO(raw) || isMCPSpecSSE(raw) || isMCPSpecWebsocket(raw)
+    return (isMCPSpecSTDIO(raw) || isMCPSpecSSE(raw) || isMCPSpecWebsocket(raw)) 
+        && ("confirm" in raw ? typeof raw.confirm === "string" : true)
 }
 
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
     return raw !== null && 
         typeof raw === "object" &&
-        "type" in raw &&
-        raw.type === "text" &&
-        "text" in raw &&
-        typeof raw.text === "string"
+        "type" in raw && raw.type === "text" &&
+        "text" in raw && typeof raw.text === "string"
 
 }
 
@@ -74,14 +74,15 @@ export class MCPTool extends Tool {
     name: string
     description: string
     parameters: { [_ : string] : JSONSchema }
-    required: string[] | undefined
+    required?: string[]
+    confirm?: string
     client: Client
 
-    constructor({name, description, schema, client}: MCPToolSpec) {
+    constructor({name, description, schema, confirm, client}: MCPToolSpec) {
         super()
         this.client = client
         this.name = name
-        this.name = name
+        this.confirm = confirm
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
         if (!schema) {
@@ -99,6 +100,13 @@ export class MCPTool extends Tool {
     };
 
     async call(args : {[key : string] : unknown}) : Promise<string> {
+        if (this.confirm) {
+            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)])
+            if (proc.exitCode !==0) {
+                throw Error(`<error>Tool use permission denied</error>`)
+            }
+        }
+
         const response = await this.client.callTool({ name: this.name, arguments: args })
         const content = response.content
         if (!Array.isArray(content) || content.length === 0) {
@@ -141,7 +149,8 @@ export class MCPTool extends Tool {
                 name: tool.name,
                 description: tool.description,
                 schema: tool.inputSchema as JSONSchema & { type: "object" },
-                client: client // the tools share a single client
+                client: client, // the tools share a single client
+                confirm: spec.confirm
             })
         })
     }

@@ -233,15 +233,9 @@ tools:
       name: python              # Optional custom name
       usage: "Usage guide..."   # Instructions for the LLM
       sandbox: ./sandbox.sh     # Optional sandboxing script
-
-    - exec: git status         # Another allowed command
-      name: git-status         # Custom name for this specific command
+      confirm: ./confirm.sh     # Optional confirmation script
 ```
 
-When configured with a sandbox script, the command and its arguments are passed to
-the sandbox script which is responsible for executing them in a controlled
-environment. For example, the provided `extra/bwrap-sandbox.sh` uses bubblewrap
-to create a basic sandbox with a temporary home directory.
 
 Example conversation using the exec tool:
 
@@ -260,6 +254,25 @@ The code executed successfully and output: Hello, world!
 
 :::
 ```
+##### Command Execution Safety
+
+> [!WARNING]
+> If you provide your LLM access to any dangerous commands, you should take 
+> some safety precautions.
+
+When an exec tool is configured with a sandbox script, the command and its 
+arguments are passed to the sandbox script which is responsible for executing 
+them in a controlled environment. For example, the provided 
+`extra/sandbox/bwrap-sandbox.sh` uses 
+[bubblewrap](https://github.com/containers/bubblewrap) to create a basic 
+sandbox with a temporary home directory.
+
+When an exec tool is configured with a confirm script, the confirm script will 
+be executed before every call to that tool, with two arguments: the name of the 
+tool, and a JSON string representing the arguments to the call. If the confirm 
+script returns a nonzero exit status, the tool call is cancelled. An example 
+confirmation script, using [zenity](https://github.com/GNOME/zenity) is 
+included in this repository at `extra/confirm/zenity-confirm.sh`.
 
 #### SQLite Query Tool
 
@@ -333,7 +346,7 @@ places to visit, or something else?
 :::
 ```
 
-### MCP Tool (Beta)
+#### MCP Tool (Beta)
 
 Lectic lets you use [model context protocol](https://modelcontextprotocol.io) 
 servers to provide tools for your LLMs. There are already a huge number of 
@@ -345,34 +358,51 @@ an MCP server, you can add the server as a tool like this:
 
 ```yaml
 tools:
-    - mcp_command: npx
-      args: ["-y", "@modelcontextprotocol/server-brave-search"]
-      env:
+    - mcp_command: npx # The main command to launch the server
+      args:            # Additional arguments to the main command
+        - "-y"
+        - "@modelcontextprotocol/server-brave-search"
+      env:             # Environment for the server to run in.
         - BRAVE_API_KEY: YOUR_KEY_GOES_HERE
+      confirm: ./confirm.sh # Optional confirmation script
+    - mcp_sse: URL_GOES_HERE # URL for a remote MCP server that uses SSE
+      confirm: ./confirm.sh
+    - mcp_ws: URL_GOES_HERE # URL to a remote MCP server that uses Websockets
+      confirm: ./confirm.sh
 ```
 
-It should be pretty obvious how to adapt existing instructions. Lectic also 
-supports remote MCP servers, via
+Example conversation using the MCP tool:
 
-```yaml
-tools:
-    - mcp_sse: URL_GOES_HERE
+```markdown
+Could you do a brave web search for cool facts about ants?
+
+:::Assistant
+
+Sure!
+
+{brave_search_tool}
+query: cool ant facts
+{/brave_search_tool}
+
+Did you know that ants have two stomachs, one for themselves and one for food 
+they're going to share with the colony?
+
+:::
 ```
 
-or
-
-
-```yaml
-tools:
-    - mcp_ws: URL_GOES_HERE
-```
-
-for server-side-event or websocket connections respectively.
+##### MCP Safety
 
 > [!WARNING]
-> lectic doesn't currently ask for user confirmation for tool use, or sandbox 
-> MCP server activity. So, be really careful! Your LLM could mess up a command, 
-> or server could potentially do something malicious.
+> By default, lectic grants LLMs full access to tools provided by MCP servers. 
+> If you have a server that provides potentially dangerous tools, you may want 
+> to take some safety precautions.
+
+When an MCP tool is configured with a confirm script, the confirm script will 
+be executed before every call to that tool, with two arguments: the name of the 
+tool, and a JSON string representing the arguments to the call. If the confirm 
+script returns a nonzero exit status, the tool call is cancelled. An example 
+confirmation script, using [zenity](https://github.com/GNOME/zenity) is 
+included in this repository at `extra/confirm/zenity-confirm.sh`.
 
 ## Configuration Reference
 
@@ -501,19 +531,13 @@ Notice how each ratio gets closer to the golden ratio!
 
 ## Command Line Interface
 ```bash
+lectic -h                                  # View help text
 lectic -f conversation.lec                 # Process a conversation file
 lectic -l debug.log -f conversation.lec    # Write debug logs to debug.log
 lectic -s -f convo.lec                     # Only show the last message
+lectic -v                                  # Get a version string
 cat convo.lec | lectic -                   # Read from stdin
 ```
-
-## Best Practices
-
-- Organize conversations in topic-based directories
-- Use descriptive filenames for easier searching
-- Consider using git for version control
-- Use tools like ripgrep for searching across conversations
-- Keep conversations focused on specific topics or learning goals
 
 ## Contributing
 

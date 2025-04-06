@@ -5,6 +5,7 @@ export type ExecToolSpec = {
     usage?: string
     name?: string
     sandbox?: string
+    confirm?: string
 }
 
 export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
@@ -12,7 +13,8 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         typeof raw === "object" &&
         "exec" in raw &&
         ("usage" in raw ? typeof raw.usage=== "string" : true) &&
-        ("name" in raw ? typeof raw.name === "string" : true)
+        ("name" in raw ? typeof raw.name === "string" : true) &&
+        ("confirm" in raw ? typeof raw.confirm === "string" : true)
 }
 
 
@@ -20,8 +22,9 @@ export class ExecTool extends Tool {
 
     name: string
     exec: string
-    sandbox: string | undefined
+    sandbox?: string
     description: string
+    confirm?: string
     static count : number = 0
 
     constructor(spec: ExecToolSpec) {
@@ -29,6 +32,7 @@ export class ExecTool extends Tool {
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.sandbox = spec.sandbox
+        this.confirm = spec.confirm
         this.description = 
             `This tool executes the command \`${this.exec}\` directly, applied to the array of arguments (including command line flags)`
             + `that you supply. So for example if you supply \`$arguments\`, what is run is literally \`"${this.exec} $arguments"\`.` +
@@ -54,7 +58,12 @@ export class ExecTool extends Tool {
     required = ["arguments"]
 
     async call(args : { arguments : string[] }) : Promise<string> {
-        // need better error handling here
+        if (this.confirm) {
+            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)])
+            if (proc.exitCode !==0) {
+                throw Error(`<error>Tool use permission denied</error>`)
+            }
+        }
 
         const spawned = this.sandbox 
             ? [this.sandbox, this.exec].concat(args.arguments)
