@@ -8,7 +8,6 @@ function M.submit_lectic()
         return
     end
 
-    local uv = vim.uv
 
     local buf = vim.api.nvim_get_current_buf()
     if not vim.api.nvim_buf_get_lines(buf, -2,-1, false)[1]:match("^%s*$") then -- make sure we end in a blank line
@@ -16,9 +15,6 @@ function M.submit_lectic()
     end
     local total_lines = vim.api.nvim_buf_line_count(buf)
     local buffer_content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    local stdin = uv.new_pipe()
-    local stdout = uv.new_pipe()
-    local stderr = uv.new_pipe()
     local extmark_id = nil
 
 
@@ -72,19 +68,21 @@ function M.submit_lectic()
         end
     end
 
-    local handle, pid = uv.spawn("lectic", {
-      stdio = {stdin, stdout, stderr},
-      args = {"-s"}
-    }, on_exit)
-
-
-    uv.read_start(stdout, on_stdout)
+    local env = vim.fn.environ()
+    env.NVIM = vim.v.servername
 
     vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""}) -- start a new line to work on
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
-    stdin:write(table.concat(buffer_content, '\n'), function() stdin:close(); print("closed") end)
+    local process = vim.system({"lectic", "-s"}, {
+      stdin = true,
+      stdout = on_stdout,
+      env = env
+    }, on_exit)
+
+    process:write(table.concat(buffer_content, '\n'))
+    process:write(nil)
 
 end
 
