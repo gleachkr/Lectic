@@ -24,15 +24,15 @@ somewhere on your `$PATH`.
    ---
    interlocutor:
        name: Assistant
-       provider: anthropic|openai|ollama|gemini
+       provider: anthropic|openai|gemini|openrouter|ollama
        prompt: Your base prompt here
    ---
 
    Your initial message here
    ``` 
 
-   To use the anthropic, gemini, or openai providers, you'll need 
-   `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` or `OPENAI_API_KEY` set in your 
+   To use the remote providers , you'll need `ANTHROPIC_API_KEY`, 
+   `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY` set in your 
    environment. Anthropic is the default if the provider field is omitted.
 
 2. Use your text editor to interact with the LLM:

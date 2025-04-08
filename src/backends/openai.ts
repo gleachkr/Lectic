@@ -7,6 +7,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
+import type { JSONSchema } from "../types/tool"
 import { serializeCall, Tool } from "../types/tool"
 import { systemPrompt } from './util'
 
@@ -17,6 +18,19 @@ function getText(msg : OpenAI.Chat.ChatCompletionMessage) : string {
 function getTools() : OpenAI.Chat.Completions.ChatCompletionTool[] {
     const tools : OpenAI.Chat.Completions.ChatCompletionTool[] = []
     for (const tool of Object.values(Tool.registry)) {
+
+        // the OPENAI API rejects default values for parameters. These are
+        // hints about what happens when a value is missing, but they can
+        // probably be safely scrubbed
+        //
+        // c.f. https://json-schema.org/understanding-json-schema/reference/annotations
+        const cleanParameters : {[key: string] : JSONSchema } = {}
+        for (const key in tool.parameters) {
+            cleanParameters[key] = tool.parameters[key]
+            if ("default" in cleanParameters[key]) {
+                delete cleanParameters[key].default
+            }
+        }
         tools.push({
             type: "function",
             function: {
@@ -26,7 +40,8 @@ function getTools() : OpenAI.Chat.Completions.ChatCompletionTool[] {
                 parameters: {
                     "type" : "object",
                     "properties" : tool.parameters,
-                    "required" : tool.required ?? [],
+                    // OPENAI API always wants every key to be required
+                    "required" : Object.keys(tool.parameters),
                     "additionalProperties" : false,
                 }
             }
@@ -239,7 +254,19 @@ function developerMessage(lectic : Lectic) {
     }
 }
 
-export const OpenAIBackend : Backend & { client : OpenAI} = {
+export class OpenAIBackend implements Backend {
+
+    provider: LLMProvider
+    defaultModel: string
+    apiKey: string
+    url?: string
+
+    constructor(opt: {apiKey: string, provider : LLMProvider, url?: string, defaultModel: string}) {
+        this.provider = opt.provider
+        this.apiKey = opt.apiKey
+        this.defaultModel = opt.defaultModel
+        this.url = opt.url
+    }
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
@@ -251,9 +278,9 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
 
         Logger.debug("openai - messages", messages)
 
-        let stream = (this.client as OpenAI).beta.chat.completions.stream({
+        let stream = this.client.beta.chat.completions.stream({
             messages: messages.concat([developerMessage(lectic)]),
-            model: lectic.header.interlocutor.model ?? 'gpt-4o',
+            model: lectic.header.interlocutor.model ?? this.defaultModel,
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 1024,
             stream: true,
@@ -267,7 +294,7 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
 
         let msg = await stream.finalMessage()
 
-        Logger.debug("openai - reply", msg)
+        Logger.debug(`${this.provider} - reply`, msg)
 
         if (msg.tool_calls) {
             yield* handleToolUse(msg, messages, lectic, this.client);
@@ -277,16 +304,16 @@ export const OpenAIBackend : Backend & { client : OpenAI} = {
                 content: getText(msg)
             })
         }
-    },
+    }
 
-
-    provider : LLMProvider.Anthropic,
-
-    client : new OpenAI({
-        apiKey: process.env['OPENAI_API_KEY'] || "", 
-        // quirk: OPENAI throws an error if the key is not in the environment. 
-        // Need to think about this for providers more generally in case one of them changes their interface.
-        // TODO api key on cli or in lectic
-    }),
+    get client() { 
+        return new OpenAI({
+            apiKey: process.env[this.apiKey] || "", 
+            baseURL: this.url,
+            // quirk: OPENAI throws an error if the key is not in the environment. 
+            // Need to think about this for providers more generally in case one of them changes their interface.
+            // TODO api key on cli or in lectic
+        })
+    }
 
 }

@@ -15,7 +15,17 @@ import { version } from "../package.json"
 // This  really should be factored out.
 function getBackend(lectic : Lectic) : Backend {
     switch (lectic.header.interlocutor.provider) {
-        case LLMProvider.OpenAI:  return OpenAIBackend
+        case LLMProvider.OpenAI:  return new OpenAIBackend({
+            defaultModel: 'gpt-4o',
+            apiKey: 'OPENAI_API_KEY',
+            provider: LLMProvider.OpenAI,
+        })
+        case LLMProvider.OpenRouter:  return new OpenAIBackend({
+            defaultModel: 'google/gemini-2.5-pro-exp-03-25:free',
+            apiKey: 'OPENROUTER_API_KEY',
+            provider: LLMProvider.OpenRouter,
+            url: 'https://openrouter.ai/api/v1'
+        })
         case LLMProvider.Ollama: return OllamaBackend
         case LLMProvider.Anthropic: return AnthropicBackend
         case LLMProvider.Gemini: return GeminiBackend
