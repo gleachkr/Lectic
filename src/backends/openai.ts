@@ -148,6 +148,15 @@ async function linkToContent(link : MessageAttachment)
                 url : `data:${media_type};base64,${Buffer.from(bytes).toString("base64")}`
             }
         } as const
+        case "audio/mp3":
+        case "audio/mpeg":
+        case "audio/wav": return {
+            type: "input_audio",
+            input_audio: {
+                data: Buffer.from(bytes).toString("base64"),
+                format: media_type === "audio/wav" ? "wav" : "mp3",
+            }
+        }
         case "application/pdf" : return {
             type : "file", 
             file: {
