@@ -51,5 +51,27 @@ export function parseDirectives(raw: string) : TextDirective[] {
 
 export function parseBlocks(raw: string) : RootContent[] {
     const ast = remark().use(remarkDirective).parse(raw)
-    return ast.children
+    const mergedChildren : RootContent[] = []
+    let inCall = false
+
+    // We do a pass to merge each tool call into a single HTML block
+    for (const block of ast.children) {
+        const block_raw = nodeRaw(block, raw)
+        const working_block = mergedChildren[mergedChildren.length - 1]
+        if (inCall) {
+            if (!(working_block && working_block.type == "html")) {
+                throw new Error("Parse error, working block is not html")
+            }
+            working_block.value += block_raw
+            if (block.position && working_block.position) {
+                working_block.position.end.offset = block.position.end.offset
+            }
+            if (block_raw.trim().slice(-12) === "</tool-call>") inCall = false
+        } else {
+            mergedChildren.push(block)
+            if (block.type == "html" && block_raw.trim().slice(0,10) === "<tool-call") inCall = true
+        }
+    }
+
+    return mergedChildren
 }

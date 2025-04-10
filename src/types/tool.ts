@@ -90,9 +90,11 @@ export function serializeCall(tool: Tool, {args, result, id, isError} : ToolCall
     `</tool-call>`
 }
 
+export const toolCallRegex = /^<tool-call with=".*?"( id="(.*?)")?( is-error="(.*?)")?>([\s\S]*)<\/tool-call>$/
+
 export function deserializeCall(tool: Tool, serialized : string) 
     : ToolCall | null {
-    const match = /^<tool-call with=".*?"( id="(.*?)")?( is-error="(.*?)")?>([\s\S]*)<\/tool-call>$/.exec(serialized.trim())
+    const match = toolCallRegex.exec(serialized.trim())
     if (!match) return null
     const [,, id,, isErrorStr, inner] = match
     let [argstring, result] = extractElements(inner)
@@ -109,12 +111,12 @@ export function deserializeCall(tool: Tool, serialized : string)
 }
 
 export function getSerializedCallName(call : string) : string | null {
-    const result = /^<tool-call with="(.*?)"( id="(.*?)")?( is-error="(.*?)")?>[\s\S]*<\/tool-call>$/.exec(call.trim())
+    const result = toolCallRegex.exec(call.trim())
     return result && result[1]
 }
 
 export function isSerializedCall(call : string) : boolean {
-    const result = /^<tool-call with=".*?"( id="(.*?)")?( is-error="(.*?)")?>[\s\S]*<\/tool-call>$/.test(call.trim())
+    const result = toolCallRegex.test(call.trim())
     return result
 }
 
