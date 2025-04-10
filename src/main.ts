@@ -4,7 +4,7 @@ import { AnthropicBackend } from "./backends/anthropic"
 import { OpenAIBackend } from "./backends/openai"
 import { OllamaBackend } from "./backends/ollama"
 import { GeminiBackend } from "./backends/gemini"
-import { LLMProvider } from "./types/provider"
+import { getDefaultProvider, LLMProvider } from "./types/provider"
 import { consolidateMemories } from "./types/backend"
 import { Logger } from "./logging/logger"
 import * as YAML from "yaml"
@@ -14,7 +14,7 @@ import { version } from "../package.json"
 
 // This  really should be factored out.
 function getBackend(lectic : Lectic) : Backend {
-    switch (lectic.header.interlocutor.provider) {
+    switch (lectic.header.interlocutor.provider || getDefaultProvider()) {
         case LLMProvider.OpenAI:  return new OpenAIBackend({
             defaultModel: 'gpt-4o',
             apiKey: 'OPENAI_API_KEY',
@@ -29,7 +29,6 @@ function getBackend(lectic : Lectic) : Backend {
         case LLMProvider.Ollama: return OllamaBackend
         case LLMProvider.Anthropic: return AnthropicBackend
         case LLMProvider.Gemini: return GeminiBackend
-        default : return AnthropicBackend
     }
 }
 

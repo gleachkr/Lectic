@@ -33,7 +33,8 @@ somewhere on your `$PATH`.
 
    To use the remote providers , you'll need `ANTHROPIC_API_KEY`, 
    `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY` set in your 
-   environment. Anthropic is the default if the provider field is omitted.
+   environment. If the provider field is omitted, the default provider will be 
+   based on the alphabetically first API key defined in the your environment.
 
 2. Use your text editor to interact with the LLM:
    - In Vim: Use `%!lectic` to update the conversation
