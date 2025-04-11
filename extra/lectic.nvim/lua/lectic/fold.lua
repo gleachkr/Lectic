@@ -25,14 +25,5 @@ function M.fold_tool_calls()
     end
 end
 
-function M.lectic_foldtext()
-  local start_line = vim.fn.getline(vim.v.foldstart)
-  local tool_name = start_line:match('<tool%-call with="([^"]+)"')
-  if tool_name then
-    return tool_name
-  else
-    return '...'
-  end
-end
 
 return M

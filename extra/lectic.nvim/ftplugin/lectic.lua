@@ -18,7 +18,17 @@ vim.keymap.set('n', '<localleader>c', '<cmd>LecticConsolidate<CR>', {
 
 vim.opt_local.foldmethod = "manual"
 
-vim.opt_local.foldtext='v:lua.require("lectic.fold").foldtext()'
+function Lectic_foldtext()
+  local start_line = vim.fn.getline(vim.v.foldstart)
+  local tool_name = start_line:match('<tool%-call with="([^"]+)"')
+  if tool_name then
+    return ' [ ' .. tool_name .. ' ] '
+  else
+    return '...'
+  end
+end
+
+vim.opt_local.foldtext='v:lua.Lectic_foldtext()'
 
 require('lectic.highlight').highlight_blocks()
 require('lectic.fold').fold_tool_calls()
