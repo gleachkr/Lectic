@@ -66,11 +66,15 @@ export function parseBlocks(raw: string) : RootContent[] {
             if (block.position && working_block.position) {
                 working_block.position.end.offset = block.position.end.offset
             }
-            if (block_raw.trim().slice(-12) === "</tool-call>") inCall = false
         } else {
             mergedChildren.push(block)
+            // note: the html requirement here means that the intitial tool-call
+            // tag does need to all fit in one block. So it can contain
+            // whitespace and up to one newline: https://spec.commonmark.org/0.31.2/#open-tag
+            // That *might* be too restrictive, watch out in the future.
             if (block.type == "html" && block_raw.trim().slice(0,10) === "<tool-call") inCall = true
         }
+        if (block_raw.trim().slice(-12) === "</tool-call>") inCall = false
     }
 
     return mergedChildren

@@ -90,16 +90,19 @@ export function serializeCall(tool: Tool, {args, result, id, isError} : ToolCall
     `</tool-call>`
 }
 
-export const toolCallRegex = /^<tool-call with=".*?"( id="(.*?)")?( is-error="(.*?)")?>([\s\S]*)<\/tool-call>$/
+const toolCallRegex = /^<tool-call\s+with="(.*?)"(\s+id="(.*?)")?(\s+is-error="(.*?)")?\s*>([\s\S]*)<\/tool-call>$/
 
 export function deserializeCall(tool: Tool, serialized : string) 
     : ToolCall | null {
     const match = toolCallRegex.exec(serialized.trim())
     if (!match) return null
-    const [,, id,, isErrorStr, inner] = match
+    const [,name,, id,, isErrorStr, inner] = match
     let [argstring, result] = extractElements(inner)
     argstring = `<object>${unwrap(argstring, "arguments")}</object>`
     result = unwrap(result, "result")
+
+    if (name !== tool.name) throw new Error(`Unexpected tool-call name, expected "${tool.name}", got "${name}"`)
+
     const isError = isErrorStr === "true" ? true : isErrorStr === "false" ? false : undefined
     const argschema = {
         type: "object" as const,
