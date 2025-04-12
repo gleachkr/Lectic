@@ -9,6 +9,7 @@ type MCPSpecSTDIO = {
     mcp_command: string
     args?: string[]
     env?: { [key: string] : string }
+    sandbox?: string 
 }
 
 type MCPSpecSSE = {
@@ -19,12 +20,15 @@ type MCPSpecWebsocket = {
     mcp_ws: string
 }
 
-type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket) & { confirm?: string }
+type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket) & { 
+    confirm?: string 
+}
 
 type MCPToolSpec = {
     name: string
     description?: string
     confirm?: string
+    sandbox?: string
     schema: JSONSchema & { type: "object" }
     client: Client
 }
@@ -76,6 +80,7 @@ export class MCPTool extends Tool {
     parameters: { [_ : string] : JSONSchema }
     required?: string[]
     confirm?: string
+    sandbox?: string
     client: Client
 
     constructor({name, description, schema, confirm, client}: MCPToolSpec) {
@@ -126,7 +131,11 @@ export class MCPTool extends Tool {
 
     static async fromSpec(spec : MCPSpec) : Promise<MCPTool[]> {
         const transport = "mcp_command" in spec
-            ? new StdioClientTransport({ 
+            ? new StdioClientTransport(spec.sandbox ? {
+                command: spec.sandbox, 
+                args: [spec.mcp_command, ...(spec.args || []) ],
+                env: {...getDefaultEnvironment(), ...spec.env}
+            } : { 
                 command: spec.mcp_command, 
                 args: spec.args,
                 env: {...getDefaultEnvironment(), ...spec.env}
@@ -150,7 +159,8 @@ export class MCPTool extends Tool {
                 description: tool.description,
                 schema: tool.inputSchema as JSONSchema & { type: "object" },
                 client: client, // the tools share a single client
-                confirm: spec.confirm
+                confirm: spec.confirm,
+                sandbox: "sandbox" in spec ? spec.sandbox : undefined
             })
         })
     }

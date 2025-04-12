@@ -366,6 +366,7 @@ tools:
       env:             # Environment for the server to run in.
         - BRAVE_API_KEY: YOUR_KEY_GOES_HERE
       confirm: ./confirm.sh # Optional confirmation script
+      sandbox: ./sandbox.sh # Optional sandboxing script
     - mcp_sse: URL_GOES_HERE # URL for a remote MCP server that uses SSE
       confirm: ./confirm.sh
     - mcp_ws: URL_GOES_HERE # URL to a remote MCP server that uses Websockets
@@ -395,8 +396,22 @@ they're going to share with the colony?
 
 > [!WARNING]
 > By default, lectic grants LLMs full access to tools provided by MCP servers. 
-> If you have a server that provides potentially dangerous tools, you may want 
-> to take some safety precautions.
+> If you have a server that provides potentially dangerous tools, you should 
+> take some safety precautions.
+>
+> Lectic's safety mechanisms are intended to protect you from an LLM making 
+> mistakes. They offer only very limited defense against a genuinely malicious 
+> MCP server. There are serious security risks associated with the MCP 
+> protocol. You should never connect to an untrusted server. See [this 
+> post](https://simonwillison.net/2025/Apr/9/mcp-prompt-injection/), for 
+> examples and details.
+
+When an local MCP tool is configured with a sandbox script, the command that 
+starts the MCP server, along with its arguments are passed to the sandbox 
+script which is responsible for executing them in a controlled environment. For 
+example, the provided `extra/sandbox/bwrap-sandbox.sh` uses 
+[bubblewrap](https://github.com/containers/bubblewrap) to create a basic 
+sandbox with a temporary home directory.
 
 When an MCP tool is configured with a confirm script, the confirm script will 
 be executed before every call to that tool, with two arguments: the name of the 
