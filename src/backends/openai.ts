@@ -7,7 +7,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import type { JSONSchema } from "../types/tool"
+import type { JSONSchema } from "../types/schema"
 import { serializeCall, Tool } from "../types/tool"
 import { systemPrompt } from './util'
 

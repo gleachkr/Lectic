@@ -4,7 +4,7 @@ import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import type { Message } from "../types/message"
 import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import type { JSONSchema } from "../types/tool"
+import type { JSONSchema } from "../types/schema"
 import { serializeCall, Tool } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"

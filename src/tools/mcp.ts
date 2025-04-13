@@ -1,5 +1,5 @@
 import { Tool } from "../types/tool"
-import type { JSONSchema } from "../types/tool"
+import type { JSONSchema } from "../types/schema"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
