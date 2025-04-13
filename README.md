@@ -1,10 +1,14 @@
 # Lectic: A Tool for Persistent LLM Conversations
 
-Lectic is a markdown-based frontend for Large Language Models (LLMs), designed
-for thoughtful, long-form conversations that can be easily archived, searched,
-and referenced. Unlike ephemeral chat interfaces or code-focused LLM tools,
-Lectic emphasizes persistence and reflection, making it particularly valuable
-for research, learning, and knowledge management.
+Lectic is a markdown interface for interacting with Large Language Models. 
+Conversations are simple markdown files, which means they're naturally 
+persistent and can be easily version-controlled, searched, referenced, and 
+managed with existing markdown tools. Lectic aims to support research, 
+reflection, and design. So it makes it easy to manage conversational context 
+with content references, integrate with MCP servers and other tools (for 
+search, computation, database access, and more) and include multiple LLMs in a 
+single conversation in order to bring a variety of perspectives to bear on a 
+problem.
 
 ## Getting Started
 
@@ -46,7 +50,12 @@ somewhere on your `$PATH`.
 
 ### Editor Integration
 
+<details>
+<summary>
+
 #### Neovim
+
+</summary>
 
 A Neovim plugin is provided in `extra/lectic.nvim` that offers: 
 * support for the `.lec` filetype
@@ -54,12 +63,22 @@ A Neovim plugin is provided in `extra/lectic.nvim` that offers:
 - Automatic highlighting of LLM responses
 - Cursor placement at the end of the conversation after updates
 
+</details>
+
+<details>
+
+<summary>
+
 #### Other Editors
+
+</summary>
 
 Most text editors support filtering through external commands. Consider:
 - Setting up key bindings for frequent operations
 - Using markdown preview features
 - Taking advantage of folding for longer conversations
+
+</details>
 
 ## Features
 
@@ -223,7 +242,16 @@ consolidated, each interlocutor will consolidate their own memories.
 
 ### Tools
 
+Lectic allows you to configure tools that your LLM can use to perform different 
+kinds of actions during your conversation.
+
+<details>
+
+<summary>
+
 #### Command Execution Tool
+
+</summary>
 
 The exec tool allows the LLM to execute commands directly. For security, you can
 configure which commands are available and optionally run them in a sandbox.
@@ -236,7 +264,6 @@ tools:
       sandbox: ./sandbox.sh     # Optional sandboxing script
       confirm: ./confirm.sh     # Optional confirmation script
 ```
-
 
 Example conversation using the exec tool:
 
@@ -255,6 +282,7 @@ The code executed successfully and output: Hello, world!
 
 :::
 ```
+
 ##### Command Execution Safety
 
 > [!WARNING]
@@ -275,7 +303,15 @@ script returns a nonzero exit status, the tool call is cancelled. An example
 confirmation script, using [zenity](https://github.com/GNOME/zenity) is 
 included in this repository at `extra/confirm/zenity-confirm.sh`.
 
+</details>
+
+<details>
+
+<summary>
+
 #### SQLite Query Tool
+
+</summary>
 
 The sqlite tool gives the LLM the ability to query SQLite databases. You can
 configure limits and provide schema documentation. The schema is automatically
@@ -312,7 +348,15 @@ Here are the results showing the largest orders...
 :::
 ```
 
+</details>
+
+<details>
+
+<summary>
+
 #### Think Tool
+
+</summary>
 
 This tool lets you give your LLM an opportunity to deliberately pause and think
 about something, in the style suggested by [anthropic's engineering
@@ -347,7 +391,15 @@ places to visit, or something else?
 :::
 ```
 
+</details>
+
+<details>
+
+<summary>
+
 #### MCP Tool (Beta)
+
+</summary>
 
 Lectic lets you use [model context protocol](https://modelcontextprotocol.io) 
 servers to provide tools for your LLMs. There are already a huge number of 
@@ -419,6 +471,8 @@ tool, and a JSON string representing the arguments to the call. If the confirm
 script returns a nonzero exit status, the tool call is cancelled. An example 
 confirmation script, using [zenity](https://github.com/GNOME/zenity) is 
 included in this repository at `extra/confirm/zenity-confirm.sh`.
+
+</details>
 
 ## Configuration Reference
 
@@ -551,6 +605,7 @@ lectic -h                                  # View help text
 lectic -f conversation.lec                 # Process a conversation file
 lectic -l debug.log -f conversation.lec    # Write debug logs to debug.log
 lectic -s -f convo.lec                     # Only show the last message
+lectic -c -f convo.lec                     # Consolidate a new set of memories 
 lectic -v                                  # Get a version string
 cat convo.lec | lectic -                   # Read from stdin
 ```
