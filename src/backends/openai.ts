@@ -112,7 +112,7 @@ async function *handleToolUse(
 
         const stream = client.beta.chat.completions.stream({
             messages: messages.concat([developerMessage(lectic)]),
-            model: lectic.header.interlocutor.model ?? 'gpt-4o',
+            model: lectic.header.interlocutor.model ?? 'gpt-4.1',
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools()
