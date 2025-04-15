@@ -27,25 +27,47 @@ jobs:
           nix_path: nixpkgs=channel:nixpkgs-unstable
 
       - name: Detect architecture
-        run: |
-          ARCH=$(uname -m)
-          case "$ARCH" in
-            x86_64) ARCH="x86_64" ;;
-            i686) ARCH="i386" ;;
-            aarch64) ARCH="aarch64" ;;
-            armv7l) ARCH="armv7l" ;;
-            armhf) ARCH="armhf" ;;
-            *) echo "Unknown architecture: $ARCH"; exit 1 ;;
-          esac
-          echo "ARCH=$ARCH" >> $GITHUB_ENV
+        run: echo "ARCH=$(uname -m)" >> $GITHUB_ENV
 
       - name: Get tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Build application
-        run: nix build .#lectic-appimage -o "lectic-$TAG_NAME-$ARCH.appImage"
+        run: nix build .#lectic-appimage -o "lectic-$TAG_NAME-linux-$ARCH.appImage"
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: lectic-*-*.appImage
+          files: lectic-*-linux-*.appImage
+
+  build-macos:
+    strategy: 
+      matrix:
+        os: [macos-latest, macos-13]
+
+    runs-on: ${{matrix.os}}
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Detect architecture
+        run: echo "ARCH=$(uname -m)" >> $GITHUB_ENV
+
+      - name: Get tag name
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Build application
+        run: bun build --compile --outfile "lectic-$TAG_NAME-macos-$ARCH.bin" src/main.ts
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: lectic-*-macos-*.x86.bin
