@@ -70,7 +70,12 @@ async function main() {
         Logger.logfile = program.opts()["log"]
     }
 
-    if (!program.opts()["short"] && !program.opts()["consolidate"]) {
+    if ((program.opts()["Short"] || program.opts()["short"]) && program.opts()["consolidate"]) {
+        Logger.stdout("You can't combine --short/--Short and --consolidate ");
+        process.exit(1)
+    }
+
+    if (!program.opts()["Short"] && !program.opts()["short"] && !program.opts()["consolidate"]) {
         Logger.stdout(`${lecticString.trim()}\n\n`);
     }
 
@@ -87,11 +92,11 @@ async function main() {
                 blockQuote: "literal" })}...`, )
         } else {
             computeSpeaker(lectic)
-            Logger.stdout(`:::${lectic.header.interlocutor.name}\n\n`)
+            !program.opts()["Short"] && Logger.stdout(`:::${lectic.header.interlocutor.name}\n\n`)
             const result = Logger.fromStream(backend.evaluate(lectic))
             Logger.stdout(result.strings)
             await result.rest
-            Logger.stdout(`\n\n:::`)
+            !program.opts()["Short"] && Logger.stdout(`\n\n:::`)
         }
         process.exit(0)
     }).catch(error => {
@@ -104,7 +109,8 @@ async function main() {
 
 program
 .name('lectic')
-.option('-s, --short', 'only emit last message rather than updated lectic')
+.option('-s, --short', 'only emit a new message rather than updated lectic')
+.option('-S, --Short', 'only emit a new message rather than updated lectic, only including the message text')
 .option('-c, --consolidate',  'emit a new YAML header consolidating memories of this conversation')
 .option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
 .option('-l, --log <logfile>',  'log debugging information')
