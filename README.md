@@ -162,7 +162,7 @@ Include local or remote content in conversations:
 Supported content types:
 - Text files (automatically included as plain text)
 - Images (PNG, JPEG, GIF, WebP)
-- PDFs (anthropic and gemini providers only right now)
+- PDFs (Anthropic, Gemini, and OpenAI providers only right now)
 - Remote content via HTTP/HTTPS
 - Large files or failed remote fetches will produce error messages in context
 
