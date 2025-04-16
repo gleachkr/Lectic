@@ -73,4 +73,4 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: lectic-*-macos-*.x86.bin
+          files: lectic-*-macos-*.bin
