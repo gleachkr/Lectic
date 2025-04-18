@@ -1,24 +1,28 @@
-# Lectic: A Tool for Persistent LLM Conversations
+# Lectic
 
-Lectic is a markdown interface for interacting with Large Language Models. 
-Conversations are simple markdown files, which means they're naturally 
-persistent and can be easily version-controlled, searched, referenced, and 
-managed with existing markdown tools. Lectic aims to support research, 
-reflection, and design. So it makes it easy to manage conversational context 
-with content references, integrate with MCP servers and other tools (for 
-search, computation, database access, and more) and include multiple LLMs in a 
-single conversation in order to bring a variety of perspectives to bear on a 
-problem.
+Lectic is no-nonsense conversational LLM client. Each conversation is a simple 
+markdown file. That means that each conversation is naturally persistent and 
+can be easily version-controlled, searched, referenced, and managed with 
+existing markdown tools. Lectic aims to support research, reflection, 
+self-study, and design. So Lectic makes it easy to manage conversational 
+context using content references, integrate with MCP servers and other tools 
+(for search, computation, database access, and more) and include multiple LLMs 
+in a single conversation in order to bring a variety of perspectives to bear on 
+a problem.
 
 ## Getting Started
 
 ### Installation
 
-If you're using [nix](https://nixos.org), then `nix profile install github:gleachkr/lectic` 
-will install lectic from the lastest git commit. If you're not using nix, but
-you're using a Linux system (or WSL on windows), you can download an app image
-from the [releases](https://github.com/gleachkr/Lectic/releases), and place it
-somewhere on your `$PATH`.
+- If you're using [nix](https://nixos.org), then `nix profile install 
+  github:gleachkr/lectic` will install lectic from the lastest git commit. 
+- If you're not using nix, but you're using a Linux system (or WSL on windows), 
+  you can download an app image from the 
+  [releases](https://github.com/gleachkr/Lectic/releases), and place it 
+  somewhere on your `$PATH`. 
+- If you're on MacOS, you can download a binary from the 
+  [releases](https://github.com/gleachkr/Lectic/releases), and place it 
+  somewhere on your `$PATH`.
 
 ### Basic Workflow
 
@@ -57,11 +61,10 @@ somewhere on your `$PATH`.
 
 </summary>
 
-A Neovim plugin is provided in `extra/lectic.nvim` that offers: 
-* support for the `.lec` filetype
-- The `:Lectic` command to update conversations
-- Automatic highlighting of LLM responses
-- Cursor placement at the end of the conversation after updates
+A Neovim plugin is provided in `extra/lectic.nvim` that offers support for the 
+`.lec` filetype, including syntax highlighting, streaming responses, kemaps and 
+commands (`:Lectic` and `:LecticConsolidate`) for updating conversations, and 
+folding of tool use blocks.
 
 </details>
 
@@ -173,8 +176,8 @@ Local content references can also use globbing to include multiple files:
 [Images](./images/*.jpg)
 ```
 
-Supported glob syntax is determined by bun's [glob
-api](https://bun.sh/docs/api/glob).
+You can refer to the documentation for Bun's [Glob 
+api](https://bun.sh/docs/api/glob) for the exact Glob syntax supported.
 
 ### Command Output References
 
@@ -604,7 +607,8 @@ Notice how each ratio gets closer to the golden ratio!
 lectic -h                                  # View help text
 lectic -f conversation.lec                 # Process a conversation file
 lectic -l debug.log -f conversation.lec    # Write debug logs to debug.log
-lectic -s -f convo.lec                     # Only show the last message
+lectic -s -f convo.lec                     # Only show the generated message
+lectic -S -f convo.lec                     # Only show the last message, without speaker indications
 lectic -c -f convo.lec                     # Consolidate a new set of memories 
 lectic -v                                  # Get a version string
 cat convo.lec | lectic -                   # Read from stdin
