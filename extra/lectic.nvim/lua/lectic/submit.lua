@@ -1,42 +1,8 @@
 local M = {}
 
-local ns_id = vim.api.nvim_create_namespace('lectic_highlight')
+local spinner = require('lectic.spinner')
 
-local function create_spinner()
-    local buf = vim.api.nvim_get_current_buf()
-    local steps = { " ▌"," ▀"," ▐"," ▄"}
-    local cur_step = 1
-    local timer = vim.uv.new_timer()
-    local enclosed_line
-    local id
-    return {
-        done = function(_)
-            enclosed_line = 0
-            vim.api.nvim_buf_del_extmark(buf, ns_id, id)
-            timer:stop()
-            timer:close()
-        end,
-        start = function(_, line)
-            enclosed_line = line
-            timer:start(250, 250, function()
-                vim.schedule(function()
-                    id = vim.api.nvim_buf_set_extmark(buf, ns_id, enclosed_line, 0, {
-                        virt_text = {{ steps[cur_step] ,{"LecticBlock", "CursorLineSign"}}},
-                        id = id
-                    })
-                end)
-                cur_step = (cur_step % #steps) + 1
-            end)
-        end,
-        goto = function(_, line)
-            enclosed_line = line
-            id = vim.api.nvim_buf_set_extmark(buf, ns_id, line, 0, {
-                virt_text = {{ steps[cur_step] ,{"LecticBlock", "CursorLineSign"}}},
-                id = id
-            })
-        end
-    }
-end
+local ns_id = vim.api.nvim_create_namespace('lectic_highlight')
 
 function M.submit_lectic()
     if vim.fn.executable('lectic') ~= 1 then
@@ -44,7 +10,7 @@ function M.submit_lectic()
         return
     end
 
-    local spinner = create_spinner()
+    local the_spinner = spinner.create_spinner(ns_id)
 
     local buf = vim.api.nvim_get_current_buf()
     if not vim.api.nvim_buf_get_lines(buf, -2,-1, false)[1]:match("^%s*$") then -- make sure we end in a blank line
@@ -57,7 +23,7 @@ function M.submit_lectic()
     local function on_exit(code, signal)
         vim.schedule(function()
             vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
-            spinner:done()
+            the_spinner:done()
         end)
     end
 
@@ -100,7 +66,7 @@ function M.submit_lectic()
                 id = extmark_id,
                 strict = false
             })
-            spinner:goto(vim.api.nvim_buf_line_count(buf) - 1)
+            the_spinner:goto(vim.api.nvim_buf_line_count(buf) - 1)
             vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
           end)
         end
@@ -119,7 +85,7 @@ function M.submit_lectic()
       env = env
     }, on_exit)
 
-    spinner:start(vim.api.nvim_buf_line_count(buf) - 1)
+    the_spinner:start(vim.api.nvim_buf_line_count(buf) - 1)
     process:write(table.concat(buffer_content, '\n'))
     process:write(nil)
 
