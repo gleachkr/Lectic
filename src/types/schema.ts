@@ -47,13 +47,33 @@ export type JSONSchema = StringSchema
                 | ArraySchema
                 | ObjectSchema
 
+function escapeTags(string) {
+    return string
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;")
+    .replace(/`/g, "&#96;");
+}
+
+function unescapeTags(string) {
+    return string
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#039;/g, "'")
+    .replace(/&#96;/g, "`")
+    .replace(/&amp;/g, "&");
+}
+
 export function serialize(arg: any, schema: JSONSchema): string {
     switch (schema.type) {
         case "string":
             if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
                 throw new Error(`Invalid string value: ${arg}`);
             }
-            return arg;
+            return escapeTags(arg);
 
         case "boolean":
             if (typeof arg !== "boolean") {
@@ -116,7 +136,7 @@ export function deserialize(xml: string, schema: JSONSchema): any {
             if (schema.enum && !schema.enum.includes(xml)) {
                 throw new Error("Invalid serialized string");
             }
-            return xml;
+            return unescapeTags(xml);
 
         case "boolean":
             if (xml === "true") return true;
