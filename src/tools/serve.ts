@@ -17,7 +17,6 @@ export function isServeToolSpec(raw : unknown) : raw is ServeToolSpec {
 export class ServeTool extends Tool {
 
     name: string
-    sandbox: string | undefined
     description: string
     serve_on_port: number
     static count : number = 0

@@ -400,6 +400,49 @@ places to visit, or something else?
 
 <summary>
 
+#### Server Tool
+
+</summary>
+
+This tool lets you give your LLM access to a simple web server, so that it can 
+serve you up web pages and apps that it generates, a bit like Claude's 
+[artifacts](https://support.anthropic.com/en/articles/9487310-what-are-artifacts-and-how-do-i-use-them). 
+and [analysis 
+tool](https://support.anthropic.com/en/articles/10008684-enabling-and-using-the-analysis-tool). 
+The web page should automatically open in your browser (the conversation will 
+be blocked until the page is loaded). Once the page is loaded, the server will 
+be shut down.
+
+```yaml
+tools:
+    - serve_on_port: 9000   # serve on localhost:9000
+      name: my_server       # Optional custom name
+```
+
+Example conversation using the think tool:
+
+```markdown
+Could you serve me up a little tic-tac-toe game?
+
+:::Assistant
+
+
+{server}
+A WHOLE BUNCH OF HTML, JS, and CSS
+{/server}
+
+There you go! Your tic-tac-toe game is available on localhost:9000
+
+:::
+```
+
+</details>
+
+<details>
+
+<summary>
+
+
 #### MCP Tool (Beta)
 
 </summary>
