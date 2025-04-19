@@ -160,7 +160,7 @@ async function linkToContent(link : MessageAttachment)
         case "application/pdf" : return {
             type : "file", 
             file: {
-                file_name : link.title,
+                filename : link.title,
                 file_data : Buffer.from(bytes).toString("base64"),
             }
         } as const
