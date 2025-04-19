@@ -10,6 +10,7 @@ import { isExecToolSpec, ExecTool } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
+import { isServeToolSpec, ServeTool } from "../tools/serve"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -103,6 +104,8 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
                 new SQLiteTool(spec)
             } else if (isThinkToolSpec(spec)) {
                 new ThinkTool(spec)
+            } else if (isServeToolSpec(spec)) {
+                new ServeTool(spec)
             } else if (isMCPSpec(spec)) {
                 await MCPTool.fromSpec(spec)
             } else {
