@@ -47,7 +47,7 @@ export type JSONSchema = StringSchema
                 | ArraySchema
                 | ObjectSchema
 
-function escapeTags(string) {
+function escapeTags(string : string) {
     return string
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -57,7 +57,7 @@ function escapeTags(string) {
     .replace(/`/g, "&#96;");
 }
 
-function unescapeTags(string) {
+function unescapeTags(string : string) {
     return string
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
