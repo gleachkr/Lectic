@@ -1,7 +1,7 @@
 local M = {}
 
 vim.api.nvim_set_hl(0, 'LecticBlock', {
-    link = 'CursorLine',
+    link = vim.g.lectic_highlight_block or 'CursorLine',
     default = true
 })
 
