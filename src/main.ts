@@ -53,7 +53,7 @@ function computeSpeaker(lectic : Lectic) {
 async function main() {
 
     if (program.opts()["version"]) { 
-        Logger.stdout(`${version}\n`) 
+        Logger.write(`${version}\n`) 
         process.exit(0)
     }
 
@@ -71,12 +71,12 @@ async function main() {
     }
 
     if ((program.opts()["Short"] || program.opts()["short"]) && program.opts()["consolidate"]) {
-        Logger.stdout("You can't combine --short/--Short and --consolidate ");
+        Logger.write("You can't combine --short/--Short and --consolidate ");
         process.exit(1)
     }
 
     if (!program.opts()["Short"] && !program.opts()["short"] && !program.opts()["consolidate"]) {
-        Logger.stdout(`${lecticString.trim()}\n\n`);
+        Logger.write(`${lecticString.trim()}\n\n`);
     }
 
     await parseLectic(lecticString).then(async lectic => {
@@ -88,20 +88,20 @@ async function main() {
             } else {
                 delete new_lectic.header.interlocutor
             }
-            Logger.stdout(`---\n${YAML.stringify(new_lectic.header, {
+            Logger.write(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}...`, )
         } else {
             computeSpeaker(lectic)
-            !program.opts()["Short"] && Logger.stdout(`:::${lectic.header.interlocutor.name}\n\n`)
+            !program.opts()["Short"] && Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
             const result = Logger.fromStream(backend.evaluate(lectic))
-            Logger.stdout(result.strings)
+            Logger.write(result.strings)
             await result.rest
-            !program.opts()["Short"] && Logger.stdout(`\n\n:::`)
+            !program.opts()["Short"] && Logger.write(`\n\n:::`)
         }
         process.exit(0)
     }).catch(error => {
-        Logger.stdout(`<error>\n${error.message}\n</error>`)
-        Logger.stdout(`\n\n:::`)
+        Logger.write(`<error>\n${error.message}\n</error>`)
+        Logger.write(`\n\n:::`)
         process.exit(1)
     })
 

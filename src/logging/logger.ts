@@ -23,11 +23,14 @@ ${YAML.stringify(logged, null, { blockQuote: "literal" })}
 export const Logger : {
     logfile : null | string,
     debug(context : string, logged: any) : void,
-    stdout(output : string | AsyncIterable<string>) : void
+    outfile: NodeJS.WriteStream
+    write(output : string | AsyncIterable<string>) : void
     fromStream<A>(generator : AsyncIterable<string | A>) : { strings : AsyncIterable<string>, rest : Promise<A[]> }
 } = {
 
     logfile: null,
+
+    outfile: process.stdout,
 
     debug(context, logged) {
         if (!this.logfile) return
@@ -37,14 +40,14 @@ export const Logger : {
         fs.closeSync(fd)
     },
 
-    async stdout(output) {
+    async write(output) {
         if (typeof output == "string") {
-            process.stdout.write(output)
+            this.outfile.write(output)
             return
         }
 
         for await (const chunk of output) {
-            process.stdout.write(chunk)
+            this.outfile.write(chunk)
         }
     },
 
