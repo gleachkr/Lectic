@@ -1,5 +1,6 @@
 import * as YAML from "yaml"
 import * as fs from 'fs';
+import type { Writable } from "node:stream"
 
 function formattedMsg(context: string, logged : any) : string  {
     const now = new Date();
@@ -23,8 +24,8 @@ ${YAML.stringify(logged, null, { blockQuote: "literal" })}
 export const Logger : {
     logfile : null | string,
     debug(context : string, logged: any) : void,
-    outfile: NodeJS.WriteStream
-    write(output : string | AsyncIterable<string>) : void
+    outfile: Writable
+    write(output : string | AsyncIterable<string>) : Promise<void>
     fromStream<A>(generator : AsyncIterable<string | A>) : { strings : AsyncIterable<string>, rest : Promise<A[]> }
 } = {
 
@@ -42,12 +43,14 @@ export const Logger : {
 
     async write(output) {
         if (typeof output == "string") {
-            this.outfile.write(output)
-            return
-        }
-
-        for await (const chunk of output) {
-            this.outfile.write(chunk)
+            return new Promise(resolve => this.outfile.write(output, () => resolve()))
+        } else {
+            return new Promise(async resolve => {
+                for await (const chunk of output) {
+                    await new Promise(resolve => this.outfile.write(chunk, resolve))
+                }
+                resolve()
+            })
         }
     },
 

@@ -1,5 +1,6 @@
 import { parseLectic } from "./parsing/parse"
 import { program } from 'commander'
+import type { OptionValues } from 'commander'
 import { AnthropicBackend } from "./backends/anthropic"
 import { OpenAIBackend } from "./backends/openai"
 import { OllamaBackend } from "./backends/ollama"
@@ -8,6 +9,7 @@ import { getDefaultProvider, LLMProvider } from "./types/provider"
 import { consolidateMemories } from "./types/backend"
 import { Logger } from "./logging/logger"
 import * as YAML from "yaml"
+import { createWriteStream } from "fs"
 import type { Lectic } from "./types/lectic"
 import type { Backend } from "./types/backend"
 import { version } from "../package.json"
@@ -50,33 +52,63 @@ function computeSpeaker(lectic : Lectic) {
     }
 }
 
-async function main() {
-
-    if (program.opts()["version"]) { 
+function processOptions(opts : OptionValues) {
+    if (opts["consolidate"]) {
+        if (opts["short"]) {
+            Logger.write("You can't combine --short and --consolidate ");
+            process.exit(1)
+        }
+        if (opts["Short"]) {
+            Logger.write("You can't combine --Short and --consolidate ");
+            process.exit(1)
+        }
+    }
+    if (opts["inplace"]) {
+        if (opts["short"]) {
+            Logger.write("You can't combine --short and --inplace");
+            process.exit(1)
+        }
+        if (opts["Short"]) {
+            Logger.write("You can't combine --Short and --inplace");
+            process.exit(1)
+        }
+        if (opts["file"] !== '-') {
+            Logger.write("You can't combine --file and --inplace");
+            process.exit(1)
+        }
+        Logger.outfile = createWriteStream(opts["inplace"])
+    }
+    if (opts["version"]) {
         Logger.write(`${version}\n`) 
         process.exit(0)
     }
-
-    let lecticString = program.opts()["file"] === '-' 
-        ? await Bun.stdin.text()
-        : await Bun.file(program.opts()["file"]).text()
-
     if (program.opts()["log"]) {
         Logger.logfile = program.opts()["log"]
     }
+}
 
-
-    if (program.opts()["log"]) {
-        Logger.logfile = program.opts()["log"]
+async function getLecticString(opts : OptionValues) : Promise<string> {
+    if (opts["inplace"]) {
+        return Bun.file(program.opts()["inplace"]).text()
+    } else if (opts["file"] === '-') {
+        return Bun.stdin.text()
+    } else {
+        return Bun.file(opts["file"]).text()
     }
+}
 
-    if ((program.opts()["Short"] || program.opts()["short"]) && program.opts()["consolidate"]) {
-        Logger.write("You can't combine --short/--Short and --consolidate ");
-        process.exit(1)
-    }
+async function main() {
 
-    if (!program.opts()["Short"] && !program.opts()["short"] && !program.opts()["consolidate"]) {
-        Logger.write(`${lecticString.trim()}\n\n`);
+    const opts = program.opts()
+
+    // We get the string before processOpts because if we've we handle
+    // opts["inplace"] then we need to clobber the lectic file
+    let lecticString = await getLecticString(opts)
+
+    processOptions(opts)
+
+    if (!(opts["Short"] || opts["short"] || opts["consolidate"])) {
+        await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
     await parseLectic(lecticString).then(async lectic => {
@@ -88,23 +120,22 @@ async function main() {
             } else {
                 delete new_lectic.header.interlocutor
             }
-            Logger.write(`---\n${YAML.stringify(new_lectic.header, {
+            await Logger.write(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}...`, )
         } else {
             computeSpeaker(lectic)
-            !program.opts()["Short"] && Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
+            !program.opts()["Short"] && await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
             const result = Logger.fromStream(backend.evaluate(lectic))
-            Logger.write(result.strings)
+            await Logger.write(result.strings)
             await result.rest
-            !program.opts()["Short"] && Logger.write(`\n\n:::`)
+            !program.opts()["Short"] && await Logger.write(`\n\n:::`)
         }
         process.exit(0)
     }).catch(error => {
         Logger.write(`<error>\n${error.message}\n</error>`)
-        Logger.write(`\n\n:::`)
-        process.exit(1)
+            .then(() => Logger.write(`\n\n:::`))
+            .then(() => process.exit(1))
     })
-
 }
 
 program
@@ -113,6 +144,7 @@ program
 .option('-S, --Short', 'only emit a new message rather than updated lectic, only including the message text')
 .option('-c, --consolidate',  'emit a new YAML header consolidating memories of this conversation')
 .option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
+.option('-i, --inplace <lectic>',  'lectic to update in place' )
 .option('-l, --log <logfile>',  'log debugging information')
 .option('-v, --version',  'print version information')
 
