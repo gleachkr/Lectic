@@ -17,6 +17,9 @@ export class MessageAttachment {
                 }
                 case "http:" :
                 case "https:" : {
+                    this.response = Bun.fetch(link.URI); break
+                }
+                case "s3:" : {
                     this.response = Bun.fetch(link.URI)
                 }
             }
