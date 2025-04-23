@@ -202,11 +202,17 @@ async function linkToContent(link : MessageAttachment)
                 data: Buffer.from(bytes).toString("base64")
             }
         } as const
-        case "text/plain" : return {
-            text: `<file title="${link.title}">${Buffer.from(bytes).toString()}</file>`
-        } as const
-        default: return {
-            text: `<error>Media type ${media_type} is not supported.</error>` 
+        default: {
+            if (media_type.slice(0,4) === "text") {
+                return {
+                    inlineData : {
+                        mimeType: "text/plain",
+                        data: Buffer.from(bytes).toString("base64")
+                    }
+                } as const
+            } else return {
+                text: `<error>Media type ${media_type} is not supported.</error>` 
+            }
         }
     }
 }
