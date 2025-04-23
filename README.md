@@ -49,8 +49,9 @@ a problem.
    - In other editors: Set up a key binding or command to pipe the current file
      through `lectic`
 
-3. Or, From the command line: `lectic -f conversation.lec > tmp && mv tmp
-   conversation.lec`
+3. Or, From the command line: `lectic -f conversation.lec` will stream a next 
+   message to the console, and `lectic -i conversation.lec` will update the 
+   lectic file in-place.
 
 ### Editor Integration
 
@@ -648,11 +649,12 @@ Notice how each ratio gets closer to the golden ratio!
 ## Command Line Interface
 ```bash
 lectic -h                                  # View help text
-lectic -f conversation.lec                 # Process a conversation file
+lectic -f conversation.lec                 # Generate a new message from a conversation file
 lectic -l debug.log -f conversation.lec    # Write debug logs to debug.log
-lectic -s -f convo.lec                     # Only show the generated message
-lectic -S -f convo.lec                     # Only show the last message, without speaker indications
+lectic -s -f convo.lec                     # Only return the new message
+lectic -S -f convo.lec                     # Only return the new message, without speaker indications
 lectic -c -f convo.lec                     # Consolidate a new set of memories 
+lectic -i convo.lec                        # Update convo.lec in-place with the next message
 lectic -v                                  # Get a version string
 cat convo.lec | lectic -                   # Read from stdin
 ```
