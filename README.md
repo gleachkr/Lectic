@@ -160,6 +160,7 @@ Include local or remote content in conversations:
 [Local Document](./notes.pdf)
 [Remote Paper](https://arxiv.org/pdf/2201.12345.pdf)
 [Web Image](https://example.com/diagram.png)
+[Web Image](s3://my_bucket/dataset.csv)
 [Local Data](./results.csv)
 ```
 
@@ -167,8 +168,16 @@ Supported content types:
 - Text files (automatically included as plain text)
 - Images (PNG, JPEG, GIF, WebP)
 - PDFs (Anthropic, Gemini, and OpenAI providers only right now)
-- Remote content via HTTP/HTTPS
-- Large files or failed remote fetches will produce error messages in context
+- Video (Gemini only right now - Supported mime types 
+  [here](https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats))
+- Audio (Gemini, and OpenAI providers only right now. MP3, MPEG and WAV, more 
+  for gemini. OpenAI requires an audio model)
+
+Remote content can be included via HTTP/HTTPS, or from an amazon s3 bucket. 
+Using s3 requires that you have `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` 
+set in your environment - this uses Bun's [s3 
+support](https://bun.sh/docs/api/s3#credentials) under the hood. Failed remote 
+fetches will produce error messages visible to the LLM.
 
 Local content references can also use globbing to include multiple files:
 
