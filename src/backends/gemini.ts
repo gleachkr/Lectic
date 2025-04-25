@@ -196,21 +196,14 @@ async function linkToContent(link : MessageAttachment)
         case "audio/ogg":
         case "audio/flac":
         case "application/pdf":
-        return {
+        case "text/plain": return {
             inlineData : {
                 mimeType: media_type,
                 data: Buffer.from(bytes).toString("base64")
             }
         } as const
         default: {
-            if (media_type.slice(0,4) === "text") {
-                return {
-                    inlineData : {
-                        mimeType: "text/plain",
-                        data: Buffer.from(bytes).toString("base64")
-                    }
-                } as const
-            } else return {
+            return {
                 text: `<error>Media type ${media_type} is not supported.</error>` 
             }
         }
