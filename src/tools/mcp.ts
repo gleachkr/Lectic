@@ -4,6 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
 import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
+import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 
 type MCPSpecSTDIO = {
     mcp_command: string
@@ -20,8 +21,30 @@ type MCPSpecWebsocket = {
     mcp_ws: string
 }
 
+type MCPRoot = {
+    uri: string
+    name?: string
+}
+
+// current spec requires that URI is a file:// URI, should validate
+function validateRoot(root : MCPRoot) {
+    try {
+        if ((new URL(root.uri)).protocol !== "file:") {
+            throw new Error("Root URIs must be of the form 'file://…")
+        }
+    } catch (e : unknown) {
+        if (e instanceof Error) {
+            throw new Error(`Something went wrong with the root ${JSON.stringify(root)}. Here's the Error: ${e.message}`)
+        } else {
+            throw new Error(`Something went wrong with the root ${JSON.stringify(root)}.`)
+        }
+    }
+}
+
 type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket) & { 
+    server_name?: string
     confirm?: string 
+    roots?: MCPRoot[]
 }
 
 type MCPToolSpec = {
@@ -82,6 +105,7 @@ export class MCPTool extends Tool {
     confirm?: string
     sandbox?: string
     client: Client
+    static count : number = 0
 
     constructor({name, description, schema, confirm, client}: MCPToolSpec) {
         super()
@@ -129,6 +153,20 @@ export class MCPTool extends Tool {
         }
     }
 
+    static client_registry : { [key : string] : Client } = {}
+
+    static register(name : string | undefined, client : Client) {
+        if (!name) {
+            name = `mcp_server_${MCPTool.count}`
+            MCPTool.count++
+        }
+        if (name in MCPTool.registry) {
+            throw new Error(`Two mcp servers have been given the same name, ${name}. Names must be distinct.`)
+        } else {
+            MCPTool.client_registry[name] = client
+        }
+    }
+
     static async fromSpec(spec : MCPSpec) : Promise<MCPTool[]> {
         const transport = "mcp_command" in spec
             ? new StdioClientTransport(spec.sandbox ? {
@@ -146,10 +184,23 @@ export class MCPTool extends Tool {
 
         const client = new Client({
             name: "Lectic",
-            version: "0.0.0"
+            version: "0.0.0" // should draw this from package.json
         }, {
-            capabilities: {}
+            capabilities: {
+                ...spec.roots ? {roots: {}} : {}
+            }
         })
+        
+        MCPTool.register(spec.server_name, client)
+
+        if (spec.roots) {
+            spec.roots.map(validateRoot)
+            client.setRequestHandler(ListRootsRequestSchema, (_request, _extra) => {
+                return {
+                    roots: spec.roots,
+                }
+            })
+        }
 
         await client.connect(transport)
 
