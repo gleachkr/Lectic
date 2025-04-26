@@ -26,7 +26,6 @@ type MCPRoot = {
     name?: string
 }
 
-// current spec requires that URI is a file:// URI, should validate
 function validateRoot(root : MCPRoot) {
     try {
         if ((new URL(root.uri)).protocol !== "file:") {

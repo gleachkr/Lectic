@@ -161,6 +161,7 @@ Include local or remote content in conversations:
 [Remote Paper](https://arxiv.org/pdf/2201.12345.pdf)
 [Web Image](https://example.com/diagram.png)
 [Web Image](s3://my_bucket/dataset.csv)
+[MCP Resource](github+repo://gleachkr/Lectic/contents/README.md)
 [Local Data](./results.csv)
 ```
 
@@ -178,6 +179,11 @@ Using s3 requires that you have `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 set in your environment - this uses Bun's [s3 
 support](https://bun.sh/docs/api/s3#credentials) under the hood. Failed remote 
 fetches will produce error messages visible to the LLM.
+
+MCP resources can be accessed using content references. In order to identify 
+the server, you need to prefix the server's name, followed by a `+` to the 
+content URI (the name is specified as part of the tool configuration, see 
+below).
 
 Local content references can also use globbing to include multiple files:
 
@@ -468,6 +474,9 @@ an MCP server, you can add the server as a tool like this:
 ```yaml
 tools:
     - mcp_command: npx # The main command to launch the server
+      name: brave      # Optional name, used in resource content references (see above)
+      roots:           # Optional list of filesystem roots
+        - /home/graham/research-docs/
       args:            # Additional arguments to the main command
         - "-y"
         - "@modelcontextprotocol/server-brave-search"
@@ -480,6 +489,13 @@ tools:
     - mcp_ws: URL_GOES_HERE # URL to a remote MCP server that uses Websockets
       confirm: ./confirm.sh
 ```
+
+[Roots](https://modelcontextprotocol.io/specification/2025-03-26/client/roots#roots) 
+are supported, and giving a server a name lets you retrieve any 
+[resources](https://modelcontextprotocol.io/docs/concepts/resources#resources) 
+that the server provides using content references. The LLM will also be 
+provided with a tool that allows it to list resources that the server makes 
+available.
 
 Example conversation using the MCP tool:
 
