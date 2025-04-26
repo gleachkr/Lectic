@@ -18,7 +18,7 @@ import { version } from "../package.json"
 function getBackend(lectic : Lectic) : Backend {
     switch (lectic.header.interlocutor.provider || getDefaultProvider()) {
         case LLMProvider.OpenAI:  return new OpenAIBackend({
-            defaultModel: 'gpt-4o',
+            defaultModel: 'gpt-4.1',
             apiKey: 'OPENAI_API_KEY',
             provider: LLMProvider.OpenAI,
         })
