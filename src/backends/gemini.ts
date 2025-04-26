@@ -8,7 +8,7 @@ import type { JSONSchema } from "../types/schema"
 import { serializeCall, Tool } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { MessageAttachment } from "../types/attachment"
+import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText } from './util'
@@ -164,10 +164,10 @@ async function *handleToolUse(
 
 }
 
-async function linkToContent(link : MessageAttachment) 
+async function partToContent(part : MessageAttachmentPart) 
     : Promise<Part | null> {
-    const media_type = await link.getType()
-    const bytes = await link.getBytes()
+    const media_type = part.mimetype
+    const bytes = part.bytes
     if (!(media_type && bytes)) return null
     // XXX seems like not all models support all mime types
     // cf https://ai.google.dev/gemini-api/docs/vision?hl=en&lang=node
@@ -253,25 +253,28 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
         }]
     } else {
         const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+        const parts : MessageAttachmentPart[] = []
+        for await (const link of links) {
+            if (await link.exists()) {
+                parts.push(... await link.getParts())
+            }
+        }
         const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
         if (msg.content.length == 0) { msg.content = "…" }
 
         const content : Part[] = [{ text: msg.content }]
 
-        for (const link of links) {
-            const exists = await link.exists()
-            if (exists) {
-                try {
-                    const source = await linkToContent(link)
-                    if (source) content.push(source)
-                } catch (e) {
-                    content.push({
-                        text:`<error>` +
-                            `Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}` +
-                        `</error>`
-                    })
-                }
+        for (const part of parts) {
+            try {
+                const source = await partToContent(part)
+                if (source) content.push(source)
+            } catch (e) {
+                content.push({
+                    text:`<error>` +
+                        `Something went wrong while retrieving ${part.title} from ${part.URI}:${(e as Error).message}` +
+                    `</error>`
+                })
             }
         }
 

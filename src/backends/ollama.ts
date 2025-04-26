@@ -6,7 +6,7 @@ import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageCommand } from "../types/directive.ts"
-import { MessageAttachment } from "../types/attachment"
+import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { serializeCall, Tool } from "../types/tool"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText } from './util'
@@ -142,10 +142,10 @@ async function* handleToolUse(
     })
 }
 
-async function linkToContent(link : MessageAttachment) 
+async function partToContent(part: MessageAttachmentPart) 
     : Promise<{text?: string, image_data?: string} | null> {
-    const media_type = await link.getType()
-    const bytes = await link.getBytes()
+    const media_type = part.mimetype
+    const bytes = part.bytes
     if (!(media_type && bytes)) return null
     switch(media_type) {
         case "image/gif" : 
@@ -155,10 +155,10 @@ async function linkToContent(link : MessageAttachment)
             image_data: Buffer.from(bytes).toString("base64")
         } as const
         case "application/pdf" : return {
-            text: `<error>couldn't upload ${link.title}. PDFs are not currently supported</error>`
+            text: `<error>couldn't process ${part.title}. PDFs are not currently supported</error>`
         } as const
         case "text/plain" : return {
-            text: `<file title="${link.title}">${Buffer.from(bytes).toString()}</file>`
+            text: `<file title="${part.title}">${Buffer.from(bytes).toString()}</file>`
         } as const
         default: return {
             text: `<error>Media type ${media_type} is not supported.</error>` 
@@ -203,21 +203,24 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<Ollama.Me
     } else {
 
         const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+        const parts : MessageAttachmentPart[] = []
+        for await (const link of links) {
+            if (await link.exists()) {
+                parts.push(... await link.getParts())
+            }
+        }
         const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
         const images : string[] = []
 
-        for (const link of links) {
-            const exists = await link.exists()
-            if (exists) {
-                try {
-                    const source = await linkToContent(link)
-                    if (source && source.image_data) images.push(source.image_data)
-                    if (source && source.text) msg.content += source.text
-                } catch (e) {
-                    msg.content += 
-                        `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
-                }
+        for (const part of parts) {
+            try {
+                const source = await partToContent(part)
+                if (source && source.image_data) images.push(source.image_data)
+                if (source && source.text) msg.content += source.text
+            } catch (e) {
+                msg.content += 
+                    `<error>Something went wrong while retrieving ${part.title} from ${part.URI}:${(e as Error).message}</error>`
             }
         }
 

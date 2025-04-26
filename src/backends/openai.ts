@@ -4,7 +4,7 @@ import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { MessageAttachment } from "../types/attachment"
+import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
@@ -133,10 +133,10 @@ async function *handleToolUse(
     }
 }
 
-async function linkToContent(link : MessageAttachment) 
+async function partToContent(part : MessageAttachmentPart) 
     : Promise<OpenAI.Chat.Completions.ChatCompletionContentPart | null> {
-    const media_type = await link.getType()
-    const bytes = await link.getBytes()
+    const media_type = part.mimetype
+    const bytes = part.bytes
     if (!(media_type && bytes)) return null
     switch(media_type) {
         case "image/gif" : 
@@ -160,13 +160,13 @@ async function linkToContent(link : MessageAttachment)
         case "application/pdf" : return {
             type : "file", 
             file: {
-                filename : link.title,
+                filename : part.title,
                 file_data : Buffer.from(bytes).toString("base64"),
             }
         } as const
         case "text/plain" : return {
             type : "text", 
-            text: `<file title="${link.title}">${Buffer.from(bytes).toString()}</file>`
+            text: `<file title="${part.title}">${Buffer.from(bytes).toString()}</file>`
         } as const
         default: return {
             type : "text", 
@@ -213,6 +213,12 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
     }
 
     const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+    const parts : MessageAttachmentPart[] = []
+    for await (const link of links) {
+        if (await link.exists()) {
+            parts.push(... await link.getParts())
+        }
+    }
     const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
     const content : OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{
@@ -220,18 +226,15 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
         text: msg.content
     }]
 
-    for (const link of links) {
-        const exists = await link.exists()
-        if (exists) {
-            try {
-                const source = await linkToContent(link)
-                if (source) content.push(source)
-            } catch (e) {
-                content.push({
-                    type: "text",
-                    text: `<error>Something went wrong while retrieving ${link.title} from ${link.URI}:${(e as Error).message}</error>`
-                })
-            }
+    for (const part of parts) {
+        try {
+            const source = await partToContent(part)
+            if (source) content.push(source)
+        } catch (e) {
+            content.push({
+                type: "text",
+                text: `<error>Something went wrong while retrieving ${part.title} from ${part.URI}:${(e as Error).message}</error>`
+            })
         }
     }
 
