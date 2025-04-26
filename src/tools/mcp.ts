@@ -97,6 +97,48 @@ function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
 
 }
 
+class MCPListResources extends Tool {
+
+    name: string
+    description: string
+    client: Client
+
+    constructor({name, client}: {name : string, client: Client}) {
+        super()
+        this.client = client
+        this.name = name
+        // XXX: Which backends actually *require* the description field?
+        this.description = 
+            `This tool can be used to list resources provided provided by the MCP server ${name}. ` +
+            `Results will be of two kinds, either *direct resources* or *template resources*.` +
+            `Direct resources will be listed with a URI used to access the resource, the name of the resource, ` + 
+            `Template resources will be listed with a URI template, name, ` +
+            `and optionally a description and mimetype that applies to all matching resources.`
+        this.register()
+    };
+
+    parameters = {
+        limit: {
+            type : "number",
+            description : "a limit on the number of resources of each kind to be listed. 100 by default.",
+        }
+    } as const
+
+    required = []
+
+    async call(args : { limit : number | undefined }) : Promise<string> {
+        const direct = await this.client.listResources()
+        const template = await this.client.listResourceTemplates()
+        return JSON.stringify({
+            total_number_of_direct_resources: direct.resources.length,
+            direct_resources: direct.resources.slice(0, args.limit ?? 100),
+            total_number_of_template_resources: template.resourceTemplates.length,
+            template_resources: template.resourceTemplates.slice(0, args.limit ?? 100)
+        })
+    }
+
+}
+
 export class MCPTool extends Tool {
     name: string
     description: string
@@ -165,6 +207,7 @@ export class MCPTool extends Tool {
         } else {
             MCPTool.client_registry[name] = client
         }
+
     }
 
     static async fromSpec(spec : MCPSpec) : Promise<MCPTool[]> {
@@ -204,7 +247,7 @@ export class MCPTool extends Tool {
 
         await client.connect(transport)
 
-        return (await client.listTools()).tools.map(tool => {
+        const associated_tools = (await client.listTools()).tools.map(tool => {
             return new MCPTool({
                 name: tool.name,
                 description: tool.description,
@@ -214,5 +257,9 @@ export class MCPTool extends Tool {
                 sandbox: "sandbox" in spec ? spec.sandbox : undefined
             })
         })
+
+        associated_tools.push(new MCPListResources({name: spec.server_name || "mcp_server_unknown", client}))
+        
+        return associated_tools 
     }
 }
