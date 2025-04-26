@@ -25,11 +25,11 @@ ${memories
 
 2. If a sentence or phrase exceeds the 78 character limit, wrap it to the next line. 
 
-   For example:
+For example:
 
-       This is an example of how your response should be formatted. Notice how the
-       lines break at around 78 characters, ensuring a consistent and readable
-       layout. This formatting must be applied to all of your responses.
+This is an example of how your response should be formatted. Notice how the 
+lines break at around 78 characters, ensuring a consistent and readable layout. 
+This formatting must be applied to all of your responses.
 
 3. Use Unicode rather than LaTeX for mathematical notation.
 
