@@ -88,19 +88,17 @@ function googleParameters(params: { [key: string] : JSONSchema }) : { [key: stri
     return rslt
 }
 
-function getTools() : Gemini.Tool[] {
-    const tools : Gemini.Tool[] = []
+function getTools() : Gemini.FunctionDeclaration[] {
+    const tools : Gemini.FunctionDeclaration[] = []
     for (const tool of Object.values(Tool.registry)) {
-        tools.push({
-            functionDeclarations: [{
-                  name : tool.name,
-                  description : tool.description,
-                  parameters: {
-                      "type" : Type.OBJECT,
-                      "properties" : googleParameters(tool.parameters),
-                      "required" : tool.required ?? [],
-                 }
-            }]
+        tools.push( {
+            name : tool.name,
+            description : tool.description,
+            parameters: {
+                "type" : Type.OBJECT,
+                "properties" : googleParameters(tool.parameters),
+                "required" : tool.required ?? [],
+            }
         })
     }
     return tools
@@ -181,7 +179,9 @@ async function *handleToolUse(
           contents: messages,
           config: {
               systemInstruction: systemPrompt(lectic),
-              tools: getTools(),
+              tools: [{
+                  functionDeclarations: getTools()
+              }],
               temperature: lectic.header.interlocutor.temperature,
               maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
           }
@@ -362,7 +362,9 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
         contents: messages,
         config: {
             systemInstruction: systemPrompt(lectic),
-            tools: getTools(),
+            tools: [{
+                functionDeclarations: getTools()
+            }],
             temperature: lectic.header.interlocutor.temperature,
             maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
         }
