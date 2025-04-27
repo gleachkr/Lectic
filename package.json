@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
-    "@google/generative-ai": "^0.23.0",
+    "@google/genai": "^0.10.0",
     "@modelcontextprotocol/sdk": "^1.8.0",
     "@types/bun": "^1.2.8",
     "@types/mdast": "^4.0.4",

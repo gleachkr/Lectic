@@ -1,6 +1,6 @@
-import type { Content, Part, Schema, EnhancedGenerateContentResponse } from '@google/generative-ai'
-import type * as Gemini from '@google/generative-ai' 
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
+import type { Content, Part, Schema } from '@google/genai'
+import type * as Gemini from '@google/genai' 
+import { GoogleGenAI, Type, GenerateContentResponse } from '@google/genai'
 import type { Message } from "../types/message"
 import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
@@ -15,19 +15,67 @@ import { systemPrompt, wrapText } from './util'
 
 function googleParameter(param: JSONSchema ) : Schema | undefined {
     switch (param.type) {
-        case "string" : return { type: SchemaType.STRING }
-        case "number" : return { type: SchemaType.NUMBER }
-        case "integer" : return { type: SchemaType.INTEGER }
-        case "boolean" : return { type: SchemaType.BOOLEAN }
+        case "string" : return { type: Type.STRING }
+        case "number" : return { type: Type.NUMBER }
+        case "integer" : return { type: Type.INTEGER }
+        case "boolean" : return { type: Type.BOOLEAN }
         case "array" : return { 
-            type: SchemaType.ARRAY,
-            items: googleParameter(param.items) ?? { type: SchemaType.STRING }
+            type: Type.ARRAY,
+            items: googleParameter(param.items) ?? { type: Type.STRING }
         }
         case "object" : return { 
-            type: SchemaType.OBJECT,
+            type: Type.OBJECT,
             properties: googleParameters(param.properties)
         }
     }
+}
+
+function consolidateText(response : GenerateContentResponse) {
+    const textPart = { text : "" }
+    const newParts : Part[] = [textPart]
+    if (response.candidates?.[0].content?.parts?.length) {
+        for (const part of response.candidates?.[0].content?.parts) {
+            if (part.text) textPart.text += part.text
+            else newParts.push(part)
+        }
+        response.candidates[0].content.parts = newParts
+    }
+}
+
+// XXX: we need this because google's `text()` method on
+// GenerateContentResponse currently uncatchable logs an error if there
+// a non-text part
+function getText(response : GenerateContentResponse) : string {
+    let text = ""
+    if (response.candidates?.[0].content?.parts?.length) {
+        for (const part of response.candidates?.[0].content?.parts) {
+            if (part.text) text += part.text
+        }
+    }
+    return text
+}
+
+async function* accumulateStream(
+    response : AsyncGenerator<GenerateContentResponse>, 
+    accumulator : GenerateContentResponse) : AsyncGenerator<string> {
+
+      for await (const chunk of response) {
+          if (chunk.candidates?.[0].content?.parts?.length &&
+              accumulator?.candidates?.[0]?.content?.parts
+             ) {
+              for (const part of chunk.candidates[0].content?.parts) {
+                  if (typeof part.text == "string") {
+                      yield part.text
+                  }
+                  accumulator?.candidates?.[0]?.content?.parts.push(part)
+              }
+          }
+          accumulator.usageMetadata = chunk.usageMetadata ?? accumulator.usageMetadata
+          accumulator.promptFeedback = chunk.promptFeedback ?? accumulator.promptFeedback
+      }
+          
+      consolidateText(accumulator)
+
 }
 
 function googleParameters(params: { [key: string] : JSONSchema }) : { [key: string] : Schema } {
@@ -48,7 +96,7 @@ function getTools() : Gemini.Tool[] {
                   name : tool.name,
                   description : tool.description,
                   parameters: {
-                      "type" : SchemaType.OBJECT,
+                      "type" : Type.OBJECT,
                       "properties" : googleParameters(tool.parameters),
                       "required" : tool.required ?? [],
                  }
@@ -59,19 +107,20 @@ function getTools() : Gemini.Tool[] {
 }
 
 async function *handleToolUse(
-    response : EnhancedGenerateContentResponse, 
+    response : GenerateContentResponse, 
     messages : Content[], 
     lectic : Lectic,
-    client : GoogleGenerativeAI) : AsyncGenerator<string | Message> {
+    client : GoogleGenAI) : AsyncGenerator<string | Message> {
 
-    let calls = response.functionCalls()
     let recur = 0
 
-    while (calls && calls.length > 0) {
+    while (response.functionCalls && response.functionCalls.length > 0) {
+        let calls = response.functionCalls
+        let text = getText(response)
         yield "\n\n"
         recur++
 
-        if (recur > 12) {
+        if (recur > 2) {
             yield "<error>Runaway tool use!</error>"
             yield new AssistantMessage({
                 name: lectic.header.interlocutor.name,
@@ -80,16 +129,10 @@ async function *handleToolUse(
             return
         }
 
-        const model = client.getGenerativeModel({ 
-            model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
-            tools: getTools(),
-            systemInstruction: systemPrompt(lectic),
-        })
-
         messages.push({
             role: "model",
-            parts: response.text().length > 0 
-                ? [{ text: response.text() }, ...calls.map(call => ({ functionCall: call }))]
+            parts: text.length > 0 
+                ? [{ text: response.text }, ...calls.map(call => ({ functionCall: call }))]
                 : calls.map(call => ({ functionCall: call }))
         })
 
@@ -99,7 +142,7 @@ async function *handleToolUse(
             let result : string
             if (recur > 10) {
                 result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
-            } else if (call.name in Tool.registry) {
+            } else if (call.name && call.name in Tool.registry) {
                 try {
                     result = await Tool.registry[call.name].call(call.args)
                 } catch (e : unknown) {
@@ -111,7 +154,7 @@ async function *handleToolUse(
                 }
                 yield serializeCall(Tool.registry[call.name], {
                     name: call.name,
-                    args: call.args, 
+                    args: call.args || {}, 
                     result
                 })
                 yield "\n\n"
@@ -133,31 +176,34 @@ async function *handleToolUse(
 
         Logger.debug("gemini - messages (tool)", messages)
 
-        const result = await model.generateContentStream({
+        const result = await client.models.generateContentStream({
+          model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
           contents: messages,
-          generationConfig: {
+          config: {
+              systemInstruction: systemPrompt(lectic),
+              tools: getTools(),
               temperature: lectic.header.interlocutor.temperature,
               maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
           }
         });
 
-        for await (const chunk of result.stream) {
-            yield chunk.text()
-        }
+        const accumulatedResponse = new GenerateContentResponse()
+        accumulatedResponse.candidates = [{
+            content: {
+                parts: []
+            }
+        }]
 
-        response = await result.response
+        yield* accumulateStream(result, accumulatedResponse)
 
         Logger.debug("gemini - reply (tool)", {
-          text: response.text(),
-          calls: response.functionCalls(),
-          usage: response.usageMetadata,
-          feedback: response.promptFeedback
+            accumulatedResponse
         })
 
-        calls = response.functionCalls()
+        response = accumulatedResponse
 
         yield new AssistantMessage({
-            content: response.text(),
+            content: getText(response) || "",
             name: lectic.header.interlocutor.name
         })
     }
@@ -298,15 +344,10 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
     }
 }
 
-export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
+export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
-      const model = this.client.getGenerativeModel({ 
-          model: lectic.header.interlocutor.model || "gemini-2.0-flash",
-          tools: getTools(),
-          systemInstruction: systemPrompt(lectic),
-      })
 
       const messages : Content[] = []
 
@@ -316,41 +357,42 @@ export const GeminiBackend : Backend & { client : GoogleGenerativeAI} = {
 
       Logger.debug("gemini - messages", messages)
 
-      let result = await model.generateContentStream({
+      const result = await this.client.models.generateContentStream({
+        model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
         contents: messages,
-        generationConfig: {
+        config: {
+            systemInstruction: systemPrompt(lectic),
+            tools: getTools(),
             temperature: lectic.header.interlocutor.temperature,
             maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
         }
       });
 
-      for await (const chunk of result.stream) {
-          yield chunk.text()
-      }
+      const accumulatedResponse = new GenerateContentResponse()
+      accumulatedResponse.candidates = [{
+          content: {
+              parts: []
+          }
+      }]
 
-      const msg = await result.response
+      yield* accumulateStream(result, accumulatedResponse)
 
-      Logger.debug("gemini - reply", {
-          text: msg.text(),
-          calls: msg.functionCalls(),
-          usage: msg.usageMetadata,
-          feedback: msg.promptFeedback
+      Logger.debug("gemini - reply (tool)", {
+          accumulatedResponse
       })
 
-      const calls = msg.functionCalls()
-
-      if (calls && calls.length > 0) {
-          yield* handleToolUse(msg, messages, lectic, this.client);
+      if (accumulatedResponse.functionCalls?.length) {
+          yield* handleToolUse(accumulatedResponse, messages, lectic, this.client);
       } else {
           yield new AssistantMessage({
               name: lectic.header.interlocutor.name,
-              content: msg.text() 
+              content: getText(accumulatedResponse)
           })
       }
     },
 
     provider : LLMProvider.Anthropic,
 
-    client : new GoogleGenerativeAI(process.env['GEMINI_API_KEY'] || ""), //XXX subverting type system.
+    client : new GoogleGenAI({apiKey : process.env['GEMINI_API_KEY'] || ""}), //XXX subverting type system.
 
 }
