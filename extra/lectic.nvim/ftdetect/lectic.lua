@@ -1,6 +1,6 @@
 vim.filetype.add({
     extension = {
-        lec = 'lectic.markdown',
-        lectic = 'lectic.markdown'
+        lec = 'markdown.lectic',
+        lectic = 'markdown.lectic'
     }
 })
