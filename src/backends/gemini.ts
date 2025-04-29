@@ -156,7 +156,7 @@ async function *handleToolUse(
         messages.push({
             role: "model",
             parts: text.length > 0 
-                ? [{ text: response.text }, ...calls.map(call => ({ functionCall: call }))]
+                ? [{ text: getText(response) }, ...calls.map(call => ({ functionCall: call }))]
                 : calls.map(call => ({ functionCall: call }))
         })
 
