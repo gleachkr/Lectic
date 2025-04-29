@@ -11,6 +11,7 @@ import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
 import { isServeToolSpec, ServeTool } from "../tools/serve"
+import { isNativeTool } from "../tools/native"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -108,6 +109,8 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
                 new ServeTool(spec)
             } else if (isMCPSpec(spec)) {
                 await MCPTool.fromSpec(spec)
+            } else if (isNativeTool(spec)) {
+                //XXX Handle this per-backend
             } else {
                 throw Error("One or more tools provided were not recognized. Check the tool section of your YAML header.")
             }

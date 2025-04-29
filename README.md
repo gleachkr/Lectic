@@ -458,8 +458,7 @@ There you go! Your tic-tac-toe game is available on localhost:9000
 
 <summary>
 
-
-#### MCP Tool (Beta)
+#### MCP Tool
 
 </summary>
 
@@ -543,6 +542,38 @@ tool, and a JSON string representing the arguments to the call. If the confirm
 script returns a nonzero exit status, the tool call is cancelled. An example 
 confirmation script, using [zenity](https://github.com/GNOME/zenity) is 
 included in this repository at `extra/confirm/zenity-confirm.sh`.
+
+</details>
+
+<details>
+
+<summary>
+
+#### Native Tools
+
+</summary>
+
+Native tools give you access to some of the built-in functionality 
+that certain LLM backends provide, for example built in search or 
+code execution environments. At the moment two kinds of native tools 
+are supported: `search` and `code`. Native search lets the LLM 
+perform web searches, and native code lets it execute code in a 
+remote sandbox for data analysis tasks. You can provide access to 
+native tools like this:
+
+```yaml
+tools:
+    - native: search # provide a native search tool
+    - native: code   # provide a native code sandbox tool
+```
+
+Right now, native tools are only supported by recent Gemini models, 
+and are subject to some limitations imposed by the Gemini API. You 
+cannot provide more than one native tool at a time, and you cannot 
+combine native tools with other tools. (If you try, the API will 
+throw an error. If you find that it doesn't, Google must have lifted 
+this limitation 
+- in that case, let me know!)
 
 </details>
 

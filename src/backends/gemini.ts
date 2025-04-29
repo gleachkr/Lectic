@@ -1,4 +1,4 @@
-import type { Content, Part, Schema } from '@google/genai'
+import type { Content, Part, Schema, ContentListUnion } from '@google/genai'
 import type * as Gemini from '@google/genai' 
 import { GoogleGenAI, Type, GenerateContentResponse } from '@google/genai'
 import type { Message } from "../types/message"
@@ -40,6 +40,32 @@ function consolidateText(response : GenerateContentResponse) {
         }
         response.candidates[0].content.parts = newParts
     }
+}
+
+async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentListUnion) {
+    const nativeTools = (lectic.header.interlocutor.tools || [])
+    .filter(tool => "native" in tool)
+    .map(tool => tool.native)
+
+    return await client.models.generateContentStream({
+        model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
+        contents: messages,
+        config: {
+            systemInstruction: systemPrompt(lectic),
+            tools: [{
+                functionDeclarations: getTools(),
+                googleSearch: nativeTools.find(tool => tool === "search") 
+                    ? {}
+                    : undefined,
+                codeExecution: nativeTools.find(tool => tool ==="code")
+                    ? {}
+                    : undefined
+            },{
+            }],
+            temperature: lectic.header.interlocutor.temperature,
+            maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
+        }
+    });
 }
 
 // XXX: we need this because google's `text()` method on
@@ -118,7 +144,7 @@ async function *handleToolUse(
         yield "\n\n"
         recur++
 
-        if (recur > 2) {
+        if (recur > 12) {
             yield "<error>Runaway tool use!</error>"
             yield new AssistantMessage({
                 name: lectic.header.interlocutor.name,
@@ -174,18 +200,6 @@ async function *handleToolUse(
 
         Logger.debug("gemini - messages (tool)", messages)
 
-        const result = await client.models.generateContentStream({
-          model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
-          contents: messages,
-          config: {
-              systemInstruction: systemPrompt(lectic),
-              tools: [{
-                  functionDeclarations: getTools()
-              }],
-              temperature: lectic.header.interlocutor.temperature,
-              maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
-          }
-        });
 
         const accumulatedResponse = new GenerateContentResponse()
         accumulatedResponse.candidates = [{
@@ -193,6 +207,8 @@ async function *handleToolUse(
                 parts: []
             }
         }]
+
+        const result = await getResult(lectic, client, messages)
 
         yield* accumulateStream(result, accumulatedResponse)
 
@@ -357,18 +373,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       Logger.debug("gemini - messages", messages)
 
-      const result = await this.client.models.generateContentStream({
-        model: lectic.header.interlocutor.model || "gemini-2.0-pro-exp-02-05",
-        contents: messages,
-        config: {
-            systemInstruction: systemPrompt(lectic),
-            tools: [{
-                functionDeclarations: getTools()
-            }],
-            temperature: lectic.header.interlocutor.temperature,
-            maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
-        }
-      });
+      const result = await getResult(lectic, this.client, messages)
 
       const accumulatedResponse = new GenerateContentResponse()
       accumulatedResponse.candidates = [{
