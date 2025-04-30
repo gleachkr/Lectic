@@ -132,7 +132,8 @@ async function main() {
         }
         process.exit(0)
     }).catch(error => {
-        Logger.write(`<error>\n${error.message}\n</error>`)
+        Logger.write(":::Error\n\n")
+            .then(() => Logger.write(`<error>\n${error.message}\n</error>`))
             .then(() => Logger.write(`\n\n:::`))
             .then(() => process.exit(1))
     })
