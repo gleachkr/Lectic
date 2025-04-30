@@ -90,7 +90,7 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
     if (header.interlocutor.memories &&
         typeof header.interlocutor.memories == "string" &&
         await Bun.file(header.interlocutor.memories.trim()).exists()) {
-        header.interlocutor.prompt = await Bun.file(header.interlocutor.memories.trim()).text()
+        header.interlocutor.memories = await Bun.file(header.interlocutor.memories.trim()).text()
     }
 
     if (header.interlocutor.tools) {
