@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Message } from "../types/message"
 import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import { serializeCall, Tool } from "../types/tool"
+import { serializeCall, stringToResults, Tool, type ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
@@ -91,7 +91,7 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
                     userParts.push({
                         type : "tool_result",
                         tool_use_id : call.id ?? "undefined",
-                        content: call.result,
+                        content: [ ...call.results ],
                         is_error: call.isError,
                     })
                 }
@@ -207,21 +207,21 @@ async function* handleToolUse(
 
             for (const block of message.content) {
                 if (block.type == "tool_use") {
-                    let result : string
+                    let results : ToolCallResult[]
                     let is_error = false
                     if (recur > 10) {
-                        result = "Tool usage limit exceeded, no further tool calls will be allowed"
+                        results = stringToResults("Tool usage limit exceeded, no further tool calls will be allowed")
                         is_error = true
                     } else {
                         if (!(block.input instanceof Object)) {
-                            result = "The tool input isn't the right type. Tool inputs need to be returned as objects."  
+                            results = stringToResults("The tool input isn't the right type. Tool inputs need to be returned as objects.")
                             is_error = true
                         } else if (block.name in Tool.registry) {
                             try {
-                                result = await Tool.registry[block.name].call(block.input)
+                                results = await Tool.registry[block.name].call(block.input)
                             } catch (e : unknown) {
                                 if (e instanceof Error) {
-                                    result = e.message
+                                    results = stringToResults(e.message)
                                     is_error = true
                                 } else {
                                     throw e
@@ -232,18 +232,18 @@ async function* handleToolUse(
                                 args: block.input, 
                                 id: block.id,
                                 isError : is_error,
-                                result
+                                results
                             })
 
                             yield "\n\n"
                         } else {
-                            result = `Unrecognized tool name ${block.name}`
+                            results = stringToResults(`Unrecognized tool name ${block.name}`)
                             is_error = true
                         }
                         content.push({
                             type : "tool_result",
                             tool_use_id : block.id,
-                            content: result,
+                            content: results,
                             is_error: is_error,
                         })
                     }

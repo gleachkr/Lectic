@@ -1,4 +1,4 @@
-import { Tool } from "../types/tool"
+import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
 
 export type ExecToolSpec = {
     exec: string
@@ -57,7 +57,7 @@ export class ExecTool extends Tool {
 
     required = ["arguments"]
 
-    async call(args : { arguments : string[] }) : Promise<string> {
+    async call(args : { arguments : string[] }) : Promise<ToolCallResult[]> {
         if (this.confirm) {
             const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)])
             if (proc.exitCode !==0) {
@@ -73,7 +73,7 @@ export class ExecTool extends Tool {
         if (proc.exitCode !== 0) {
             throw Error(proc.stderr.toString())
         } else {
-            return `<stdout>${proc.stdout.toString()}</stdout>`
+            return stringToResults(`<stdout>${proc.stdout.toString()}</stdout>`)
         }
     }
 }

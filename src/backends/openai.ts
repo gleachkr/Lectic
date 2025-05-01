@@ -8,7 +8,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, Tool } from "../types/tool"
+import { serializeCall, stringToResults, Tool, type ToolCallResult } from "../types/tool"
 import { systemPrompt } from './util'
 
 function getText(msg : OpenAI.Chat.ChatCompletionMessage) : string {
@@ -77,17 +77,17 @@ async function *handleToolUse(
         })
 
         for (const call of message.tool_calls) {
-            let result : string
+            let results : ToolCallResult[]
             if (recur > 10) {
-                result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
+                results = stringToResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.function.name in Tool.registry) {
                  // TODO error handling
                 const inputs = JSON.parse(call.function.arguments)
                 try {
-                    result = await Tool.registry[call.function.name].call(inputs)
+                    results = await Tool.registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
-                        result = `<error>An Error Occurred: ${e.message}</error>`
+                        results = stringToResults(`<error>An Error Occurred: ${e.message}</error>`)
                     } else {
                         throw e
                     }
@@ -95,16 +95,16 @@ async function *handleToolUse(
                 yield serializeCall(Tool.registry[call.function.name], {
                     name: call.function.name,
                     args: inputs, 
-                    result
+                    results
                 })
                 yield "\n\n"
             } else {
-                result = `<error>Unrecognized tool name ${call.function.name}</error>`
+                results = stringToResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
             }
             messages.push({
                     role: "tool",
                     tool_call_id : call.id,
-                    content: result
+                    content: results
             })
         }
 
@@ -206,7 +206,7 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
             })
 
             for (const call of interaction.calls) {
-                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.result})
+                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.results})
             }
         }
         return results

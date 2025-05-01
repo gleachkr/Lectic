@@ -23,7 +23,7 @@ function getBackend(lectic : Lectic) : Backend {
             provider: LLMProvider.OpenAI,
         })
         case LLMProvider.OpenRouter:  return new OpenAIBackend({
-            defaultModel: 'google/gemini-2.5-pro-exp-03-25:free',
+            defaultModel: 'google/gemini-2.5-flash-preview',
             apiKey: 'OPENROUTER_API_KEY',
             provider: LLMProvider.OpenRouter,
             url: 'https://openrouter.ai/api/v1'

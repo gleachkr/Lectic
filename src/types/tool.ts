@@ -2,12 +2,19 @@ import {unwrap, extractElements } from "../parsing/xml.ts"
 import { serialize, deserialize } from "./schema.ts"
 import type { JSONSchema } from "./schema.ts"
 
+export type ToolCallResult = ToolCallResultText
+
+export type ToolCallResultText = {
+    type : "text",
+    text : string
+}
+
 export abstract class Tool {
     abstract name: string
     abstract description: string
     abstract parameters: { [_ : string] : JSONSchema }
     abstract required? : string[] //TODO: this should not be optional
-    abstract call (arg : any) : Promise<string>
+    abstract call (arg : any) : Promise<ToolCallResult[]>
 
     register() {
         if (this.name in Tool.registry) {
@@ -23,12 +30,36 @@ export abstract class Tool {
 export type ToolCall = { 
     name: string, 
     args : { [key : string] : any }, 
-    result : string 
+    results : ToolCallResult[]
     id? : string
     isError? : boolean
 }
 
-export function serializeCall(tool: Tool, {args, result, id, isError} : ToolCall) : string {
+export function stringToResults(s : string) : ToolCallResult[] {
+    return [{ type: "text", text: s}]
+}
+
+const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
+
+function serializeResult(result : ToolCallResult) : string {
+    if (result.type === "text") {
+        return `<result type="text">${result.text}</result>`
+    } else {
+        throw Error(`Unreachable code: unrecognized result type: ${result.type}`)
+    }
+}
+
+function deserializeResult(xml : string) : ToolCallResult  {
+    const match = resultRegex.exec(xml.trim())
+    if (!match) throw Error(`Couldn't deserialize ${xml} as tool call result`)
+    const [,type,content] = match
+    if (type === "text") {
+        return { type, text: content } 
+    }
+    throw Error(`Unrecognized type in tool call result deserialization`)
+}
+
+export function serializeCall(tool: Tool, {args, results, id, isError} : ToolCall) : string {
     let values = [] 
     for (const key in tool.parameters) {
         if (key in args) {
@@ -43,7 +74,7 @@ export function serializeCall(tool: Tool, {args, result, id, isError} : ToolCall
 
     return `<tool-call with="${tool.name}"${idstring}${errorstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
-        `<result>${result}</result>\n` +
+        `<results>${results.map(serializeResult).join("\n")}</results>\n` +
     `</tool-call>`
 }
 
@@ -54,9 +85,9 @@ export function deserializeCall(tool: Tool, serialized : string)
     const match = toolCallRegex.exec(serialized.trim())
     if (!match) return null
     const [,name,, id,, isErrorStr, inner] = match
-    let [argstring, result] = extractElements(inner)
+    let [argstring, results] = extractElements(inner)
     argstring = `<object>${unwrap(argstring, "arguments")}</object>`
-    result = unwrap(result, "result")
+    const resultsArray = extractElements(unwrap(results, "results"))
 
     if (name !== tool.name) throw new Error(`Unexpected tool-call name, expected "${tool.name}", got "${name}"`)
 
@@ -67,7 +98,7 @@ export function deserializeCall(tool: Tool, serialized : string)
         properties: tool.parameters
     }
     const args = deserialize(argstring, argschema)
-    return { name: tool.name, args, result, id, isError }
+    return { name: tool.name, args, results : resultsArray.map(deserializeResult), id, isError }
 }
 
 export function getSerializedCallName(call : string) : string | null {

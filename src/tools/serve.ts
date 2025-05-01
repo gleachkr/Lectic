@@ -1,4 +1,4 @@
-import { Tool } from "../types/tool"
+import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
 import open from "open"
 
 export type ServeToolSpec = {
@@ -44,7 +44,7 @@ export class ServeTool extends Tool {
 
     required = ["pageHtml"]
 
-    async call(args : { pageHtml : string }) : Promise<string> {
+    async call(args : { pageHtml : string }) : Promise<ToolCallResult[]> {
         const rewriter = new HTMLRewriter()
         // ↓ NOOP atm, but leaving it because it seems like it'll be useful later
         const page = rewriter.transform(args.pageHtml)
@@ -72,6 +72,6 @@ export class ServeTool extends Tool {
         })
         open(`localhost:${this.serve_on_port}`)
         await blocker
-        return "page is now available"
+        return stringToResults("page is now available")
     }
 }

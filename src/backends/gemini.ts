@@ -5,7 +5,7 @@ import type { Message } from "../types/message"
 import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, Tool } from "../types/tool"
+import { serializeCall, stringToResults, Tool, type ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
@@ -163,15 +163,15 @@ async function *handleToolUse(
         const parts : Part[] = []
 
         for (const call of calls) {
-            let result : string
+            let results : ToolCallResult[]
             if (recur > 10) {
-                result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
+                results = stringToResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.name && call.name in Tool.registry) {
                 try {
-                    result = await Tool.registry[call.name].call(call.args)
+                    results = await Tool.registry[call.name].call(call.args)
                 } catch (e : unknown) {
                     if (e instanceof Error) {
-                        result = `<error>An Error Occurred: ${e.message}</error>`
+                        results = stringToResults(`<error>An Error Occurred: ${e.message}</error>`)
                     } else {
                         throw e
                     }
@@ -179,18 +179,18 @@ async function *handleToolUse(
                 yield serializeCall(Tool.registry[call.name], {
                     name: call.name,
                     args: call.args || {}, 
-                    result
+                    results
                 })
                 yield "\n\n"
             } else {
-                result = `<error>Unrecognized tool name ${call.name}</error>`
+                results = stringToResults(`<error>Unrecognized tool name ${call.name}</error>`)
             }
             parts.push({
                 functionResponse: {
                     name: call.name,
                     response: {
                         name: call.name,
-                        content: result
+                        content: results
                     }
                 }
             })
@@ -299,7 +299,7 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
                             name: call.name,
                             response: {
                                 name: call.name,
-                                content: call.result
+                                content: call.results
                             }
                         }
                     })

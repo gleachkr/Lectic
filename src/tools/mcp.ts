@@ -1,4 +1,4 @@
-import { Tool } from "../types/tool"
+import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema } from "../types/schema"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
@@ -125,15 +125,15 @@ class MCPListResources extends Tool {
 
     required = []
 
-    async call(args : { limit : number | undefined }) : Promise<string> {
+    async call(args : { limit : number | undefined }) : Promise<ToolCallResult[]> {
         const direct = await this.client.listResources()
         const template = await this.client.listResourceTemplates()
-        return JSON.stringify({
+        return stringToResults(JSON.stringify({
             total_number_of_direct_resources: direct.resources.length,
             direct_resources: direct.resources.slice(0, args.limit ?? 100),
             total_number_of_template_resources: template.resourceTemplates.length,
             template_resources: template.resourceTemplates.slice(0, args.limit ?? 100)
-        })
+        }))
     }
 
 }
@@ -169,7 +169,7 @@ export class MCPTool extends Tool {
         this.register()
     };
 
-    async call(args : {[key : string] : unknown}) : Promise<string> {
+    async call(args : {[key : string] : unknown}) : Promise<ToolCallResult[]> {
         if (this.confirm) {
             const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)])
             if (proc.exitCode !==0) {
@@ -182,15 +182,15 @@ export class MCPTool extends Tool {
         if (!Array.isArray(content) || content.length === 0) {
             throw Error(`<error>Unexpected MCP server tool call response: ${JSON.stringify(content)}`)
         } else {
-            let result = ""
+            let results = []
             for (const block of content) {
                 if (isTextContent(block)) {
-                    result += (`<part>${block.text}</part>`)
+                    results.push({ type: "text" as const, text: block.text })
                 } else {
                     throw Error(`<error>MCP only supports text responses right now. Got ${JSON.stringify(content)}`)
                 }
             }
-            return result
+            return results
         }
     }
 

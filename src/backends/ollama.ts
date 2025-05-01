@@ -7,7 +7,7 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageCommand } from "../types/directive.ts"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
-import { serializeCall, Tool } from "../types/tool"
+import { serializeCall, stringToResults, Tool, type ToolCallResult } from "../types/tool"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText } from './util'
 
@@ -86,16 +86,16 @@ async function* handleToolUse(
         })
 
         for (const call of response.message.tool_calls) {
-            let result : string
+            let results : ToolCallResult[]
             if (recur > 10) {
-                result = "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"
+                results = stringToResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.function.name in Tool.registry) {
                 const inputs = call.function.arguments
                 try {
-                    result = await Tool.registry[call.function.name].call(inputs)
+                    results = await Tool.registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
-                        result = `<error>An Error Occurred: ${e.message}</error>`
+                        results = stringToResults(`<error>An Error Occurred: ${e.message}</error>`)
                     } else {
                         throw e
                     }
@@ -103,14 +103,16 @@ async function* handleToolUse(
                 yield serializeCall(Tool.registry[call.function.name], {
                     name: call.function.name,
                     args: inputs, 
-                    result
+                    results
                 })
                 yield "\n\n"
             } else {
-                result = `<error>Unrecognized tool name ${call.function.name}</error>`
+                results = stringToResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
             }
             
-            messages.push({ role: "tool", content: result})
+            for (const result of results) {
+                messages.push({ role: "tool", content: result.text})
+            }
         }
 
         Logger.debug("ollama - messages", messages)
@@ -191,7 +193,9 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<Ollama.Me
                 tool_calls: toolCalls.length > 0 ? toolCalls : undefined
             })
             for (const call of interaction.calls) {
-                results.push({role : "tool", content: call.result})
+                for (const result of call.results) {
+                    results.push({role : "tool", content: result.text})
+                }
             }
         }
         return results
