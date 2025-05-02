@@ -1,0 +1,20 @@
+# Files and folders to exclude from the packaged extension (.vsix file)
+
+.vscode/**         # Exclude VS Code specific workspace settings/launch configs
+.vscode-test/**    # Exclude test runner download cache
+src/**             # Exclude the original TypeScript source code
+test/**            # Exclude test files
+node_modules/**    # Exclude development dependencies (should be empty if done right)
+out/test/**        # Exclude compiled test files
+
+# Development related files
+.gitignore
+tsconfig.json
+eslintrc.json      # Or .eslintrc.js, etc.
+webpack.config.js  # If using webpack
+
+# Other common exclusions
+*.vsix             # Don't include packaged versions within the package
+*.log              # Log files
+.DS_Store          # macOS specific file
+# Add any other build artifacts or source files not needed at runtime
