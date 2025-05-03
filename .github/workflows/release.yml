@@ -74,3 +74,22 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: lectic-*-macos-*.bin
+
+  build-vsix:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install npm
+        uses: actions/setup-node@v4
+
+      - name: Build plugin
+        run: |
+          cd extra/lectic.vscode
+          npm install
+          npm exec vsce package
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: extra/lectic.vscode/lectic-vscode*.vsix

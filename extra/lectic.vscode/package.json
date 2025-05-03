@@ -3,7 +3,11 @@
   "displayName": "Lectic VS Code",
   "description": "Integrates the Lectic conversational tool into VS Code",
   "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "repository": {
+      "type": "git",
+      "url": "github:gleachkr/lectic",
+      "directory": "extra/lectic.vscode"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
