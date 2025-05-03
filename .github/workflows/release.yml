@@ -45,7 +45,7 @@ jobs:
       matrix:
         os: [macos-latest, macos-13]
 
-    runs-on: ${{matrix.os}}
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: write
@@ -76,6 +76,12 @@ jobs:
           files: lectic-*-macos-*.bin
 
   build-vsix:
+    runs-on: ${{matrix.os}}
+
+    permissions:
+      contents: write
+
+    steps:
 
       - name: Checkout
         uses: actions/checkout@v4
