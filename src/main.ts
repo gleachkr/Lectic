@@ -100,6 +100,7 @@ async function getLecticString(opts : OptionValues) : Promise<string> {
 async function main() {
 
     const opts = program.opts()
+    let headerPrinted = false
 
     // We get the string before processOpts because if we've we handle
     // opts["inplace"] then we need to clobber the lectic file
@@ -111,8 +112,12 @@ async function main() {
         await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
-    await parseLectic(lecticString).then(async lectic => {
+
+    try {
+
+        const lectic = await parseLectic(lecticString)
         const backend = getBackend(lectic)
+
         if (program.opts()["consolidate"]) {
             const new_lectic : any = await consolidateMemories(lectic, backend)
             if (new_lectic.header.interlocutors.length === 1) {
@@ -124,19 +129,29 @@ async function main() {
                 blockQuote: "literal" })}...`, )
         } else {
             computeSpeaker(lectic)
-            !program.opts()["Short"] && await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
+            if (!program.opts()["Short"]) {
+                await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
+                headerPrinted = true
+            }
             const result = Logger.fromStream(backend.evaluate(lectic))
             await Logger.write(result.strings)
             await result.rest
             !program.opts()["Short"] && await Logger.write(`\n\n:::`)
         }
         process.exit(0)
-    }).catch(error => {
-        Logger.write(":::Error\n\n")
-            .then(() => Logger.write(`<error>\n${error.message}\n</error>`))
-            .then(() => Logger.write(`\n\n:::`))
-            .then(() => process.exit(1))
-    })
+    } catch (error) {
+        if (!program.opts()["Short"] && !headerPrinted) {
+            await Logger.write(`:::Error\n\n`)
+            headerPrinted = true
+        }
+        if (error instanceof Error) {
+            await Logger.write(`<error>\n${error.message}\n</error>`)
+        } else {
+            await Logger.write(`<error>\n${JSON.stringify(error)}\n</error>`)
+        }
+        await Logger.write(`\n\n:::`)
+        process.exit(1)
+    }
 }
 
 program
