@@ -4,7 +4,6 @@
  * Now supports customizable background color via configuration.
  */
 import * as vscode from 'vscode';
-import * as path from 'path'; // Needed for checking file extensions
 
 // Variable to hold the *currently active* decoration type.
 // It will be updated when the configuration changes.
