@@ -63,24 +63,41 @@ a problem.
 </summary>
 
 A Neovim plugin is provided in `extra/lectic.nvim` that offers support for the 
-`.lec` filetype, including syntax highlighting, streaming responses, kemaps and 
-commands (`:Lectic` and `:LecticConsolidate`) for updating conversations, and 
-folding of tool use blocks.
+`.lec` filetype, including syntax highlighting, streaming responses, folding of 
+tool use blocks, keymaps, and commands for updating conversations, 
+consolidating memories, and elaborating model responses. For more details, 
+check out the 
+[README](https://github.com/gleachkr/Lectic/blob/main/extra/lectic.nvim/README.md)
 
 </details>
 
 <details>
+<summary>
 
+#### VSCode
+
+</summary>
+
+A VSCode plugin is provided in `extra/lectic.vscode` that offers support for 
+the `.lec` filetype, including syntax highlighting, streaming responses, 
+folding of tool use blocks, keymaps, and commands for updating conversations, 
+consolidating memories, and elaborating model responses. For more details, 
+check out the 
+[README](https://github.com/gleachkr/Lectic/blob/main/extra/lectic.vscode/README.md)
+
+</details>
+
+<details>
 <summary>
 
 #### Other Editors
 
 </summary>
 
-Most text editors support filtering through external commands. Consider:
-- Setting up key bindings for frequent operations
-- Using markdown preview features
-- Taking advantage of folding for longer conversations
+Most text editors support piping through external commands, like linters and 
+code formatting tools. You can use lectic in the same way you would use one of 
+those tools: by sending the buffer to lectic on stdin, and replacing the buffer 
+contents with the result from stdout.
 
 </details>
 
@@ -525,8 +542,8 @@ they're going to share with the colony?
 > Lectic's safety mechanisms are intended to protect you from an LLM making 
 > mistakes. They offer only very limited defense against a genuinely malicious 
 > MCP server. There are serious security risks associated with the MCP 
-> protocol. You should never connect to an untrusted server. See [this 
-> post](https://simonwillison.net/2025/Apr/9/mcp-prompt-injection/), for 
+> protocol. You should never connect to an untrusted server. See 
+> [this post](https://simonwillison.net/2025/Apr/9/mcp-prompt-injection/), for 
 > examples and details.
 
 When an local MCP tool is configured with a sandbox script, the command that 
@@ -571,9 +588,8 @@ Right now, native tools are only supported by recent Gemini models,
 and are subject to some limitations imposed by the Gemini API. You 
 cannot provide more than one native tool at a time, and you cannot 
 combine native tools with other tools. (If you try, the API will 
-throw an error. If you find that it doesn't, Google must have lifted 
-this limitation 
-- in that case, let me know!)
+throw an error. If you find that it doesn't, Google must have lifted this 
+limitation—in that case, let me know!)
 
 </details>
 
@@ -612,6 +628,9 @@ interlocutor:
           name: query           # Optional custom name
           limit: 10000          # Max result size
           details: schema.txt   # Optional DB documentation
+
+interlocutors:
+    - ANOTHER_INTERLOCUTOR_HERE
 ```
 
 ## Example Conversation
