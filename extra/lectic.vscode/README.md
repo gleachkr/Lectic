@@ -4,6 +4,11 @@ This extension integrates the `lectic` command-line tool into Visual Studio
 Code, providing features for interacting with Lectic conversations (files with 
 the `.lec` or `.lectic` extension).
 
+## Installation
+
+VSIX files are distributed with lectic releases, 
+[here](https://github.com/gleachkr/Lectic/releases/).
+
 ## Features
 
 *   **Generate Next Response:** Send the current buffer content to `lectic -s` 
