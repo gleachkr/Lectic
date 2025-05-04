@@ -34,20 +34,14 @@ function getBackend(lectic : Lectic) : Backend {
     }
 }
 
-function computeSpeaker(lectic : Lectic) {
-    getSpeaker: for (let i = lectic.body.messages.length - 1; i >= 0; i--) {
-        const msg = lectic.body.messages[i]
-        if (msg.role === "user") {
-            for (const directive of msg.containedDirectives()) {
+function handleDirectives(lectic : Lectic) {
+    for (const message of lectic.body.messages) {
+        if (message.role === "user") {
+            for (const directive of message.containedDirectives()) {
                 if (directive.name === "ask") {
                     lectic.header.setSpeaker(directive.text)
-                    break getSpeaker
                 }
             }
-        }
-        if (msg.role === "assistant") {
-            lectic.header.setSpeaker(msg.name)
-            break
         }
     }
 }
@@ -128,11 +122,17 @@ async function main() {
             await Logger.write(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}...`, )
         } else {
-            computeSpeaker(lectic)
+            // we handle directives, which may update header fields
+            handleDirectives(lectic)
+
+            // we then initialize, based on the contents of the header fields
+            await lectic.header.initialize()
+
             if (!program.opts()["Short"]) {
                 await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
                 headerPrinted = true
             }
+
             const result = Logger.fromStream(backend.evaluate(lectic))
             await Logger.write(result.strings)
             await result.rest

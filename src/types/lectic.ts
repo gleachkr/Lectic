@@ -1,6 +1,12 @@
 import { LLMProvider, isLLMProvider } from "./provider"
 import type { Message } from "./message"
 import { isMessage } from "./message"
+import { isExecToolSpec, ExecTool } from "../tools/exec"
+import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
+import { isThinkToolSpec, ThinkTool } from "../tools/think"
+import { isMCPSpec, MCPTool } from "../tools/mcp"
+import { isServeToolSpec, ServeTool } from "../tools/serve"
+import { isNativeTool } from "../tools/native"
 
 type Memories = string | { [key: string] : string }
  
@@ -73,11 +79,52 @@ export class LecticHeader {
     }
 
     setSpeaker(name : string) {
-        const newSpeaker = this.interlocutors.find(inter => inter.name = name)
+        const newSpeaker = this.interlocutors.find(inter => inter.name === name)
         if (newSpeaker) {
             this.interlocutor = newSpeaker
         } else {
             throw Error(`There's not an interlocutor named ${name}`)
+        }
+    }
+
+
+    async initialize() {
+        // TODO DRY the "load from file" pattern
+
+        // load prompt from file if available
+        if (await Bun.file(this.interlocutor.prompt.trim()).exists()) {
+            this.interlocutor.prompt = await Bun.file(this.interlocutor.prompt.trim()).text()
+        }
+
+        // load memories from file if available
+        if (this.interlocutor.memories &&
+            typeof this.interlocutor.memories == "string" &&
+            await Bun.file(this.interlocutor.memories.trim()).exists()) {
+            this.interlocutor.memories = await Bun.file(this.interlocutor.memories.trim()).text()
+        }
+
+        if (this.interlocutor.tools) {
+            for (const spec of this.interlocutor.tools) {
+                // load usage from file if available
+                if (isExecToolSpec(spec)) {
+                    if (spec.usage && await Bun.file(spec.usage.trim()).exists()) {
+                        spec.usage = await Bun.file(spec.usage.trim()).text()
+                    }
+                    new ExecTool(spec)
+                } else if (isSQLiteToolSpec(spec)) {
+                    new SQLiteTool(spec)
+                } else if (isThinkToolSpec(spec)) {
+                    new ThinkTool(spec)
+                } else if (isServeToolSpec(spec)) {
+                    new ServeTool(spec)
+                } else if (isMCPSpec(spec)) {
+                    await MCPTool.fromSpec(spec)
+                } else if (isNativeTool(spec)) {
+                    //XXX Handle this per-backend
+                } else {
+                    throw Error("One or more tools provided were not recognized. Check the tool section of your YAML header.")
+                }
+            }
         }
     }
 }

@@ -6,12 +6,6 @@ import * as YAML from "yaml"
 import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
-import { isExecToolSpec, ExecTool } from "../tools/exec"
-import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
-import { isThinkToolSpec, ThinkTool } from "../tools/think"
-import { isMCPSpec, MCPTool } from "../tools/mcp"
-import { isServeToolSpec, ServeTool } from "../tools/serve"
-import { isNativeTool } from "../tools/native"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -63,6 +57,7 @@ export function bodyToMessages(raw : string) : Message[] {
     return messages
 }
 
+
 export async function parseLectic(raw: string) : Promise<Lectic> {
     const rawYaml = getYaml(raw)
     const rawBody = getBody(raw)
@@ -78,44 +73,6 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
          "(Use either `interlocutor:` or `interlocutors:`, and include at least a name and prompt).")
 
     const header = new LecticHeader(headerSpec)
-
-    // TODO DRY the "load from file" pattern
-
-    // load prompt from file if available
-    if (await Bun.file(header.interlocutor.prompt.trim()).exists()) {
-        header.interlocutor.prompt = await Bun.file(header.interlocutor.prompt.trim()).text()
-    }
-
-    // load memories from file if available
-    if (header.interlocutor.memories &&
-        typeof header.interlocutor.memories == "string" &&
-        await Bun.file(header.interlocutor.memories.trim()).exists()) {
-        header.interlocutor.memories = await Bun.file(header.interlocutor.memories.trim()).text()
-    }
-
-    if (header.interlocutor.tools) {
-        for (const spec of header.interlocutor.tools) {
-            // load usage from file if available
-            if (isExecToolSpec(spec)) {
-                if (spec.usage && await Bun.file(spec.usage.trim()).exists()) {
-                    spec.usage = await Bun.file(spec.usage.trim()).text()
-                }
-                new ExecTool(spec)
-            } else if (isSQLiteToolSpec(spec)) {
-                new SQLiteTool(spec)
-            } else if (isThinkToolSpec(spec)) {
-                new ThinkTool(spec)
-            } else if (isServeToolSpec(spec)) {
-                new ServeTool(spec)
-            } else if (isMCPSpec(spec)) {
-                await MCPTool.fromSpec(spec)
-            } else if (isNativeTool(spec)) {
-                //XXX Handle this per-backend
-            } else {
-                throw Error("One or more tools provided were not recognized. Check the tool section of your YAML header.")
-            }
-        }
-    }
 
     const messages = bodyToMessages(rawBody)
 
