@@ -106,13 +106,12 @@ async function main() {
         await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
-
     try {
 
         const lectic = await parseLectic(lecticString)
-        const backend = getBackend(lectic)
 
         if (program.opts()["consolidate"]) {
+            const backend = getBackend(lectic)
             const new_lectic : any = await consolidateMemories(lectic, backend)
             if (new_lectic.header.interlocutors.length === 1) {
                 delete new_lectic.header.interlocutors
@@ -127,6 +126,8 @@ async function main() {
 
             // we then initialize, based on the contents of the header fields
             await lectic.header.initialize()
+
+            const backend = getBackend(lectic)
 
             if (!program.opts()["Short"]) {
                 await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
