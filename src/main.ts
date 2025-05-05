@@ -46,7 +46,7 @@ function handleDirectives(lectic : Lectic) {
     }
 }
 
-function processOptions(opts : OptionValues) {
+function validateOptions(opts : OptionValues) {
     if (opts["consolidate"]) {
         if (opts["short"]) {
             Logger.write("You can't combine --short and --consolidate ");
@@ -70,14 +70,10 @@ function processOptions(opts : OptionValues) {
             Logger.write("You can't combine --file and --inplace");
             process.exit(1)
         }
-        Logger.outfile = createWriteStream(opts["inplace"])
     }
     if (opts["version"]) {
         Logger.write(`${version}\n`) 
         process.exit(0)
-    }
-    if (program.opts()["log"]) {
-        Logger.logfile = program.opts()["log"]
     }
 }
 
@@ -94,13 +90,18 @@ async function getLecticString(opts : OptionValues) : Promise<string> {
 async function main() {
 
     const opts = program.opts()
+
     let headerPrinted = false
 
-    // We get the string before processOpts because if we've we handle
-    // opts["inplace"] then we need to clobber the lectic file
+    validateOptions(opts)
+
+    if (opts["log"]) Logger.logfile = opts["log"]
+
     let lecticString = await getLecticString(opts)
 
-    processOptions(opts)
+    // we do this after getting the lectic string, because it clobbers the
+    // lectic file
+    if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
 
     if (!(opts["Short"] || opts["short"] || opts["consolidate"])) {
         await Logger.write(`${lecticString.trim()}\n\n`);
