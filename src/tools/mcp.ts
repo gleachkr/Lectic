@@ -187,7 +187,7 @@ export class MCPTool extends Tool {
                 if (isTextContent(block)) {
                     results.push({ type: "text" as const, text: block.text })
                 } else {
-                    throw Error(`<error>MCP only supports text responses right now. Got ${JSON.stringify(content)}`)
+                    throw Error(`MCP only supports text responses right now. Got ${JSON.stringify(content)}`)
                 }
             }
             return results
