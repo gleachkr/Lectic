@@ -1,4 +1,4 @@
-import type { Content, Part, Schema, ContentListUnion } from '@google/genai'
+import type { Content, Part, Schema, ContentListUnion, Candidate } from '@google/genai'
 import type * as Gemini from '@google/genai' 
 import { GoogleGenAI, Type, GenerateContentResponse } from '@google/genai'
 import type { Message } from "../types/message"
@@ -42,6 +42,12 @@ function consolidateText(response : GenerateContentResponse) {
     }
 }
 
+function initResponse() : GenerateContentResponse & { candidates: [Candidate,...Candidate[]] } {
+      const response = new GenerateContentResponse()
+      response.candidates = [{ content: { parts: [] } }]
+      return response as GenerateContentResponse & { candidates: [Candidate,...Candidate[]] }
+}
+
 async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentListUnion) {
     const nativeTools = (lectic.header.interlocutor.tools || [])
     .filter(tool => "native" in tool)
@@ -83,18 +89,21 @@ function getText(response : GenerateContentResponse) : string {
 
 async function* accumulateStream(
     response : AsyncGenerator<GenerateContentResponse>, 
-    accumulator : GenerateContentResponse) : AsyncGenerator<string> {
+    accumulator : GenerateContentResponse & { candidates: [Candidate,...Candidate[]] }) : AsyncGenerator<string> {
 
       for await (const chunk of response) {
           if (chunk.candidates?.[0].content?.parts?.length &&
-              accumulator?.candidates?.[0]?.content?.parts
+              accumulator.candidates[0]?.content?.parts
              ) {
               for (const part of chunk.candidates[0].content?.parts) {
                   if (typeof part.text == "string") {
                       yield part.text
                   }
-                  accumulator?.candidates?.[0]?.content?.parts.push(part)
+                  accumulator.candidates[0]?.content?.parts.push(part)
               }
+          }
+          if (chunk.candidates?.[0]?.finishReason) {
+              accumulator.candidates[0].finishReason = chunk.candidates[0].finishReason 
           }
           accumulator.usageMetadata = chunk.usageMetadata ?? accumulator.usageMetadata
           accumulator.promptFeedback = chunk.promptFeedback ?? accumulator.promptFeedback
@@ -177,6 +186,7 @@ async function *handleToolUse(
                     }
                 }
                 yield serializeCall(Tool.registry[call.name], {
+                    id : call.id,
                     name: call.name,
                     args: call.args || {}, 
                     results
@@ -189,6 +199,7 @@ async function *handleToolUse(
                 functionResponse: {
                     name: call.name,
                     response: {
+                        id: call.id,
                         name: call.name,
                         content: results
                     }
@@ -200,13 +211,7 @@ async function *handleToolUse(
 
         Logger.debug("gemini - messages (tool)", messages)
 
-
-        const accumulatedResponse = new GenerateContentResponse()
-        accumulatedResponse.candidates = [{
-            content: {
-                parts: []
-            }
-        }]
+        const accumulatedResponse = initResponse()
 
         const result = await getResult(lectic, client, messages)
 
@@ -298,6 +303,7 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
                         functionResponse: {
                             name: call.name,
                             response: {
+                                id: call.id,
                                 name: call.name,
                                 content: call.results
                             }
@@ -375,12 +381,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       const result = await getResult(lectic, this.client, messages)
 
-      const accumulatedResponse = new GenerateContentResponse()
-      accumulatedResponse.candidates = [{
-          content: {
-              parts: []
-          }
-      }]
+      const accumulatedResponse = initResponse()
 
       yield* accumulateStream(result, accumulatedResponse)
 
