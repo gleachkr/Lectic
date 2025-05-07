@@ -16,7 +16,8 @@ export class MessageCommand {
     async execute() {
         switch (this.variant) {
             case "cmd" : {
-                const result = await $`${this.command.trim()}`.nothrow().quiet()
+                const rawCmd = { raw : this.command.trim() }
+                const result = await $`${rawCmd}`.nothrow().quiet()
                 this.stdout = result.stdout.toString()
                 this.stderr = result.stderr.toString()
                 this.success = result.exitCode == 0
