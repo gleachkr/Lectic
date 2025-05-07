@@ -584,12 +584,16 @@ tools:
     - native: code   # provide a native code sandbox tool
 ```
 
-Right now, native tools are only supported by recent Gemini models, 
-and are subject to some limitations imposed by the Gemini API. You 
-cannot provide more than one native tool at a time, and you cannot 
-combine native tools with other tools. (If you try, the API will 
-throw an error. If you find that it doesn't, Google must have lifted this 
-limitation—in that case, let me know!)
+Native tool support varies by LLM provider. Right now, Lectic supports native 
+tool use with gemini and anthropic.
+
+- Recent gemini models support both search and code. But they're subject to 
+  some limitations imposed by the Gemini API. You cannot provide more than one 
+  native tool at a time, and you cannot combine native tools with other tools. 
+  (If you try, the API will throw an error. If you find that it doesn't, Google 
+  must have lifted this limitation—in that case, let me know!)
+- Anthropic support search only. For more information, you can read [this 
+  announcement](https://www.anthropic.com/news/web-search-api).
 
 </details>
 

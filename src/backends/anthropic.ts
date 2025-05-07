@@ -159,9 +159,13 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
     }
 }
 
+function getTools(lectic : Lectic) : Anthropic.Messages.ToolUnion[] {
 
-function getTools() : Anthropic.Messages.Tool[] {
-    const tools : Anthropic.Messages.Tool[] = []
+    const nativeTools = (lectic.header.interlocutor.tools || [])
+    .filter(tool => "native" in tool)
+    .map(tool => tool.native)
+
+    const tools : Anthropic.Messages.ToolUnion[]  = []
     for (const tool of Object.values(Tool.registry)) {
         tools.push({
             name : tool.name,
@@ -171,6 +175,13 @@ function getTools() : Anthropic.Messages.Tool[] {
                 properties : tool.parameters,
                 required : tool.required
             }
+        })
+    }
+
+    if (nativeTools.find(tool => tool === "search")) {
+        tools.push({
+            name: "web_search",
+            type: "web_search_20250305"
         })
     }
     return tools
@@ -260,11 +271,12 @@ async function* handleToolUse(
                 messages: messages,
                 model: lectic.header.interlocutor.model ?? 
                     'claude-3-7-sonnet-latest',
-                tools: getTools()
+                tools: getTools(lectic)
             });
 
             for await (const messageEvent of stream) {
-                if (messageEvent.type === 'content_block_delta') {
+                if (messageEvent.type === 'content_block_delta' && 
+                    messageEvent.delta.type === "text_delta") {
                     yield messageEvent.delta.text
                 }
             }
@@ -300,11 +312,12 @@ async function* handleToolUse(
                 model: lectic.header.interlocutor.model ?? 'claude-3-7-sonnet-latest',
                 temperature: lectic.header.interlocutor.temperature,
                 max_tokens: lectic.header.interlocutor.max_tokens || 1024,
-                tools: getTools()
+                tools: getTools(lectic)
             });
 
             for await (const messageEvent of stream) {
-                if (messageEvent.type === 'content_block_delta') {
+                if (messageEvent.type === 'content_block_delta' && 
+                    messageEvent.delta.type === "text_delta") {
                     yield messageEvent.delta.text
                 }
             }
