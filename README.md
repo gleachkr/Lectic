@@ -107,7 +107,7 @@ contents with the result from stdout.
 
 Lectic uses a superset of commonmark markdown, using micromark's implementation
 of *[container
-directives](https://github.com/microma/syrk/micromark-extension-directive?tab=readme-ov-file#syntax)*
+directives](https://github.com/micromark/micromark-extension-directive?tab=readme-ov-file#syntax)*
 to represent LLM responses. These allow the insertion of special blocks of
 content, opened by a sequence of colons followed by an alphanumeric name, and
 closed by a matching sequence of colons. For example:
