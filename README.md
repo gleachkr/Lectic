@@ -49,9 +49,9 @@ a problem.
    - In other editors: Set up a key binding or command to pipe the current file
      through `lectic`
 
-3. Or, From the command line: `lectic -f conversation.lec` will stream a next 
-   message to the console, and `lectic -i conversation.lec` will update the 
-   lectic file in-place.
+3. Or, From the command line: `lectic -s -f conversation.lec` will stream a 
+   next message to the console, and `lectic -i conversation.lec` will update 
+   the lectic file in-place.
 
 ### Editor Integration
 
@@ -735,7 +735,8 @@ lectic -S -f convo.lec                     # Only return the new message, withou
 lectic -c -f convo.lec                     # Consolidate a new set of memories 
 lectic -i convo.lec                        # Update convo.lec in-place with the next message
 lectic -v                                  # Get a version string
-cat convo.lec | lectic -                   # Read from stdin
+cat convo.lec | lectic                     # Read convo.lec from stdin
+echo "hello"  | lectic -f convo.lec        # Add a message to convo.lec and get the result
 ```
 
 ## Contributing

@@ -66,7 +66,7 @@ function validateOptions(opts : OptionValues) {
             Logger.write("You can't combine --Short and --inplace");
             process.exit(1)
         }
-        if (opts["file"] !== '-') {
+        if (opts["file"]) {
             Logger.write("You can't combine --file and --inplace");
             process.exit(1)
         }
@@ -78,12 +78,13 @@ function validateOptions(opts : OptionValues) {
 }
 
 async function getLecticString(opts : OptionValues) : Promise<string> {
-    if (opts["inplace"]) {
-        return Bun.file(program.opts()["inplace"]).text()
-    } else if (opts["file"] === '-') {
-        return Bun.stdin.text()
+    if (opts["inplace"] || opts["file"]) {
+        const path = opts["inplace"] || opts["file"]
+        const fileText = await Bun.file(path).text()
+        const pipeText = process.stdin.isTTY ? "" : `\n\n${await Bun.stdin.text()}` 
+        return fileText + pipeText
     } else {
-        return Bun.file(opts["file"]).text()
+        return Bun.stdin.text()
     }
 }
 
@@ -161,7 +162,7 @@ program
 .option('-s, --short', 'only emit a new message rather than updated lectic')
 .option('-S, --Short', 'only emit a new message rather than updated lectic, only including the message text')
 .option('-c, --consolidate',  'emit a new YAML header consolidating memories of this conversation')
-.option('-f, --file <lectic>',  'lectic to read from or - to read stdin','-')
+.option('-f, --file <lectic>',  'lectic to read from or - to read stdin')
 .option('-i, --inplace <lectic>',  'lectic to update in place' )
 .option('-l, --log <logfile>',  'log debugging information')
 .option('-v, --version',  'print version information')
