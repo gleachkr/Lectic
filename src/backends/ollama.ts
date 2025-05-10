@@ -7,7 +7,7 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageCommand } from "../types/directive.ts"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
-import { serializeCall, stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText } from './util'
 
@@ -88,14 +88,14 @@ async function* handleToolUse(
         for (const call of response.message.tool_calls) {
             let results : ToolCallResult[]
             if (recur > 10) {
-                results = stringToResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
+                results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.function.name in Tool.registry) {
                 const inputs = call.function.arguments
                 try {
                     results = await Tool.registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
-                        results = stringToResults(`<error>An Error Occurred: ${e.message}</error>`)
+                        results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
                     } else {
                         throw e
                     }
@@ -107,7 +107,7 @@ async function* handleToolUse(
                 })
                 yield "\n\n"
             } else {
-                results = stringToResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
+                results = ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
             }
             
             for (const result of results) {

@@ -35,8 +35,12 @@ export type ToolCall = {
     isError? : boolean
 }
 
-export function stringToResults(s : string) : ToolCallResult[] {
-    return [{ type: "text", text: s}]
+export function ToolCallResults(s : string | string[]) : ToolCallResult[] {
+    if (typeof s === "string") {
+        return [{ type: "text", text: s}]
+    } else {
+        return s.map(text => ({ type: "text", text}))
+    }
 }
 
 const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/

@@ -8,7 +8,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { systemPrompt } from './util'
 
 function getText(msg : OpenAI.Chat.ChatCompletionMessage) : string {
@@ -79,7 +79,7 @@ async function *handleToolUse(
         for (const call of message.tool_calls) {
             let results : ToolCallResult[]
             if (recur > 10) {
-                results = stringToResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
+                results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.function.name in Tool.registry) {
                  // TODO error handling
                 const inputs = JSON.parse(call.function.arguments)
@@ -87,7 +87,7 @@ async function *handleToolUse(
                     results = await Tool.registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
-                        results = stringToResults(`<error>An Error Occurred: ${e.message}</error>`)
+                        results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
                     } else {
                         throw e
                     }
@@ -99,7 +99,7 @@ async function *handleToolUse(
                 })
                 yield "\n\n"
             } else {
-                results = stringToResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
+                results = ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
             }
             messages.push({
                     role: "tool",

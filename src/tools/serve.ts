@@ -1,4 +1,4 @@
-import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import open from "open"
 
 export type ServeToolSpec = {
@@ -72,6 +72,6 @@ export class ServeTool extends Tool {
         })
         open(`localhost:${this.serve_on_port}`)
         await blocker
-        return stringToResults("page is now available")
+        return ToolCallResults("page is now available")
     }
 }

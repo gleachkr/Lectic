@@ -1,4 +1,4 @@
-import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 
 export type ExecToolSpec = {
     exec: string
@@ -73,7 +73,7 @@ export class ExecTool extends Tool {
         if (proc.exitCode !== 0) {
             throw Error(proc.stderr.toString())
         } else {
-            return stringToResults(`<stdout>${proc.stdout.toString()}</stdout>`)
+            return ToolCallResults(`<stdout>${proc.stdout.toString()}</stdout>`)
         }
     }
 }

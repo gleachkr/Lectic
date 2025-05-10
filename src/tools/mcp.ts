@@ -1,4 +1,4 @@
-import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema } from "../types/schema"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
@@ -128,7 +128,7 @@ class MCPListResources extends Tool {
     async call(args : { limit : number | undefined }) : Promise<ToolCallResult[]> {
         const direct = await this.client.listResources()
         const template = await this.client.listResourceTemplates()
-        return stringToResults(JSON.stringify({
+        return ToolCallResults(JSON.stringify({
             total_number_of_direct_resources: direct.resources.length,
             direct_resources: direct.resources.slice(0, args.limit ?? 100),
             total_number_of_template_resources: template.resourceTemplates.length,

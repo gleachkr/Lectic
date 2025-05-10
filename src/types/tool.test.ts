@@ -1,4 +1,4 @@
-import { serializeCall, deserializeCall, stringToResults } from './tool';
+import { serializeCall, deserializeCall, ToolCallResults } from './tool';
 import type { Tool } from './tool';
 import { expect, it, describe } from "bun:test"
 
@@ -8,14 +8,14 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'stringTool',
             description: 'Tool that handles strings',
             parameters: { message: { type: 'string', description: 'A message' } },
-            call: async (_arg) => stringToResults('success'),
+            call: async (_arg) => ToolCallResults('success'),
             register() { }
         };
 
         const call = {
             name: 'stringTool',
             args : { message: 'hello world' },
-            results : stringToResults('success')
+            results : ToolCallResults('success')
         }
 
         const serialized = serializeCall(tool, call);
@@ -29,14 +29,14 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'booleanTool',
             description: 'Tool that handles booleans',
             parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
-            call: async (_arg) => stringToResults('done'),
+            call: async (_arg) => ToolCallResults('done'),
             register() { }
         };
 
         const call = {
             name: 'booleanTool',
             args : { confirmed: true },
-            results : stringToResults('done')
+            results : ToolCallResults('done')
         }
 
         const serialized = serializeCall(tool, call);
@@ -50,14 +50,14 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'numberTool',
             description: 'Tool that handles numbers',
             parameters: { amount: { type: 'number', description: 'An amount' } },
-            call: async (_arg) => stringToResults('calculated'),
+            call: async (_arg) => ToolCallResults('calculated'),
             register() { }
         };
 
         const call = {
             name: 'numberTool',
             args: { amount: 42.5 },
-            results: stringToResults('calculated')
+            results: ToolCallResults('calculated')
         }
 
         const serialized = serializeCall(tool, call);
@@ -73,14 +73,14 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             parameters: {
                 items: { type: 'array', description: 'A list of items', items: { type: 'string', description: 'Item' } }
             },
-            call: async (_arg) => stringToResults('completed'),
+            call: async (_arg) => ToolCallResults('completed'),
             register() { }
         };
 
         const call = {
             name: 'arrayTool',
             args : { items: ['item1', 'item2'] },
-            results : stringToResults('completed')
+            results : ToolCallResults('completed')
         }
 
         const serialized = serializeCall(tool, call);
@@ -103,14 +103,14 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
                     }
                 }
             },
-            call: async (_arg) => stringToResults('adjusted'),
+            call: async (_arg) => ToolCallResults('adjusted'),
             register() { }
         };
 
         const call = {
             name: 'nestedObjectTool',
             args : { settings: { volume: 70, balance: 30 } },
-            results : stringToResults('adjusted')
+            results : ToolCallResults('adjusted')
         }
 
         const serialized = serializeCall(tool, call);
@@ -123,7 +123,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         name: 'mockTool',
         description: 'A mock tool',
         parameters: { param: { type: 'string', description: 'A parameter' } },
-        call: async (_arg) => stringToResults('result'),
+        call: async (_arg) => ToolCallResults('result'),
         register() {}
     };
 
@@ -131,7 +131,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         const call = {
             name: 'mockTool',
             args: { param: 'value' },
-            results: stringToResults('result'),
+            results: ToolCallResults('result'),
             id: '12345'
         };
         const serialized = serializeCall(mockTool, call);
@@ -143,7 +143,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         const call = {
             name: 'mockTool',
             args: { param: 'value' },
-            results: stringToResults('result'),
+            results: ToolCallResults('result'),
             isError: true
         };
         const serialized = serializeCall(mockTool, call);
@@ -155,7 +155,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         const call = {
             name: 'mockTool',
             args: { param: 'value' },
-            results: stringToResults('result'),
+            results: ToolCallResults('result'),
             id: '67890',
             isError: false
         };
@@ -168,7 +168,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         const call = {
             name: 'mockTool',
             args: { param: 'value' },
-            results: stringToResults('result')
+            results: ToolCallResults('result')
         };
         const serialized = serializeCall(mockTool, call);
         const deserialized = deserializeCall(mockTool, serialized);

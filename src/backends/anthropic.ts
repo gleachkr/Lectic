@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Message } from "../types/message"
 import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import { serializeCall, stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
@@ -221,18 +221,18 @@ async function* handleToolUse(
                     let results : ToolCallResult[]
                     let is_error = false
                     if (recur > 10) {
-                        results = stringToResults("Tool usage limit exceeded, no further tool calls will be allowed")
+                        results = ToolCallResults("Tool usage limit exceeded, no further tool calls will be allowed")
                         is_error = true
                     } else {
                         if (!(block.input instanceof Object)) {
-                            results = stringToResults("The tool input isn't the right type. Tool inputs need to be returned as objects.")
+                            results = ToolCallResults("The tool input isn't the right type. Tool inputs need to be returned as objects.")
                             is_error = true
                         } else if (block.name in Tool.registry) {
                             try {
                                 results = await Tool.registry[block.name].call(block.input)
                             } catch (e : unknown) {
                                 if (e instanceof Error) {
-                                    results = stringToResults(e.message)
+                                    results = ToolCallResults(e.message)
                                     is_error = true
                                 } else {
                                     throw e
@@ -248,7 +248,7 @@ async function* handleToolUse(
 
                             yield "\n\n"
                         } else {
-                            results = stringToResults(`Unrecognized tool name ${block.name}`)
+                            results = ToolCallResults(`Unrecognized tool name ${block.name}`)
                             is_error = true
                         }
                         content.push({

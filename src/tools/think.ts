@@ -1,4 +1,4 @@
-import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 
 export type ThinkToolSpec = {
     think_about: string
@@ -39,6 +39,6 @@ export class ThinkTool extends Tool {
     required = ["thought"]
 
     async call(_args : { arguments : string[] }) : Promise<ToolCallResult[]> {
-        return stringToResults("thought complete.")
+        return ToolCallResults("thought complete.")
     }
 }

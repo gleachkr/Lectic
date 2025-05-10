@@ -1,4 +1,4 @@
-import { stringToResults, Tool, type ToolCallResult } from "../types/tool"
+import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Database } from "bun:sqlite"
 
 export type SQLiteToolSpec = {
@@ -61,7 +61,7 @@ export class SQLiteTool extends Tool {
         // need better error handling here
         const rslt = JSON.stringify(this.db.query(args.query).all())
         if (rslt.length < (this.limit ?? 10_000)) {
-            return stringToResults(JSON.stringify(rslt))
+            return ToolCallResults(JSON.stringify(rslt))
         } else {
             throw Error("result was too large.")
         }
