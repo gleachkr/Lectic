@@ -57,15 +57,17 @@ function validateOptions(opts : OptionValues) {
             process.exit(1)
         }
     }
-    if (opts["inplace"]) {
+    if (opts["quiet"]) {
         if (opts["short"]) {
-            Logger.write("You can't combine --short and --inplace");
+            Logger.write("You can't combine --short and --quiet");
             process.exit(1)
         }
         if (opts["Short"]) {
-            Logger.write("You can't combine --Short and --inplace");
+            Logger.write("You can't combine --Short and --quiet");
             process.exit(1)
         }
+    }
+    if (opts["inplace"]) {
         if (opts["file"]) {
             Logger.write("You can't combine --file and --inplace");
             process.exit(1)
@@ -100,9 +102,7 @@ async function main() {
 
     let lecticString = await getLecticString(opts)
 
-    // we do this after getting the lectic string, because it clobbers the
-    // lectic file
-    if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
+    if (opts["quiet"]) Logger.outfile = createWriteStream('/dev/null')
 
     if (!(opts["Short"] || opts["short"] || opts["consolidate"])) {
         await Logger.write(`${lecticString.trim()}\n\n`);
@@ -120,6 +120,7 @@ async function main() {
             } else {
                 delete new_lectic.header.interlocutor
             }
+            if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
             await Logger.write(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}...`, )
         } else {
@@ -137,9 +138,18 @@ async function main() {
             }
 
             const result = Logger.fromStream(backend.evaluate(lectic))
-            await Logger.write(result.strings)
+            await Logger.write(result.chunks)
             await result.rest
-            !program.opts()["Short"] && await Logger.write(`\n\n:::`)
+
+            if (!program.opts()["Short"]) await Logger.write(`\n\n:::`)
+
+            if (opts["inplace"]) {
+                Logger.outfile = createWriteStream(opts["inplace"])
+                await Logger.write(`${lecticString.trim()}\n\n`)
+                await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
+                await result.string.then(string => Logger.write(string))
+                await Logger.write(`\n\n:::`)
+            }
         }
         process.exit(0)
     } catch (error) {
@@ -152,20 +162,21 @@ async function main() {
         } else {
             await Logger.write(`<error>\n${JSON.stringify(error)}\n</error>`)
         }
-        await Logger.write(`\n\n:::`)
+        if (!program.opts()["Short"]) await Logger.write(`\n\n:::`)
         process.exit(1)
     }
 }
 
 program
 .name('lectic')
-.option('-s, --short', 'only emit a new message rather than updated lectic')
-.option('-S, --Short', 'only emit a new message rather than updated lectic, only including the message text')
-.option('-c, --consolidate',  'emit a new YAML header consolidating memories of this conversation')
-.option('-f, --file <lectic>',  'lectic to read from or - to read stdin')
-.option('-i, --inplace <lectic>',  'lectic to update in place' )
-.option('-l, --log <logfile>',  'log debugging information')
-.option('-v, --version',  'print version information')
+.option('-s, --short', 'Only emit a new message rather than the full updated lectic')
+.option('-S, --Short', 'Only emit a new message rather than the full updated lectic. Only including the message text')
+.option('-c, --consolidate',  'Emit a new YAML header consolidating memories of this conversation')
+.option('-f, --file <lectic>',  'Lectic to read from')
+.option('-q, --quiet', 'Don’t print response')
+.option('-i, --inplace <lectic>',  'Lectic to read from and update in place' )
+.option('-l, --log <logfile>',  'Log debugging information')
+.option('-v, --version',  'Print version information')
 
 program.parse()
 

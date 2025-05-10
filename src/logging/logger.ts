@@ -26,7 +26,8 @@ export const Logger : {
     debug(context : string, logged: any) : void,
     outfile: Writable
     write(output : string | AsyncIterable<string>) : Promise<void>
-    fromStream<A>(generator : AsyncIterable<string | A>) : { strings : AsyncIterable<string>, rest : Promise<A[]> }
+    fromStream<A>(generator : AsyncIterable<string | A>) 
+        : { chunks : AsyncIterable<string>, string : Promise<string>, rest : Promise<A[]> }
 } = {
 
     logfile: null,
@@ -42,12 +43,13 @@ export const Logger : {
     },
 
     async write(output) {
+        const outfile = this.outfile
         if (typeof output == "string") {
-            return new Promise(resolve => this.outfile.write(output, () => resolve()))
+            return new Promise(resolve => outfile.write(output, () => resolve()))
         } else {
             return new Promise(async resolve => {
                 for await (const chunk of output) {
-                    await new Promise(resolve => this.outfile.write(chunk, resolve))
+                    await new Promise(resolve => outfile.write(chunk, resolve))
                 }
                 resolve()
             })
@@ -55,25 +57,37 @@ export const Logger : {
     },
 
     fromStream<A>(generator : AsyncIterable<string | A>) {
-        let resolver : (result : A[]) => void
-        let rejector : (result : any) => void
+        let resolver1 : (result : A[]) => void
+        let rejector1 : (result : any) => void
+        let resolver2 : (result : string) => void
+        let rejector2 : (result : any) => void
         let accumulator : A[] = []
+        let theString = ""
         let rest : Promise<A[]> = new Promise((resolve, reject) => {
-            resolver = resolve
-            rejector = reject
+            resolver1 = resolve
+            rejector1 = reject
         })
-        let strings = async function*() {
+        let string : Promise<string> = new Promise((resolve, reject) => {
+            resolver2 = resolve
+            rejector2 = reject
+        })
+        let chunks = async function*() {
             try {
                 for await (const x of generator) {
-                    if (typeof x === "string") { yield x }
+                    if (typeof x === "string") { 
+                        yield x 
+                        theString += x
+                    }
                     else { accumulator.push(x) }
                 }
             } catch (e) {
-                rejector(e)
+                rejector1(e)
+                rejector2(e)
             } finally {
-                resolver(accumulator)
+                resolver1(accumulator)
+                resolver2(theString)
             }
         }
-        return { strings: strings(), rest }
+        return { chunks: chunks(), rest, string }
     }
 }
