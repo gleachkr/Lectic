@@ -33,4 +33,11 @@ function M.clear_folds(start_line, end_line)
    vim.cmd("silent! " .. start_line .. "," .. end_line .. "normal! zD")
 end
 
+function M.redo_folds(start_line, end_line)
+   local view = vim.fn.winsaveview()
+   M.clear_folds(start_line, end_line)
+   M.fold_tool_calls_range(start_line, end_line)
+   vim.fn.winrestview(view)
+end
+
 return M
