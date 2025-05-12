@@ -1,5 +1,5 @@
 import type { RootContent } from "mdast"
-import { parseLinks, parseDirectives, parseBlocks, nodeContentRaw, nodeRaw } from "../parsing/markdown"
+import { parseReferences, parseDirectives, parseBlocks, nodeContentRaw, nodeRaw } from "../parsing/markdown"
 import type { ToolCall } from "./tool"
 import { deserializeCall, getSerializedCallName, isSerializedCall, Tool } from "./tool"
 
@@ -29,8 +29,8 @@ export class UserMessage {
     }
 
     containedLinks() : MessageLink[] {
-        return parseLinks(this.content).map(link => ({
-            text: nodeContentRaw(link, this.content),
+        return parseReferences(this.content).map(link => ({
+            text: ("children" in link) ? nodeContentRaw(link, this.content) : (link.alt || ""),
             URI: link.url,
             title: link.title === null ? undefined : link.title
         }))

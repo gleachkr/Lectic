@@ -1,6 +1,6 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
-import type { RootContent, Parent, Link } from "mdast"
+import type { RootContent, Parent, Link, Image } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 
 export function nodeRaw(node : RootContent, raw : string) : string {
@@ -31,7 +31,7 @@ function extractType<T extends string>(node : RootContent, type : T) : (RootCont
     return links
 }
 
-export function parseLinks(raw: string) : Link[] {
+export function parseReferences(raw: string) : (Link | Image)[] {
     const ast = remark().parse(raw)
     const links : Link[] = []
     for (const node of ast.children) {
