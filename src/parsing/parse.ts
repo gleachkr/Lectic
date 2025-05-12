@@ -1,4 +1,4 @@
-import { isLecticHeaderSpec, LecticHeader } from "../types/lectic"
+import { LecticHeader, validateLecticHeaderSpec } from "../types/lectic"
 import type { Message } from "../types/message"
 import { UserMessage, AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
@@ -67,7 +67,7 @@ export async function parseLectic(raw: string) : Promise<Lectic> {
 
     const headerSpec: unknown = YAML.parse(rawYaml)
 
-    if (!isLecticHeaderSpec(headerSpec)) throw Error(
+    if (!validateLecticHeaderSpec(headerSpec)) throw Error(
          "YAML Header is missing something. " +
          "One or more interlocutors need to be specified. " +
          "(Use either `interlocutor:` or `interlocutors:`, and include at least a name and prompt).")
