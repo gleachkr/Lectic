@@ -3,6 +3,7 @@ import { program } from 'commander'
 import type { OptionValues } from 'commander'
 import { AnthropicBackend } from "./backends/anthropic"
 import { OpenAIBackend } from "./backends/openai"
+import { OpenAIResponsesBackend } from "./backends/openai-responses"
 import { OllamaBackend } from "./backends/ollama"
 import { GeminiBackend } from "./backends/gemini"
 import { getDefaultProvider, LLMProvider } from "./types/provider"
@@ -27,6 +28,11 @@ function getBackend(lectic : Lectic) : Backend {
             apiKey: 'OPENROUTER_API_KEY',
             provider: LLMProvider.OpenRouter,
             url: 'https://openrouter.ai/api/v1'
+        })
+        case LLMProvider.OpenAIResponses: return new OpenAIResponsesBackend({
+            defaultModel: 'gpt-4.1',
+            apiKey: 'OPENAI_API_KEY',
+            provider: LLMProvider.OpenAIResponses,
         })
         case LLMProvider.Ollama: return OllamaBackend
         case LLMProvider.Anthropic: return AnthropicBackend

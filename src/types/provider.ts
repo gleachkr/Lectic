@@ -1,8 +1,7 @@
-//BUG: this needs to be a union of strings, so that it can be given in
-//human-readable yaml- I think there's a way to do that as a TS enum
 export enum LLMProvider {
     Anthropic = "anthropic",
     OpenAI = "openai",
+    OpenAIResponses = "openai/responses",
     Ollama = "ollama",
     Gemini = "gemini",
     OpenRouter = "openrouter",
@@ -22,5 +21,6 @@ export function isLLMProvider(raw : unknown) : raw is LLMProvider {
         raw == LLMProvider.OpenAI ||
         raw == LLMProvider.Ollama ||
         raw == LLMProvider.OpenRouter ||
+        raw == LLMProvider.OpenAIResponses ||
         raw == LLMProvider.Gemini
 }
