@@ -68,7 +68,7 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
         } else if (!(raw.tools.every(t => typeof t === "object"))) {
             throw Error(`One or more tools for ${raw.name} weren't properly specified`)
         }
-    } 
+    }
     return true
 }
 

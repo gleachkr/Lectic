@@ -9,10 +9,13 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
-import { systemPrompt } from './util'
+import { systemPrompt, wrapText } from './util'
 
-function getTools() : OpenAI.Responses.Tool[] {
+function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const tools : OpenAI.Responses.Tool[] = []
+    const nativeTools = (lectic.header.interlocutor.tools || [])
+        .filter(tool => "native" in tool)
+        .map(tool => tool.native)
     for (const tool of Object.values(Tool.registry)) {
 
         // the OPENAI API rejects default values for parameters. These are
@@ -40,6 +43,10 @@ function getTools() : OpenAI.Responses.Tool[] {
                 "additionalProperties" : false,
             }
         })
+    }
+
+    if (nativeTools.find(tool => tool === "search")) {
+        tools.push({ type: "web_search_preview" })
     }
     return tools
 }
@@ -113,7 +120,7 @@ async function *handleToolUse(
             model: lectic.header.interlocutor.model ?? 'gpt-4.1',
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
-            tools: getTools()
+            tools: getTools(lectic)
         })
     
         for await (const event of stream) {
@@ -166,8 +173,8 @@ async function partToContent(part : MessageAttachmentPart)
     }
 }
 
-async function handleMessage(msg : Message) : Promise<OpenAI.Responses.ResponseInput> {
-    if (msg.role === "assistant") { 
+async function handleMessage(msg : Message, lectic : Lectic) : Promise<OpenAI.Responses.ResponseInput> {
+    if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : OpenAI.Responses.ResponseInput = []
         for (const interaction of msg.containedInteractions()) {
             if (interaction.text) {
@@ -193,6 +200,17 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Responses.ResponseI
             }
         }
         return results
+    } else if (msg.role === "assistant") {
+        return [{
+            role: "user",
+            content: [{
+                type: "input_text",
+                text: wrapText({
+                    text: msg.content || "…",
+                    name: msg.name
+                })
+            }]
+        }]
     }
 
     const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
@@ -268,7 +286,7 @@ export class OpenAIResponsesBackend implements Backend {
         const messages : OpenAI.Responses.ResponseInput = []
 
         for (const msg of lectic.body.messages) {
-            messages.push(...await handleMessage(msg))
+            messages.push(...await handleMessage(msg, lectic))
         }
 
         Logger.debug("openai - messages", messages)
@@ -278,7 +296,7 @@ export class OpenAIResponsesBackend implements Backend {
             model: lectic.header.interlocutor.model ?? this.defaultModel,
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
-            tools: getTools()
+            tools: getTools(lectic)
         });
 
 

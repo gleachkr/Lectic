@@ -162,8 +162,8 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
 function getTools(lectic : Lectic) : Anthropic.Messages.ToolUnion[] {
 
     const nativeTools = (lectic.header.interlocutor.tools || [])
-    .filter(tool => "native" in tool)
-    .map(tool => tool.native)
+        .filter(tool => "native" in tool)
+        .map(tool => tool.native)
 
     const tools : Anthropic.Messages.ToolUnion[]  = []
     for (const tool of Object.values(Tool.registry)) {
