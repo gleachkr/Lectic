@@ -229,14 +229,9 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<Ollama.Me
         }
 
         for (const command of commands) {
-            await command.execute()
-            if (command.success) {
-                msg.content += `<stdout from="${command.command}">${command.stdout}</stdout>`
-            } else {
-                msg.content += `<error>Something went wrong when executing a command:` + 
-                    `<stdout from="${command.command}">${command.stdout}</stdout>` +
-                    `<stderr from="${command.command}">${command.stderr}</stderr>` +
-                `</error>`
+            const result = await command.execute()
+            if (result) {
+                msg.content += result
             }
         }
 

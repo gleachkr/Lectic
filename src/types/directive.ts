@@ -2,9 +2,6 @@ import type { MessageDirective } from "./message"
 import { $ } from "bun"
 
 export class MessageCommand {
-    stdout: string | undefined
-    stderr: string | undefined
-    success: boolean | undefined
     variant : string
     command : string
 
@@ -18,12 +15,16 @@ export class MessageCommand {
             case "cmd" : {
                 const rawCmd = { raw : this.command.trim() }
                 const result = await $`${rawCmd}`.nothrow().quiet()
-                this.stdout = result.stdout.toString()
-                this.stderr = result.stderr.toString()
-                this.success = result.exitCode == 0
-                break
+                if (result.exitCode === 0) {
+                    return `<stdout from="${this.command}">${result.stdout.toString()}</stdout>`
+                } else {
+                    return `<error>Something went wrong when executing a command:` + 
+                        `<stdout from="${this.command}">${result.stdout.toString()}</stdout>` +
+                        `<stderr from="${this.command}">${result.stderr.toString()}</stderr>` +
+                    `</error>`
+                }
             }
-            default:
+            default: return null
         }
     }
 }

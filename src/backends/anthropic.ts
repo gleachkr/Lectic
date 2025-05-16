@@ -138,19 +138,11 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
         }
 
         for (const command of commands) {
-            await command.execute()
-            if (command.success) {
+            const result = await command.execute()
+            if (result) {
                 content.push({
                     type: "text",
-                    text: `<stdout from="${command.command}">${command.stdout}</stdout>`
-                })
-            } else {
-                content.push({
-                    type: "text",
-                    text: `<error>Something went wrong when executing a command:` + 
-                        `<stdout from="${command.command}">${command.stdout}</stdout>` +
-                        `<stderr from="${command.command}">${command.stderr}</stderr>` +
-                        `</error>`
+                    text: result,
                 })
             }
         }
