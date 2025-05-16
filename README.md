@@ -32,7 +32,7 @@ a problem.
    ---
    interlocutor:
        name: Assistant
-       provider: anthropic|openai|gemini|openrouter|ollama
+       provider: anthropic|openai|gemini|openrouter|ollama|openai/responses
        prompt: Your base prompt here
    ---
 
@@ -189,7 +189,9 @@ Supported content types:
 - Video (Gemini only right now - Supported mime types 
   [here](https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats))
 - Audio (Gemini, and OpenAI providers only right now. MP3, MPEG and WAV, more 
-  for gemini. OpenAI requires an audio model)
+  for Gemini. OpenAI requires an audio model, and only supports this via the 
+  legacy chat interface, so you'll need `provider: ` rather than 
+  `provider: /responses`)
 
 Remote content can be included via HTTP/HTTPS, or from an amazon s3 bucket. 
 Using s3 requires that you have `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` 
@@ -395,7 +397,7 @@ Here are the results showing the largest orders...
 </summary>
 
 This tool lets you give your LLM an opportunity to deliberately pause and think
-about something, in the style suggested by [anthropic's engineering
+about something, in the style suggested by [Anthropic's engineering
 blog](https://www.anthropic.com/engineering/claude-think-tool). It provides the
 LLM with some "scratch space" to think a little bit before speaking "out loud".
 
@@ -585,15 +587,19 @@ tools:
 ```
 
 Native tool support varies by LLM provider. Right now, Lectic supports native 
-tool use with gemini and anthropic.
+tool use with Gemini, Anthropic, and OpenAi.
 
-- Recent gemini models support both search and code. But they're subject to 
+- Recent Gemini models support both search and code. But they're subject to 
   some limitations imposed by the Gemini API. You cannot provide more than one 
   native tool at a time, and you cannot combine native tools with other tools. 
   (If you try, the API will throw an error. If you find that it doesn't, Google 
   must have lifted this limitation—in that case, let me know!)
 - Anthropic support search only. For more information, you can read [this 
   announcement](https://www.anthropic.com/news/web-search-api).
+- OpenAI provides native search through the new responses API. So you'll need 
+  to use the `openai/responses` provider, rather than the plain `openai` 
+  provider. They do not support code yet, but it should be coming soon (when it 
+  lands, let me know!).
 
 </details>
 
