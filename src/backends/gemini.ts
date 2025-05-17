@@ -31,12 +31,17 @@ function googleParameter(param: JSONSchema ) : Schema | undefined {
 }
 
 function consolidateText(response : GenerateContentResponse) {
-    const textPart = { text : "" }
-    const newParts : Part[] = [textPart]
+    const newParts : Part[] = []
+    let curPart : Part = {}
     if (response.candidates?.[0].content?.parts?.length) {
         for (const part of response.candidates?.[0].content?.parts) {
-            if (part.text) textPart.text += part.text
-            else newParts.push(part)
+            if (part.text) {
+                if (curPart.text) curPart.text += part.text
+                else curPart = part
+            } else {
+                if (curPart.text) newParts.push(curPart)
+                newParts.push(part)
+            }
         }
         response.candidates[0].content.parts = newParts
     }
@@ -149,7 +154,6 @@ async function *handleToolUse(
 
     while (response.functionCalls && response.functionCalls.length > 0) {
         let calls = response.functionCalls
-        let text = getText(response)
         yield "\n\n"
         recur++
 
@@ -164,9 +168,7 @@ async function *handleToolUse(
 
         messages.push({
             role: "model",
-            parts: text.length > 0 
-                ? [{ text: getText(response) }, ...calls.map(call => ({ functionCall: call }))]
-                : calls.map(call => ({ functionCall: call }))
+            parts: response.candidates?.[0].content?.parts
         })
 
         const parts : Part[] = []
@@ -363,7 +365,6 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
-
       const messages : Content[] = []
 
       for (const msg of lectic.body.messages) {
@@ -378,13 +379,11 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       yield* accumulateStream(result, accumulatedResponse)
 
-      Logger.debug("gemini - reply (tool)", {
-          accumulatedResponse
-      })
-
       if (accumulatedResponse.functionCalls?.length) {
+          Logger.debug("gemini - reply (tool)", { accumulatedResponse })
           yield* handleToolUse(accumulatedResponse, messages, lectic, this.client);
       } else {
+          Logger.debug("gemini - reply", { accumulatedResponse })
           yield new AssistantMessage({
               name: lectic.header.interlocutor.name,
               content: getText(accumulatedResponse)
