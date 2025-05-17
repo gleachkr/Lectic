@@ -53,6 +53,16 @@ function handleDirectives(lectic : Lectic) {
 }
 
 function validateOptions(opts : OptionValues) {
+    if (opts["header"]) {
+        if (opts["short"]) {
+            Logger.write("You can't combine --short and --header ");
+            process.exit(1)
+        }
+        if (opts["Short"]) {
+            Logger.write("You can't combine --Short and --header ");
+            process.exit(1)
+        }
+    }
     if (opts["consolidate"]) {
         if (opts["short"]) {
             Logger.write("You can't combine --short and --consolidate ");
@@ -110,7 +120,7 @@ async function main() {
 
     if (opts["quiet"]) Logger.outfile = createWriteStream('/dev/null')
 
-    if (!(opts["Short"] || opts["short"] || opts["consolidate"])) {
+    if (!(opts["Short"] || opts["short"] || opts["consolidate"] || opts["header"])) {
         await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
@@ -118,9 +128,9 @@ async function main() {
 
         const lectic = await parseLectic(lecticString)
 
-        if (program.opts()["consolidate"]) {
+        if (opts["consolidate"] || opts["header"]) {
             const backend = getBackend(lectic)
-            const new_lectic : any = await consolidateMemories(lectic, backend)
+            const new_lectic : any = opts["header"] ? lectic : await consolidateMemories(lectic, backend)
             if (new_lectic.header.interlocutors.length === 1) {
                 delete new_lectic.header.interlocutors
             } else {
@@ -178,6 +188,7 @@ program
 .option('-s, --short', 'Only emit a new message rather than the full updated lectic')
 .option('-S, --Short', 'Only emit a new message rather than the full updated lectic. Only including the message text')
 .option('-c, --consolidate',  'Emit a new YAML header consolidating memories of this conversation')
+.option('-H, --header',  'Emit only the YAML header of the lectic')
 .option('-f, --file <lectic>',  'Lectic to read from')
 .option('-q, --quiet', 'Don’t print response')
 .option('-i, --inplace <lectic>',  'Lectic to read from and update in place' )
