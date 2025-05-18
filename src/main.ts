@@ -138,7 +138,7 @@ async function main() {
             }
             if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
             await Logger.write(`---\n${YAML.stringify(new_lectic.header, {
-                blockQuote: "literal" })}...`, )
+                blockQuote: "literal" })}---`, )
         } else {
             // we handle directives, which may update header fields
             handleDirectives(lectic)

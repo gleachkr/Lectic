@@ -34,10 +34,10 @@ export class ExecTool extends Tool {
         this.sandbox = spec.sandbox
         this.confirm = spec.confirm
         this.description = 
-            `This tool executes the command \`${this.exec}\` directly, applied to the array of arguments (including command line flags)`
-            + `that you supply. So for example if you supply \`$arguments\`, what is run is literally \`"${this.exec} $arguments"\`.` +
-            `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features.` +
-            `The stdout resulting from the command will be returned to you as the tool call result.` +
+            `This tool executes the command \`${this.exec}\` directly, applied to the array of arguments (including command line flags) `
+            + `that you supply. So for example if you supply \`$arguments\`, what is run is literally \`"${this.exec} $arguments"\`. ` +
+            `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features. ` +
+            `The stdout resulting from the command will be returned to you as the tool call result. ` +
             `The user cannot see the tool call result. You must explicitly report any requested information to the user.` +
             (spec.usage ?? "")
         ExecTool.count++
