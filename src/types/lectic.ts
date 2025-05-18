@@ -36,6 +36,17 @@ function isMemories(raw : unknown) : raw is Memories {
     return false
 }
 
+async function maybeFromFile<T>(something: T) : Promise<T | string>{
+    if (typeof something === "string" && something.length < 1000) {
+        if (await Bun.file(something.trim()).exists()) {
+             return await Bun.file(something.trim()).text()
+        } else {
+            return something
+        }
+    }
+    return something
+}
+
 export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
     if (typeof raw !== "object") {
         throw Error(`Interlocutor needs to be given with at least name and prompt fields. Got ${raw} instead.`)
@@ -108,25 +119,15 @@ export class LecticHeader {
     async initialize() {
         // TODO DRY the "load from file" pattern
 
-        // load prompt from file if available
-        if (await Bun.file(this.interlocutor.prompt.trim()).exists()) {
-            this.interlocutor.prompt = await Bun.file(this.interlocutor.prompt.trim()).text()
-        }
+        this.interlocutor.prompt = await maybeFromFile(this.interlocutor.prompt)
 
-        // load memories from file if available
-        if (this.interlocutor.memories &&
-            typeof this.interlocutor.memories == "string" &&
-            await Bun.file(this.interlocutor.memories.trim()).exists()) {
-            this.interlocutor.memories = await Bun.file(this.interlocutor.memories.trim()).text()
-        }
+        this.interlocutor.memories = await maybeFromFile(this.interlocutor.memories)
 
         if (this.interlocutor.tools) {
             for (const spec of this.interlocutor.tools) {
                 // load usage from file if available
                 if (isExecToolSpec(spec)) {
-                    if (spec.usage && await Bun.file(spec.usage.trim()).exists()) {
-                        spec.usage = await Bun.file(spec.usage.trim()).text()
-                    }
+                    spec.usage = await maybeFromFile(spec.usage)
                     new ExecTool(spec)
                 } else if (isSQLiteToolSpec(spec)) {
                     new SQLiteTool(spec)
