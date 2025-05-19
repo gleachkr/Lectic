@@ -740,6 +740,8 @@ lectic -s -f convo.lec                     # Only return the new message
 lectic -S -f convo.lec                     # Only return the new message, without speaker indications
 lectic -c -f convo.lec                     # Consolidate a new set of memories 
 lectic -i convo.lec                        # Update convo.lec in-place with the next message
+lectic -Hf convo.lec                       # Print just the header of the lectic
+                                           # (use -Hi to reset a lectic, erasing all messages)
 lectic -v                                  # Get a version string
 cat convo.lec | lectic                     # Read convo.lec from stdin
 echo "hello"  | lectic -f convo.lec        # Add a message to convo.lec and get the result
