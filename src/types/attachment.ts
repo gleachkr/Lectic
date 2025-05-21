@@ -63,8 +63,13 @@ export class MessageAttachment {
 
     async getParts() : Promise<MessageAttachmentPart[]> {
         if (this.file) {
-            const mimetype = this.file.type.replace(/^text\/.+$/,"text/plain")
+            let mimetype = this.file.type.replace(/^text\/.+$/,"text/plain")
             const bytes = await this.file.bytes()
+            if (mimetype === "application/octet-stream" &&
+                bytes.find(x => x == 0x0) == undefined)  {
+                // if there are no null bytes, it's probably not a binary. Guess text/plain
+                mimetype = "text/plain"
+            }
             return [new MessageAttachmentPart({
                 bytes, mimetype, 
                 URI : this.URI, 
