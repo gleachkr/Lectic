@@ -330,6 +330,7 @@ async function* handleToolUse(
 
         client : new Anthropic({
             apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
+            maxRetries: 5,
         }),
 
         provider : LLMProvider.Anthropic,
