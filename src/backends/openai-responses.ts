@@ -48,6 +48,13 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     if (nativeTools.find(tool => tool === "search")) {
         tools.push({ type: "web_search_preview" })
     }
+
+    if (nativeTools.find(tool => tool === "code")) {
+        tools.push({ 
+            type: "code_interpreter" ,
+            container: { type: "auto" }
+        })
+    }
     return tools
 }
 

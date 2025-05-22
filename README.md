@@ -596,10 +596,9 @@ tool use with Gemini, Anthropic, and OpenAi.
   must have lifted this limitation—in that case, let me know!)
 - Anthropic support search only. For more information, you can read [this 
   announcement](https://www.anthropic.com/news/web-search-api).
-- OpenAI provides native search through the new responses API. So you'll need 
-  to use the `openai/responses` provider, rather than the plain `openai` 
-  provider. They do not support code yet, but it should be coming soon (when it 
-  lands, let me know!).
+- OpenAI provides native search and code through the new responses API. So 
+  you'll need to use the `openai/responses` provider, rather than the plain 
+  `openai` provider.
 
 </details>
 
