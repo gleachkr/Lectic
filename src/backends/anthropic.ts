@@ -262,7 +262,7 @@ async function* handleToolUse(
                 system: systemPrompt(lectic),
                 messages: messages,
                 model: lectic.header.interlocutor.model ?? 
-                    'claude-3-7-sonnet-latest',
+                    'claude-sonnet-4-20250514',
                 tools: getTools(lectic)
             });
 
@@ -301,7 +301,7 @@ async function* handleToolUse(
             let stream = this.client.messages.stream({
                 system: systemPrompt(lectic),
                 messages: messages,
-                model: lectic.header.interlocutor.model ?? 'claude-3-7-sonnet-latest',
+                model: lectic.header.interlocutor.model ?? 'claude-sonnet-4-20250514',
                 temperature: lectic.header.interlocutor.temperature,
                 max_tokens: lectic.header.interlocutor.max_tokens || 1024,
                 tools: getTools(lectic)
