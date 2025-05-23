@@ -177,7 +177,7 @@ export function deserialize(xml: string, schema: JSONSchema): any {
                 obj[key] = deserialize(unwrap(element, key), schema.properties[key])
             }
             if (schema.required) {
-                for (const key in schema.required) {
+                for (const key of schema.required) {
                     if (!(key in obj)) {
                         throw new Error(`Missing required property: ${key}`)
                     }
