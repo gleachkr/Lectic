@@ -47,7 +47,7 @@ export function escapeTags(string : string) {
     .replace(/'/g, "&#39;")
     .replace(/`/g, "&#96;")
     .replace(/_/g, "&#95;")
-    .replace(/*/g, "&#42;")
+    .replace(/\*/g, "&#42;")
 }
 
 export function unescapeTags(string : string) {
