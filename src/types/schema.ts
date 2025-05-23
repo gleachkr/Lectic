@@ -1,4 +1,4 @@
-import {unwrap, extractElements } from "../parsing/xml.ts"
+import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
 
 type StringSchema = {
     type: "string",
@@ -46,26 +46,6 @@ export type JSONSchema = StringSchema
                 | BooleanSchema 
                 | ArraySchema
                 | ObjectSchema
-
-function escapeTags(string : string) {
-    return string
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;")
-    .replace(/`/g, "&#96;");
-}
-
-function unescapeTags(string : string) {
-    return string
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#039;/g, "'")
-    .replace(/&#96;/g, "`")
-    .replace(/&amp;/g, "&");
-}
 
 export function serialize(arg: any, schema: JSONSchema): string {
     switch (schema.type) {

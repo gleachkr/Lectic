@@ -1,4 +1,4 @@
-import {unwrap, extractElements } from "../parsing/xml.ts"
+import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
 import { serialize, deserialize } from "./schema.ts"
 import type { JSONSchema } from "./schema.ts"
 
@@ -47,7 +47,7 @@ const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
 
 function serializeResult(result : ToolCallResult) : string {
     if (result.type === "text") {
-        return `<result type="text">${result.text}</result>`
+        return `<result type="text">${escapeTags(result.text)}</result>`
     } else {
         throw Error(`Unreachable code: unrecognized result type: ${result.type}`)
     }
@@ -58,7 +58,7 @@ function deserializeResult(xml : string) : ToolCallResult  {
     if (!match) throw Error(`Couldn't deserialize ${xml} as tool call result`)
     const [,type,content] = match
     if (type === "text") {
-        return { type, text: content } 
+        return { type, text: unescapeTags(content) } 
     }
     throw Error(`Unrecognized type in tool call result deserialization`)
 }
