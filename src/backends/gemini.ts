@@ -41,8 +41,10 @@ function consolidateText(response : GenerateContentResponse) {
             } else {
                 if (curPart.text) newParts.push(curPart)
                 newParts.push(part)
+                curPart = {}
             }
         }
+        if (curPart.text) newParts.push(curPart)
         response.candidates[0].content.parts = newParts
     }
 }
@@ -115,7 +117,6 @@ async function* accumulateStream(
       }
           
       consolidateText(accumulator)
-
 }
 
 function googleParameters(params: { [key: string] : JSONSchema }) : { [key: string] : Schema } {
