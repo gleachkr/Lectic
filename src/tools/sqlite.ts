@@ -59,11 +59,24 @@ export class SQLiteTool extends Tool {
 
     async call(args : { query : string }) : Promise<ToolCallResult[]> {
         // need better error handling here
-        const rslt = JSON.stringify(this.db.query(args.query).all())
+        const rslt_rows = this.db.query(args.query).all()
+        for (const row of rslt_rows) {
+            if (row instanceof Uint8Array || row instanceof Buffer) {
+                throw Error("result contained a BLOB column, try refining to select only readable columns.")
+            }
+            if (row instanceof Array) {
+                for (const col of row) {
+                    if (col instanceof Uint8Array || col instanceof Buffer) {
+                        throw Error("result contained a BLOB column, try refining to select only readable columns.")
+                    }
+                }
+            }
+        }
+        const rslt = JSON.stringify(rslt_rows)
         if (rslt.length < (this.limit ?? 10_000)) {
             return ToolCallResults(JSON.stringify(rslt))
         } else {
-            throw Error("result was too large.")
+            throw Error("result was too large, try an more selective query.")
         }
     }
 }
