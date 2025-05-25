@@ -74,7 +74,7 @@ export class SQLiteTool extends Tool {
         }
         const rslt = JSON.stringify(rslt_rows)
         if (rslt.length < (this.limit ?? 10_000)) {
-            return ToolCallResults(JSON.stringify(rslt))
+            return ToolCallResults(rslt)
         } else {
             throw Error("result was too large, try an more selective query.")
         }

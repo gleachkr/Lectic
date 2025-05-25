@@ -392,7 +392,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       }
     },
 
-    provider : LLMProvider.Anthropic,
+    provider : LLMProvider.Gemini,
 
     client : new GoogleGenAI({apiKey : process.env['GEMINI_API_KEY'] || ""}), //XXX subverting type system.
 

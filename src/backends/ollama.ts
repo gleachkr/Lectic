@@ -119,7 +119,7 @@ async function* handleToolUse(
 
         const stream = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
-            model: lectic.header.interlocutor.model ?? 'llama-3.2',
+            model: lectic.header.interlocutor.model ?? 'llama3.2',
             stream: true,
             tools: getTools(),
             options: {
@@ -264,7 +264,7 @@ export const OllamaBackend : Backend = {
 
         let stream = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
-            model: lectic.header.interlocutor.model || 'llama3.2',
+            model: lectic.header.interlocutor.model ?? 'llama3.2',
             tools: getTools(),
             stream: true,
             options: {
