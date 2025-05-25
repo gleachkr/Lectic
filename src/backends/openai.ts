@@ -40,7 +40,7 @@ function getTools() : OpenAI.Chat.Completions.ChatCompletionTool[] {
                 parameters: {
                     "type" : "object",
                     "properties" : tool.parameters,
-                    // OPENAI API always wants every key to be required
+                    // OPENAI API always wants every key to be required?
                     "required" : Object.keys(tool.parameters),
                     "additionalProperties" : false,
                 }
@@ -95,6 +95,7 @@ async function *handleToolUse(
                 yield serializeCall(Tool.registry[call.function.name], {
                     name: call.function.name,
                     args: inputs, 
+                    id: call.id,
                     results
                 })
                 yield "\n\n"

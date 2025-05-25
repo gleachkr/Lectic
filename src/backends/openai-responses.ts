@@ -101,6 +101,7 @@ async function *handleToolUse(
                 yield serializeCall(Tool.registry[call.name], {
                     name: call.name,
                     args: inputs, 
+                    id: call.call_id,
                     results
                 })
                 yield "\n\n"
@@ -150,7 +151,6 @@ async function *handleToolUse(
 async function partToContent(part : MessageAttachmentPart) 
     : Promise<OpenAI.Responses.ResponseInputContent | null> {
     const media_type = part.mimetype
-    console.log(media_type)
     const bytes = part.bytes
     if (!(media_type && bytes)) return null
     switch(media_type) {
@@ -192,15 +192,16 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<OpenAI.Re
             } 
             if (interaction.calls) {
                 for (const call of interaction.calls) {
+                    const call_id = call.id ?? Bun.hash(JSON.stringify(call.args)).toString()
                     results.push({
                         type: "function_call",
-                        call_id: call.id ?? "undefined",
+                        call_id,
                         name: call.name,
                         arguments: JSON.stringify(call.args)
                     })
                     results.push({
                         type: "function_call_output",
-                        call_id: call.id ?? "undefined",
+                        call_id,
                         output: JSON.stringify(call.results)
                     })
                 }
