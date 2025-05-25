@@ -92,13 +92,7 @@ export function serialize(arg: any, schema: JSONSchema): string {
             const properties = schema.properties;
             return `<object>${Object.keys(properties)
                     .map(key => {
-                        if (!(key in arg)) {
-                            if (schema.required && key in schema.required) {
-                                throw new Error(`Missing property: ${key}`);
-                            } else {
-                                return ""
-                            }
-                        }
+                        if (!(key in arg)) return ""
                         return `<${key}>${serialize(arg[key], properties[key])}</${key}>`;
                     }).join('')}</object>`;
 
@@ -175,13 +169,6 @@ export function deserialize(xml: string, schema: JSONSchema): any {
                     throw new Error(`Duplicated property: ${key} on ${xml}`);
                 }
                 obj[key] = deserialize(unwrap(element, key), schema.properties[key])
-            }
-            if (schema.required) {
-                for (const key of schema.required) {
-                    if (!(key in obj)) {
-                        throw new Error(`Missing required property: ${key}`)
-                    }
-                }
             }
             return obj;
         }
