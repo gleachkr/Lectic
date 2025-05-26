@@ -62,19 +62,23 @@ async function partToContent(part: MessageAttachmentPart) {
         }
 }
 
-function addCache(messages : Anthropic.Messages.MessageParam[]) {
-    if (messages.length > 0) {
-        const last_message = messages[messages.length - 1]
-        if (last_message.content.length > 0) {
-            const last_content = last_message.content[last_message.content.length - 1]
+function updateCache(messages : Anthropic.Messages.MessageParam[]) {
+    let idx = 0
+    for (const message of messages) {
+        if (message.content.length > 0) {
+            const last_content = message.content[message.content.length - 1]
             if (typeof last_content !== "string" && 
                 last_content.type !== "redacted_thinking" &&
-                    last_content.type !== "thinking") {
-                last_content.cache_control = {
-                    type: "ephemeral"
+                    last_content.type !== "thinking") 
+                {
+                    if (idx == messages.length - 1) { 
+                        last_content.cache_control = { type: "ephemeral" }
+                    } else if (typeof last_content !== "string") {
+                        delete last_content.cache_control
+                    }
                 }
-            }
         }
+        idx++
     }
 }
 
@@ -271,7 +275,7 @@ async function* handleToolUse(
 
         messages.push({ role: "user", content })
 
-        addCache(messages)
+        updateCache(messages)
 
         Logger.debug("anthropic - messages (tool)", messages)
 
@@ -314,7 +318,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
             messages.push(...await handleMessage(msg, lectic))
         }
 
-        addCache(messages)
+        updateCache(messages)
 
         Logger.debug("anthropic - messages", messages)
 
