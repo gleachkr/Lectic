@@ -18,7 +18,7 @@ function getText(msg : Anthropic.Messages.Message) : string {
         }
     }
     if (rslt === "") rslt = "…"
-    return rslt
+        return rslt
 }
 
 async function partToContent(part: MessageAttachmentPart) {
@@ -60,6 +60,22 @@ async function partToContent(part: MessageAttachmentPart) {
                 text: `<error>Media type ${media_type} is not supported.</error>` 
             } as const
         }
+}
+
+function addCache(messages : Anthropic.Messages.MessageParam[]) {
+    if (messages.length > 0) {
+        const last_message = messages[messages.length - 1]
+        if (last_message.content.length > 0) {
+            const last_content = last_message.content[last_message.content.length - 1]
+            if (typeof last_content !== "string" && 
+                last_content.type !== "redacted_thinking" &&
+                    last_content.type !== "thinking") {
+                last_content.cache_control = {
+                    type: "ephemeral"
+                }
+            }
+        }
+    }
 }
 
 async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.Messages.MessageParam[]> {
@@ -154,8 +170,8 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
 function getTools(lectic : Lectic) : Anthropic.Messages.ToolUnion[] {
 
     const nativeTools = (lectic.header.interlocutor.tools || [])
-        .filter(tool => "native" in tool)
-        .map(tool => tool.native)
+    .filter(tool => "native" in tool)
+    .map(tool => tool.native)
 
     const tools : Anthropic.Messages.ToolUnion[]  = []
     for (const tool of Object.values(Tool.registry)) {
@@ -184,155 +200,159 @@ async function* handleToolUse(
     messages : Anthropic.Messages.MessageParam[], 
     lectic : Lectic,
     client : Anthropic
-    ) : AsyncGenerator<string | Message> {
+) : AsyncGenerator<string | Message> {
 
-        let recur = 0
+    let recur = 0
 
-        while (message.stop_reason == "tool_use") {
-            yield "\n\n"
-            recur++
+    while (message.stop_reason == "tool_use") {
+        yield "\n\n"
+        recur++
 
             if (recur > 12) {
-                yield "<error>Runaway tool use!</error>"
-                yield new AssistantMessage({
-                    content: "<error>Runaway tool use!</error>",
-                    name: lectic.header.interlocutor.name
-                })
-                return
-            }
-
-            messages.push({
-                role: "assistant",
-                content: message.content
-            })
-
-            const content: Anthropic.Messages.ToolResultBlockParam[] = []
-
-            for (const block of message.content) {
-                if (block.type == "tool_use") {
-                    let results : ToolCallResult[]
-                    let is_error = false
-                    if (recur > 10) {
-                        results = ToolCallResults("Tool usage limit exceeded, no further tool calls will be allowed")
-                        is_error = true
-                    } else {
-                        if (!(block.input instanceof Object)) {
-                            results = ToolCallResults("The tool input isn't the right type. Tool inputs need to be returned as objects.")
-                            is_error = true
-                        } else if (block.name in Tool.registry) {
-                            try {
-                                results = await Tool.registry[block.name].call(block.input)
-                            } catch (e : unknown) {
-                                if (e instanceof Error) {
-                                    results = ToolCallResults(e.message)
-                                    is_error = true
-                                } else {
-                                    throw e
-                                }
-                            }
-                            yield serializeCall(Tool.registry[block.name], {
-                                name: block.name,
-                                args: block.input, 
-                                id: block.id,
-                                isError : is_error,
-                                results
-                            })
-
-                            yield "\n\n"
-                        } else {
-                            results = ToolCallResults(`Unrecognized tool name ${block.name}`)
-                            is_error = true
-                        }
-                        content.push({
-                            type : "tool_result",
-                            tool_use_id : block.id,
-                            content: results,
-                            is_error: is_error,
-                        })
-                    }
-                }
-            }
-
-            messages.push({ role: "user", content })
-
-            Logger.debug("anthropic - messages (tool)", messages)
-
-            let stream = (client as Anthropic).messages.stream({
-                max_tokens: lectic.header.interlocutor.max_tokens || 1024,
-                system: systemPrompt(lectic),
-                messages: messages,
-                model: lectic.header.interlocutor.model ?? 
-                    'claude-sonnet-4-20250514',
-                tools: getTools(lectic)
-            });
-
-            for await (const messageEvent of stream) {
-                if (messageEvent.type === 'content_block_delta' && 
-                    messageEvent.delta.type === "text_delta") {
-                    yield messageEvent.delta.text
-                }
-            }
-
-            message = await stream.finalMessage()
-
-            Logger.debug("anthropic - reply (tool)", message)
-
+            yield "<error>Runaway tool use!</error>"
             yield new AssistantMessage({
-                content: getText(message),
+                content: "<error>Runaway tool use!</error>",
                 name: lectic.header.interlocutor.name
             })
-
+            return
         }
 
-    }
+        messages.push({
+            role: "assistant",
+            content: message.content
+        })
 
-    export const AnthropicBackend : Backend & { client : Anthropic } = {
+        const content: Anthropic.Messages.ToolResultBlockParam[] = []
 
-        async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
+        for (const block of message.content) {
+            if (block.type == "tool_use") {
+                let results : ToolCallResult[]
+                let is_error = false
+                if (recur > 10) {
+                    results = ToolCallResults("Tool usage limit exceeded, no further tool calls will be allowed")
+                    is_error = true
+                } else {
+                    if (!(block.input instanceof Object)) {
+                        results = ToolCallResults("The tool input isn't the right type. Tool inputs need to be returned as objects.")
+                        is_error = true
+                    } else if (block.name in Tool.registry) {
+                        try {
+                            results = await Tool.registry[block.name].call(block.input)
+                        } catch (e : unknown) {
+                            if (e instanceof Error) {
+                                results = ToolCallResults(e.message)
+                                is_error = true
+                            } else {
+                                throw e
+                            }
+                        }
+                        yield serializeCall(Tool.registry[block.name], {
+                            name: block.name,
+                            args: block.input, 
+                            id: block.id,
+                            isError : is_error,
+                            results
+                        })
 
-            const messages : Anthropic.Messages.MessageParam[] = []
-
-            for (const msg of lectic.body.messages) {
-                messages.push(...await handleMessage(msg, lectic))
-            }
-
-            Logger.debug("anthropic - messages", messages)
-
-            let stream = this.client.messages.stream({
-                system: systemPrompt(lectic),
-                messages: messages,
-                model: lectic.header.interlocutor.model ?? 'claude-sonnet-4-20250514',
-                temperature: lectic.header.interlocutor.temperature,
-                max_tokens: lectic.header.interlocutor.max_tokens || 1024,
-                tools: getTools(lectic)
-            });
-
-            for await (const messageEvent of stream) {
-                if (messageEvent.type === 'content_block_delta' && 
-                    messageEvent.delta.type === "text_delta") {
-                    yield messageEvent.delta.text
+                        yield "\n\n"
+                    } else {
+                        results = ToolCallResults(`Unrecognized tool name ${block.name}`)
+                        is_error = true
+                    }
+                    content.push({
+                        type : "tool_result",
+                        tool_use_id : block.id,
+                        content: results,
+                        is_error: is_error,
+                    })
                 }
             }
+        }
 
-            let msg = await stream.finalMessage()
+        messages.push({ role: "user", content })
 
-            Logger.debug("anthropic - reply", msg)
+        addCache(messages)
 
-            if (msg.stop_reason == "tool_use") {
-                yield* handleToolUse(msg, messages, lectic, this.client)
-            } else {
-                yield new AssistantMessage({
-                    content: getText(msg),
-                    name: lectic.header.interlocutor.name
-                })
+        Logger.debug("anthropic - messages (tool)", messages)
+
+        let stream = (client as Anthropic).messages.stream({
+            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            system: systemPrompt(lectic),
+            messages: messages,
+            model: lectic.header.interlocutor.model ?? 
+                'claude-sonnet-4-20250514',
+            tools: getTools(lectic)
+        });
+
+        for await (const messageEvent of stream) {
+            if (messageEvent.type === 'content_block_delta' && 
+                messageEvent.delta.type === "text_delta") {
+                yield messageEvent.delta.text
             }
-        },
+        }
 
-        client : new Anthropic({
-            apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
-            maxRetries: 5,
-        }),
+        message = await stream.finalMessage()
 
-        provider : LLMProvider.Anthropic,
+        Logger.debug("anthropic - reply (tool)", message)
+
+        yield new AssistantMessage({
+            content: getText(message),
+            name: lectic.header.interlocutor.name
+        })
 
     }
+
+}
+
+export const AnthropicBackend : Backend & { client : Anthropic } = {
+
+    async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
+
+        const messages : Anthropic.Messages.MessageParam[] = []
+
+        for (const msg of lectic.body.messages) {
+            messages.push(...await handleMessage(msg, lectic))
+        }
+
+        addCache(messages)
+
+        Logger.debug("anthropic - messages", messages)
+
+        let stream = this.client.messages.stream({
+            system: systemPrompt(lectic),
+            messages: messages,
+            model: lectic.header.interlocutor.model ?? 'claude-sonnet-4-20250514',
+            temperature: lectic.header.interlocutor.temperature,
+            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            tools: getTools(lectic)
+        });
+
+        for await (const messageEvent of stream) {
+            if (messageEvent.type === 'content_block_delta' && 
+                messageEvent.delta.type === "text_delta") {
+                yield messageEvent.delta.text
+            }
+        }
+
+        let msg = await stream.finalMessage()
+
+        Logger.debug("anthropic - reply", msg)
+
+        if (msg.stop_reason == "tool_use") {
+            yield* handleToolUse(msg, messages, lectic, this.client)
+        } else {
+            yield new AssistantMessage({
+                content: getText(msg),
+                name: lectic.header.interlocutor.name
+            })
+        }
+    },
+
+    client : new Anthropic({
+        apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
+        maxRetries: 5,
+    }),
+
+    provider : LLMProvider.Anthropic,
+
+}
