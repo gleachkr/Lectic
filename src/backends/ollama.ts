@@ -138,7 +138,7 @@ async function* handleToolUse(
         Logger.debug("ollama - reply (tool)", response)
     }
 
-    return new AssistantMessage({
+    yield new AssistantMessage({
         name: lectic.header.interlocutor.name,
         content: getText(response)
     })
