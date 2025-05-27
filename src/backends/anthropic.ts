@@ -263,13 +263,13 @@ async function* handleToolUse(
                         results = ToolCallResults(`Unrecognized tool name ${block.name}`)
                         is_error = true
                     }
-                    content.push({
-                        type : "tool_result",
-                        tool_use_id : block.id,
-                        content: results,
-                        is_error: is_error,
-                    })
                 }
+                content.push({
+                    type : "tool_result",
+                    tool_use_id : block.id,
+                    content: results,
+                    is_error: is_error,
+                })
             }
         }
 
