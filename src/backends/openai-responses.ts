@@ -190,21 +190,19 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<OpenAI.Re
                     content: interaction.text
                 })
             } 
-            if (interaction.calls) {
-                for (const call of interaction.calls) {
-                    const call_id = call.id ?? Bun.hash(JSON.stringify(call.args)).toString()
-                    results.push({
-                        type: "function_call",
-                        call_id,
-                        name: call.name,
-                        arguments: JSON.stringify(call.args)
-                    })
-                    results.push({
-                        type: "function_call_output",
-                        call_id,
-                        output: JSON.stringify(call.results)
-                    })
-                }
+            for (const call of interaction.calls) {
+                const call_id = call.id ?? Bun.randomUUIDv7()
+                results.push({
+                    type: "function_call",
+                    call_id,
+                    name: call.name,
+                    arguments: JSON.stringify(call.args)
+                })
+                results.push({
+                    type: "function_call_output",
+                    call_id,
+                    output: JSON.stringify(call.results)
+                })
             }
         }
         return results

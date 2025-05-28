@@ -94,28 +94,27 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
                     text: interaction.text
                 })
             }
-            for (const call of interaction.calls) {
-                modelParts.push({
-                    type: "tool_use",
-                    name: call.name,
-                    id: call.id ?? "undefined",
-                    input: call.args
-                })
-            }
-
-            results.push({ role: "assistant", content: modelParts})
-
 
             if (interaction.calls.length > 0) {
+
                 for (const call of interaction.calls) {
+                    const call_id = call.id ?? Bun.randomUUIDv7()
+                    modelParts.push({
+                        type: "tool_use",
+                        name: call.name,
+                        id: call_id,
+                        input: call.args
+                    })
+
                     userParts.push({
                         type : "tool_result",
-                        tool_use_id : call.id ?? "undefined",
+                        tool_use_id : call_id,
                         content: [ ...call.results ],
                         is_error: call.isError,
                     })
                 }
-                results.push({role : "user", content: userParts})
+                results.push({ role: "assistant", content: modelParts })
+                results.push({ role : "user", content: userParts })
             }
         }
         return results
