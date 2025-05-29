@@ -10,21 +10,13 @@ import remarkDirective from "remark-directive"
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
     let match = expr.exec(raw)
-    if (match?.[1]) {
-        return match[1]
-    } else {
-        return null
-    }
+    return match?.[1] ?? null
 }
 
 export function getBody(raw:string) : string | null {
     let expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/m
     let match = expr.exec(raw)
-    if (match?.[1]) {
-        return match[1]
-    } else {
-        return null
-    }
+    return match?.[1] ?? null
 }
 
 export function bodyToMessages(raw : string) : Message[] {
