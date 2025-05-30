@@ -77,12 +77,14 @@ async function *handleToolUse(
         })
 
         for (const call of message.tool_calls) {
+            const call_id = call.id ?? Bun.randomUUIDv7()
+            const inputs = JSON.parse(call.function.arguments)
+
             let results : ToolCallResult[]
             if (recur > 10) {
                 results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.function.name in Tool.registry) {
                  // TODO error handling
-                const inputs = JSON.parse(call.function.arguments)
                 try {
                     results = await Tool.registry[call.function.name].call(inputs)
                 } catch (e) {
@@ -92,19 +94,20 @@ async function *handleToolUse(
                         throw e
                     }
                 }
-                yield serializeCall(Tool.registry[call.function.name], {
-                    name: call.function.name,
-                    args: inputs, 
-                    id: call.id,
-                    results
-                })
-                yield "\n\n"
             } else {
                 results = ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
             }
+
+            yield serializeCall(Tool.registry[call.function.name], {
+                name: call.function.name,
+                args: inputs, 
+                id: call_id,
+                results
+            })
+            yield "\n\n"
             messages.push({
                     role: "tool",
-                    tool_call_id : call.id,
+                    tool_call_id : call_id,
                     content: results
             })
         }
