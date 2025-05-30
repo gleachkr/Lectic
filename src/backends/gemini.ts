@@ -201,11 +201,8 @@ async function *handleToolUse(
             parts.push({
                 functionResponse: {
                     name: call.name,
-                    response: {
-                        id: call.id,
-                        name: call.name,
-                        content: results
-                    }
+                    id: call.id,
+                    response: { output: results }
                 }
             })
         }
@@ -293,7 +290,8 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
                 modelParts.push({
                     functionCall: {
                         name: call.name,
-                        args: call.args
+                        args: call.args,
+                        id: call.id
                     }
                 })
             }
@@ -305,11 +303,8 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
                     userParts.push({
                         functionResponse: {
                             name: call.name,
-                            response: {
-                                id: call.id,
-                                name: call.name,
-                                content: call.results
-                            }
+                            id: call.id,
+                            response: { output: call.results }
                         }
                     })
                 }
