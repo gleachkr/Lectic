@@ -57,11 +57,13 @@ async function *handleToolUse(
     client : OpenAI) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+
     while (message.tool_calls) {
         yield "\n\n"
         recur++
 
-        if (recur > 12) {
+        if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
             yield new AssistantMessage({
                 name: lectic.header.interlocutor.name,
@@ -81,7 +83,7 @@ async function *handleToolUse(
             const inputs = JSON.parse(call.function.arguments)
 
             let results : ToolCallResult[]
-            if (recur > 10) {
+            if (recur > max_tool_use) {
                 results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.function.name in Tool.registry) {
                  // TODO error handling

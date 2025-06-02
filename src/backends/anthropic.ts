@@ -206,12 +206,13 @@ async function* handleToolUse(
 ) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
 
     while (message.stop_reason == "tool_use") {
         yield "\n\n"
         recur++
 
-            if (recur > 12) {
+            if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
             yield new AssistantMessage({
                 content: "<error>Runaway tool use!</error>",
@@ -231,7 +232,7 @@ async function* handleToolUse(
             if (block.type == "tool_use") {
                 let results : ToolCallResult[]
                 let is_error = false
-                if (recur > 10) {
+                if (recur > max_tool_use) {
                     results = ToolCallResults("Tool usage limit exceeded, no further tool calls will be allowed")
                     is_error = true
                 } else {

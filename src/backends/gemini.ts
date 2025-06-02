@@ -152,13 +152,14 @@ async function *handleToolUse(
     client : GoogleGenAI) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
 
     while (response.functionCalls && response.functionCalls.length > 0) {
         let calls = response.functionCalls
         yield "\n\n"
         recur++
 
-        if (recur > 12) {
+        if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
             yield new AssistantMessage({
                 name: lectic.header.interlocutor.name,
@@ -176,7 +177,7 @@ async function *handleToolUse(
 
         for (const call of calls) {
             let results : ToolCallResult[]
-            if (recur > 10) {
+            if (max_tool_use > 10) {
                 results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.name && call.name in Tool.registry) {
                 try {

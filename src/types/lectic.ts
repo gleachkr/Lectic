@@ -20,6 +20,7 @@ export type Interlocutor = {
     memories? : Memories
     temperature? : number
     max_tokens? : number
+    max_tool_use? : number
     reminder? : string
 }
 
@@ -65,6 +66,9 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
     } else if (("max_tokens" in raw) && typeof raw.max_tokens !== "number") {
         // Check for positive natural number...
         throw Error(`The max_tokens for ${raw.name} wasn't well-formed, it needs to be a number.`)
+    } else if (("max_tool_use" in raw) && typeof raw.max_tool_use !== "number") {
+        // Check for positive natural number...
+        throw Error(`The max_tool_use for ${raw.name} wasn't well-formed, it needs to be a number.`)
     } else if (("reminder" in raw) && typeof raw.reminder !== "string") {
         throw Error(`The reminder for ${raw.name} wasn't well-formed, it needs to be a string.`)
     } else if (("temperature" in raw)) {
