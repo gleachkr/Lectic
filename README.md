@@ -616,6 +616,7 @@ interlocutor:
     model: claude-3-7-sonnet    # Model selection
     temperature: 0.7            # Response variability (0-1)
     max_tokens: 1024            # Maximum response length
+    max_tool_use: 10            # Maximum permitted tool calls 
 
     # Optional Context management
     memories: previous.txt      # Context from previous conversations.
