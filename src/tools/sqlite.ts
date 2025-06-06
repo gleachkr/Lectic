@@ -31,6 +31,7 @@ export class SQLiteTool extends Tool {
         this.limit = spec.limit
 
         this.db = new Database(spec.sqlite)
+        this.db.exec("PRAGMA foreign_keys = ON")
         this.register()
     }
 
