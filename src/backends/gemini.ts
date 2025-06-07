@@ -177,7 +177,7 @@ async function *handleToolUse(
 
         for (const call of calls) {
             let results : ToolCallResult[]
-            if (max_tool_use > 10) {
+            if (recur > max_tool_use) {
                 results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
             } else if (call.name && call.name in Tool.registry) {
                 try {

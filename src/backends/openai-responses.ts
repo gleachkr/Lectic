@@ -117,7 +117,7 @@ async function *handleToolUse(
                 name: call.name,
                 type: "function_call",
                 call_id,
-                arguments: JSON.stringify(call.arguments)
+                arguments: call.arguments
             })
             messages.push({
                 type: "function_call_output",
@@ -129,7 +129,7 @@ async function *handleToolUse(
         Logger.debug("openai - messages (tool)", messages)
 
         const stream = client.responses.stream({
-            input: messages.concat([developerMessage(lectic)]),
+            input: [developerMessage(lectic)].concat(messages),
             model: lectic.header.interlocutor.model ?? 'gpt-4.1',
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
@@ -263,7 +263,7 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<OpenAI.Re
     return [{ role : msg.role, content }]
 }
 
-function developerMessage(lectic : Lectic) {
+function developerMessage(lectic : Lectic) : OpenAI.Responses.ResponseInputItem {
     return {
         role : "developer" as "developer",
         content: systemPrompt(lectic)
@@ -295,7 +295,7 @@ export class OpenAIResponsesBackend implements Backend {
         Logger.debug("openai - messages", messages)
 
         let stream = this.client.responses.stream({
-            input: messages.concat([developerMessage(lectic)]),
+            input: [developerMessage(lectic)].concat(messages),
             model: lectic.header.interlocutor.model ?? this.defaultModel,
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
