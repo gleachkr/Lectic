@@ -66,8 +66,10 @@ async function *handleToolUse(
 
     let recur = 0
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+    let called_tool = true
 
-    while (message.output.filter(output => output.type === "function_call").length > 0 ) {
+    while (called_tool) {
+        called_tool = false
         yield "\n\n"
         recur++
 
@@ -77,48 +79,48 @@ async function *handleToolUse(
                 name: lectic.header.interlocutor.name,
                 content: "<error>Runaway tool use!</error>"
             })
+            return
         }
 
-        for (const call of message.output.filter(output => output.type === "function_call")) {
-            const call_id = call.call_id ?? Bun.randomUUIDv7()
-            const inputs = JSON.parse(call.arguments)
+        for (const output of message.output) {
 
-            let results : ToolCallResult[]
-            if (recur > max_tool_use) {
-                results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
-            } else if (call.name in Tool.registry) {
-                 // TODO error handling
-                try {
-                    results = await Tool.registry[call.name].call(inputs)
-                } catch (e) {
-                    if (e instanceof Error) {
-                        results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
-                    } else {
-                        throw e
+            messages.push(output)
+
+            if (output.type === "function_call") {
+                called_tool = false
+                const inputs = JSON.parse(output.arguments)
+
+                let results : ToolCallResult[]
+                if (recur > max_tool_use) {
+                    results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
+                } else if (output.name in Tool.registry) {
+                     // TODO error handling
+                    try {
+                        results = await Tool.registry[output.name].call(inputs)
+                    } catch (e) {
+                        if (e instanceof Error) {
+                            results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
+                        } else {
+                            throw e
+                        }
                     }
+                } else {
+                    results = ToolCallResults(`<error>Unrecognized tool name ${output.name}</error>`)
                 }
-            } else {
-                results = ToolCallResults(`<error>Unrecognized tool name ${call.name}</error>`)
-            }
 
-            yield serializeCall(Tool.registry[call.name], {
-                name: call.name,
-                args: inputs, 
-                id: call_id,
-                results
-            })
-            yield "\n\n"
-            messages.push({
-                name: call.name,
-                type: "function_call",
-                call_id,
-                arguments: call.arguments
-            })
-            messages.push({
-                type: "function_call_output",
-                call_id,
-                output: JSON.stringify(results)
-            })
+                yield serializeCall(Tool.registry[output.name], {
+                    name: output.name,
+                    args: inputs, 
+                    id: output.call_id,
+                    results
+                })
+                yield "\n\n"
+                messages.push({
+                    type: "function_call_output",
+                    call_id: output.call_id,
+                    output: JSON.stringify(results)
+                })
+            }
         }
 
         Logger.debug("openai - messages (tool)", messages)
