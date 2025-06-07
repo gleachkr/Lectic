@@ -221,10 +221,7 @@ async function* handleToolUse(
             return
         }
 
-        messages.push({
-            role: "assistant",
-            content: message.content
-        })
+        messages.push(message)
 
         const content: Anthropic.Messages.ToolResultBlockParam[] = []
 
