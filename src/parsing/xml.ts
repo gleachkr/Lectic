@@ -45,6 +45,7 @@ export function escapeTags(string : string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
+    .replace(/:/g, "&#58;")
     .replace(/`/g, "&#96;")
     .replace(/_/g, "&#95;")
     .replace(/\*/g, "&#42;")
@@ -59,5 +60,6 @@ export function unescapeTags(string : string) {
     .replace(/&#96;/g, "`")
     .replace(/&#95;/g, "_")
     .replace(/&#42;/g, "*")
+    .replace(/&#58;/g, ":")
     .replace(/&amp;/g, "&");
 }
