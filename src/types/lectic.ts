@@ -1,5 +1,6 @@
 import type { Message } from "./message"
 import type { Interlocutor } from "./interlocutor"
+import { Tool } from "./tool"
 import { validateInterlocutor } from "./interlocutor"
 import { isMessage } from "./message"
 import { isExecToolSpec, ExecTool } from "../tools/exec"
@@ -22,6 +23,7 @@ async function maybeFromFile<T>(something: T) : Promise<T | string>{
 
 type DialecticHeaderSpec = {
     interlocutor : Interlocutor
+    interlocutors? : [ ...Interlocutor[] ]
 }
 
 type ManylecticHeaderSpec = {
@@ -36,7 +38,7 @@ export class LecticHeader {
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             this.interlocutor = spec.interlocutor
-            this.interlocutors = [spec.interlocutor]
+            this.interlocutors = [spec.interlocutor, ... (spec.interlocutors ?? [])]
         } else {
             this.interlocutor = spec.interlocutors[0]
             this.interlocutors = spec.interlocutors
@@ -52,33 +54,43 @@ export class LecticHeader {
         }
     }
 
-
     async initialize() {
-        // TODO DRY the "load from file" pattern
+        for (const interlocutor of this.interlocutors) {
+            interlocutor.prompt = await maybeFromFile(interlocutor.prompt)
 
-        this.interlocutor.prompt = await maybeFromFile(this.interlocutor.prompt)
+            interlocutor.memories = await maybeFromFile(interlocutor.memories)
 
-        this.interlocutor.memories = await maybeFromFile(this.interlocutor.memories)
+            interlocutor.registry = {}
 
-        if (this.interlocutor.tools) {
-            for (const spec of this.interlocutor.tools) {
-                // load usage from file if available
-                if (isExecToolSpec(spec)) {
-                    spec.usage = await maybeFromFile(spec.usage)
-                    new ExecTool(spec)
-                } else if (isSQLiteToolSpec(spec)) {
-                    new SQLiteTool(spec)
-                } else if (isThinkToolSpec(spec)) {
-                    new ThinkTool(spec)
-                } else if (isServeToolSpec(spec)) {
-                    new ServeTool(spec)
-                } else if (isMCPSpec(spec)) {
-                    await MCPTool.fromSpec(spec)
-                } else if (isNativeTool(spec)) {
-                    //XXX Handle this per-backend
-                } else {
-                    throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized.` +
-                                `Check the tool section of your YAML header.`)
+            if (interlocutor.tools) {
+                for (const spec of interlocutor.tools) {
+                    // TODO it'd be nice to just have the tools save their
+                    // registration boilerplate on to Tool as each class is defined
+                    const register = (tool : Tool) => {
+                        if (interlocutor.registry === undefined) return
+                        if (tool.name in interlocutor.registry) {
+                            throw Error(`the name ${tool.name} is being used twice. Each tool needs a unique name`)
+                        } else {
+                            interlocutor.registry[tool.name] = tool 
+                        }
+                    }
+                    if (isExecToolSpec(spec)) {
+                        spec.usage = await maybeFromFile(spec.usage)
+                        register(new ExecTool(spec))
+                    } else if (isSQLiteToolSpec(spec)) {
+                        register(new SQLiteTool(spec))
+                    } else if (isThinkToolSpec(spec)) {
+                        register(new ThinkTool(spec))
+                    } else if (isServeToolSpec(spec)) {
+                        register(new ServeTool(spec))
+                    } else if (isMCPSpec(spec)) {
+                        (await MCPTool.fromSpec(spec)).map(register)
+                    } else if (isNativeTool(spec)) {
+                        
+                    } else {
+                        throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized.` +
+                                    `Check the tool section of your YAML header.`)
+                    }
                 }
             }
         }
@@ -89,7 +101,12 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
     return raw !== null &&
         typeof raw === 'object' &&
         (('interlocutor' in raw 
-            && validateInterlocutor(raw.interlocutor)) ||
+            && validateInterlocutor(raw.interlocutor)
+            && ('interlocutors' in raw 
+                ? Array.isArray(raw.interlocutors) && raw.interlocutors.every(validateInterlocutor)
+                : true
+               )
+         ) ||
          ('interlocutors' in raw 
             && Array.isArray(raw.interlocutors)
             && raw.interlocutors.every(validateInterlocutor))

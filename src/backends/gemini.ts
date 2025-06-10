@@ -2,10 +2,9 @@ import type { Content, Part, Schema, ContentListUnion, Candidate } from '@google
 import type * as Gemini from '@google/genai' 
 import { GoogleGenAI, Type, GenerateContentResponse } from '@google/genai'
 import type { Message } from "../types/message"
-import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
@@ -66,7 +65,7 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentL
         config: {
             systemInstruction: systemPrompt(lectic),
             tools: [{
-                functionDeclarations: getTools(),
+                functionDeclarations: getTools(lectic),
                 googleSearch: nativeTools.find(tool => tool === "search") 
                     ? {}
                     : undefined,
@@ -79,19 +78,6 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentL
             maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
         }
     });
-}
-
-// XXX: we need this because google's `text()` method on
-// GenerateContentResponse currently uncatchable logs an error if there
-// a non-text part
-function getText(response : GenerateContentResponse) : string {
-    let text = ""
-    if (response.candidates?.[0].content?.parts?.length) {
-        for (const part of response.candidates?.[0].content?.parts) {
-            if (part.text) text += part.text
-        }
-    }
-    return text
 }
 
 async function* accumulateStream(
@@ -129,9 +115,9 @@ function googleParameters(params: { [key: string] : JSONSchema }) : { [key: stri
     return rslt
 }
 
-function getTools() : Gemini.FunctionDeclaration[] {
+function getTools(lectic : Lectic) : Gemini.FunctionDeclaration[] {
     const tools : Gemini.FunctionDeclaration[] = []
-    for (const tool of Object.values(Tool.registry)) {
+    for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
         tools.push( {
             name : tool.name,
             description : tool.description,
@@ -152,6 +138,7 @@ async function *handleToolUse(
     client : GoogleGenAI) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
 
     while (response.functionCalls && response.functionCalls.length > 0) {
@@ -161,10 +148,6 @@ async function *handleToolUse(
 
         if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
-            yield new AssistantMessage({
-                name: lectic.header.interlocutor.name,
-                content: "<error>Runaway tool use!</error>" 
-            })
             return
         }
 
@@ -179,9 +162,9 @@ async function *handleToolUse(
             let results : ToolCallResult[]
             if (recur > max_tool_use) {
                 results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
-            } else if (call.name && call.name in Tool.registry) {
+            } else if (call.name && call.name in registry) {
                 try {
-                    results = await Tool.registry[call.name].call(call.args)
+                    results = await registry[call.name].call(call.args)
                 } catch (e : unknown) {
                     if (e instanceof Error) {
                         results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
@@ -189,7 +172,7 @@ async function *handleToolUse(
                         throw e
                     }
                 }
-                yield serializeCall(Tool.registry[call.name], {
+                yield serializeCall(registry[call.name], {
                     id : call.id,
                     name: call.name,
                     args: call.args || {}, 
@@ -224,10 +207,6 @@ async function *handleToolUse(
 
         response = accumulatedResponse
 
-        yield new AssistantMessage({
-            content: getText(response) || "",
-            name: lectic.header.interlocutor.name
-        })
     }
 
 }
@@ -381,10 +360,6 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
           yield* handleToolUse(accumulatedResponse, messages, lectic, this.client);
       } else {
           Logger.debug("gemini - reply", { accumulatedResponse })
-          yield new AssistantMessage({
-              name: lectic.header.interlocutor.name,
-              content: getText(accumulatedResponse)
-          })
       }
     },
 

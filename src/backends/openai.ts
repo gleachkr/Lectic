@@ -1,6 +1,5 @@
 import OpenAI from 'openai'
 import type { Message } from "../types/message"
-import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
@@ -8,16 +7,13 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults,  type ToolCallResult } from "../types/tool"
 import { systemPrompt } from './util'
 
-function getText(msg : OpenAI.Chat.ChatCompletionMessage) : string {
-    return msg.content ?? "…"
-}
 
-function getTools() : OpenAI.Chat.Completions.ChatCompletionTool[] {
+function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
     const tools : OpenAI.Chat.Completions.ChatCompletionTool[] = []
-    for (const tool of Object.values(Tool.registry)) {
+    for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
 
         // the OPENAI API rejects default values for parameters. These are
         // hints about what happens when a value is missing, but they can
@@ -57,6 +53,7 @@ async function *handleToolUse(
     client : OpenAI) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
 
     while (message.tool_calls) {
@@ -65,10 +62,6 @@ async function *handleToolUse(
 
         if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
-            yield new AssistantMessage({
-                name: lectic.header.interlocutor.name,
-                content: "<error>Runaway tool use!</error>"
-            })
         }
 
         messages.push({
@@ -85,10 +78,10 @@ async function *handleToolUse(
             let results : ToolCallResult[]
             if (recur > max_tool_use) {
                 results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
-            } else if (call.function.name in Tool.registry) {
+            } else if (call.function.name in registry) {
                  // TODO error handling
                 try {
-                    results = await Tool.registry[call.function.name].call(inputs)
+                    results = await registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
                         results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
@@ -100,7 +93,7 @@ async function *handleToolUse(
                 results = ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
             }
 
-            yield serializeCall(Tool.registry[call.function.name], {
+            yield serializeCall(registry[call.function.name], {
                 name: call.function.name,
                 args: inputs, 
                 id: call_id,
@@ -121,7 +114,7 @@ async function *handleToolUse(
             model: lectic.header.interlocutor.model ?? 'gpt-4.1',
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 1024,
-            tools: getTools()
+            tools: getTools(lectic)
         })
     
         for await (const event of stream) {
@@ -132,10 +125,6 @@ async function *handleToolUse(
 
         Logger.debug("openai - reply (tool)", message)
 
-        yield new AssistantMessage({
-            name: lectic.header.interlocutor.name,
-            content: getText(message)
-        })
     }
 }
 
@@ -294,7 +283,7 @@ export class OpenAIBackend implements Backend {
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 1024,
             stream: true,
-            tools: getTools()
+            tools: getTools(lectic)
         });
 
 
@@ -308,12 +297,7 @@ export class OpenAIBackend implements Backend {
 
         if (msg.tool_calls) {
             yield* handleToolUse(msg, messages, lectic, this.client);
-        } else {
-            yield new AssistantMessage({
-                name: lectic.header.interlocutor.name,
-                content: getText(msg)
-            })
-        }
+        } 
     }
 
     get client() { 

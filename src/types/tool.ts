@@ -15,16 +15,6 @@ export abstract class Tool {
     abstract parameters: { [_ : string] : JSONSchema }
     abstract required? : string[] //TODO: this should not be optional
     abstract call (arg : any) : Promise<ToolCallResult[]>
-
-    register() {
-        if (this.name in Tool.registry) {
-            throw new Error("Two tools were given the same name. Check the tool section of your YAML header.") 
-        } else {
-            Tool.registry[this.name] = this
-        }
-    }
-
-    static registry : { [key: string] : Tool } = {}
 }
 
 export type ToolCall = { 

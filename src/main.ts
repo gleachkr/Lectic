@@ -131,20 +131,17 @@ async function main() {
         if (opts["consolidate"] || opts["header"]) {
             const backend = getBackend(lectic)
             const new_lectic : any = opts["header"] ? lectic : await consolidateMemories(lectic, backend)
+            if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
             if (new_lectic.header.interlocutors.length === 1) {
                 delete new_lectic.header.interlocutors
             } else {
                 delete new_lectic.header.interlocutor
             }
-            if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
             await Logger.write(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}---`, )
         } else {
             // we handle directives, which may update header fields
             handleDirectives(lectic)
-
-            // we then initialize, based on the contents of the header fields
-            await lectic.header.initialize()
 
             const backend = getBackend(lectic)
 

@@ -1,19 +1,14 @@
 import ollama from 'ollama'
 import * as Ollama from 'ollama'
 import type { Message } from "../types/message"
-import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageCommand } from "../types/directive.ts"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
-import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText } from './util'
-
-function getText(response : Ollama.ChatResponse) : string {
-    return response.message.content ?? "…"
-}
 
 // this implementation is pretty conjectural. It would be good to consult some other implementations
 function messageReducer(
@@ -39,9 +34,9 @@ function messageReducer(
   return reduce(previous, item) as Ollama.ChatResponse;
 }
 
-function getTools() : Ollama.Tool[] {
+function getTools(lectic : Lectic) : Ollama.Tool[] {
     const tools : Ollama.Tool[] = []
-    for (const tool of Object.values(Tool.registry)) {
+    for (const tool of Object.values(lectic.header.interlocutor.registry || {})) {
         tools.push({
             type: "function",
             function: {
@@ -65,6 +60,7 @@ async function* handleToolUse(
     ) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
 
     while (response.message.tool_calls) {
@@ -73,10 +69,6 @@ async function* handleToolUse(
         
         if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
-            yield new AssistantMessage({
-                name: lectic.header.interlocutor.name,
-                content: "<error>Runaway tool use!</error>" 
-            })
             return
         }
 
@@ -90,10 +82,10 @@ async function* handleToolUse(
             let results : ToolCallResult[]
             if (recur > max_tool_use) {
                 results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
-            } else if (call.function.name in Tool.registry) {
+            } else if (call.function.name in registry) {
                 const inputs = call.function.arguments
                 try {
-                    results = await Tool.registry[call.function.name].call(inputs)
+                    results = await registry[call.function.name].call(inputs)
                 } catch (e) {
                     if (e instanceof Error) {
                         results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
@@ -101,7 +93,7 @@ async function* handleToolUse(
                         throw e
                     }
                 }
-                yield serializeCall(Tool.registry[call.function.name], {
+                yield serializeCall(registry[call.function.name], {
                     name: call.function.name,
                     args: inputs, 
                     results
@@ -122,7 +114,7 @@ async function* handleToolUse(
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model ?? 'llama3.2',
             stream: true,
-            tools: getTools(),
+            tools: getTools(lectic),
             options: {
                 temperature: lectic.header.interlocutor.temperature,
             }
@@ -139,10 +131,6 @@ async function* handleToolUse(
         Logger.debug("ollama - reply (tool)", response)
     }
 
-    yield new AssistantMessage({
-        name: lectic.header.interlocutor.name,
-        content: getText(response)
-    })
 }
 
 async function partToContent(part: MessageAttachmentPart) 
@@ -266,7 +254,7 @@ export const OllamaBackend : Backend = {
         let stream = await ollama.chat({
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model ?? 'llama3.2',
-            tools: getTools(),
+            tools: getTools(lectic),
             stream: true,
             options: {
                 temperature: lectic.header.interlocutor.temperature,
@@ -284,12 +272,7 @@ export const OllamaBackend : Backend = {
 
         if (msg.message.tool_calls) {
             yield* handleToolUse(msg, messages, lectic)
-        } else {
-            yield new AssistantMessage({
-                name: lectic.header.interlocutor.name,
-                content: getText(msg) 
-            })
-        }
+        } 
     },
 
     provider : LLMProvider.Ollama,

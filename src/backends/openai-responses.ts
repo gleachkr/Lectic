@@ -1,6 +1,5 @@
 import OpenAI from 'openai'
 import type { Message } from "../types/message"
-import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
@@ -8,7 +7,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
 import { systemPrompt, wrapText } from './util'
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
@@ -16,7 +15,7 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const nativeTools = (lectic.header.interlocutor.tools || [])
         .filter(tool => "native" in tool)
         .map(tool => tool.native)
-    for (const tool of Object.values(Tool.registry)) {
+    for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
 
         // the OPENAI API rejects default values for parameters. These are
         // hints about what happens when a value is missing, but they can
@@ -65,6 +64,7 @@ async function *handleToolUse(
     client : OpenAI) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
     let called_tool = true
 
@@ -75,10 +75,6 @@ async function *handleToolUse(
 
         if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
-            yield new AssistantMessage({
-                name: lectic.header.interlocutor.name,
-                content: "<error>Runaway tool use!</error>"
-            })
             return
         }
 
@@ -93,10 +89,10 @@ async function *handleToolUse(
                 let results : ToolCallResult[]
                 if (recur > max_tool_use) {
                     results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
-                } else if (output.name in Tool.registry) {
+                } else if (output.name in registry) {
                      // TODO error handling
                     try {
-                        results = await Tool.registry[output.name].call(inputs)
+                        results = await registry[output.name].call(inputs)
                     } catch (e) {
                         if (e instanceof Error) {
                             results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
@@ -108,7 +104,7 @@ async function *handleToolUse(
                     results = ToolCallResults(`<error>Unrecognized tool name ${output.name}</error>`)
                 }
 
-                yield serializeCall(Tool.registry[output.name], {
+                yield serializeCall(registry[output.name], {
                     name: output.name,
                     args: inputs, 
                     id: output.call_id,
@@ -144,10 +140,6 @@ async function *handleToolUse(
 
         Logger.debug("openai - reply (tool)", message)
 
-        yield new AssistantMessage({
-            name: lectic.header.interlocutor.name,
-            content: message.output_text
-        })
     }
 }
 
@@ -308,10 +300,6 @@ export class OpenAIResponsesBackend implements Backend {
         if (msg.output.some(output => output.type === "function_call")) {
             yield* handleToolUse(msg, messages, lectic, this.client);
         } else {
-            yield new AssistantMessage({
-                name: lectic.header.interlocutor.name,
-                content: msg.output_text
-            })
         }
     }
 

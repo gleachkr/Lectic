@@ -56,6 +56,9 @@ export const Logger : {
         }
     },
 
+    // XXX: from stream is a bit of a legacy method here, but it lets us
+    // potentially yeild things other than strings during the lectic execution,
+    // as `rest`, which is a nice to have, so I leave it here.
     fromStream<A>(generator : AsyncIterable<string | A>) {
         let resolver1 : (result : A[]) => void
         let rejector1 : (result : any) => void

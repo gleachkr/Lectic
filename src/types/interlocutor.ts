@@ -1,4 +1,5 @@
 import { LLMProvider, isLLMProvider } from "./provider"
+import { Tool } from "./tool"
 
 type Memories = string | { [key: string] : string }
  
@@ -8,6 +9,7 @@ export type Interlocutor = {
     name : string
     provider? : LLMProvider
     tools? : object[]
+    registry?: { [key: string] : Tool }
     model? : string
     memories? : Memories
     temperature? : number

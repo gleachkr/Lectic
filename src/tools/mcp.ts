@@ -113,7 +113,6 @@ class MCPListResources extends Tool {
             `Direct resources will be listed with a URI used to access the resource, the name of the resource, ` + 
             `Template resources will be listed with a URI template, name, ` +
             `and optionally a description and mimetype that applies to all matching resources.`
-        this.register()
     };
 
     parameters = {
@@ -166,7 +165,6 @@ export class MCPTool extends Tool {
             // <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-validation-00#rfc.section.6.5>
             this.required = schema.required
         }
-        this.register()
     };
 
     async call(args : {[key : string] : unknown}) : Promise<ToolCallResult[]> {
@@ -201,7 +199,7 @@ export class MCPTool extends Tool {
             name = `mcp_server_${MCPTool.count}`
             MCPTool.count++
         }
-        if (name in MCPTool.registry) {
+        if (name in MCPTool.client_registry) {
             throw new Error(`Two mcp servers have been given the same name, ${name}. Names must be distinct.`)
         } else {
             MCPTool.client_registry[name] = client

@@ -1,6 +1,7 @@
 import type { RootContent } from "mdast"
 import { parseReferences, parseDirectives, parseBlocks, nodeContentRaw, nodeRaw } from "../parsing/markdown"
 import type { ToolCall } from "./tool"
+import type { Interlocutor } from "./interlocutor"
 import { deserializeCall, getSerializedCallName, isSerializedCall, Tool } from "./tool"
 
 export type MessageLink = {
@@ -49,11 +50,13 @@ export class UserMessage {
 export class AssistantMessage {
     content : string
     name: string
+    tools: { [key : string] : Tool }
     role = "assistant" as const
 
-    constructor({ content, name } : {content : string, name: string}) {
+    constructor({ content, interlocutor } : {content : string, interlocutor: Interlocutor}) {
         this.content = content
-        this.name = name
+        this.name = interlocutor.name
+        this.tools = interlocutor.registry ?? {}
     }
 
     containedInteractions() : MessageInteraction[] {
@@ -83,7 +86,7 @@ export class AssistantMessage {
             if (isSerializedCall(blockRaw)) {
                 const name = getSerializedCallName(blockRaw)
                 if (!name) throw Error("Parse error for tool call: couldn't parse name")
-                const tool = Tool.registry[name]
+                const tool = this.tools[name]
                 if (!tool) throw Error(`Couldn't find tool with name ${name} in registry`)
                 const call = deserializeCall(tool, blockRaw)
                 if (call === null) throw Error("Parse error for tool call: couldn't deserialize call")

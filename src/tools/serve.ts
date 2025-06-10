@@ -32,7 +32,6 @@ export class ServeTool extends Tool {
 
 
         ServeTool.count++
-        this.register()
     }
 
     parameters = {

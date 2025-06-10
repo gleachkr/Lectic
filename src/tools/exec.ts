@@ -42,7 +42,6 @@ export class ExecTool extends Tool {
             `The user cannot see the tool call result. You must explicitly report any requested information to the user. ` +
             (spec.usage ?? "")
         ExecTool.count++
-        this.register()
     }
 
     parameters = {

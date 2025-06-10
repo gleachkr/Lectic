@@ -1,25 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Message } from "../types/message"
-import { AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import { serializeCall, ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText } from "./util"
-
-function getText(msg : Anthropic.Messages.Message) : string {
-    let rslt =""
-    for (const block of msg.content) {
-        if (block.type == "text") {
-            rslt += block.text
-        }
-    }
-    if (rslt === "") rslt = "…"
-        return rslt
-}
 
 async function partToContent(part: MessageAttachmentPart) {
     const media_type = part.mimetype
@@ -177,7 +165,7 @@ function getTools(lectic : Lectic) : Anthropic.Messages.ToolUnion[] {
     .map(tool => tool.native)
 
     const tools : Anthropic.Messages.ToolUnion[]  = []
-    for (const tool of Object.values(Tool.registry)) {
+    for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
         tools.push({
             name : tool.name,
             description : tool.description,
@@ -206,6 +194,7 @@ async function* handleToolUse(
 ) : AsyncGenerator<string | Message> {
 
     let recur = 0
+    const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
 
     while (message.stop_reason == "tool_use") {
@@ -214,10 +203,6 @@ async function* handleToolUse(
 
             if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
-            yield new AssistantMessage({
-                content: "<error>Runaway tool use!</error>",
-                name: lectic.header.interlocutor.name
-            })
             return
         }
 
@@ -236,9 +221,9 @@ async function* handleToolUse(
                     if (!(block.input instanceof Object)) {
                         results = ToolCallResults("The tool input isn't the right type. Tool inputs need to be returned as objects.")
                         is_error = true
-                    } else if (block.name in Tool.registry) {
+                    } else if (block.name in registry) {
                         try {
-                            results = await Tool.registry[block.name].call(block.input)
+                            results = await registry[block.name].call(block.input)
                         } catch (e : unknown) {
                             if (e instanceof Error) {
                                 results = ToolCallResults(e.message)
@@ -247,7 +232,7 @@ async function* handleToolUse(
                                 throw e
                             }
                         }
-                        yield serializeCall(Tool.registry[block.name], {
+                        yield serializeCall(registry[block.name], {
                             name: block.name,
                             args: block.input, 
                             id: block.id,
@@ -296,11 +281,6 @@ async function* handleToolUse(
 
         Logger.debug("anthropic - reply (tool)", message)
 
-        yield new AssistantMessage({
-            content: getText(message),
-            name: lectic.header.interlocutor.name
-        })
-
     }
 
 }
@@ -341,12 +321,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
 
         if (msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client)
-        } else {
-            yield new AssistantMessage({
-                content: getText(msg),
-                name: lectic.header.interlocutor.name
-            })
-        }
+        } 
     },
 
     client : new Anthropic({

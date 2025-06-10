@@ -26,7 +26,6 @@ export class ThinkTool extends Tool {
             `Use it when complex reasoning or some cache memory is needed. ` + (spec.usage || "")
 
         ThinkTool.count++
-        this.register()
     }
 
     parameters = {
