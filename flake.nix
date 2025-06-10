@@ -40,6 +40,7 @@
         buildInputs =  [
           importNpmLock.hooks.linkNodeModulesHook
           bun
+          jq
         ];
         npmDeps = importNpmLock.buildNodeModules {
           npmRoot = ./.;
