@@ -101,10 +101,12 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
                         is_error: call.isError,
                     })
                 }
-                results.push({ role: "assistant", content: modelParts })
-                results.push({ role : "user", content: userParts })
             }
+
+            results.push({ role: "assistant", content: modelParts })
+            results.push({ role : "user", content: userParts })
         }
+
         return results
     } else if (msg.role === "assistant") {
         return [{ 
