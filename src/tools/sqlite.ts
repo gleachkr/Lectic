@@ -39,12 +39,11 @@ export class SQLiteTool extends Tool {
              SELECT m.tbl_name AS table_name, m.sql AS create_statement FROM 
                  sqlite_master m
              WHERE 
-                 m.type = 'table' AND
                  m.tbl_name NOT LIKE 'sqlite_%';`).all()
         return `This tool gives you access to an sqlite database. ` + 
             `You can issue SQL queries and statements, and you will receive the results. ` +
             `In order to avoid overwhelming you with extraneous information, results larger than a fixed size will result in an error. ` +
-            `Here are the current tables with their schemas: ${JSON.stringify(schemas)}.` +
+            `Here are the current tables, views, indexes and triggers with their schemas: ${JSON.stringify(schemas)}.` +
             `This information updates automatically, so it will reflect the results of any changes you make.` +
             `${this.details ? `Here are some additional details about the database: ${this.details}` : "" }`
     }
