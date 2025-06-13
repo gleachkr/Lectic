@@ -15,6 +15,18 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
         ("name" in raw ? typeof raw.name === "string" : true)
 }
 
+const description = `
+This tool gives you access to an sqlite database. You can issue an SQLITE query or statement, and you will receive the results.
+
+1. In order to avoid overwhelming you with extraneous information, results larger than a fixed size will result in an error. 
+2. **IMPORTANT**: The tool accepts *one statement at a time*. If you provide multiple statements, statements after the first will be silently ignored. For example,
+
+    CREATE TABLE tableA(x INT); CREATE TABLE tableB(x INT);
+
+Will only create "tableA", the second table will not be created. If you need to execute multiple statements, then you will need to call the tool more than once.
+
+`
+
 
 export class SQLiteTool extends Tool {
 
@@ -40,9 +52,7 @@ export class SQLiteTool extends Tool {
                  sqlite_master m
              WHERE 
                  m.tbl_name NOT LIKE 'sqlite_%';`).all()
-        return `This tool gives you access to an sqlite database. ` + 
-            `You can issue SQL queries and statements, and you will receive the results. ` +
-            `In order to avoid overwhelming you with extraneous information, results larger than a fixed size will result in an error. ` +
+        return description + 
             `Here are the current tables, views, indexes and triggers with their schemas: ${JSON.stringify(schemas)}.` +
             `This information updates automatically, so it will reflect the results of any changes you make.` +
             `${this.details ? `Here are some additional details about the database: ${this.details}` : "" }`
@@ -59,16 +69,11 @@ export class SQLiteTool extends Tool {
 
     async call(args : { query : string }) : Promise<ToolCallResult[]> {
         // need better error handling here
-        const rslt_rows = this.db.query(args.query).all()
+        const rslt_rows = this.db.query(args.query).values()
         for (const row of rslt_rows) {
-            if (row instanceof Uint8Array || row instanceof Buffer) {
-                throw Error("result contained a BLOB column, try refining to select only readable columns.")
-            }
-            if (row instanceof Array) {
-                for (const col of row) {
-                    if (col instanceof Uint8Array || col instanceof Buffer) {
-                        throw Error("result contained a BLOB column, try refining to select only readable columns.")
-                    }
+            for (const col of row) {
+                if (col instanceof Uint8Array) {
+                    throw Error("result contained a BLOB column, try refining to select only readable columns.")
                 }
             }
         }
