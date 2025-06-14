@@ -70,14 +70,17 @@ export class SQLiteTool extends Tool {
     async call(args : { query : string }) : Promise<ToolCallResult[]> {
         // need better error handling here
         const rslt_rows = this.db.query(args.query).values()
-        for (const row of rslt_rows) {
-            for (const col of row) {
-                if (col instanceof Uint8Array) {
-                    throw Error("result contained a BLOB column, try refining to select only readable columns.")
+        // Something's off with bun's provided types, rslt_rows can be null in practice.
+        if (Array.isArray(rslt_rows)) {
+            for (const row of rslt_rows) {
+                for (const col of row) {
+                    if (col instanceof Uint8Array) {
+                        throw Error("result contained a BLOB column, try refining to select only readable columns.")
+                    }
                 }
             }
         }
-        const rslt = JSON.stringify(rslt_rows)
+        const rslt = rslt_rows === null ? "Success" : JSON.stringify(rslt_rows)
         if (rslt.length < (this.limit ?? 10_000)) {
             return ToolCallResults(rslt)
         } else {
