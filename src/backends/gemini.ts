@@ -10,7 +10,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText } from './util'
+import { systemPrompt, wrapText } from './common.ts'
 
 function googleParameter(param: JSONSchema ) : Schema | undefined {
     switch (param.type) {

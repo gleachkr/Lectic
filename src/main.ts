@@ -1,44 +1,15 @@
 import { parseLectic } from "./parsing/parse"
 import { program } from 'commander'
 import type { OptionValues } from 'commander'
-import { AnthropicBackend } from "./backends/anthropic"
-import { OpenAIBackend } from "./backends/openai"
-import { OpenAIResponsesBackend } from "./backends/openai-responses"
-import { OllamaBackend } from "./backends/ollama"
-import { GeminiBackend } from "./backends/gemini"
-import { getDefaultProvider, LLMProvider } from "./types/provider"
 import { consolidateMemories } from "./types/backend"
 import { Logger } from "./logging/logger"
+import { getBackend } from "./backends/util"
 import * as YAML from "yaml"
 import { createWriteStream } from "fs"
 import type { Lectic } from "./types/lectic"
-import type { Backend } from "./types/backend"
 import { version } from "../package.json"
 
 // This  really should be factored out.
-function getBackend(lectic : Lectic) : Backend {
-    switch (lectic.header.interlocutor.provider || getDefaultProvider()) {
-        case LLMProvider.OpenAI:  return new OpenAIBackend({
-            defaultModel: 'gpt-4.1',
-            apiKey: 'OPENAI_API_KEY',
-            provider: LLMProvider.OpenAI,
-        })
-        case LLMProvider.OpenRouter:  return new OpenAIBackend({
-            defaultModel: 'google/gemini-2.5-flash-preview',
-            apiKey: 'OPENROUTER_API_KEY',
-            provider: LLMProvider.OpenRouter,
-            url: 'https://openrouter.ai/api/v1'
-        })
-        case LLMProvider.OpenAIResponses: return new OpenAIResponsesBackend({
-            defaultModel: 'gpt-4.1',
-            apiKey: 'OPENAI_API_KEY',
-            provider: LLMProvider.OpenAIResponses,
-        })
-        case LLMProvider.Ollama: return OllamaBackend
-        case LLMProvider.Anthropic: return AnthropicBackend
-        case LLMProvider.Gemini: return GeminiBackend
-    }
-}
 
 function handleDirectives(lectic : Lectic) {
     for (const message of lectic.body.messages) {
@@ -83,11 +54,9 @@ function validateOptions(opts : OptionValues) {
             process.exit(1)
         }
     }
-    if (opts["inplace"]) {
-        if (opts["file"]) {
-            Logger.write("You can't combine --file and --inplace");
-            process.exit(1)
-        }
+    if (opts["inplace"] && opts["file"]) {
+        Logger.write("You can't combine --file and --inplace");
+        process.exit(1)
     }
     if (opts["version"]) {
         Logger.write(`${version}\n`) 
@@ -129,7 +98,7 @@ async function main() {
         const lectic = await parseLectic(lecticString)
 
         if (opts["consolidate"] || opts["header"]) {
-            const backend = getBackend(lectic)
+            const backend = getBackend(lectic.header.interlocutor)
             const new_lectic : any = opts["header"] ? lectic : await consolidateMemories(lectic, backend)
             if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
             if (new_lectic.header.interlocutors.length === 1) {
@@ -143,7 +112,7 @@ async function main() {
             // we handle directives, which may update header fields
             handleDirectives(lectic)
 
-            const backend = getBackend(lectic)
+            const backend = getBackend(lectic.header.interlocutor)
 
             if (!program.opts()["Short"]) {
                 await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)

@@ -8,6 +8,7 @@ import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
 import { isServeToolSpec, ServeTool } from "../tools/serve"
+import { isAgentToolSpec, AgentTool } from "../tools/agent"
 import { isNativeTool } from "../tools/native"
 
 async function maybeFromFile<T>(something: T) : Promise<T | string>{
@@ -83,6 +84,8 @@ export class LecticHeader {
                         register(new ThinkTool(spec))
                     } else if (isServeToolSpec(spec)) {
                         register(new ServeTool(spec))
+                    } else if (isAgentToolSpec(spec)) {
+                        register(new AgentTool(spec, this.interlocutors))
                     } else if (isMCPSpec(spec)) {
                         (await MCPTool.fromSpec(spec)).map(register)
                     } else if (isNativeTool(spec)) {

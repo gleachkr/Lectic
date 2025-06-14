@@ -8,7 +8,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults,  type ToolCallResult } from "../types/tool"
-import { systemPrompt } from './util'
+import { systemPrompt } from './common.ts'
 
 
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {

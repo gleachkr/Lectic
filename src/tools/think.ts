@@ -13,7 +13,6 @@ export function isThinkToolSpec(raw : unknown) : raw is ThinkToolSpec {
 export class ThinkTool extends Tool {
 
     name: string
-    sandbox: string | undefined
     description: string
     static count : number = 0
 

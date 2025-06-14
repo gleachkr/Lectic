@@ -7,7 +7,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText } from "./util"
+import { systemPrompt, wrapText } from "./common.ts"
 
 async function partToContent(part: MessageAttachmentPart) {
     const media_type = part.mimetype

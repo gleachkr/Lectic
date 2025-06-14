@@ -8,7 +8,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
-import { systemPrompt, wrapText } from './util'
+import { systemPrompt, wrapText } from './common.ts'
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const tools : OpenAI.Responses.Tool[] = []

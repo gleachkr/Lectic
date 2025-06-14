@@ -1,42 +1,32 @@
-import type { Lectic } from "../types/lectic"
+import { getDefaultProvider, LLMProvider } from "../types/provider"
+import type { Backend } from "../types/backend"
+import { AnthropicBackend } from "./anthropic"
+import { OpenAIBackend } from "./openai"
+import { OpenAIResponsesBackend } from "./openai-responses"
+import { OllamaBackend } from "./ollama"
+import { GeminiBackend } from "./gemini"
+import type { Interlocutor } from "../types/interlocutor"
 
-export function wrapText({text, name} : { text : string, name: string}) {
-    return `<speaker name="${name}">${text}</speaker>`
-}
-
-export function systemPrompt(lectic : Lectic) {
-
-const memories = lectic.header.interlocutor.memories
-
-const speakers = lectic.header.interlocutors
-                       .map(loc => loc.name)
-                       .filter(name => name !== lectic.header.interlocutor.name)
-
-return `Your name is ${lectic.header.interlocutor.name}
-
-${lectic.header.interlocutor.prompt}
-
-${memories 
-    ? `You have memories from previous conversations: <memories>${JSON.stringify(memories)}</memories>`
-    : ""
-}
-
-1. **IMPORTANT: You must write text so that each line is no longer than 78 characters.**
-
-2. If a sentence or phrase exceeds the 78 character limit, wrap it to the next line. 
-
-For example:
-
-This is an example of how your response should be formatted. Notice how the 
-lines break at around 78 characters, ensuring a consistent and readable layout. 
-This formatting must be applied to all of your responses.
-
-3. Use Unicode rather than LaTeX for mathematical notation.
-
-${speakers.length > 0 
-    ? `4. You are communicating with several secondary speakers in addition to the user. ` +
-      `The secondary speaker names are: ${speakers.join(", ")}. `
-    : ""
-}`
-
+export function getBackend(interlocutor : Interlocutor) : Backend {
+    switch (interlocutor.provider || getDefaultProvider()) {
+        case LLMProvider.OpenAI:  return new OpenAIBackend({
+            defaultModel: 'gpt-4.1',
+            apiKey: 'OPENAI_API_KEY',
+            provider: LLMProvider.OpenAI,
+        })
+        case LLMProvider.OpenRouter:  return new OpenAIBackend({
+            defaultModel: 'google/gemini-2.5-flash-preview',
+            apiKey: 'OPENROUTER_API_KEY',
+            provider: LLMProvider.OpenRouter,
+            url: 'https://openrouter.ai/api/v1'
+        })
+        case LLMProvider.OpenAIResponses: return new OpenAIResponsesBackend({
+            defaultModel: 'gpt-4.1',
+            apiKey: 'OPENAI_API_KEY',
+            provider: LLMProvider.OpenAIResponses,
+        })
+        case LLMProvider.Ollama: return OllamaBackend
+        case LLMProvider.Anthropic: return AnthropicBackend
+        case LLMProvider.Gemini: return GeminiBackend
+    }
 }
