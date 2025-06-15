@@ -79,12 +79,14 @@ export class LecticHeader {
                         spec.usage = await maybeFromFile(spec.usage)
                         register(new ExecTool(spec))
                     } else if (isSQLiteToolSpec(spec)) {
+                        spec.details = await maybeFromFile(spec.details)
                         register(new SQLiteTool(spec))
                     } else if (isThinkToolSpec(spec)) {
                         register(new ThinkTool(spec))
                     } else if (isServeToolSpec(spec)) {
                         register(new ServeTool(spec))
                     } else if (isAgentToolSpec(spec)) {
+                        spec.usage = await maybeFromFile(spec.usage)
                         register(new AgentTool(spec, this.interlocutors))
                     } else if (isMCPSpec(spec)) {
                         (await MCPTool.fromSpec(spec)).map(register)
