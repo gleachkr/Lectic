@@ -477,6 +477,39 @@ There you go! Your tic-tac-toe game is available on localhost:9000
 
 <summary>
 
+#### Agent Tool (WIP)
+
+</summary>
+
+You can use this tool to give an interlocutor the ability to query another 
+interlocutor as an "agent". The second interlocutor will receive the query from 
+the first, with nothing else in its context. Its reply will be returned as the 
+tool output.
+
+```yaml
+interlocutors:
+    - name: Kirk
+      tools:
+        - agent: Spock # The name of the agent to be called. Should be another interlocutor
+          usage: Ask Spock for help when you're in trouble # Optional usage advice
+          name: communicator # Optional name for the tool
+    - name: Spock
+      tools: 
+        - think: about how to bail out Kirk
+        - exec: phaser
+```
+
+For some suggestions and usage guidelines on how to use agents, you might enjoy 
+reading [this blog 
+post](https://www.anthropic.com/engineering/built-multi-agent-research-system) 
+from Anthropic.
+
+</details>
+
+<details>
+
+<summary>
+
 #### MCP Tool
 
 </summary>
