@@ -203,7 +203,7 @@ async function* handleToolUse(
         yield "\n\n"
         recur++
 
-            if (recur > max_tool_use + 2) {
+        if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
             return
         }
