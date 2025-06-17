@@ -42,8 +42,6 @@ export async function consolidateMemories(lectic : Lectic, backend : Backend) : 
         const date = `${now.toLocaleDateString('en-US')}-${now.toLocaleTimeString('en-US')}`
 
         lectic.header.interlocutor.memories[date] = await result.string
-        // can't serialize the registry
-        delete lectic.header.interlocutor.registry
     }
 
     lectic.header.interlocutor = current_interlocutor

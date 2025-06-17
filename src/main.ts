@@ -103,8 +103,13 @@ async function main() {
             if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
             if (new_lectic.header.interlocutors.length === 1) {
                 delete new_lectic.header.interlocutors
+                // can't serialize the registry
+                delete new_lectic.header.interlocutor.registry
             } else {
                 delete new_lectic.header.interlocutor
+                for (const interlocutor of new_lectic.header.interlocutors) {
+                    delete interlocutor.registry
+                }
             }
             await Logger.write(`---\n${YAML.stringify(new_lectic.header, {
                 blockQuote: "literal" })}---`, )
