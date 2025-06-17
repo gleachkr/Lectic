@@ -60,7 +60,7 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentL
     .map(tool => tool.native)
 
     return await client.models.generateContentStream({
-        model: lectic.header.interlocutor.model || "gemini-2.5-flash-preview-04-17",
+        model: lectic.header.interlocutor.model || "gemini-2.5-flash",
         contents: messages,
         config: {
             systemInstruction: systemPrompt(lectic),
