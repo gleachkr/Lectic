@@ -72,8 +72,11 @@ export class ExecTool extends Tool {
         const proc = Bun.spawnSync(spawned)
 
         const results = []
-        results.push(`<stdout>${proc.stdout.toString()}</stdout>`)
-        results.push(`<stderr>${proc.stderr.toString()}</stderr>`)
+        const stdout = proc.stdout.toString()
+        const stderr = proc.stderr.toString()
+
+        if (stdout.length > 0) results.push(`<stdout>${stdout}</stdout>`)
+        if (stderr.length > 0) results.push(`<stderr>${stderr}</stderr>`)
         if (proc.exitCode != 0) results.push(`<exitCode>${proc.exitCode}</exitCode>`)
         return ToolCallResults(results)
     }
