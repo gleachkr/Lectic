@@ -1,4 +1,4 @@
-import { parseLectic } from "./parsing/parse"
+import { parseLectic, getYaml } from "./parsing/parse"
 import { program } from 'commander'
 import type { OptionValues } from 'commander'
 import { consolidateMemories } from "./types/backend"
@@ -97,7 +97,9 @@ async function main() {
 
         const lectic = await parseLectic(lecticString)
 
-        if (opts["consolidate"] || opts["header"]) {
+        if (opts["header"]) {
+            return getYaml(lecticString) ?? ""
+        } else if (opts["consolidate"]) {
             const backend = getBackend(lectic.header.interlocutor)
             const new_lectic : any = opts["header"] ? lectic : await consolidateMemories(lectic, backend)
             if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
