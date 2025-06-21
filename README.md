@@ -642,7 +642,10 @@ interlocutor:
     # Required fields
     name: Assistant              # Name shown in responses
     prompt: Base prompt          # Core personality/instruction
-                                 # Can be string or file path
+    # prompt: file:./prompt.txt
+    # ↑ the Prompt can be provided as a file path
+    # prompt: exec:sqlite3 prompt.db "SELECT prompt FROM prompts LIMIT 1"
+    # ↑ the prompt can also provided as a command with arguments
 
     # Optional model configuration
     provider: anthropic         # Optional, default anthropic
@@ -654,7 +657,7 @@ interlocutor:
     # Optional Context management
     memories: previous.txt      # Context from previous conversations.
                                 # Added to system prompt.
-                                # Can be string or file path
+                                # Can be string, file path, or command, like the prompt
 
     reminder: Be nice.          # Reminder string, added to 
                                 # user message invisibly.
@@ -664,13 +667,13 @@ interlocutor:
         # Command execution tool
         - exec: python3         # Command to execute
           name: python          # Optional custom name
-          usage: "Usage: ..."   # String or file path for usage guide
+          usage: "Usage: ..."   # String, `file:` or `exec:` for usage guide
 
         # Database tool
         - sqlite: data.db       # Database file
           name: query           # Optional custom name
           limit: 10000          # Max result size
-          details: schema.txt   # Optional DB documentation
+          details: schema.txt   # String, `file:` or `exec:` for database details
 
 interlocutors:
     - ANOTHER_INTERLOCUTOR_HERE

@@ -12,9 +12,21 @@ import { isAgentToolSpec, AgentTool } from "../tools/agent"
 import { isNativeTool } from "../tools/native"
 
 async function maybeFromFile<T>(something: T) : Promise<T | string>{
-    if (typeof something === "string" && something.length < 1000) {
-        if (await Bun.file(something.trim()).exists()) {
-             return await Bun.file(something.trim()).text()
+    if (typeof something === "string") {
+        if (something.slice(0,5) === "file:") {
+             return await Bun.file(something.slice(5).trim()).text()
+        } else if (something.slice(0,5) === "exec:") {
+             const args = something.slice(5)
+                // break into whitespace-delimited pieces, allowing for quotes
+                .match(/"[^"]*"|'[^']*'|\S+/g)
+                // remove surrounding quotes from pieces
+                ?.map(arg => (arg.startsWith('"') && arg.endsWith('"'))
+                     || (arg.startsWith("'") && arg.endsWith("'"))
+                     ? arg.slice(1,-1)
+                     : arg
+                    )
+             const proc = Bun.spawnSync(args ?? [])
+             return proc.stdout.toString()
         } else {
             return something
         }
@@ -91,7 +103,7 @@ export class LecticHeader {
                     } else if (isMCPSpec(spec)) {
                         (await MCPTool.fromSpec(spec)).map(register)
                     } else if (isNativeTool(spec)) {
-                        
+                       // do nothing 
                     } else {
                         throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized.` +
                                     `Check the tool section of your YAML header.`)
