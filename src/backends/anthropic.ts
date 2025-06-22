@@ -213,50 +213,58 @@ async function* handleToolUse(
             content: message.content
         })
 
-        const content: Anthropic.Messages.ToolResultBlockParam[] = []
-
-        for (const block of message.content) {
-            if (block.type == "tool_use") {
-                let results : ToolCallResult[]
-                let is_error = false
+        const tool_uses = message.content.filter(block => block.type == "tool_use")
+        const results: Promise<Anthropic.Messages.ToolResultBlockParam & {content: ToolCallResult[]} >[] = 
+            tool_uses.map(async block => {
+                const type = "tool_result" as const
+                const tool_use_id = block.id
+                const is_error = true
                 if (recur > max_tool_use) {
-                    results = ToolCallResults("Tool usage limit exceeded, no further tool calls will be allowed")
-                    is_error = true
+                    return {
+                        type, tool_use_id, is_error,
+                        content: ToolCallResults("Tool usage limit exceeded, no further tool calls will be allowed"),
+                    }
+                } else if (!(block.input instanceof Object)) {
+                    return {
+                        type, tool_use_id, is_error,
+                        content: ToolCallResults("The tool input isn't the right type. Tool inputs need to be returned as objects."),
+                    }
+                } else if (block.name in registry) {
+                    return registry[block.name].call(block.input)
+                        .then(results => ({
+                            type, tool_use_id,
+                            content: results,
+                            is_error: false,
+                        })).catch((error : unknown) => ({
+                            type, tool_use_id, is_error,
+                            content: error instanceof Error 
+                                ? ToolCallResults(error.message)
+                                : ToolCallResults(`An error of unknown type occurred during a call to ${block.name}`),
+                        }))
                 } else {
-                    if (!(block.input instanceof Object)) {
-                        results = ToolCallResults("The tool input isn't the right type. Tool inputs need to be returned as objects.")
-                        is_error = true
-                    } else if (block.name in registry) {
-                        try {
-                            results = await registry[block.name].call(block.input)
-                        } catch (e : unknown) {
-                            if (e instanceof Error) {
-                                results = ToolCallResults(e.message)
-                                is_error = true
-                            } else {
-                                throw e
-                            }
-                        }
-                        yield serializeCall(registry[block.name], {
-                            name: block.name,
-                            args: block.input, 
-                            id: block.id,
-                            isError : is_error,
-                            results
-                        })
-
-                        yield "\n\n"
-                    } else {
-                        results = ToolCallResults(`Unrecognized tool name ${block.name}`)
-                        is_error = true
+                    return {
+                        type, tool_use_id, is_error,
+                        content: ToolCallResults(`Unrecognized tool name ${block.name}`),
                     }
                 }
-                content.push({
-                    type : "tool_result",
-                    tool_use_id : block.id,
-                    content: results,
-                    is_error: is_error,
-                })
+            })
+
+        // run tool calls in parallel
+        const content = await Promise.all(results)
+
+        // yield results
+        for (const result of content) {
+            if (result.content) {
+                const block = tool_uses.find(block => block.id === result.tool_use_id)
+                if (block && block.input instanceof Object) {
+                     yield serializeCall(registry[block.name], {
+                         name: block.name,
+                         args: block.input, 
+                         id: block.id,
+                         isError : result.is_error,
+                         results : result.content
+                     }) + "\n\n"
+                }
             }
         }
 
