@@ -69,7 +69,7 @@ export class ExecTool extends Tool {
             ? [this.sandbox, this.exec].concat(args.arguments)
             : [this.exec].concat(args.arguments)
 
-        const proc = Bun.spawnSync(spawned)
+        const proc = Bun.spawnSync(spawned, { stderr: "pipe" })
 
         const results = []
         const stdout = proc.stdout.toString()

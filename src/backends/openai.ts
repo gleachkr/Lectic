@@ -109,7 +109,7 @@ async function *handleToolUse(
 
         Logger.debug("openai - messages (tool)", messages)
 
-        const stream = client.beta.chat.completions.stream({
+        const stream = client.chat.completions.stream({
             messages: messages.concat([developerMessage(lectic)]),
             model: lectic.header.interlocutor.model ?? 'gpt-4.1',
             temperature: lectic.header.interlocutor.temperature,
@@ -277,7 +277,7 @@ export class OpenAIBackend implements Backend {
 
         Logger.debug("openai - messages", messages)
 
-        let stream = this.client.beta.chat.completions.stream({
+        let stream = this.client.chat.completions.stream({
             messages: messages.concat([developerMessage(lectic)]),
             model: lectic.header.interlocutor.model ?? this.defaultModel,
             temperature: lectic.header.interlocutor.temperature,

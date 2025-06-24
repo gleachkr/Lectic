@@ -25,7 +25,9 @@ async function maybeFromFile<T>(something: T) : Promise<T | string>{
                      ? arg.slice(1,-1)
                      : arg
                     )
-             const proc = Bun.spawnSync(args ?? [])
+             const proc = Bun.spawnSync(args ?? [], {
+                 stderr: "ignore"
+             })
              return proc.stdout.toString()
         } else {
             return something

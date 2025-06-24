@@ -169,7 +169,9 @@ export class MCPTool extends Tool {
 
     async call(args : {[key : string] : unknown}) : Promise<ToolCallResult[]> {
         if (this.confirm) {
-            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)])
+            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)],{
+                stderr: "ignore" //discard stderr
+            })
             if (proc.exitCode !==0) {
                 throw Error(`<error>Tool use permission denied</error>`)
             }
