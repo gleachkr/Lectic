@@ -83,7 +83,15 @@ async function *handleToolUse(
             messages.push(output)
 
             if (output.type === "function_call") {
-                called_tool = false
+                called_tool = true
+
+                if ("parsed_arguments" in output) {
+                    // junk data, possibly left over from streaming.
+                    //
+                    // Prevents the API from working properly
+                    delete output.parsed_arguments
+                }
+
                 const inputs = JSON.parse(output.arguments)
 
                 let results : ToolCallResult[]
