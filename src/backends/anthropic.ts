@@ -244,7 +244,7 @@ async function* handleToolUse(
                 } else {
                     return {
                         type, tool_use_id, is_error,
-                        content: ToolCallResults(`Unrecognized tool name ${block.name}`),
+                        content: ToolCallResults(`Unrecognized tool name: ${block.name}`),
                     }
                 }
             })

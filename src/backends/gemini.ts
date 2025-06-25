@@ -12,6 +12,15 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText } from './common.ts'
 
+type FunctionResponse = Part & { 
+    functionResponse : { 
+        id: string, 
+        name: string, 
+        response: {output: ToolCallResult[], error?: ToolCallResult[] } | 
+                  {error : ToolCallResult[], output?: ToolCallResult[]} 
+    } 
+}
+
 function googleParameter(param: JSONSchema ) : Schema | undefined {
     switch (param.type) {
         case "string" : return { type: Type.STRING }
@@ -156,39 +165,57 @@ async function *handleToolUse(
             parts: response.candidates?.[0].content?.parts
         })
 
-        const parts : Part[] = []
-
-        for (const call of calls) {
-            let results : ToolCallResult[]
+        const results : Promise<FunctionResponse>[] = calls.map(async call => {
+            const name = call.name ?? "Name is required, should never occur"
+            call.id = call.id ?? Bun.randomUUIDv7()
+            const id = call.id
             if (recur > max_tool_use) {
-                results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
+                return {
+                    functionResponse: { name, id,
+                        response: { 
+                            error: ToolCallResults(
+                                "Tool usage limit exceeded, no further tool calls will be allowed"
+                        )}}}
             } else if (call.name && call.name in registry) {
-                try {
-                    results = await registry[call.name].call(call.args)
-                } catch (e : unknown) {
-                    if (e instanceof Error) {
-                        results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
-                    } else {
-                        throw e
-                    }
-                }
-                yield serializeCall(registry[call.name], {
-                    id : call.id,
-                    name: call.name,
-                    args: call.args || {}, 
-                    results
-                })
-                yield "\n\n"
+                return registry[call.name].call(call.args)
+                    .then(results => ({
+                        functionResponse: { name, id,
+                            response: { output: results }
+                    }})).catch((error : unknown) => ({
+                        functionResponse: { name, id,
+                            response: { error: error instanceof Error
+                                ? ToolCallResults(error.message)
+                                : ToolCallResults(`An error of unknown type occurred during a call to ${name}`),
+                            }
+                    }}))
             } else {
-                results = ToolCallResults(`<error>Unrecognized tool name ${call.name}</error>`)
-            }
-            parts.push({
-                functionResponse: {
-                    name: call.name,
-                    id: call.id,
-                    response: { output: results }
+                return {
+                    functionResponse: { name, id,
+                        response: { error: ToolCallResults(`Unrecognized tool name: ${name}`),
+                    }}
                 }
-            })
+            }
+
+        })
+
+        // run tool calls in parallel
+        const parts = await Promise.all(results)
+
+        // yield results
+        for (const part of parts) {
+            const call = calls.find(call => call.id === part.functionResponse.id)
+            const name = part.functionResponse.name
+            if (call && call.args instanceof Object) {
+                 yield serializeCall(registry[name], {
+                     name: name,
+                     args: call.args, 
+                     id: call.id,
+                     isError : "error" in part.functionResponse.response,
+                     results : part.functionResponse.response.output 
+                         ?? part.functionResponse.response.error 
+                         ?? [] // to make the typechecker happy
+                 }) + "\n\n"
+            }
         }
 
         messages.push({ role: "user", parts })
