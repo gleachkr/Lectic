@@ -98,7 +98,12 @@ async function main() {
         const lectic = await parseLectic(lecticString)
 
         if (opts["header"]) {
-            return getYaml(lecticString) ?? ""
+            const newHeader = `---\n${getYaml(lecticString) ?? ""}\n---`
+            await Logger.write(newHeader)
+            if (opts["inplace"]) {
+                Logger.outfile = createWriteStream(opts["inplace"])
+                await Logger.write(newHeader)
+            }
         } else if (opts["consolidate"]) {
             const backend = getBackend(lectic.header.interlocutor)
             const new_lectic : any = opts["header"] ? lectic : await consolidateMemories(lectic, backend)
