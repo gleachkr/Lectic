@@ -288,6 +288,14 @@ async function* handleToolUse(
                 messageEvent.delta.type === "text_delta") {
                 yield messageEvent.delta.text
             }
+
+            // This is intended to ensure proper line breaking when Claude
+            // performs a web search.
+            if (messageEvent.type === 'content_block_start' &&
+                messageEvent.content_block.type === 'server_tool_use') {
+                yield '\n\n'
+            }
+
         }
 
         message = await stream.finalMessage()
