@@ -7,7 +7,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
+import { serializeCall, ToolCallResults } from "../types/tool"
 import { systemPrompt, wrapText } from './common.ts'
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
@@ -66,10 +66,8 @@ async function *handleToolUse(
     let recur = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
-    let called_tool = true
 
-    while (called_tool) {
-        called_tool = false
+    while (message.output.filter(output => output.type == "function_call").length > 0) {
         yield "\n\n"
         recur++
 
@@ -78,52 +76,73 @@ async function *handleToolUse(
             return
         }
 
-        for (const output of message.output) {
 
-            messages.push(output)
-
-            if (output.type === "function_call") {
-                called_tool = true
-
+        const tool_calls : Promise<OpenAI.Responses.ResponseInputItem.FunctionCallOutput>[] = message.output
+            .filter(output => output.type == "function_call")
+            .map(async output => {
                 if ("parsed_arguments" in output) {
                     // junk data, possibly left over from streaming.
                     //
                     // Prevents the API from working properly
                     delete output.parsed_arguments
                 }
-
+                const call_id = output.call_id
+                const type = "function_call_output" as const
                 const inputs = JSON.parse(output.arguments)
-
-                let results : ToolCallResult[]
                 if (recur > max_tool_use) {
-                    results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
+                    return {
+                        type, call_id,
+                        output: JSON.stringify(ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"))
+                    }
                 } else if (output.name in registry) {
                      // TODO error handling
-                    try {
-                        results = await registry[output.name].call(inputs)
-                    } catch (e) {
-                        if (e instanceof Error) {
-                            results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
-                        } else {
-                            throw e
-                        }
-                    }
+                    return registry[output.name].call(inputs)
+                        .then(result => {
+                            return {
+                                type, call_id,
+                                output: JSON.stringify(result)
+                            }
+                        })
+                        .catch((error : unknown) => {
+                            if (error instanceof Error) {
+                                return {
+                                    type, call_id,
+                                    output: JSON.stringify(ToolCallResults(`<error>An Error Occurred: ${error.message}</error>`))
+                                }
+                            } else {
+                                return {
+                                    type, call_id,
+                                    output: JSON.stringify(ToolCallResults(`<error>an error of unknown type occurred during a call to ${output.name}</error>`))
+                                }
+                            }
+                        })
                 } else {
-                    results = ToolCallResults(`<error>Unrecognized tool name ${output.name}</error>`)
+                    return {
+                        type, call_id,
+                        output: JSON.stringify(ToolCallResults(`<error>Unrecognized tool name ${output.name}</error>`))
+                    }
                 }
+            })
 
-                yield serializeCall(registry[output.name], {
-                    name: output.name,
-                    args: inputs, 
-                    id: output.call_id,
-                    results
-                })
-                yield "\n\n"
-                messages.push({
-                    type: "function_call_output",
-                    call_id: output.call_id,
-                    output: JSON.stringify(results)
-                })
+        // run tool calls in parallel
+        const tool_call_results = await Promise.all(tool_calls)
+
+        for (const output of message.output) {
+
+            messages.push(output)
+
+            if (output.type === "function_call") {
+                const result = tool_call_results.find(result => result.call_id === output.call_id)
+                if (result) {
+                    yield serializeCall(registry[output.name], {
+                        name: output.name,
+                        args: JSON.parse(output.arguments), 
+                        id: output.call_id,
+                        results: JSON.parse(result.output)
+                    })
+                    yield "\n\n"
+                    messages.push(result)
+                }
             }
         }
 
