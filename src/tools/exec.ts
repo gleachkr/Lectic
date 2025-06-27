@@ -34,8 +34,8 @@ export class ExecTool extends Tool {
         this.sandbox = spec.sandbox
         this.confirm = spec.confirm
         this.description = 
-            `This tool executes the command \`${this.exec}\` directly, applied to the array of arguments that you supply. ` + 
-            `So for example if you supply \`["ARG_ONE", "ARG_TWO"]\`, what is run is literally \`"${this.exec} "ARG_ONE" "ARG_TWO"\`. ` +
+            `This tool executes the command \`${this.exec}\` directly, applied to the array of arguments that you supply, in the order that they are supplied. ` + 
+            `So for example if you supply ARG_ONE and ARG_TWO, what is run is literally \`"${this.exec} "ARG_ONE" "ARG_TWO"\`. ` +
             `If the command requires command line flags, those should be included in the list of arguments. ` +
             `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features. ` +
             `The stdout resulting from the command will be returned to you as the tool call result. ` +
