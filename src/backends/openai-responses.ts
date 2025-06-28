@@ -88,34 +88,27 @@ async function *handleToolUse(
                 }
                 const call_id = output.call_id
                 const type = "function_call_output" as const
-                const inputs = JSON.parse(output.arguments)
                 if (recur > max_tool_use) {
                     return {
                         type, call_id,
-                        output: JSON.stringify(ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"))
+                        output: JSON.stringify(ToolCallResults(
+                            "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"))
                     }
                 } else if (output.name in registry) {
                      // TODO error handling
-                    return registry[output.name].call(inputs)
-                        .then(result => {
-                            return {
+                    return registry[output.name].call(JSON.parse(output.arguments))
+                        .then(result => ({
+                            type, call_id,
+                            output: JSON.stringify(result)
+                        }))
+                        .catch((error : unknown) => ({
                                 type, call_id,
-                                output: JSON.stringify(result)
-                            }
-                        })
-                        .catch((error : unknown) => {
-                            if (error instanceof Error) {
-                                return {
-                                    type, call_id,
-                                    output: JSON.stringify(ToolCallResults(`<error>An Error Occurred: ${error.message}</error>`))
-                                }
-                            } else {
-                                return {
-                                    type, call_id,
-                                    output: JSON.stringify(ToolCallResults(`<error>an error of unknown type occurred during a call to ${output.name}</error>`))
-                                }
-                            }
-                        })
+                                output: error instanceof Error 
+                                    ? JSON.stringify(ToolCallResults(
+                                        `<error>An error occurred: ${error.message}</error>`))
+                                    : JSON.stringify(ToolCallResults(
+                                        `<error>An error of unknown type occurred during a call to ${output.name}</error>`))
+                        }))
                 } else {
                     return {
                         type, call_id,

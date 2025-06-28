@@ -71,40 +71,50 @@ async function *handleToolUse(
             content: message.content
         })
 
-        for (const call of message.tool_calls) {
-            const call_id = call.id ?? Bun.randomUUIDv7()
-            const inputs = JSON.parse(call.function.arguments)
-
-            let results : ToolCallResult[]
-            if (recur > max_tool_use) {
-                results = ToolCallResults("<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
-            } else if (call.function.name in registry) {
-                 // TODO error handling
-                try {
-                    results = await registry[call.function.name].call(inputs)
-                } catch (e) {
-                    if (e instanceof Error) {
-                        results = ToolCallResults(`<error>An Error Occurred: ${e.message}</error>`)
-                    } else {
-                        throw e
+        const tool_calls : Promise<OpenAI.ChatCompletionToolMessageParam & 
+            { content: ToolCallResult[] }>[] = message.tool_calls
+            .map(async call => {
+                const tool_call_id = call.id
+                const role = "tool" as const
+                if (recur > max_tool_use) {
+                    return {
+                        role, tool_call_id,
+                        content: ToolCallResults(
+                            "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
+                    }
+                } else if (call.function.name in registry) {
+                    return registry[call.function.name].call(JSON.parse(call.function.arguments))
+                        .then(content => ({
+                            role, tool_call_id, content
+                            
+                        })).catch((error : unknown) => ({
+                            role, tool_call_id,
+                            content: error instanceof Error
+                                ? ToolCallResults(`<error>An error occurred: ${error.message}</error>`)
+                                : ToolCallResults(`<error>An error of unknown type occured during a call to: ${call.function.name}</error>`)
+                        }))
+                } else {
+                    return { role, tool_call_id,
+                        content: ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
                     }
                 }
-            } else {
-                results = ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
-            }
+            })
 
-            yield serializeCall(registry[call.function.name], {
-                name: call.function.name,
-                args: inputs, 
-                id: call_id,
-                results
-            })
-            yield "\n\n"
-            messages.push({
-                    role: "tool",
-                    tool_call_id : call_id,
-                    content: results
-            })
+        // run tool calls in parallel
+        const tool_call_results = await Promise.all(tool_calls)
+
+        for (const call of message.tool_calls) {
+            const result = tool_call_results.find(result => result.tool_call_id === call.id)
+            if (result) {
+                yield serializeCall(registry[call.function.name], {
+                    name: call.function.name,
+                    args: JSON.parse(call.function.arguments), 
+                    id: call.id,
+                    results: result.content
+                })
+                yield "\n\n"
+                messages.push(result)
+            }
         }
 
         Logger.debug("openai - messages (tool)", messages)
