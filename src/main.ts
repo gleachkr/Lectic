@@ -81,6 +81,7 @@ async function main() {
 
     let headerPrinted = false
 
+
     validateOptions(opts)
 
     if (opts["log"]) Logger.logfile = opts["log"]
@@ -129,6 +130,9 @@ async function main() {
             if (!program.opts()["Short"]) {
                 await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
                 headerPrinted = true
+                let closeHeader = () => { Logger.write(`\n\n:::\n\n`).then(() => process.exit(0)) }
+                process.on('SIGTERM', closeHeader)
+                process.on('SIGINT', closeHeader)
             }
 
             const result = Logger.fromStream(backend.evaluate(lectic))
@@ -148,7 +152,7 @@ async function main() {
         process.exit(0)
     } catch (error) {
         if (!program.opts()["Short"] && !headerPrinted) {
-            await Logger.write(`:::Error\n\n`)
+            await Logger.write(`::: Error\n\n`)
             headerPrinted = true
         }
         if (error instanceof Error) {
