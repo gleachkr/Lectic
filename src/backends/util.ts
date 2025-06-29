@@ -3,7 +3,6 @@ import type { Backend } from "../types/backend"
 import { AnthropicBackend } from "./anthropic"
 import { OpenAIBackend } from "./openai"
 import { OpenAIResponsesBackend } from "./openai-responses"
-import { OllamaBackend } from "./ollama"
 import { GeminiBackend } from "./gemini"
 import type { Interlocutor } from "../types/interlocutor"
 
@@ -25,7 +24,13 @@ export function getBackend(interlocutor : Interlocutor) : Backend {
             apiKey: 'OPENAI_API_KEY',
             provider: LLMProvider.OpenAIResponses,
         })
-        case LLMProvider.Ollama: return OllamaBackend
+        case LLMProvider.Ollama: return new OpenAIBackend({
+            defaultModel: 'llama3.2',
+            apiKey: 'NO_API_KEY',
+            provider: LLMProvider.Ollama,
+            url: 'http://localhost:11434/v1' 
+            //XXX Make configurable
+        })
         case LLMProvider.Anthropic: return AnthropicBackend
         case LLMProvider.Gemini: return GeminiBackend
     }

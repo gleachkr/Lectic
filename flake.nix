@@ -43,8 +43,8 @@
           jq
         ];
         npmDeps = importNpmLock.buildNodeModules {
-          npmRoot = ./.;
           inherit nodejs;
+          npmRoot = ./.;
         };
       };
     }
