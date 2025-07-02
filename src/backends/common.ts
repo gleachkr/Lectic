@@ -31,12 +31,6 @@ This is an example of how your response should be formatted. Notice how the
 lines break at around 78 characters, ensuring a consistent and readable layout. 
 This formatting must be applied to all of your responses.
 
-3. Use Unicode rather than LaTeX for mathematical notation.
-
-${speakers.length > 0 
-    ? `4. You are communicating with several secondary speakers in addition to the user. ` +
-      `The secondary speaker names are: ${speakers.join(", ")}. `
-    : ""
-}`
+3. Use Unicode rather than LaTeX for mathematical notation.`
 
 }
