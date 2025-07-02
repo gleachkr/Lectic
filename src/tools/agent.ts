@@ -27,7 +27,7 @@ export class AgentTool extends Tool {
         super()
         this.name = spec.name ?? `agent_tool_${AgentTool.count}`
         const agent = interlocutors.find(i => i.name === spec.agent)
-        if (agent === undefined) throw Error(`There's no interterlocutor named ${spec.agent}`)
+        if (agent === undefined) throw Error(`There's no interlocutor named ${spec.agent}`)
         this.agent = agent
         this.description = 
             `Use the tool to send a request to the LLM ${spec.agent}. ` +
