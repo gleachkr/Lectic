@@ -130,7 +130,7 @@ async function main() {
             if (!program.opts()["Short"]) {
                 await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
                 headerPrinted = true
-                let closeHeader = () => { Logger.write(`\n\n:::\n\n`).then(() => process.exit(0)) }
+                let closeHeader = () => { Logger.write(`\n\n:::`).then(() => process.exit(0)) }
                 process.on('SIGTERM', closeHeader)
                 process.on('SIGINT', closeHeader)
             }

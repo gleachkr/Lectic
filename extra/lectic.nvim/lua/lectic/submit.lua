@@ -2,8 +2,15 @@ local M = {}
 
 local spinner = require('lectic.spinner')
 local fold = require('lectic.fold')
+local process
 
 local ns_id = vim.api.nvim_create_namespace('lectic_highlight')
+
+function M.cancel_submit()
+    if process and not process:is_closing() then
+        process:kill()
+    end
+end
 
 function M.submit_lectic()
     if vim.fn.executable('lectic') ~= 1 then
@@ -61,7 +68,7 @@ function M.submit_lectic()
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
-    local process = vim.system({"lectic", "-s"}, {
+    process = vim.system({"lectic", "-s"}, {
       stdin = true,
       stdout = on_stdout,
       env = env
