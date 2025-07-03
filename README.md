@@ -281,7 +281,11 @@ consolidated, each interlocutor will consolidate their own memories.
 ### Tools
 
 Lectic allows you to configure tools that your LLM can use to perform different 
-kinds of actions during your conversation.
+kinds of actions during your conversation. Tool call actions occur in parallel, 
+rather than serially. So for example, if your LLM uses the agent tool to 
+dispatch ten queries to ten agents, then those ten agents all get to work at 
+the same time, rather than each one only starting once the previous one has 
+completed. 
 
 <details>
 
@@ -477,7 +481,7 @@ There you go! Your tic-tac-toe game is available on localhost:9000
 
 <summary>
 
-#### Agent Tool (WIP)
+#### Agent Tool
 
 </summary>
 
