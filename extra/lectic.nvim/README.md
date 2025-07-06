@@ -60,7 +60,9 @@ and appearance by setting some global variables.
 -- Default: <localleader>l
 vim.g.lectic_key_submit = '<Leader>l'
 -- Default: <localleader>c
-vim.g.lectic_key_consolidate = '<Leader>c'
+vim.g.lectic_key_cancel_submit = '<Leader>c'
+-- Default: <localleader>C
+vim.g.lectic_key_consolidate = '<Leader>C'
 -- Default: <localleader>e (Visual mode)
 vim.g.lectic_key_explain = '<Leader>e'
 ```
@@ -101,12 +103,14 @@ vim.g.lectic_spinner_steps = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
     name (e.g., `[ python ]`). Use standard fold commands (`za`, `zo`,
     `zc`) to inspect them.
 7.  To consolidate memories, use the consolidate mapping (default
-    `<localleader>c`) or `:LecticConsolidate`. This replaces the buffer
+    `<localleader>C`) or `:LecticConsolidate`. This replaces the buffer
     content with the consolidated version.
 8.  To elaborate on a part of the conversation:
     *   Visually select the text you want explained.
     *   Use the explain mapping (default `<localleader>e` in visual mode).
     *   The selected text will be replaced by `lectic`'s explanation.
+9.  To interrupt an LLM that's generating text, use the cancel submit mapping 
+    (default `<localleader>c`).
 
 ## Commands
 
@@ -117,5 +121,6 @@ vim.g.lectic_spinner_steps = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
 ## Default Keymaps
 
 *   `<localleader>l` (Normal mode): Submit buffer (`:Lectic`).
-*   `<localleader>c` (Normal mode): Consolidate memories (`:LecticConsolidate`).
+*   `<localleader>C` (Normal mode): Consolidate memories (`:LecticConsolidate`).
+*   `<localleader>c` (Normal mode): Interrupt text generation.
 *   `<localleader>e` (Visual mode): Explain selected text.

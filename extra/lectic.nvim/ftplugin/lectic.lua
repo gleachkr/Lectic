@@ -11,9 +11,14 @@ vim.keymap.set('n', vim.g.lectic_key_submit or '<localleader>l', require('lectic
     desc = 'Generate next message with lectic'
 })
 
-vim.keymap.set('n', vim.g.lectic_key_submit or '<localleader>c', require('lectic.submit').cancel_submit, {
+vim.keymap.set('n', vim.g.lectic_key_cancel_submit or '<localleader>c', require('lectic.submit').cancel_submit, {
     buffer = true,
     desc = 'Cancel active message generation'
+})
+
+vim.keymap.set('n', vim.g.lectic_key_consolidate or '<localleader>C', require('lectic.consolidate').consolidate, {
+    buffer = true,
+    desc = 'Consolidate LLM memories with lectic'
 })
 
 vim.keymap.set('v', vim.g.lectic_key_explain or '<localleader>e', require('lectic.selection').explain_selection, {
