@@ -295,8 +295,10 @@ completed.
 
 </summary>
 
-The exec tool allows the LLM to execute commands directly. For security, you can
-configure which commands are available and optionally run them in a sandbox.
+The exec tool allows the LLM to execute commands directly. The `exec`
+field can be either a simple command or a multi-line script. For
+security, you can configure which commands are available and optionally
+run them in a sandbox.
 
 ```yaml
 tools:
@@ -306,6 +308,26 @@ tools:
       sandbox: ./sandbox.sh     # Optional sandboxing script
       confirm: ./confirm.sh     # Optional confirmation script
 ```
+
+For more complex tasks, you can provide an inline script directly in the
+YAML configuration. This is particularly useful for creating custom
+tools that are specific to your project or workflow. Lectic will
+automatically detect that the `exec` field contains a script, and will
+execute it accordingly.
+
+```yaml
+tools:
+    - exec: |
+        #!/bin/bash
+        # A simple script to count the number of lines in a file
+        wc -l $1
+      name: line_counter
+      usage: "Counts the lines in a file. Takes one argument: the path to the file."
+```
+
+When an inline script is executed, Lectic writes it to a temporary file
+and then runs it. The first line of the script must be a shebang (e.g.,
+`#!/bin/bash`) to specify the interpreter.
 
 Example conversation using the exec tool:
 
@@ -323,7 +345,6 @@ print("Hello, world!")
 The code executed successfully and output: Hello, world!
 
 :::
-```
 
 ##### Command Execution Safety
 
