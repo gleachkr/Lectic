@@ -177,7 +177,7 @@ Include local or remote content in conversations:
 [Local Document](./notes.pdf)
 [Remote Paper](https://arxiv.org/pdf/2201.12345.pdf)
 [Web Image](https://example.com/diagram.png)
-[Web Image](s3://my_bucket/dataset.csv)
+[S3 Bucket](s3://my_bucket/dataset.csv)
 [MCP Resource](github+repo://gleachkr/Lectic/contents/README.md)
 [Local Data](./results.csv)
 ```
@@ -190,8 +190,8 @@ Supported content types:
   [here](https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats))
 - Audio (Gemini, and OpenAI providers only right now. MP3, MPEG and WAV, more 
   for Gemini. OpenAI requires an audio model, and only supports this via the 
-  legacy chat interface, so you'll need `provider: ` rather than 
-  `provider: /responses`)
+  legacy chat interface, so you'll need `provider: openai` rather than 
+  `provider: openai/responses`)
 
 Remote content can be included via HTTP/HTTPS, or from an amazon s3 bucket. 
 Using s3 requires that you have `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` 
@@ -479,7 +479,7 @@ tools:
       name: my_server       # Optional custom name
 ```
 
-Example conversation using the think tool:
+Example conversation using the server tool:
 
 ```markdown
 Could you serve me up a little tic-tac-toe game?
@@ -805,7 +805,7 @@ lectic -Hf convo.lec                       # Print just the header of the lectic
                                            # (use -Hi to reset a lectic, erasing all messages)
 lectic -v                                  # Get a version string
 cat convo.lec | lectic                     # Read convo.lec from stdin
-echo "hello"  | lectic -f convo.lec        # Add a message to convo.lec and get the result
+echo "hello"  | lectic -Si convo.lec        # Add a message to convo.lec and get the result
 ```
 
 ## Contributing
