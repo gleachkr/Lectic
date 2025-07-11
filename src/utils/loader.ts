@@ -1,9 +1,17 @@
 export async function loadFrom<T>(something: T): Promise<T | string> {
     if (typeof something === "string") {
         if (something.slice(0, 5) === "file:") {
-            return await Bun.file(something.slice(5).trim()).text();
+            const path = something.slice(5).trim();
+            if (!path) {
+                throw new Error("File path cannot be empty.");
+            }
+            return await Bun.file(path).text();
         } else if (something.slice(0, 5) === "exec:") {
-            const args = something.slice(5)
+            const command = something.slice(5).trim();
+            if (!command) {
+                throw new Error("Exec command cannot be empty.");
+            }
+            const args = command
                 // break into whitespace-delimited pieces, allowing for quotes
                 .match(/"[^"]*"|'[^']*'|\S+/g)
                 // remove surrounding quotes from pieces
