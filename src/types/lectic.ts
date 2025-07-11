@@ -11,30 +11,7 @@ import { isServeToolSpec, ServeTool } from "../tools/serve"
 import { isAgentToolSpec, AgentTool } from "../tools/agent"
 import { isNativeTool } from "../tools/native"
 
-async function maybeFromFile<T>(something: T) : Promise<T | string>{
-    if (typeof something === "string") {
-        if (something.slice(0,5) === "file:") {
-             return await Bun.file(something.slice(5).trim()).text()
-        } else if (something.slice(0,5) === "exec:") {
-             const args = something.slice(5)
-                // break into whitespace-delimited pieces, allowing for quotes
-                .match(/"[^"]*"|'[^']*'|\S+/g)
-                // remove surrounding quotes from pieces
-                ?.map(arg => (arg.startsWith('"') && arg.endsWith('"'))
-                     || (arg.startsWith("'") && arg.endsWith("'"))
-                     ? arg.slice(1,-1)
-                     : arg
-                    )
-             const proc = Bun.spawnSync(args ?? [], {
-                 stderr: "ignore"
-             })
-             return proc.stdout.toString()
-        } else {
-            return something
-        }
-    }
-    return something
-}
+import { loadFrom } from "../utils/loader"
 
 type DialecticHeaderSpec = {
     interlocutor : Interlocutor
@@ -71,9 +48,9 @@ export class LecticHeader {
 
     async initialize() {
         for (const interlocutor of this.interlocutors) {
-            interlocutor.prompt = await maybeFromFile(interlocutor.prompt)
+            interlocutor.prompt = await loadFrom(interlocutor.prompt)
 
-            interlocutor.memories = await maybeFromFile(interlocutor.memories)
+            interlocutor.memories = await loadFrom(interlocutor.memories)
 
             interlocutor.registry = {}
 
@@ -90,17 +67,17 @@ export class LecticHeader {
                         }
                     }
                     if (isExecToolSpec(spec)) {
-                        spec.usage = await maybeFromFile(spec.usage)
+                        spec.usage = await loadFrom(spec.usage)
                         register(new ExecTool(spec))
                     } else if (isSQLiteToolSpec(spec)) {
-                        spec.details = await maybeFromFile(spec.details)
+                        spec.details = await loadFrom(spec.details)
                         register(new SQLiteTool(spec))
                     } else if (isThinkToolSpec(spec)) {
                         register(new ThinkTool(spec))
                     } else if (isServeToolSpec(spec)) {
                         register(new ServeTool(spec))
                     } else if (isAgentToolSpec(spec)) {
-                        spec.usage = await maybeFromFile(spec.usage)
+                        spec.usage = await loadFrom(spec.usage)
                         register(new AgentTool(spec, this.interlocutors))
                     } else if (isMCPSpec(spec)) {
                         (await MCPTool.fromSpec(spec)).map(register)
