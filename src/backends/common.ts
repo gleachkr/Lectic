@@ -8,9 +8,6 @@ export function systemPrompt(lectic : Lectic) {
 
 const memories = lectic.header.interlocutor.memories
 
-const speakers = lectic.header.interlocutors
-                       .map(loc => loc.name)
-                       .filter(name => name !== lectic.header.interlocutor.name)
 
 return `Your name is ${lectic.header.interlocutor.name}
 
