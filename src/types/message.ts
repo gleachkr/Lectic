@@ -42,7 +42,7 @@ export class UserMessage {
             return {
             text: nodeContentRaw(directive, this.content),
             name: directive.name,
-            attributes: directive.attributes === null ? undefined : directive.attributes
+            attributes: directive.attributes ? { ...directive.attributes } : {}
         }})
     }
 }
