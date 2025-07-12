@@ -32,7 +32,9 @@ a problem.
    ---
    interlocutor:
        name: Assistant
-       provider: anthropic|openai|gemini|openrouter|ollama|openai/responses
+       provider: anthropic
+       #↑ could be openai, gemini, openrouter, ollama, openai/responses, or  
+       # anthropic/bedrock
        prompt: Your base prompt here
    ---
 
@@ -41,8 +43,10 @@ a problem.
 
    To use the remote providers , you'll need `ANTHROPIC_API_KEY`, 
    `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY` set in your 
-   environment. If the provider field is omitted, the default provider will be 
-   based on the alphabetically first API key defined in the your environment.
+   environment, or have AWS credentials available for AWS bedrock. If the 
+   provider field is omitted, the default provider will be based on the 
+   alphabetically first API key defined in the your environment, ignoring AWS 
+   credentials.
 
 2. Use your text editor to interact with the LLM:
    - In Vim: Use `%!lectic` to update the conversation

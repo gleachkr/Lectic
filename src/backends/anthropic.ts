@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { AnthropicBedrock } from '@anthropic-ai/bedrock-sdk';
 import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
@@ -192,7 +193,8 @@ async function* handleToolUse(
     message: Anthropic.Messages.Message, 
     messages : Anthropic.Messages.MessageParam[], 
     lectic : Lectic,
-    client : Anthropic
+    client : Anthropic | AnthropicBedrock,
+    model : string,
 ) : AsyncGenerator<string | Message> {
 
     let recur = 0
@@ -274,12 +276,11 @@ async function* handleToolUse(
 
         Logger.debug("anthropic - messages (tool)", messages)
 
-        let stream = (client as Anthropic).messages.stream({
+        let stream = client.messages.stream({
             max_tokens: lectic.header.interlocutor.max_tokens || 1024,
             system: systemPrompt(lectic),
             messages: messages,
-            model: lectic.header.interlocutor.model ?? 
-                'claude-sonnet-4-20250514',
+            model,
             tools: getTools(lectic)
         });
 
@@ -320,10 +321,12 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
 
         Logger.debug("anthropic - messages", messages)
 
+        const model = lectic.header.interlocutor.model ?? 'claude-sonnet-4-20250514'
+
         let stream = this.client.messages.stream({
             system: systemPrompt(lectic),
             messages: messages,
-            model: lectic.header.interlocutor.model ?? 'claude-sonnet-4-20250514',
+            model,
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools(lectic)
@@ -341,7 +344,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
         Logger.debug("anthropic - reply", msg)
 
         if (msg.stop_reason == "tool_use") {
-            yield* handleToolUse(msg, messages, lectic, this.client)
+            yield* handleToolUse(msg, messages, lectic, this.client, model)
         } 
     },
 
@@ -351,5 +354,53 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
     }),
 
     provider : LLMProvider.Anthropic,
+
+}
+
+export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } = {
+
+    async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
+
+        const messages : Anthropic.Messages.MessageParam[] = []
+
+        for (const msg of lectic.body.messages) {
+            messages.push(...await handleMessage(msg, lectic))
+        }
+
+        updateCache(messages)
+
+        Logger.debug("anthropic - messages", messages)
+
+        const model = lectic.header.interlocutor.model ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0'
+
+        let stream = this.client.messages.stream({
+            system: systemPrompt(lectic),
+            messages: messages,
+            model,
+            temperature: lectic.header.interlocutor.temperature,
+            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            tools: getTools(lectic)
+        });
+
+        for await (const messageEvent of stream) {
+            if (messageEvent.type === 'content_block_delta' && 
+                messageEvent.delta.type === "text_delta") {
+                yield messageEvent.delta.text
+            }
+        }
+
+        let msg = await stream.finalMessage()
+
+        Logger.debug("anthropic - reply", msg)
+
+        if (msg.stop_reason == "tool_use") {
+            yield* handleToolUse(msg, messages, lectic, this.client, model)
+        } 
+    },
+
+
+    client : new AnthropicBedrock({ maxRetries: 5 }),
+
+    provider : LLMProvider.AnthropicBedrock,
 
 }

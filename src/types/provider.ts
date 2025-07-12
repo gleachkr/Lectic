@@ -1,5 +1,6 @@
 export enum LLMProvider {
     Anthropic = "anthropic",
+    AnthropicBedrock = "anthropic/bedrock",
     OpenAI = "openai",
     OpenAIResponses = "openai/responses",
     Ollama = "ollama",
@@ -18,6 +19,7 @@ export function getDefaultProvider() : LLMProvider {
 
 export function isLLMProvider(raw : unknown) : raw is LLMProvider {
     return raw == LLMProvider.Anthropic ||
+        raw == LLMProvider.AnthropicBedrock ||
         raw == LLMProvider.OpenAI ||
         raw == LLMProvider.Ollama ||
         raw == LLMProvider.OpenRouter ||

@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^0.22.4",
     "@anthropic-ai/sdk": "^0.52.0",
     "@google/genai": "^0.10.0",
     "@modelcontextprotocol/sdk": "^1.8.0",

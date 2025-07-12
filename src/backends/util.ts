@@ -1,6 +1,6 @@
 import { getDefaultProvider, LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { AnthropicBackend } from "./anthropic"
+import { AnthropicBackend, AnthropicBedrockBackend } from "./anthropic"
 import { OpenAIBackend } from "./openai"
 import { OpenAIResponsesBackend } from "./openai-responses"
 import { GeminiBackend } from "./gemini"
@@ -32,6 +32,7 @@ export function getBackend(interlocutor : Interlocutor) : Backend {
             //XXX Make configurable
         })
         case LLMProvider.Anthropic: return AnthropicBackend
+        case LLMProvider.AnthropicBedrock: return AnthropicBedrockBackend
         case LLMProvider.Gemini: return GeminiBackend
     }
 }
