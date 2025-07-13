@@ -101,6 +101,63 @@ export function serialize(arg: any, schema: JSONSchema): string {
     }
 }
 
+export function validateAgainstSchema(arg: any, schema: JSONSchema) : boolean {
+    switch (schema.type) {
+        case "string":
+            if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
+                throw new Error(`Invalid string value: ${arg}`);
+            }
+            return true;
+
+        case "boolean":
+            if (typeof arg !== "boolean") {
+                throw new Error(`Invalid boolean value: ${arg}`);
+            }
+            return true;
+
+        case "number":
+            if (typeof arg !== "number" || 
+                (schema.enum && !schema.enum.includes(arg)) || 
+                (schema.minimum !== undefined && arg < schema.minimum) || 
+                (schema.maximum !== undefined && arg > schema.maximum)) {
+                throw new Error(`Invalid number value: ${arg}`);
+            }
+            return true;
+
+        case "integer":
+            if (!Number.isInteger(arg) || 
+                (schema.enum && !schema.enum.includes(arg)) || 
+                (schema.minimum !== undefined && arg < schema.minimum) || 
+                (schema.maximum !== undefined && arg > schema.maximum)) {
+                throw new Error(`Invalid integer value: ${arg}`);
+            }
+            return true;
+
+        case "array":
+            if (!Array.isArray(arg)) {
+                throw new Error(`Invalid array value: ${arg}`);
+            }
+            return arg.every(item => validateAgainstSchema(item, schema.items));
+
+        case "object":
+            if (typeof arg !== "object" || Array.isArray(arg)) {
+                throw new Error(`Invalid object value: ${arg}`);
+            }
+            const properties = schema.properties;
+            const required = schema.required || [];
+            for (const key of required) {
+                if (!(key in arg)) {
+                    throw new Error(`Missing required property: ${key}`);
+                }
+            }
+            return Object.keys(arg).every(key => {
+                        if (!(key in properties)) return true
+                        return validateAgainstSchema(arg[key], properties[key]);
+                    });
+        default:
+            throw new Error("Unknown schema type");
+    }
+}
 
 
 export function deserialize(xml: string, schema: JSONSchema): any {

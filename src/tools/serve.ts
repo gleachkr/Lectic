@@ -43,10 +43,11 @@ export class ServeTool extends Tool {
 
     required = ["pageHtml"]
 
-    async call(args : { pageHtml : string }) : Promise<ToolCallResult[]> {
+    async call({ pageHtml }: { pageHtml : string }) : Promise<ToolCallResult[]> {
+        this.validateArguments({ pageHtml });
         const rewriter = new HTMLRewriter()
         // ↓ NOOP atm, but leaving it because it seems like it'll be useful later
-        const page = rewriter.transform(args.pageHtml)
+        const page = rewriter.transform(pageHtml)
         let cb = (_x : unknown) => {}
         const blocker = new Promise(resolve => cb = resolve)
         const server = Bun.serve({

@@ -79,6 +79,7 @@ export class ExecTool extends Tool {
     required = ["arguments"]
 
     async call(args : { arguments : string[] }) : Promise<ToolCallResult[]> {
+        this.validateArguments(args);
         if (this.confirm) {
             const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)])
             if (proc.exitCode !==0) {

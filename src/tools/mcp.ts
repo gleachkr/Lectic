@@ -158,7 +158,6 @@ export class MCPTool extends Tool {
             this.parameters = {}
             this.required = []
         } else {
-            // We cast here. The MCP docs seem to guarantee these are schemata
             this.parameters = schema.properties
             // XXX: MCP types don't include the required property. The JSON
             // Schema spec says that when it's omitted, nothing is required
@@ -168,6 +167,7 @@ export class MCPTool extends Tool {
     };
 
     async call(args : {[key : string] : unknown}) : Promise<ToolCallResult[]> {
+        this.validateArguments(args)
         if (this.confirm) {
             const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)],{
                 stderr: "ignore" //discard stderr
@@ -250,6 +250,7 @@ export class MCPTool extends Tool {
             return new MCPTool({
                 name: tool.name,
                 description: tool.description,
+                // ↓ We cast here. The MCP docs seem to guarantee these are schemata
                 schema: tool.inputSchema as JSONSchema & { type: "object" },
                 client: client, // the tools share a single client
                 confirm: spec.confirm,

@@ -67,9 +67,10 @@ export class SQLiteTool extends Tool {
 
     required = ["query"]
 
-    async call(args : { query : string }) : Promise<ToolCallResult[]> {
+    async call({ query }: { query : string }) : Promise<ToolCallResult[]> {
+        this.validateArguments({ query });
         // need better error handling here
-        const rslt_rows = this.db.query(args.query).values()
+        const rslt_rows = this.db.query(query).values()
         // Something's off with bun's provided types, rslt_rows can be null in practice.
         if (Array.isArray(rslt_rows)) {
             for (const row of rslt_rows) {

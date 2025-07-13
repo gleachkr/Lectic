@@ -1,5 +1,5 @@
-import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
-import { serialize, deserialize } from "./schema.ts"
+import { unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
+import { serialize, deserialize, validateAgainstSchema } from "./schema.ts"
 import type { JSONSchema } from "./schema.ts"
 
 export type ToolCallResult = ToolCallResultText
@@ -15,6 +15,22 @@ export abstract class Tool {
     abstract parameters: { [_ : string] : JSONSchema }
     abstract required? : string[] //TODO: this should not be optional
     abstract call (arg : any) : Promise<ToolCallResult[]>
+
+    validateArguments(args: {[key : string] : unknown}) {
+        if (this.required) {
+            for (const key of this.required) {
+                if (!(key in args)) {
+                    throw new Error(`Missing required argument: ${key}`);
+                }
+            }
+        }
+        for (const key of Object.keys(args)) {
+            if (!(key in this.parameters)) {
+                throw new Error(`Unknown argument: ${key}`);
+            }
+            validateAgainstSchema(args[key], this.parameters[key]);
+        }
+    }
 }
 
 export type ToolCall = { 
@@ -76,10 +92,13 @@ const toolCallRegex = /^<tool-call\s+with="(.*?)"(\s+id="(.*?)")?(\s+is-error="(
 
 export function deserializeCall(tool: Tool, serialized : string) 
     : ToolCall | null {
+
     const match = toolCallRegex.exec(serialized.trim())
     if (!match) return null
+
     const [,name,, id,, isErrorStr, inner] = match
     let [argstring, results] = extractElements(inner)
+
     argstring = `<object>${unwrap(argstring, "arguments")}</object>`
     const resultsArray = extractElements(unwrap(results, "results"))
 

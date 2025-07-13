@@ -50,6 +50,7 @@ export class AgentTool extends Tool {
     required = ["content"]
 
     async call({ content }: { content: string }) : Promise<ToolCallResult[]> {
+        this.validateArguments({ content });
         const lectic = {
             header: new LecticHeader({interlocutor: this.agent}),
             body: { messages: [new UserMessage({ content })] },
