@@ -206,7 +206,8 @@ async function *handleToolUse(
             const call = calls.find(call => call.id === part.functionResponse.id)
             const name = part.functionResponse.name
             if (call && call.args instanceof Object) {
-                 yield serializeCall(registry[name], {
+                 const theTool = name in registry ? registry[name] : null
+                 yield serializeCall(theTool, {
                      name: name,
                      args: call.args, 
                      id: call.id,

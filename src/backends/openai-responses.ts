@@ -127,6 +127,7 @@ async function *handleToolUse(
             if (output.type === "function_call") {
                 const result = tool_call_results.find(result => result.call_id === output.call_id)
                 if (result) {
+                    const theTool = output.name in registry ? registry[output.name] : null
                     yield serializeCall(registry[output.name], {
                         name: output.name,
                         args: JSON.parse(output.arguments), 

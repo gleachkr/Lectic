@@ -69,20 +69,22 @@ function deserializeResult(xml : string) : ToolCallResult  {
     throw Error(`Unrecognized type in tool call result deserialization`)
 }
 
-export function serializeCall(tool: Tool, {args, results, id, isError} : ToolCall) : string {
+export function serializeCall(tool: Tool | null, {name, args, results, id, isError} : ToolCall) : string {
     let values = [] 
-    for (const key in tool.parameters) {
-        if (key in args) {
-            values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)
-        } else if (tool.required && key in tool.required) {
-            throw new Error(`missing required parameter: ${key}`)
+    if (tool) {
+        for (const key in tool.parameters) {
+            if (key in args) {
+                values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)
+            } else if (tool.required && key in tool.required) {
+                throw new Error(`missing required parameter: ${key}`)
+            }
         }
     }
 
     const idstring = id ? ` id="${id}"` : ""
     const errorstring = isError !== undefined ? ` is-error="${isError}"` : ""
 
-    return `<tool-call with="${tool.name}"${idstring}${errorstring}>\n` +
+    return `<tool-call with="${name}"${idstring}${errorstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
         `<results>${results.map(serializeResult).join("\n")}</results>\n` +
     `</tool-call>`

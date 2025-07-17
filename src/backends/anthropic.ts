@@ -259,7 +259,8 @@ async function* handleToolUse(
             if (result.content) {
                 const block = tool_uses.find(block => block.id === result.tool_use_id)
                 if (block && block.input instanceof Object) {
-                     yield serializeCall(registry[block.name], {
+                     const theTool = block.name in registry ? registry[block.name] : null
+                     yield serializeCall(theTool, {
                          name: block.name,
                          args: block.input, 
                          id: block.id,
