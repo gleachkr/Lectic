@@ -1,6 +1,5 @@
-import { UserMessage, AssistantMessage } from './message';
+import { UserMessage } from './message';
 import { expect, it, describe } from "bun:test";
-import type { Interlocutor } from './interlocutor';
 
 describe('UserMessage', () => {
     describe('containedLinks', () => {

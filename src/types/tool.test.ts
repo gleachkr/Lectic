@@ -9,7 +9,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             description: 'Tool that handles strings',
             parameters: { message: { type: 'string', description: 'A message' } },
             call: async (_arg) => ToolCallResults('success'),
-        };
+            validateArguments: _ => null
+        }
 
         const call = {
             name: 'stringTool',
@@ -29,6 +30,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             description: 'Tool that handles booleans',
             parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
             call: async (_arg) => ToolCallResults('done'),
+            validateArguments: _ => null
         };
 
         const call = {
@@ -49,6 +51,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             description: 'Tool that handles numbers',
             parameters: { amount: { type: 'number', description: 'An amount' } },
             call: async (_arg) => ToolCallResults('calculated'),
+            validateArguments: _ => null
         };
 
         const call = {
@@ -71,6 +74,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
                 items: { type: 'array', description: 'A list of items', items: { type: 'string', description: 'Item' } }
             },
             call: async (_arg) => ToolCallResults('completed'),
+            validateArguments: _ => null
         };
 
         const call = {
@@ -100,6 +104,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
                 }
             },
             call: async (_arg) => ToolCallResults('adjusted'),
+            validateArguments: _ => null
         };
 
         const call = {
@@ -119,6 +124,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         description: 'A mock tool',
         parameters: { param: { type: 'string', description: 'A parameter' } },
         call: async (_arg) => ToolCallResults('result'),
+        validateArguments: _ => null
     };
 
     it('should correctly handle a ToolCall with an id attribute', () => {
