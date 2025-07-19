@@ -92,7 +92,7 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
 
 const toolCallRegex = /^<tool-call\s+with="(.*?)"(\s+id="(.*?)")?(\s+is-error="(.*?)")?\s*>([\s\S]*)<\/tool-call>$/
 
-export function deserializeCall(tool: Tool, serialized : string) 
+export function deserializeCall(tool: Tool | null, serialized : string) 
     : ToolCall | null {
 
     const match = toolCallRegex.exec(serialized.trim())
@@ -101,19 +101,21 @@ export function deserializeCall(tool: Tool, serialized : string)
     const [,name,, id,, isErrorStr, inner] = match
     let [argstring, results] = extractElements(inner)
 
-    argstring = `<object>${unwrap(argstring, "arguments")}</object>`
+    let args = []
+
+    if (tool) {
+        args = deserialize(`<object>${unwrap(argstring, "arguments")}</object>`, {
+            type: "object" as const,
+            description: "tool call parameters",
+            properties: tool.parameters
+        })
+        if (name !== tool.name) throw new Error(`Unexpected tool-call name, expected "${tool.name}", got "${name}"`)
+    }
+
     const resultsArray = extractElements(unwrap(results, "results"))
 
-    if (name !== tool.name) throw new Error(`Unexpected tool-call name, expected "${tool.name}", got "${name}"`)
-
     const isError = isErrorStr === "true" ? true : isErrorStr === "false" ? false : undefined
-    const argschema = {
-        type: "object" as const,
-        description: "tool call parameters",
-        properties: tool.parameters
-    }
-    const args = deserialize(argstring, argschema)
-    return { name: tool.name, args, results : resultsArray.map(deserializeResult), id, isError }
+    return { name, args, results : resultsArray.map(deserializeResult), id, isError }
 }
 
 export function getSerializedCallName(call : string) : string | null {
