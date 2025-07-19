@@ -86,10 +86,10 @@ export class AssistantMessage {
             if (isSerializedCall(blockRaw)) {
                 const name = getSerializedCallName(blockRaw)
                 if (!name) throw Error("Parse error for tool call: couldn't parse name")
-                const tool = this.tools[name]
-                if (!tool) throw Error(`Couldn't find tool with name ${name} in registry`)
-                const call = deserializeCall(tool, blockRaw)
+
+                const call = deserializeCall(this.tools[name] ?? null, blockRaw)
                 if (call === null) throw Error("Parse error for tool call: couldn't deserialize call")
+
                 curCalls.push(call)
             } else {
                 if (curCalls.length !== 0) flush()

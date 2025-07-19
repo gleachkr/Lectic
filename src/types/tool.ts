@@ -101,7 +101,7 @@ export function deserializeCall(tool: Tool | null, serialized : string)
     const [,name,, id,, isErrorStr, inner] = match
     let [argstring, results] = extractElements(inner)
 
-    let args = []
+    let args = { arguments: {} }
 
     if (tool) {
         args = deserialize(`<object>${unwrap(argstring, "arguments")}</object>`, {
