@@ -14,10 +14,10 @@ function M.create_spinner(ns_id)
     local id
     return {
         done = function(_)
-            enclosed_line = 0
-            vim.api.nvim_buf_del_extmark(buf, ns_id, id)
             timer:stop()
             timer:close()
+            enclosed_line = 0
+            vim.api.nvim_buf_del_extmark(buf, ns_id, id)
         end,
         start = function(_, line)
             enclosed_line = line
