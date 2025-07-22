@@ -4,6 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
 import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 
 type MCPSpecSTDIO = {
@@ -15,6 +16,10 @@ type MCPSpecSTDIO = {
 
 type MCPSpecSSE = {
     mcp_sse: string
+}
+
+type MCPSpecStreamableHTTP = {
+    mcp_shttp: string
 }
 
 type MCPSpecWebsocket = {
@@ -40,7 +45,7 @@ function validateRoot(root : MCPRoot) {
     }
 }
 
-type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket) & { 
+type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamableHTTP) & { 
     server_name?: string
     confirm?: string 
     roots?: MCPRoot[]
@@ -83,9 +88,19 @@ function isMCPSpecWebsocket(raw : unknown) : raw is MCPSpecWebsocket {
         typeof raw.mcp_ws == "string" 
 }
 
+function isMCPSpecStreamableHttp(raw : unknown) : raw is MCPSpecStreamableHTTP {
+    return raw !== null &&
+        typeof raw === "object" &&
+        "mcp_shttp" in raw && 
+        typeof raw.mcp_shttp == "string" 
+}
+
 export function isMCPSpec(raw : unknown) : raw is MCPSpec {
-    return (isMCPSpecSTDIO(raw) || isMCPSpecSSE(raw) || isMCPSpecWebsocket(raw)) 
-        && ("confirm" in raw ? typeof raw.confirm === "string" : true)
+    return (isMCPSpecSTDIO(raw) || 
+            isMCPSpecSSE(raw) || 
+            isMCPSpecWebsocket(raw) || 
+            isMCPSpecStreamableHttp(raw)) && 
+           ("confirm" in raw ? typeof raw.confirm === "string" : true)
 }
 
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
@@ -222,7 +237,9 @@ export class MCPTool extends Tool {
             })
             : "mcp_sse" in spec
             ? new SSEClientTransport(new URL(spec.mcp_sse))
-            : new WebSocketClientTransport(new URL(spec.mcp_ws))
+            : "mcp_ws" in spec
+            ? new WebSocketClientTransport(new URL(spec.mcp_ws))
+            : new StreamableHTTPClientTransport(new URL(spec.mcp_shttp))
 
         const client = new Client({
             name: "Lectic",
