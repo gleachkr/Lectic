@@ -273,7 +273,7 @@ async function* handleToolUse(
 
         messages.push({ role: "user", content })
 
-        updateCache(messages)
+        if (!lectic.header.interlocutor.nocache) updateCache(messages)
 
         Logger.debug("anthropic - messages (tool)", messages)
 
@@ -318,7 +318,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
             messages.push(...await handleMessage(msg, lectic))
         }
 
-        updateCache(messages)
+        if (!lectic.header.interlocutor.nocache) updateCache(messages)
 
         Logger.debug("anthropic - messages", messages)
 
@@ -368,7 +368,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
             messages.push(...await handleMessage(msg, lectic))
         }
 
-        updateCache(messages)
+        if (!lectic.header.interlocutor.nocache) updateCache(messages)
 
         Logger.debug("anthropic - messages", messages)
 

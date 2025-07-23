@@ -16,6 +16,7 @@ export type Interlocutor = {
     max_tokens? : number
     max_tool_use? : number
     reminder? : string
+    nocache? : boolean
 }
 
 function isMemories(raw : unknown) : raw is Memories {
@@ -54,6 +55,8 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
         throw Error(`The max_tool_use for ${raw.name} wasn't well-formed, it needs to be a number.`)
     } else if (("reminder" in raw) && typeof raw.reminder !== "string") {
         throw Error(`The reminder for ${raw.name} wasn't well-formed, it needs to be a string.`)
+    } else if (("nocache" in raw) && typeof raw.nocache!== "boolean") {
+        throw Error(`The nocache option for ${raw.name} wasn't well-formed, it needs to be a boolean.`)
     } else if (("temperature" in raw)) {
         if (typeof raw.temperature !== "number") {
             throw Error(`The temperature for ${raw.name} wasn't well-formed, it needs to be a number.`)
