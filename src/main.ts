@@ -96,7 +96,9 @@ async function main() {
 
     try {
 
-        const lectic = await parseLectic(lecticString)
+        const include = await Bun.file(opts["Include"]).text().catch(e => null)
+
+        const lectic = await parseLectic(lecticString, [include])
 
         if (opts["header"]) {
             const newHeader = `---\n${getYaml(lecticString) ?? ""}\n---`
@@ -174,6 +176,7 @@ program
 .option('-f, --file <lectic>',  'Lectic to read from')
 .option('-q, --quiet', 'Don’t print response')
 .option('-i, --inplace <lectic>',  'Lectic to read from and update in place' )
+.option('-I, --Include <yaml>',  'Include extra header information' )
 .option('-l, --log <logfile>',  'Log debugging information')
 .option('-v, --version',  'Print version information')
 

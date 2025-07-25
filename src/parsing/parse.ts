@@ -6,6 +6,7 @@ import * as YAML from "yaml"
 import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
+import { mergeValues } from "../utils/merge"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -16,7 +17,7 @@ export function getYaml(raw:string) : string | null {
 export function getBody(raw:string) : string | null {
     let expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/m
     let match = expr.exec(raw)
-    return match?.[1] ?? null
+    return match?.[1] ?? raw
 }
 
 export function bodyToMessages(raw : string, header : LecticHeader) : Message[] {
@@ -49,14 +50,20 @@ export function bodyToMessages(raw : string, header : LecticHeader) : Message[] 
 }
 
 
-export async function parseLectic(raw: string) : Promise<Lectic> {
+export async function parseLectic(raw: string, include : (string | null)[]) : Promise<Lectic> {
+
     const rawYaml = getYaml(raw)
     const rawBody = getBody(raw)
+    let headerSpec: unknown
 
-    if (rawYaml === null) throw new Error('could not parse YAML header')
-    if (rawBody === null) throw new Error('could not parse Lectic Body')
-
-    const headerSpec: unknown = YAML.parse(rawYaml)
+    try {
+        headerSpec = [...include, rawYaml]
+            .filter(x => x !== null)
+            .map(h => YAML.parse(h))
+            .reduce(mergeValues)
+    } catch {
+        throw new Error('could not parse YAML header, no include header provided')
+    }
 
     if (!validateLecticHeaderSpec(headerSpec)) throw Error(
          "YAML Header is missing something. " +
