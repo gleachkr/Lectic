@@ -12,6 +12,8 @@
       pkgs = nixpkgs.legacyPackages.${system};
 
       lectic = pkgs.callPackage ./nix/lectic.nix { };
+
+      nix-sandbox = pkgs.callPackage ./extra/sandbox.nix { };
     in
     {
 
@@ -34,6 +36,11 @@
       apps.default = {
         type = "app";
         program = "${self.packages.${system}.default}/bin/lectic";
+      };
+
+      apps.nix-sandbox= {
+        type = "app";
+        program = "${nix-sandbox}/bin/run-container-with-config";
       };
 
       devShell = with pkgs; mkShell {
