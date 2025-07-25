@@ -75,6 +75,19 @@ async function getLecticString(opts : OptionValues) : Promise<string> {
     }
 }
 
+async function getIncludes(opts: OptionValues) : Promise<(string | null)[]> {
+        const includes = []
+        if (opts["Include"]) {
+            includes.push(await Bun.file(opts["Include"])
+                    .text().catch(_ => null))
+        }
+        if (process.env['LECTIC_CONFIG']) {
+            includes.push(await Bun.file(process.env['LECTIC_CONFIG'])
+                    .text().catch(_ => null))
+        }
+        return includes
+}
+
 async function main() {
 
     const opts = program.opts()
@@ -96,9 +109,9 @@ async function main() {
 
     try {
 
-        const include = await Bun.file(opts["Include"]).text().catch(e => null)
+        const includes = await getIncludes(opts)
 
-        const lectic = await parseLectic(lecticString, [include])
+        const lectic = await parseLectic(lecticString, includes)
 
         if (opts["header"]) {
             const newHeader = `---\n${getYaml(lecticString) ?? ""}\n---`
