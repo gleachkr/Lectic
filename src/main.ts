@@ -9,8 +9,7 @@ import { createWriteStream } from "fs"
 import type { Lectic } from "./types/lectic"
 import { version } from "../package.json"
 
-// This  really should be factored out.
-
+// XXX This  really should be factored out.
 function handleDirectives(lectic : Lectic) {
     for (const message of lectic.body.messages) {
         if (message.role === "user") {
@@ -31,6 +30,10 @@ function validateOptions(opts : OptionValues) {
         }
         if (opts["Short"]) {
             Logger.write("You can't combine --Short and --header ");
+            process.exit(1)
+        }
+        if (opts["consolidate"]) {
+            Logger.write("You can't combine --consolidate and --header ");
             process.exit(1)
         }
     }
@@ -122,7 +125,7 @@ async function main() {
             }
         } else if (opts["consolidate"]) {
             const backend = getBackend(lectic.header.interlocutor)
-            const new_lectic : any = opts["header"] ? lectic : await consolidateMemories(lectic, backend)
+            const new_lectic : any = await consolidateMemories(lectic, backend)
             if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
             if (new_lectic.header.interlocutors.length === 1) {
                 delete new_lectic.header.interlocutors
