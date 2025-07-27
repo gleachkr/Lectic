@@ -105,6 +105,69 @@ contents with the result from stdout.
 
 ## Features
 
+### Configuration
+
+Lectic allows for flexible configuration through a hierarchy of YAML files. 
+This lets you set up global defaults, per-project settings, and 
+conversation-specific overrides.
+
+Configuration is merged in the following order of precedence (lower to higher):
+
+1.  **`$LECTIC_CONFIG` Environment Variable**: You can set a `LECTIC_CONFIG` 
+    environment variable to point to a YAML file. This file will be used as a 
+    base configuration for all your conversations.
+
+2.  **`--Include` (`-I`) Flag**: You can use the `--Include` (or `-I`) 
+    command-line flag to specify a YAML file to include. This is useful for 
+    project-specific configurations. This will override any settings from 
+    `$LECTIC_CONFIG`.
+
+3.  **Lectic File Header**: The YAML front matter in your `.lec` file always 
+    has the final say, overriding any settings from the other two sources.
+
+#### Merging Logic
+
+When merging configurations, Lectic follows these rules:
+
+-   **Objects**: Are merged recursively. If a key is present in multiple 
+    sources, the value from the source with higher precedence is used.
+-   **Arrays**: Are merged based on the `name` attribute of their elements. If 
+    two objects in an array have the same `name`, they are merged. Otherwise, 
+    the arrays are concatenated. This is particularly useful for managing lists 
+    of tools and interlocutors.
+-   **Other Values, or Type-Mismatched Values**: The value from the 
+    highest-precedence source is used.
+
+Here's an example of how you might use this feature. You could have a 
+`~/.config/lectic.yaml` file (pointed to by `$LECTIC_CONFIG`) with your default 
+provider and model:
+
+```yaml
+interlocutors:
+    - name: octOpus
+      provider: anthropic
+      model: claude-3-opus-20240229
+```
+
+Then, for a specific project, you could have a `project.yaml` file with a 
+different model and a tool:
+
+```yaml
+interlocutor:
+    name: Basho
+    model: claude-3-haiku-20240307
+tools:
+    - exec: bash
+    - agent: oct-Opus
+```
+
+You would then run `lectic -I project.yaml -f conversation.lec`, and Basho 
+would be able to process converation.lec, calling octOpus as an agent as 
+necessary (or you could switch interlocutors with `:ask[octOpus]`).
+
+Finally, if your `conversation.lec` file has its own header, those settings 
+will be applied on top of everything else.
+
 ### Markdown Format
 
 Lectic uses a superset of commonmark markdown, using micromark's implementation
@@ -643,10 +706,6 @@ interlocutor:
     max_tool_use: 10            # Maximum permitted tool calls 
 
     # Optional Context management
-    memories: previous.txt      # Context from previous conversations.
-                                # Added to system prompt.
-                                # Can be string, file path, or command, like the prompt
-
     reminder: Be nice.          # Reminder string, added to 
                                 # user message invisibly.
                                 
@@ -762,8 +821,8 @@ lectic -f conversation.lec                 # Generate a new message from a conve
 lectic -l debug.log -f conversation.lec    # Write debug logs to debug.log
 lectic -s -f convo.lec                     # Only return the new message
 lectic -S -f convo.lec                     # Only return the new message, without speaker indications
-lectic -c -f convo.lec                     # Consolidate a new set of memories 
 lectic -i convo.lec                        # Update convo.lec in-place with the next message
+lectic -I project.yaml -f convo.lec        # Include a project-specific config
 lectic -Hf convo.lec                       # Print just the header of the lectic
                                            # (use -Hi to reset a lectic, erasing all messages)
 lectic -v                                  # Get a version string
