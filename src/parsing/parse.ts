@@ -9,13 +9,13 @@ import remarkDirective from "remark-directive"
 import { mergeValues } from "../utils/merge"
 
 export function getYaml(raw:string) : string | null {
-    let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
+    let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/
     let match = expr.exec(raw)
     return match?.[1] ?? null
 }
 
 export function getBody(raw:string) : string | null {
-    let expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/m
+    let expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/
     let match = expr.exec(raw)
     return match?.[1] ?? raw
 }
