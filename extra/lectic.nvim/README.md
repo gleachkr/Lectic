@@ -14,8 +14,6 @@ conversational LLM client.
     (`:::Name ... :::`).
 *   **Tool Call Folding:** Automatically folds `<tool-call>...</tool-call>`
     blocks generated during interaction, showing the tool name in the fold.
-*   **Memory Consolidation:** Command and mapping to consolidate
-    conversation history using `lectic --consolidate`.
 *   **Selection Explanation:** Select text and ask `lectic` to explain it
     in more detail, replacing the selection with the elaborated response.
 *   **Configurable Mappings:** Set your own keybindings for common actions.
@@ -61,8 +59,6 @@ and appearance by setting some global variables.
 vim.g.lectic_key_submit = '<Leader>l'
 -- Default: <localleader>c
 vim.g.lectic_key_cancel_submit = '<Leader>c'
--- Default: <localleader>C
-vim.g.lectic_key_consolidate = '<Leader>C'
 -- Default: <localleader>e (Visual mode)
 vim.g.lectic_key_explain = '<Leader>e'
 ```
@@ -102,25 +98,19 @@ vim.g.lectic_spinner_steps = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
 6.  Tool calls within the response will appear folded, showing the tool
     name (e.g., `[ python ]`). Use standard fold commands (`za`, `zo`,
     `zc`) to inspect them.
-7.  To consolidate memories, use the consolidate mapping (default
-    `<localleader>C`) or `:LecticConsolidate`. This replaces the buffer
-    content with the consolidated version.
-8.  To elaborate on a part of the conversation:
+7.  To elaborate on a part of the conversation:
     *   Visually select the text you want explained.
     *   Use the explain mapping (default `<localleader>e` in visual mode).
     *   The selected text will be replaced by `lectic`'s explanation.
-9.  To interrupt an LLM that's generating text, use the cancel submit mapping 
+8.  To interrupt an LLM that's generating text, use the cancel submit mapping 
     (default `<localleader>c`).
 
 ## Commands
 
 *   `:Lectic`: Submit the current buffer to `lectic` for a response.
-*   `:LecticConsolidate`: Replace buffer content with `lectic --consolidate`
-    output.
 
 ## Default Keymaps
 
 *   `<localleader>l` (Normal mode): Submit buffer (`:Lectic`).
-*   `<localleader>C` (Normal mode): Consolidate memories (`:LecticConsolidate`).
 *   `<localleader>c` (Normal mode): Interrupt text generation.
 *   `<localleader>e` (Visual mode): Explain selected text.

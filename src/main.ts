@@ -1,10 +1,8 @@
 import { parseLectic, getYaml } from "./parsing/parse"
 import { program } from 'commander'
 import type { OptionValues } from 'commander'
-import { consolidateMemories } from "./types/backend"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
-import * as YAML from "yaml"
 import { createWriteStream } from "fs"
 import type { Lectic } from "./types/lectic"
 import { version } from "../package.json"
@@ -30,20 +28,6 @@ function validateOptions(opts : OptionValues) {
         }
         if (opts["Short"]) {
             Logger.write("You can't combine --Short and --header ");
-            process.exit(1)
-        }
-        if (opts["consolidate"]) {
-            Logger.write("You can't combine --consolidate and --header ");
-            process.exit(1)
-        }
-    }
-    if (opts["consolidate"]) {
-        if (opts["short"]) {
-            Logger.write("You can't combine --short and --consolidate ");
-            process.exit(1)
-        }
-        if (opts["Short"]) {
-            Logger.write("You can't combine --Short and --consolidate ");
             process.exit(1)
         }
     }
@@ -106,7 +90,7 @@ async function main() {
 
     if (opts["quiet"]) Logger.outfile = createWriteStream('/dev/null')
 
-    if (!(opts["Short"] || opts["short"] || opts["consolidate"] || opts["header"])) {
+    if (!(opts["Short"] || opts["short"] || opts["header"])) {
         await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
@@ -123,22 +107,6 @@ async function main() {
                 Logger.outfile = createWriteStream(opts["inplace"])
                 await Logger.write(newHeader)
             }
-        } else if (opts["consolidate"]) {
-            const backend = getBackend(lectic.header.interlocutor)
-            const new_lectic : any = await consolidateMemories(lectic, backend)
-            if (opts["inplace"]) Logger.outfile = createWriteStream(opts["inplace"])
-            if (new_lectic.header.interlocutors.length === 1) {
-                delete new_lectic.header.interlocutors
-                // can't serialize the registry
-                delete new_lectic.header.interlocutor.registry
-            } else {
-                delete new_lectic.header.interlocutor
-                for (const interlocutor of new_lectic.header.interlocutors) {
-                    delete interlocutor.registry
-                }
-            }
-            await Logger.write(`---\n${YAML.stringify(new_lectic.header, {
-                blockQuote: "literal" })}---`, )
         } else {
             // we handle directives, which may update header fields
             handleDirectives(lectic)
@@ -187,7 +155,6 @@ program
 .name('lectic')
 .option('-s, --short', 'Only emit a new message rather than the full updated lectic')
 .option('-S, --Short', 'Only emit a new message rather than the full updated lectic. Only including the message text')
-.option('-c, --consolidate',  'Emit a new YAML header consolidating memories of this conversation')
 .option('-H, --header',  'Emit only the YAML header of the lectic')
 .option('-f, --file <lectic>',  'Lectic to read from')
 .option('-q, --quiet', 'Don’t print response')

@@ -2,10 +2,6 @@ vim.api.nvim_buf_create_user_command(0, 'Lectic', function()
     require('lectic.submit').submit_lectic()
 end, {})
 
-vim.api.nvim_buf_create_user_command(0, 'LecticConsolidate', function()
-    require('lectic.consolidate').consolidate()
-end, {})
-
 vim.keymap.set('n', vim.g.lectic_key_submit or '<localleader>l', require('lectic.submit').submit_lectic, {
     buffer = true,
     desc = 'Generate next message with lectic'
@@ -14,11 +10,6 @@ vim.keymap.set('n', vim.g.lectic_key_submit or '<localleader>l', require('lectic
 vim.keymap.set('n', vim.g.lectic_key_cancel_submit or '<localleader>c', require('lectic.submit').cancel_submit, {
     buffer = true,
     desc = 'Cancel active message generation'
-})
-
-vim.keymap.set('n', vim.g.lectic_key_consolidate or '<localleader>C', require('lectic.consolidate').consolidate, {
-    buffer = true,
-    desc = 'Consolidate LLM memories with lectic'
 })
 
 vim.keymap.set('v', vim.g.lectic_key_explain or '<localleader>e', require('lectic.selection').explain_selection, {

@@ -14,9 +14,6 @@ VSIX files are distributed with lectic releases,
 *   **Generate Next Response:** Send the current buffer content to `lectic -s` 
     to generate the next part of the conversation. The output streams into the 
     editor.
-*   **Consolidate History:** Consolidate the entire buffer to a new memory by 
-    running `lectic --consolidate` on the current content and replacing the 
-    buffer contents with the result.
 *   **Explain Selection:** Select a portion of text and ask `lectic` to rewrite 
     it with more explanation and detail.
 *   **Block Highlighting:** Automatically highlights blocks delimited by 

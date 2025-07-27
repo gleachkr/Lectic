@@ -68,9 +68,8 @@ a problem.
 
 A Neovim plugin is provided in `extra/lectic.nvim` that offers support for the 
 `.lec` filetype, including syntax highlighting, streaming responses, folding of 
-tool use blocks, keymaps, and commands for updating conversations, 
-consolidating memories, and elaborating model responses. For more details, 
-check out the 
+tool use blocks, keymaps, and commands for updating conversations, and 
+elaborating model responses. For more details, check out the 
 [README](https://github.com/gleachkr/Lectic/blob/main/extra/lectic.nvim/README.md)
 
 </details>
@@ -85,8 +84,7 @@ check out the
 A VSCode plugin is provided in `extra/lectic.vscode` that offers support for 
 the `.lec` filetype, including syntax highlighting, streaming responses, 
 folding of tool use blocks, keymaps, and commands for updating conversations, 
-consolidating memories, and elaborating model responses. For more details, 
-check out the 
+and elaborating model responses. For more details, check out the 
 [README](https://github.com/gleachkr/Lectic/blob/main/extra/lectic.vscode/README.md)
 
 </details>
@@ -242,45 +240,6 @@ This is particularly useful for:
 - Showing the current state of a project or environment
 - Incorporating dynamic data into your conversations
 - Running analysis tools and discussing their output
-
-### Memory Consolidation
-
-Lectic can consolidate the memories of a conversation into the YAML header,
-allowing the LLM to retain context from previous interactions. This feature
-summarizes the conversation so far and stores it in the `memories` field of
-the YAML header.
-
-To use this feature, use the `-c` or `--consolidate` flag:
-
-```bash
-lectic -c -f conversation-today.lec > conversation-tomorrow.lec
-```
-
-This command will:
-
-1. Send the current conversation to the LLM.
-2. Instruct the LLM to summarize the conversation as a new memory.
-3. Update the YAML header, inserting the new memory in the 
-   `interlocutor.memories` field
-4. Write the resulting YAML header to `conversation-tomorrow.lec`
-
-The updated YAML header will look something like this:
-
-````yaml
-interlocutor:
-    name: Assistant
-    provider: anthropic
-    prompt: Your base prompt here
-    memories:
-        3/28/2025-9:01:24 AM: >-
-          This is a summary of the conversation so far, including
-          key details and topics discussed. It will be used to
-          maintain context in future interactions.
-````
-
-The quality of the memory consolidation depends on the LLM's ability to
-summarize the conversation effectively. If a multiparty conversation is 
-consolidated, each interlocutor will consolidate their own memories.
 
 ### Tools
 

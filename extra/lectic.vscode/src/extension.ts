@@ -6,7 +6,7 @@
 import * as vscode from 'vscode';
 
 // Import the command functions from our commands file
-import { submitLectic, consolidateLectic, explainSelection } from './commands';
+import { submitLectic, explainSelection } from './commands';
 // Import the decoration logic (now includes resetDecorationType)
 import { initializeDecorations, updateDecorations, resetDecorationType } from './decorationProvider';
 // Import the folding provider
@@ -19,7 +19,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // === Register Commands ===
     context.subscriptions.push(vscode.commands.registerCommand('lectic.submit', submitLectic));
-    context.subscriptions.push(vscode.commands.registerCommand('lectic.consolidate', consolidateLectic));
     context.subscriptions.push(vscode.commands.registerCommand('lectic.explainSelection', explainSelection));
 
 
