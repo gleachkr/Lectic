@@ -105,7 +105,9 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
             }
 
             results.push({ role: "assistant", content: modelParts })
-            results.push({ role : "user", content: userParts })
+            if (userParts.length > 0) {
+                results.push({ role : "user", content: userParts })
+            }
         }
 
         return results
