@@ -1,4 +1,5 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
+import * as fs from "fs";
 
 export type ExecToolSpec = {
     exec: string
@@ -23,14 +24,16 @@ function execScript(script : string,  args : string[], sandbox: string | undefin
         throw Error("expected shebang in first line of executable script")
     }
     const shebangArgs = script.slice(2).split('\n')[0].trim().split(' ')
-    const tmpName = `./${Bun.randomUUIDv7()}`
+    const tmpName = `./.lectic_script-${Bun.randomUUIDv7()}`
+    const cleanup = () => fs.existsSync(tmpName) && fs.unlinkSync(tmpName)
+    process.on('exit', cleanup)
     Bun.write(tmpName, script)
     const proc = Bun.spawnSync([
         ...(sandbox ? [sandbox] : []), 
         ...shebangArgs, 
         tmpName, 
         ...args], { stderr: "pipe" })
-    Bun.file(tmpName).delete()
+    cleanup()
     return proc
 }
 
