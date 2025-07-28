@@ -6,17 +6,9 @@ export function wrapText({text, name} : { text : string, name: string}) {
 
 export function systemPrompt(lectic : Lectic) {
 
-const memories = lectic.header.interlocutor.memories
-
-
 return `Your name is ${lectic.header.interlocutor.name}
 
 ${lectic.header.interlocutor.prompt}
-
-${memories 
-    ? `You have memories from previous conversations: <memories>${JSON.stringify(memories)}</memories>`
-    : ""
-}
 
 1. **IMPORTANT: You must write text so that each line is no longer than 78 characters.**
 
