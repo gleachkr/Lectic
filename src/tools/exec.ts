@@ -19,7 +19,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         ("confirm" in raw ? typeof raw.confirm === "string" : true)
 }
 
-function execScript(script : string,  args : string[], sandbox: string | undefined,) {
+function execScript(script : string, args : string[], sandbox: string | undefined,) {
     if (script.slice(0,2) !== "#!") {
         throw Error("expected shebang in first line of executable script")
     }
