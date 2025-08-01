@@ -14,7 +14,7 @@ export function getYaml(raw:string) : string | null {
     return match?.[1] ?? null
 }
 
-export function getBody(raw:string) : string | null {
+export function getBody(raw:string) : string {
     let expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/
     let match = expr.exec(raw)
     return match?.[1] ?? raw
