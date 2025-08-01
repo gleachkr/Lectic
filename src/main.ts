@@ -1,11 +1,12 @@
+import { createWriteStream } from "fs"
+import { join } from "path"
+import { program, type OptionValues } from 'commander'
 import { parseLectic, getYaml } from "./parsing/parse"
-import { program } from 'commander'
-import type { OptionValues } from 'commander'
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
-import { createWriteStream } from "fs"
 import type { Lectic } from "./types/lectic"
 import { version } from "../package.json"
+import { lecticConfigDir } from "./utils/xdg";
 
 // XXX This  really should be factored out.
 function handleDirectives(lectic : Lectic) {
@@ -70,6 +71,9 @@ async function getIncludes(opts: OptionValues) : Promise<(string | null)[]> {
         }
         if (process.env['LECTIC_CONFIG']) {
             includes.push(await Bun.file(process.env['LECTIC_CONFIG'])
+                    .text().catch(_ => null))
+        } else {
+            includes.push(await Bun.file(join(lecticConfigDir(), 'lectic.yaml'))
                     .text().catch(_ => null))
         }
         return includes

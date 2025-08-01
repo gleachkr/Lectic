@@ -113,17 +113,22 @@ conversation-specific overrides.
 
 Configuration is merged in the following order of precedence (lower to higher):
 
-1.  **`$LECTIC_CONFIG` Environment Variable**: You can set a `LECTIC_CONFIG` 
+1.  **XDG Configuration Directory**: Lectic will first look for a configuration 
+    file at `$XDG_CONFIG_HOME/lectic/lectic.yaml` (or 
+    `~/.config/lectic/lectic.yaml` on most systems). This is a good place to 
+    put your global, user-level configuration.
+2.  **`$LECTIC_CONFIG` Environment Variable**: You can set a `LECTIC_CONFIG` 
     environment variable to point to a YAML file. This file will be used as a 
-    base configuration for all your conversations.
+    base configuration for all your conversations, and will override any 
+    settings from the XDG directory.
 
-2.  **`--Include` (`-I`) Flag**: You can use the `--Include` (or `-I`) 
+3.  **`--Include` (`-I`) Flag**: You can use the `--Include` (or `-I`) 
     command-line flag to specify a YAML file to include. This is useful for 
     project-specific configurations. This will override any settings from 
     `$LECTIC_CONFIG`.
 
-3.  **Lectic File Header**: The YAML front matter in your `.lec` file always 
-    has the final say, overriding any settings from the other two sources.
+4.  **Lectic File Header**: The YAML front matter in your `.lec` file always 
+    has the final say, overriding any settings from the other three sources.
 
 #### Merging Logic
 
@@ -139,7 +144,7 @@ When merging configurations, Lectic follows these rules:
     highest-precedence source is used.
 
 Here's an example of how you might use this feature. You could have a 
-`~/.config/lectic.yaml` file (pointed to by `$LECTIC_CONFIG`) with your default 
+`~/.config/lectic/lectic.yaml` file with your default 
 provider and model:
 
 ```yaml
