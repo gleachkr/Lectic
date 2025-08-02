@@ -1,4 +1,5 @@
 import { UserMessage } from './message';
+import { Macro } from './macro';
 import { expect, it, describe } from "bun:test";
 
 describe('UserMessage', () => {
@@ -59,6 +60,43 @@ describe('UserMessage', () => {
             const message = new UserMessage({ content: 'This is a plain message.' });
             const directives = message.containedDirectives();
             expect(directives).toHaveLength(0);
+        });
+    });
+
+    describe('expandMacros', () => {
+        const macros = [
+            new Macro({ name: 'greet', expansion: 'Hello, World!' }),
+            new Macro({ name: 'bye', expansion: 'Goodbye!' })
+        ];
+
+        it('should expand a single macro', async () => {
+            const message = new UserMessage({ content: 'A message with :macro[greet].' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('A message with Hello, World!.');
+        });
+
+        it('should expand multiple different macros', async () => {
+            const message = new UserMessage({ content: ':macro[greet] and :macro[bye]' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('Hello, World! and Goodbye!');
+        });
+
+        it('should expand multiple instances of the same macro', async () => {
+            const message = new UserMessage({ content: ':macro[greet], I say :macro[greet]!' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('Hello, World!, I say Hello, World!!');
+        });
+
+        it('should not change content if no macros are present', async () => {
+            const message = new UserMessage({ content: 'This is a plain message.' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('This is a plain message.');
+        });
+
+        it('should not expand an undefined macro', async () => {
+            const message = new UserMessage({ content: 'A message with :macro[unknown].' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('A message with :macro[unknown].');
         });
     });
 });
