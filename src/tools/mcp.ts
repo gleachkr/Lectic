@@ -1,5 +1,6 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema } from "../types/schema"
+import { lecticEnv } from "../utils/xdg";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
@@ -182,9 +183,12 @@ export class MCPTool extends Tool {
     };
 
     async call(args : {[key : string] : unknown}) : Promise<ToolCallResult[]> {
+
         this.validateArguments(args)
+
         if (this.confirm) {
             const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)],{
+                env: { ...process.env, ...lecticEnv },
                 stderr: "ignore" //discard stderr
             })
             if (proc.exitCode !==0) {
@@ -194,19 +198,20 @@ export class MCPTool extends Tool {
 
         const response = await this.client.callTool({ name: this.name, arguments: args })
         const content = response.content
+
         if (!Array.isArray(content) || content.length === 0) {
-            throw Error(`<error>Unexpected MCP server tool call response: ${JSON.stringify(content)}`)
-        } else {
-            let results = []
-            for (const block of content) {
-                if (isTextContent(block)) {
-                    results.push({ type: "text" as const, text: block.text })
-                } else {
-                    throw Error(`MCP only supports text responses right now. Got ${JSON.stringify(content)}`)
-                }
+            throw Error(`<error>Unexpected MCP server tool call response: ${JSON.stringify(content)}</error>`)
+        } 
+
+        let results = []
+        for (const block of content) {
+            if (isTextContent(block)) {
+                results.push({ type: "text" as const, text: block.text })
+            } else {
+                throw Error(`MCP only supports text responses right now. Got ${JSON.stringify(content)}`)
             }
-            return results
         }
+        return results
     }
 
     static client_registry : { [key : string] : Client } = {}

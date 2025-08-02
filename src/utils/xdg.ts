@@ -10,7 +10,7 @@ function getBaseDir(type: DirType): string {
     switch (process.platform) {
         case 'win32': {
             const local = process.env['LOCALAPPDATA'] || join(home, 'AppData', 'Local');
-const roaming = process.env['APPDATA'] || join(home, 'AppData', 'Roaming');
+            const roaming = process.env['APPDATA'] || join(home, 'AppData', 'Roaming');
             switch (type) {
                 case 'config': return roaming;
                 case 'data':   return roaming;
@@ -41,8 +41,15 @@ const roaming = process.env['APPDATA'] || join(home, 'AppData', 'Roaming');
 }
 
 // Lectic-specific paths, built from the base directories
-export const lecticConfigDir = () => join(getBaseDir('config'), appName);
-export const lecticDataDir = () => join(getBaseDir('data'), appName);
-export const lecticCacheDir = () => join(getBaseDir('cache'), appName);
-export const lecticStateDir = () => join(getBaseDir('state'), appName);
+export const lecticConfigDir = () => process.env['LECTIC_CONFIG'] || join(getBaseDir('config'), appName);
+export const lecticDataDir = () => process.env['LECTIC_DATA'] || join(getBaseDir('data'), appName);
+export const lecticCacheDir = () => process.env['LECTIC_CACHE'] || join(getBaseDir('cache'), appName);
+export const lecticStateDir = () => process.env['LECTIC_STATE'] || join(getBaseDir('state'), appName);
 export const lecticTempDir = () => join(tmpdir(), appName);
+export const lecticEnv = {
+    LECTIC_CONFIG: lecticConfigDir(),
+    LECTIC_DATA: lecticDataDir(),
+    LECTIC_STATE: lecticStateDir(),
+    LECTIC_CACHE: lecticCacheDir(),
+    LECTIC_TEMP: lecticTempDir(),
+}

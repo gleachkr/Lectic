@@ -1,4 +1,5 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
+import { lecticEnv } from "../utils/xdg";
 import * as fs from "fs";
 
 export type ExecToolSpec = {
@@ -32,7 +33,10 @@ function execScript(script : string, args : string[], sandbox: string | undefine
         ...(sandbox ? [sandbox] : []), 
         ...shebangArgs, 
         tmpName, 
-        ...args], { stderr: "pipe" })
+        ...args], { 
+            stderr: "pipe",
+            env: { ...process.env, ...lecticEnv }
+        })
     cleanup()
     return proc
 }
@@ -84,7 +88,9 @@ export class ExecTool extends Tool {
     async call(args : { arguments : string[] }) : Promise<ToolCallResult[]> {
         this.validateArguments(args);
         if (this.confirm) {
-            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)])
+            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)], {
+                env: { ...process.env, ...lecticEnv }
+            })
             if (proc.exitCode !==0) {
                 throw Error(`<error>Tool use permission denied</error>`)
             }
@@ -95,7 +101,10 @@ export class ExecTool extends Tool {
             : Bun.spawnSync([
                 ...(this.sandbox ? [this.sandbox] : []), 
                 this.exec, 
-                ...args.arguments], { stderr: "pipe" })
+                ...args.arguments], { 
+                    stderr: "pipe",
+                    env: { ...process.env, ...lecticEnv }
+                })
 
         const results = []
         const stdout = proc.stdout.toString()

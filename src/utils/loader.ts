@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { lecticEnv } from "../utils/xdg";
 
 function execScript(script : string) {
     if (script.slice(0,2) !== "#!") {
@@ -11,7 +12,10 @@ function execScript(script : string) {
     Bun.write(tmpName, script)
     const proc = Bun.spawnSync([
         ...shebangArgs, 
-        tmpName], { stderr: "ignore" })
+        tmpName], { 
+            stderr: "ignore",
+            env: { ...process.env, ...lecticEnv }
+        })
     cleanup()
     return proc.stdout.toString();
 }
@@ -27,7 +31,8 @@ function execCmd(cmd: string) {
             : arg
         );
     const proc = Bun.spawnSync(args ?? [], {
-        stderr: "ignore"
+        stderr: "ignore",
+        env: { ...process.env, ...lecticEnv }
     });
     return proc.stdout.toString();
 }

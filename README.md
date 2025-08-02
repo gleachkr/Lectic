@@ -130,6 +130,21 @@ Configuration is merged in the following order of precedence (lower to higher):
 4.  **Lectic File Header**: The YAML front matter in your `.lec` file always 
     has the final say, overriding any settings from the other three sources.
 
+You can override the default locations for Lectic's directories by setting
+the following environment variables:
+
+- `$LECTIC_CONFIG`: Overrides the configuration directory path.
+- `$LECTIC_DATA`: Overrides the data directory path.
+- `$LECTIC_CACHE`: Overrides the cache directory path.
+- `$LECTIC_STATE`: Overrides the state directory path.
+
+These variables, along with `$LECTIC_TEMP` (which points to a temporary 
+directory), are automatically passed into the environment of any subprocesses 
+that Lectic spawns. This includes `exec` tools and any executables or scripts 
+used for generating prompts or usage instructions. This ensures that scripts or 
+nested `lectic` calls can easily access the same configuration and data context 
+as the main process.
+
 #### Merging Logic
 
 When merging configurations, Lectic follows these rules:
