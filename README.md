@@ -324,6 +324,45 @@ This is particularly useful for:
 - Incorporating dynamic data into your conversations
 - Running analysis tools and discussing their output
 
+### Macros
+
+Lectic supports a simple but powerful macro system that allows you to
+define and reuse snippets of text. This is useful for saving frequently
+used prompts, automating repetitive workflows, and composing complex,
+multi-step commands.
+
+Macros are defined in your YAML configuration (either in the `.lec` file
+header or in an included configuration file).
+
+```yaml
+macros:
+    - name: summarize
+      expansion: >
+        Please provide a concise, single-paragraph summary of our
+        conversation so far, focusing on the key decisions made and
+        conclusions reached.
+
+    - name: commit_msg
+      expansion: |
+        Please write a Conventional Commit message for the following changes:
+        :cmd[git diff --staged]
+```
+
+To use a macro, you invoke it using a directive in your message:
+
+```markdown
+This was a long and productive discussion. Could you wrap it up?
+
+:macro[summarize]
+```
+
+When Lectic processes the file, it will replace `:macro[summarize]` with the
+full text from the `expansion` field before sending it to the LLM. This
+expansion happens before any other directives (like `:cmd`) are executed.
+
+Like the `prompt` field, the `expansion` can also load from a file or from the 
+output of an executable or an inline script, `file:` or `exec:` prefixes.
+
 ### Tools
 
 Lectic allows you to configure tools that your LLM can use to perform different 
@@ -744,6 +783,11 @@ interlocutor:
 
 interlocutors:
     - ANOTHER_INTERLOCUTOR_HERE
+
+    # Macro definitions
+    macros:
+        - name: my_macro              # The name used in :macro[my_macro]
+          expansion: "Text..."       # String, `file:`, or `exec:` source for the macro
 ```
 
 ## Example Conversation
