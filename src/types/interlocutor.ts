@@ -1,8 +1,6 @@
 import { LLMProvider, isLLMProvider } from "./provider"
 import { Tool } from "./tool"
 
-type Memories = string | { [key: string] : string }
- 
 // TODO Possibly this should be a union type over per-backend interfaces.
 export type Interlocutor = {
     prompt : string
@@ -11,25 +9,11 @@ export type Interlocutor = {
     tools? : object[]
     registry?: { [key: string] : Tool }
     model? : string
-    memories? : Memories
     temperature? : number
     max_tokens? : number
     max_tool_use? : number
     reminder? : string
     nocache? : boolean
-}
-
-function isMemories(raw : unknown) : raw is Memories {
-    if (typeof raw === "string") {
-        return true
-    } else if (typeof raw === "object" && raw !== null) {
-        for (const [key,val] of Object.entries(raw)) {
-            if (typeof key !== "string") return false
-            if (typeof val !== "string") return false
-        }
-        return true
-    }
-    return false
 }
 
 export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
@@ -43,8 +27,6 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
         throw Error(`Interlocutor ${raw.name} needs a prompt. The prompt needs to be a string.`)
     } else if (("model" in raw) && typeof raw.model !== "string") {
         throw Error(`The model type for ${raw.name} needs to be a string`)
-    } else if (("memories" in raw) && !isMemories(raw.memories)) {
-        throw Error(`The memories provided for ${raw.name} are not well formed.`)
     } else if (("provider" in raw) && !isLLMProvider(raw.provider)) {
         throw Error(`The provider for ${raw.name} wasn't recognized.`)
     } else if (("max_tokens" in raw) && typeof raw.max_tokens !== "number") {

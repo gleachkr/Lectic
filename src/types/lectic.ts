@@ -1,7 +1,7 @@
 import type { Message } from "./message"
-import type { Interlocutor } from "./interlocutor"
 import { Tool } from "./tool"
-import { validateInterlocutor } from "./interlocutor"
+import { validateInterlocutor, type Interlocutor } from "./interlocutor"
+import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
 import { isMessage } from "./message"
 import { isExecToolSpec, ExecTool } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
@@ -10,16 +10,17 @@ import { isMCPSpec, MCPTool } from "../tools/mcp"
 import { isServeToolSpec, ServeTool } from "../tools/serve"
 import { isAgentToolSpec, AgentTool } from "../tools/agent"
 import { isNativeTool } from "../tools/native"
-
 import { loadFrom } from "../utils/loader"
 
 type DialecticHeaderSpec = {
     interlocutor : Interlocutor
     interlocutors? : [ ...Interlocutor[] ]
+    macros?: MacroSpec[]
 }
 
 type ManylecticHeaderSpec = {
     interlocutors : [ Interlocutor, ...Interlocutor[] ]
+    macros?: MacroSpec[]
 }
 
 type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
@@ -27,13 +28,16 @@ type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
 export class LecticHeader {
     interlocutor : Interlocutor
     interlocutors : Interlocutor[]
+    macros: Macro[]
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             this.interlocutor = spec.interlocutor
             this.interlocutors = [spec.interlocutor, ... (spec.interlocutors ?? [])]
+            this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         } else {
             this.interlocutor = spec.interlocutors[0]
             this.interlocutors = spec.interlocutors
+            this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         }
     }
 
@@ -49,8 +53,6 @@ export class LecticHeader {
     async initialize() {
         for (const interlocutor of this.interlocutors) {
             interlocutor.prompt = await loadFrom(interlocutor.prompt)
-
-            interlocutor.memories = await loadFrom(interlocutor.memories)
 
             interlocutor.registry = {}
 
@@ -105,8 +107,13 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
          ) ||
          ('interlocutors' in raw 
             && Array.isArray(raw.interlocutors)
+            && raw.interlocutors.length !== 0
             && raw.interlocutors.every(validateInterlocutor))
-        )
+        ) && ('macros' in raw
+                ? Array.isArray(raw.macros) && raw.macros.every(validateMacroSpec)
+                : true
+             )
+        
 }
 
 export type LecticBody = {

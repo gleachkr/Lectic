@@ -7,8 +7,9 @@ import { getBackend } from "./backends/util"
 import type { Lectic } from "./types/lectic"
 import { version } from "../package.json"
 import { lecticConfigDir } from "./utils/xdg";
+import { UserMessage } from "./types/message"
 
-// XXX This  really should be factored out.
+// XXX This really should be factored out.
 function handleDirectives(lectic : Lectic) {
     for (const message of lectic.body.messages) {
         if (message.role === "user") {
@@ -98,6 +99,12 @@ async function main() {
         const includes = await getIncludes(opts)
 
         const lectic = await parseLectic(lecticString, includes)
+
+        for (const message of lectic.body.messages) {
+            if (message instanceof UserMessage) {
+                await message.expandMacros(lectic.header.macros)
+            }
+        }
 
         if (opts["header"]) {
             const newHeader = `---\n${getYaml(lecticString) ?? ""}\n---`
