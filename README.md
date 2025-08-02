@@ -176,9 +176,9 @@ different model and a tool:
 interlocutor:
     name: Basho
     model: claude-3-haiku-20240307
-tools:
-    - exec: bash
-    - agent: oct-Opus
+    tools:
+        - exec: bash
+        - agent: octOpus
 ```
 
 You would then run `lectic -I project.yaml -f conversation.lec`, and Basho 
