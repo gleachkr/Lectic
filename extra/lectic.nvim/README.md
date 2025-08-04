@@ -105,9 +105,15 @@ vim.g.lectic_spinner_steps = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
 8.  To interrupt an LLM that's generating text, use the cancel submit mapping 
     (default `<localleader>c`).
 
-## Commands
+## Working Directory
 
-*   `:Lectic`: Submit the current buffer to `lectic` for a response.
+When `lectic` is executed, the plugin ensures that the command runs in the same 
+directory as the `.lec` file you are editing. This is important so that 
+`lectic` can correctly resolve relative paths for any content references or 
+tools you might be using in your conversation.
+
+If you are working with an unsaved file, `lectic` will run in the directory of 
+the current Neovim process.
 
 ## Default Keymaps
 

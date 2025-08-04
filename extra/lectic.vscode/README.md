@@ -47,3 +47,13 @@ VSIX files are distributed with lectic releases,
 *   `lectic.blockBackgroundColor`: Customize the background color for the `:::` 
     blocks. Accepts standard VS Code color formats (e.g., `#RRGGBBAA`, 
     `rgba(...)`, theme color IDs like `editor.selectionBackground`).
+
+## Working Directory
+
+When `lectic` is executed, the extension ensures that the command runs in the 
+same directory as the `.lec` file you are editing. This is important so that 
+`lectic` can correctly resolve relative paths for any content references or 
+tools you might be using in your conversation.
+
+If you are working with an unsaved file, `lectic` will run in the root of your 
+current workspace.

@@ -72,7 +72,8 @@ function M.submit_lectic()
     process = vim.system({"lectic", "-s"}, {
       stdin = true,
       stdout = on_stdout,
-      env = env
+      env = env,
+      cwd = vim.fn.expand('%:h') == '' and nil or vim.fn.expand('%:h')
     }, on_exit)
 
     the_spinner:start(vim.api.nvim_buf_line_count(buf) - 1)

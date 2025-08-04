@@ -75,17 +75,20 @@ async function checkLecticExists(): Promise<boolean> {
  */
 function getWorkingDirectory(document: vscode.TextDocument): string {
     let cwd: string | undefined;
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
 
-    if (workspaceFolder) {
-        cwd = workspaceFolder.uri.fsPath;
-        logDebug(`Using workspace folder as CWD: ${cwd}`);
-    } else if (document.uri.scheme === 'file') {
+    // Prioritize the directory of the document itself
+    if (document.uri.scheme === 'file') {
         cwd = path.dirname(document.uri.fsPath);
         logDebug(`Using document directory as CWD: ${cwd}`);
     } else {
-        cwd = os.homedir();
-        logDebug(`Falling back to home directory as CWD: ${cwd}`);
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+        if (workspaceFolder) {
+            cwd = workspaceFolder.uri.fsPath;
+            logDebug(`Document is not a file, using workspace folder as CWD: ${cwd}`);
+        } else {
+            cwd = os.homedir();
+            logDebug(`Falling back to home directory as CWD: ${cwd}`);
+        }
     }
     return cwd;
 }
