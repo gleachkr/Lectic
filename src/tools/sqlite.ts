@@ -1,5 +1,6 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Database } from "bun:sqlite"
+import { parse, show } from "sql-parser-cst"
 
 export type SQLiteToolSpec = {
     sqlite: string
@@ -16,15 +17,11 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
 }
 
 const description = `
-This tool gives you access to an sqlite database. You can issue an SQLITE query or statement, and you will receive the results.
+This tool gives you access to an sqlite database. You can provide well-formed SQLite script, and you will receive the results, encoded as JSON.
 
-1. In order to avoid overwhelming you with extraneous information, results larger than a fixed size will result in an error. 
-2. **IMPORTANT**: The tool accepts *one statement at a time*. If you provide multiple statements, statements after the first will be silently ignored. For example,
+In order to avoid overwhelming you with extraneous information, results larger than a fixed size will result in an error. 
 
-    CREATE TABLE tableA(x INT); CREATE TABLE tableB(x INT);
-
-Will only create "tableA", the second table will not be created. If you need to execute multiple statements, then you will need to call the tool more than once.
-
+If your SQLITE script contains multiple statements, you'll receive the results in the order that the statements were provided.
 `
 
 
@@ -68,24 +65,36 @@ export class SQLiteTool extends Tool {
     required = ["query"]
 
     async call({ query }: { query : string }) : Promise<ToolCallResult[]> {
+
         this.validateArguments({ query });
-        // need better error handling here
-        const rslt_rows = this.db.query(query).values()
-        // Something's off with bun's provided types, rslt_rows can be null in practice.
-        if (Array.isArray(rslt_rows)) {
-            for (const row of rslt_rows) {
-                for (const col of row) {
-                    if (col instanceof Uint8Array) {
-                        throw Error("result contained a BLOB column, try refining to select only readable columns.")
+
+        const parsed = parse(query, {
+            dialect: "sqlite",
+            includeComments: true,
+            includeSpaces: true,
+        })
+
+        const rslts = []
+
+        for (const statement of parsed.statements) {
+            const raw = show(statement)
+            if (raw.length === 0) continue
+            const rslt_rows = this.db.query(raw).values()
+            // Something's off with bun's provided types, rslt_rows can be null in practice.
+            if (Array.isArray(rslt_rows)) {
+                for (const row of rslt_rows) {
+                    for (const col of row) {
+                        if (col instanceof Uint8Array) {
+                            throw Error("result contained a BLOB column, try refining to select only readable columns.")
+                        }
                     }
                 }
             }
+            const rslt = rslt_rows === null ? "Success" : JSON.stringify(rslt_rows)
+            if (rslt.length < (this.limit ?? 10_000)) Error("result was too large, try an more selective query.")
+            rslts.push(rslt)
         }
-        const rslt = rslt_rows === null ? "Success" : JSON.stringify(rslt_rows)
-        if (rslt.length < (this.limit ?? 10_000)) {
-            return ToolCallResults(rslt)
-        } else {
-            throw Error("result was too large, try an more selective query.")
-        }
+
+        return ToolCallResults(rslts)
     }
 }
