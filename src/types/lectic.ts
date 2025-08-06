@@ -11,6 +11,7 @@ import { isServeToolSpec, ServeTool } from "../tools/serve"
 import { isAgentToolSpec, AgentTool } from "../tools/agent"
 import { isNativeTool } from "../tools/native"
 import { loadFrom } from "../utils/loader"
+import { mergeValues } from "../utils/merge"
 
 type DialecticHeaderSpec = {
     interlocutor : Interlocutor
@@ -31,14 +32,20 @@ export class LecticHeader {
     macros: Macro[]
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
-            this.interlocutor = spec.interlocutor
-            this.interlocutors = [spec.interlocutor, ... (spec.interlocutors ?? [])]
-            this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
+            // We have some extra logic here to merge two entries if the
+            // interlocutor appears in the interlocutors list as well.
+            const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
+            this.interlocutor = maybeExists 
+                ? mergeValues(maybeExists, spec.interlocutor)
+                : this.interlocutor = spec.interlocutor
+            this.interlocutors = maybeExists
+                ? [this.interlocutor, ... (spec.interlocutors?.filter(i => i.name !== maybeExists.name) ?? [])]
+                : [this.interlocutor, ... (spec.interlocutors ?? [])]
         } else {
             this.interlocutor = spec.interlocutors[0]
             this.interlocutors = spec.interlocutors
-            this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         }
+        this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
     }
 
     setSpeaker(name : string) {
