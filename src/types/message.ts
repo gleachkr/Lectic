@@ -1,5 +1,6 @@
 import type { RootContent } from "mdast"
 import { parseReferences, parseDirectives, parseBlocks, nodeContentRaw, nodeRaw } from "../parsing/markdown"
+import { simultaneousReplace } from "../utils/replace"
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
 import type { Interlocutor } from "./interlocutor"
@@ -50,23 +51,18 @@ export class UserMessage {
     async expandMacros(macros : Macro[]) {
         if (macros.length === 0) return
 
+        const expansionMap : { [key : string] : string }= {}
+
         // We run the expansions in parallel
-        const expansionMap = await Promise.all(parseDirectives(this.content).filter(directive =>
+        await Promise.all(parseDirectives(this.content).filter(directive =>
             directive.name === "macro"
         ).map(async directive => {
             const macroName = nodeContentRaw(directive, this.content)
-            return {
-                raw : nodeRaw(directive, this.content),
-                expansion: await macros.find(macro => macro.name.trim() == macroName.trim())?.expand()
-            }
+            const expansion = await macros.find(macro => macro.name.trim() == macroName.trim())?.expand()
+            if (expansion) expansionMap[nodeRaw(directive, this.content)] = expansion
         }))
 
-        const macroRegex = RegExp(expansionMap.map(p => RegExp.escape(p.raw)).join('|'),"g")
-
-        this.content = this.content.replaceAll(macroRegex, match => {
-            const expansion = expansionMap.find(p => p.raw === match)?.expansion
-            return expansion ? expansion : match
-        })
+        this.content = simultaneousReplace(expansionMap, this.content)
     }
 }
 
