@@ -7,12 +7,14 @@ import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js"
 export class MessageAttachmentPart {
     bytes : Uint8Array
     mimetype: string | null
+    fragment: string | undefined
     title: string 
     URI: string 
 
-    constructor(opts : {bytes : Uint8Array, mimetype : string | null, title : string , URI : string }) {
+    constructor(opts : {bytes : Uint8Array, fragment?: string, mimetype : string | null, title : string , URI : string }) {
         this.bytes = opts.bytes
         this.mimetype = opts.mimetype
+        this.fragment = opts.fragment
         this.title = opts.title
         this.URI = opts.URI
     }
@@ -22,12 +24,16 @@ export class MessageAttachment {
     file : BunFile | undefined
     response : Promise<Response> | undefined
     resource : Promise<ReadResourceResult> | undefined
+    fragment : string | undefined
     title : string
     URI : string
 
     constructor(link : MessageLink) {
         try {
             const url = new URL(link.URI)
+            if (url.hash) {
+                this.fragment = url.hash.slice(1)
+            }
             switch(url.protocol) {
                 case "file:" : {
                     this.file = Bun.file(Bun.fileURLToPath(link.URI)); break
@@ -73,7 +79,8 @@ export class MessageAttachment {
             return [new MessageAttachmentPart({
                 bytes, mimetype, 
                 URI : this.URI, 
-                title : this.title
+                title : this.title,
+                fragment: this.fragment
             })]
         } else if (this.response) {
             const response = await this.response
@@ -82,7 +89,8 @@ export class MessageAttachment {
             return [new MessageAttachmentPart({
                 bytes, mimetype, 
                 URI : this.URI, 
-                title : this.title
+                title : this.title,
+                fragment: this.fragment
             })]
         } else if (this.resource) {
             const contents = (await this.resource).contents
@@ -96,7 +104,8 @@ export class MessageAttachment {
                 return new MessageAttachmentPart({
                     bytes, mimetype, 
                     URI : this.URI, 
-                    title : this.title
+                    title : this.title,
+                    fragment: this.fragment
                 })
             })
         } 
