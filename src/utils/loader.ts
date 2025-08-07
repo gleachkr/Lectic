@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import { lecticEnv } from "../utils/xdg";
+import { simultaneousReplace } from "./replace";
 
 function execScript(script : string) {
     if (script.slice(0,2) !== "#!") {
@@ -38,9 +39,15 @@ function execCmd(cmd: string) {
 }
 
 export async function loadFrom<T>(something: T): Promise<T | string> {
+    const env : {[key: string] : string | undefined } = { ...process.env, ...lecticEnv }
+    const newEnv : {[key: string] : string } = {}
+    for (const key of Object.keys(env)) {
+        if (env[key]) newEnv[`$${key}`] = env[key]
+    }
     if (typeof something === "string") {
         if (something.slice(0, 5) === "file:") {
-            const path = something.slice(5).trim();
+            // We expaned $VARIABLE names in paths and commands
+            const path = simultaneousReplace(newEnv, something.slice(5).trim());
             if (!path) {
                 throw new Error("File path cannot be empty.");
             }
@@ -52,7 +59,7 @@ export async function loadFrom<T>(something: T): Promise<T | string> {
             }
             return command.split("\n").length > 1 
                 ? execScript(command)
-                : execCmd(command)
+                : execCmd(simultaneousReplace(newEnv, command))
         } else {
             return something;
         }
