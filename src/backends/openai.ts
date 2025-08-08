@@ -124,9 +124,9 @@ async function *handleToolUse(
 
         const stream = client.chat.completions.stream({
             messages: [developerMessage(lectic), ...messages],
-            model: lectic.header.interlocutor.model ?? 'gpt-4.1',
+            model: lectic.header.interlocutor.model ?? "Missing default model",
             temperature: lectic.header.interlocutor.temperature,
-            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_completion_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools(lectic)
         })
     
@@ -290,11 +290,13 @@ export class OpenAIBackend implements Backend {
 
         Logger.debug("openai - messages", messages)
 
+        lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
+
         let stream = this.client.chat.completions.stream({
             messages: [developerMessage(lectic), ...messages],
-            model: lectic.header.interlocutor.model ?? this.defaultModel,
+            model: lectic.header.interlocutor.model,
             temperature: lectic.header.interlocutor.temperature,
-            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_completion_tokens: lectic.header.interlocutor.max_tokens || 1024,
             stream: true,
             tools: getTools(lectic)
         });

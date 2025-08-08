@@ -145,7 +145,7 @@ async function *handleToolUse(
         const stream = client.responses.stream({
             instructions: systemPrompt(lectic),
             input: messages,
-            model: lectic.header.interlocutor.model ?? 'gpt-4.1',
+            model: lectic.header.interlocutor.model,
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools(lectic)
@@ -298,10 +298,12 @@ export class OpenAIResponsesBackend implements Backend {
 
         Logger.debug("openai - messages", messages)
 
+        lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
+
         let stream = this.client.responses.stream({
             instructions: systemPrompt(lectic),
             input: messages,
-            model: lectic.header.interlocutor.model ?? this.defaultModel,
+            model: lectic.header.interlocutor.model,
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools(lectic)
