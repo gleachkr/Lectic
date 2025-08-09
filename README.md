@@ -15,12 +15,12 @@ a problem.
 ### Installation
 
 - If you're using [nix](https://nixos.org), then `nix profile install 
-  github:gleachkr/lectic` will install lectic from the lastest git commit. 
+  github:gleachkr/lectic` will install lectic from the latest git commit. 
 - If you're not using nix, but you're using a Linux system (or WSL on windows), 
   you can download an app image from the 
   [releases](https://github.com/gleachkr/Lectic/releases), and place it 
   somewhere on your `$PATH`. 
-- If you're on MacOS, you can download a binary from the 
+- If you're on macOS, you can download a binary from the 
   [releases](https://github.com/gleachkr/Lectic/releases), and place it 
   somewhere on your `$PATH`.
 
@@ -36,6 +36,7 @@ a problem.
        #↑ could be openai, gemini, openrouter, ollama, openai/responses, or  
        # anthropic/bedrock
        prompt: Your base prompt here
+       #↑ or file:my_prompt.txt, to read from a file.
    ---
 
    Your initial message here
@@ -53,7 +54,7 @@ a problem.
    - In other editors: Set up a key binding or command to pipe the current file
      through `lectic`
 
-3. Or, From the command line: `lectic -s -f conversation.lec` will stream a 
+3. Or, From the command line: `lectic -s -f conversation.lec` will stream the 
    next message to the console, and `lectic -i conversation.lec` will update 
    the lectic file in-place.
 
@@ -113,14 +114,10 @@ conversation-specific overrides.
 
 Configuration is merged in the following order of precedence (lower to higher):
 
-1.  **XDG Configuration Directory**: Lectic will first look for a configuration 
-    file at `$XDG_CONFIG_HOME/lectic/lectic.yaml` (or 
-    `~/.config/lectic/lectic.yaml` on most systems). This is a good place to 
-    put your global, user-level configuration.
-2.  **`$LECTIC_CONFIG` Environment Variable**: You can set a `LECTIC_CONFIG` 
-    environment variable to point to a YAML file. This file will be used as a 
-    base configuration for all your conversations, and will override any 
-    settings from the XDG directory.
+1.  **Configuration Directory**: Lectic will first look for a configuration 
+    file at `lectic/lectic.yaml` in the configuration directory on your system, 
+    typically `.configuration/lectic/lectic.yaml` on Linux. This is a good 
+    place to put your global, user-level configuration.
 
 3.  **`--Include` (`-I`) Flag**: You can use the `--Include` (or `-I`) 
     command-line flag to specify a YAML file to include. This is useful for 
@@ -145,7 +142,13 @@ used for generating prompts or usage instructions. This ensures that scripts or
 nested `lectic` calls can easily access the same configuration and data context 
 as the main process.
 
+<details>
+
+<summary>
+
 #### Merging Logic
+
+</summary>
 
 When merging configurations, Lectic follows these rules:
 
@@ -187,6 +190,8 @@ necessary (or you could switch interlocutors with `:ask[octOpus]`).
 
 Finally, if your `conversation.lec` file has its own header, those settings 
 will be applied on top of everything else.
+
+</details>
 
 ### Markdown Format
 
@@ -430,6 +435,7 @@ print("Hello, world!")
 The code executed successfully and output: Hello, world!
 
 :::
+```
 
 ##### Command Execution Safety
 
@@ -442,7 +448,8 @@ arguments are passed to the sandbox script which is responsible for executing
 them in a controlled environment. For example, the provided 
 `extra/sandbox/bwrap-sandbox.sh` uses 
 [bubblewrap](https://github.com/containers/bubblewrap) to create a basic 
-sandbox with a temporary home directory.
+sandbox with a temporary home directory. More sandboxing scripts are available 
+under `extra/sandbox`.
 
 When an exec tool is configured with a confirm script, the confirm script will 
 be executed before every call to that tool, with two arguments: the name of the 
@@ -605,7 +612,7 @@ interlocutors:
           name: communicator # Optional name for the tool
     - name: Spock
       tools: 
-        - think: about how to bail out Kirk
+        - think_about: how to bail out Kirk
         - exec: phaser
 ```
 
@@ -691,12 +698,13 @@ they're going to share with the colony?
 > [this post](https://simonwillison.net/2025/Apr/9/mcp-prompt-injection/), for 
 > examples and details.
 
-When an local MCP tool is configured with a sandbox script, the command that 
+When a local MCP tool is configured with a sandbox script, the command that 
 starts the MCP server, along with its arguments are passed to the sandbox 
 script which is responsible for executing them in a controlled environment. For 
 example, the provided `extra/sandbox/bwrap-sandbox.sh` uses 
 [bubblewrap](https://github.com/containers/bubblewrap) to create a basic 
-sandbox with a temporary home directory.
+sandbox with a temporary home directory. More sandboxing scripts are available 
+under `extra/`.
 
 When an MCP tool is configured with a confirm script, the confirm script will 
 be executed before every call to that tool, with two arguments: the name of the 
@@ -730,7 +738,7 @@ tools:
 ```
 
 Native tool support varies by LLM provider. Right now, Lectic supports native 
-tool use with Gemini, Anthropic, and OpenAi.
+tool use with Gemini, Anthropic, and OpenAI.
 
 - Recent Gemini models support both search and code. But they're subject to 
   some limitations imposed by the Gemini API. You cannot provide more than one 
@@ -784,10 +792,10 @@ interlocutor:
 interlocutors:
     - ANOTHER_INTERLOCUTOR_HERE
 
-    # Macro definitions
-    macros:
-        - name: my_macro              # The name used in :macro[my_macro]
-          expansion: "Text..."       # String, `file:`, or `exec:` source for the macro
+# Macro definitions
+macros:
+    - name: my_macro              # The name used in :macro[my_macro]
+      expansion: "Text..."       # String, `file:`, or `exec:` source for the macro
 ```
 
 ## Example Conversation
@@ -801,7 +809,7 @@ interlocutor:
       and step-by-step problem solving.
     tools:
         - exec: python3
-        - usage: Before running any code, show the code snippet to the user.
+          usage: Before running any code, show the code snippet to the user.
 ---
 
 Can you help me understand the Fibonacci sequence? Maybe we could
