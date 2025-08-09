@@ -22,6 +22,8 @@ This tool gives you access to an sqlite database. You can provide well-formed SQ
 In order to avoid overwhelming you with extraneous information, results larger than a fixed size will result in an error. 
 
 If your SQLITE script contains multiple statements, you'll receive the results in the order that the statements were provided.
+
+Each tool call is handled atomically: changes are rolled back if any error occurs. So if you see an error, you can infer that your tool call had no effect on the database.
 `
 
 
@@ -74,27 +76,28 @@ export class SQLiteTool extends Tool {
             includeSpaces: true,
         })
 
-        const rslts = []
-
-        for (const statement of parsed.statements) {
-            const raw = show(statement)
-            if (raw.length === 0) continue
-            const rslt_rows = this.db.query(raw).values()
-            // Something's off with bun's provided types, rslt_rows can be null in practice.
-            if (Array.isArray(rslt_rows)) {
-                for (const row of rslt_rows) {
-                    for (const col of row) {
-                        if (col instanceof Uint8Array) {
-                            throw Error("result contained a BLOB column, try refining to select only readable columns.")
+        const rslts : string[] = []
+        const processStatements = this.db.transaction(statements => {
+            for (const statement of statements ) {
+                const raw = show(statement)
+                if (raw.length === 0) continue
+                const rslt_rows = this.db.query(raw).values()
+                // Something's off with bun's provided types, rslt_rows can be null in practice.
+                if (Array.isArray(rslt_rows)) {
+                    for (const row of rslt_rows) {
+                        for (const col of row) {
+                            if (col instanceof Uint8Array) {
+                                throw Error("result contained a BLOB column, try refining to select only readable columns.")
+                            }
                         }
                     }
                 }
+                const rslt = rslt_rows === null ? "Success" : JSON.stringify(rslt_rows)
+                if (rslt.length < (this.limit ?? 10_000)) Error("result was too large, try an more selective query.")
+                rslts.push(rslt)
             }
-            const rslt = rslt_rows === null ? "Success" : JSON.stringify(rslt_rows)
-            if (rslt.length < (this.limit ?? 10_000)) Error("result was too large, try an more selective query.")
-            rslts.push(rslt)
-        }
-
+        })
+        processStatements(parsed.statements)
         return ToolCallResults(rslts)
     }
 }
