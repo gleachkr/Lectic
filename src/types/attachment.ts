@@ -39,7 +39,8 @@ export class MessageAttachment {
 
     constructor(link : MessageLink) {
         try {
-            const url = new URL(expandEnv(link.URI))
+            this.URI = expandEnv(link.URI)
+            const url = new URL(this.URI)
             this.fragmentParams = new URLSearchParams(url.hash.slice(1))
             switch(url.protocol) {
                 case "file:" : {
@@ -48,23 +49,23 @@ export class MessageAttachment {
                 case "http:" :
                 case "https:" :
                 case "s3:" : {
-                    this.response = Bun.fetch(link.URI); break
+                    this.response = Bun.fetch(url); break
                 }
                 default : {
                     const mcp_match = /^([^+]+)\+/.exec(url.protocol)
                     if (mcp_match && mcp_match[1] in MCPTool.client_registry) {
                         MCPTool.client_registry[mcp_match[1]]
                         this.resource = MCPTool.client_registry[mcp_match[1]].readResource({
-                            uri: link.URI.slice(mcp_match[1].length+1)
+                            uri: this.URI.slice(mcp_match[1].length+1)
                         })
                     }
                 }
             }
         } catch {
             this.file = Bun.file(link.URI)
+            this.URI = link.URI
         }
         this.title = link.text
-        this.URI = link.URI
     }
 
     async exists() : Promise<boolean> {
@@ -120,23 +121,30 @@ export class MessageAttachment {
     }
 
     static fromGlob(link : MessageLink) : MessageAttachment[] {
-        let path = ""
+        let pattern = ""
         try {
-            const url = new URL(link.URI)
-            if (url.protocol == "file:") {
-                path = Bun.fileURLToPath(link.URI)
+            const expanded = expandEnv(link.URI)
+            const url = new URL(expanded)
+            if (url.protocol === "file:") {
+                pattern = Bun.fileURLToPath(url)
             } else {
                 return [new MessageAttachment(link)]
             }
-        } catch { 
-            path = link.URI
+        } catch {
+            pattern = expandEnv(link.URI)
         }
-        const files = Array(...new Glob(path).scanSync())
+
+        const files = Array(...new Glob(pattern).scanSync())
         if (files.length < 1) {
+            // No matches: return the original link; constructor will
+            // perform the single authoritative expansion.
             return [new MessageAttachment(link)]
         } else {
-            return files
-                .map(file => new MessageAttachment({text: link.text, URI: file}))
+            // Matches: pass concrete file paths (no variables) to the
+            // constructor to avoid any second expansion.
+            return files.map(file =>
+                new MessageAttachment({ text: link.text, URI: file })
+            )
         }
     }
 }
