@@ -146,6 +146,10 @@ async function *handleToolUse(
             instructions: systemPrompt(lectic),
             input: messages,
             model: lectic.header.interlocutor.model,
+            include: [
+                'reasoning.encrypted_content',
+                'code_interpreter_call.outputs'
+            ],
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools(lectic)
@@ -307,6 +311,10 @@ export class OpenAIResponsesBackend implements Backend {
             instructions: systemPrompt(lectic),
             input: messages,
             model: lectic.header.interlocutor.model,
+            include: [
+                'reasoning.encrypted_content',
+                'code_interpreter_call.outputs'
+            ],
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
             tools: getTools(lectic)
