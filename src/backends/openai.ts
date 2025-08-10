@@ -8,7 +8,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults,  type ToolCallResult } from "../types/tool"
-import { systemPrompt } from './common.ts'
+import { systemPrompt, pdfFragment } from './common.ts'
 
 
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
@@ -144,7 +144,7 @@ async function *handleToolUse(
 async function partToContent(part : MessageAttachmentPart) 
     : Promise<OpenAI.Chat.Completions.ChatCompletionContentPart | null> {
     const media_type = part.mimetype
-    const bytes = part.bytes
+    let bytes = part.bytes
     if (!(media_type && bytes)) return null
     switch(media_type) {
         case "image/gif" : 
@@ -165,13 +165,16 @@ async function partToContent(part : MessageAttachmentPart)
                 format: media_type === "audio/wav" ? "wav" : "mp3",
             }
         }
-        case "application/pdf" : return {
-            type : "file", 
-            file: {
-                filename : part.title,
-                file_data : Buffer.from(bytes).toString("base64"),
-            }
-        } as const
+        case "application/pdf" : {
+            if (part.fragmentParams) bytes = await pdfFragment(bytes, part.fragmentParams)
+            return {
+                type : "file", 
+                file: {
+                    filename : part.title,
+                    file_data : Buffer.from(bytes).toString("base64"),
+                }
+            } as const
+        }
         case "text/plain" : return {
             type : "text", 
             text: `<file title="${part.title}">${Buffer.from(bytes).toString()}</file>`

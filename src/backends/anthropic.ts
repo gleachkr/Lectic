@@ -8,11 +8,11 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText } from "./common.ts"
+import { systemPrompt, wrapText, pdfFragment } from "./common.ts"
 
 async function partToContent(part: MessageAttachmentPart) {
     const media_type = part.mimetype
-    const bytes = part.bytes
+    let bytes = part.bytes
     if (!(media_type && bytes)) return null
         switch(media_type) {
             case "image/gif" : 
@@ -26,15 +26,17 @@ async function partToContent(part: MessageAttachmentPart) {
                     "data" : Buffer.from(bytes).toString("base64")
                 }
             } as const
-            case "application/pdf" : return {
-                type : "document", 
-                title : part.title,
-                source : {
-                    "type" : "base64",
-                    "media_type" : "application/pdf",
-                    "data" : Buffer.from(bytes).toString("base64")
-                }
-            } as const
+            case "application/pdf" : 
+                if (part.fragmentParams) bytes = await pdfFragment(bytes, part.fragmentParams)
+                return {
+                    type : "document", 
+                    title : part.title,
+                    source : {
+                        "type" : "base64",
+                        "media_type" : "application/pdf",
+                        "data" : Buffer.from(bytes).toString("base64")
+                    }
+                } as const
             case "text/plain" : return {
                 type : "document", 
                 title : part.title,

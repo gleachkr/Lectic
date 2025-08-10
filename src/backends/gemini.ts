@@ -10,7 +10,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment } from './common.ts'
 
 type FunctionResponse = Part & { 
     functionResponse : { 
@@ -242,7 +242,7 @@ async function *handleToolUse(
 async function partToContent(part : MessageAttachmentPart) 
     : Promise<Part | null> {
     const media_type = part.mimetype
-    const bytes = part.bytes
+    let bytes = part.bytes
     if (!(media_type && bytes)) return null
     // XXX seems like not all models support all mime types
     // cf https://ai.google.dev/gemini-api/docs/vision?hl=en&lang=node
@@ -270,13 +270,21 @@ async function partToContent(part : MessageAttachmentPart)
         case "audio/aac":
         case "audio/ogg":
         case "audio/flac":
-        case "application/pdf":
         case "text/plain": return {
             inlineData : {
                 mimeType: media_type,
                 data: Buffer.from(bytes).toString("base64")
             }
         } as const
+        case "application/pdf": {
+            if (part.fragmentParams) bytes = await pdfFragment(bytes, part.fragmentParams)
+            return {
+                inlineData : {
+                    mimeType: media_type,
+                    data: Buffer.from(bytes).toString("base64")
+                }
+            } as const
+        }
         default: {
             return {
                 text: `<error>Media type ${media_type} is not supported.</error>` 

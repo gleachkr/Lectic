@@ -8,7 +8,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults } from "../types/tool"
-import { systemPrompt, wrapText } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment } from './common.ts'
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const tools : OpenAI.Responses.Tool[] = []
@@ -167,7 +167,7 @@ async function *handleToolUse(
 async function partToContent(part : MessageAttachmentPart) 
     : Promise<OpenAI.Responses.ResponseInputContent | null> {
     const media_type = part.mimetype
-    const bytes = part.bytes
+    let bytes = part.bytes
     if (!(media_type && bytes)) return null
     switch(media_type) {
         case "image/gif" : 
@@ -180,11 +180,14 @@ async function partToContent(part : MessageAttachmentPart)
         } as const
         case "audio/mp3":
         case "audio/mpeg":
-        case "application/pdf" : return {
-            type : "input_file", 
-            filename : part.title,
-            file_data : `data:${media_type};base64,${Buffer.from(bytes).toString("base64")}`,
-        } as const
+        case "application/pdf" : {
+            if (part.fragmentParams) bytes = await pdfFragment(bytes, part.fragmentParams)
+            return {
+                type : "input_file", 
+                filename : part.title,
+                file_data : `data:${media_type};base64,${Buffer.from(bytes).toString("base64")}`,
+            } as const
+        }
         case "text/plain" : return {
             type : "input_text", 
             text: `<file title="${part.title}">${Buffer.from(bytes).toString()}</file>`

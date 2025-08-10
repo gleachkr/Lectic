@@ -9,6 +9,7 @@
     "commander": "^13.1.0",
     "open": "^10.1.1",
     "openai": "^5.10.1",
+    "pdf-lib": "^1.17.1",
     "remark": "^15.0.1",
     "remark-directive": "^4.0.0",
     "sql-parser-cst": "^0.33.1",

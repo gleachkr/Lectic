@@ -1,20 +1,29 @@
+import { expandEnv} from "../utils/replace.ts"
 import type { MessageLink } from "./message"
 import type { BunFile } from "bun"
 import { Glob } from "bun"
 import { MCPTool } from "../tools/mcp.ts"
 import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js"
 
+type MessagePartOpts = {
+    bytes : Uint8Array
+    mimetype : string | null
+    title : string 
+    URI : string 
+    fragmentParams: URLSearchParams | undefined
+}
+
 export class MessageAttachmentPart {
     bytes : Uint8Array
     mimetype: string | null
-    fragment: string | undefined
+    fragmentParams: URLSearchParams | undefined
     title: string 
     URI: string 
 
-    constructor(opts : {bytes : Uint8Array, fragment?: string, mimetype : string | null, title : string , URI : string }) {
+    constructor(opts : MessagePartOpts ) {
         this.bytes = opts.bytes
         this.mimetype = opts.mimetype
-        this.fragment = opts.fragment
+        this.fragmentParams = opts.fragmentParams
         this.title = opts.title
         this.URI = opts.URI
     }
@@ -24,19 +33,17 @@ export class MessageAttachment {
     file : BunFile | undefined
     response : Promise<Response> | undefined
     resource : Promise<ReadResourceResult> | undefined
-    fragment : string | undefined
+    fragmentParams: URLSearchParams | undefined
     title : string
     URI : string
 
     constructor(link : MessageLink) {
         try {
-            const url = new URL(link.URI)
-            if (url.hash) {
-                this.fragment = url.hash.slice(1)
-            }
+            const url = new URL(expandEnv(link.URI))
+            this.fragmentParams = new URLSearchParams(url.hash.slice(1))
             switch(url.protocol) {
                 case "file:" : {
-                    this.file = Bun.file(Bun.fileURLToPath(link.URI)); break
+                    this.file = Bun.file(url.pathname); break
                 }
                 case "http:" :
                 case "https:" :
@@ -80,7 +87,7 @@ export class MessageAttachment {
                 bytes, mimetype, 
                 URI : this.URI, 
                 title : this.title,
-                fragment: this.fragment
+                fragmentParams: this.fragmentParams
             })]
         } else if (this.response) {
             const response = await this.response
@@ -90,7 +97,7 @@ export class MessageAttachment {
                 bytes, mimetype, 
                 URI : this.URI, 
                 title : this.title,
-                fragment: this.fragment
+                fragmentParams: this.fragmentParams
             })]
         } else if (this.resource) {
             const contents = (await this.resource).contents
@@ -105,7 +112,7 @@ export class MessageAttachment {
                     bytes, mimetype, 
                     URI : this.URI, 
                     title : this.title,
-                    fragment: this.fragment
+                    fragmentParams: this.fragmentParams
                 })
             })
         } 
