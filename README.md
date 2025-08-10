@@ -304,6 +304,50 @@ Local content references can also use globbing to include multiple files:
 You can refer to the documentation for Bun's [Glob 
 api](https://bun.sh/docs/api/glob) for the exact Glob syntax supported.
 
+#### URI-Specific Features
+
+While Lectic supports simple file paths for local content, you can also
+use full URIs to unlock advanced features. This is particularly useful for
+creating portable conversation files and for targeting specific parts of a
+document.
+
+When you reference a local file using the `file://` scheme, you can take
+advantage of the following features.
+
+**1. Environment Variable Expansion**
+
+Lectic can expand environment variables in content reference URIs. This
+includes `file://`, `http(s)://`, `s3://`, and MCP resource URIs. Use the
+`$VAR_NAME` syntax; the curly bracket form (`${VAR_NAME}`) is not supported.
+Environment variables are expanded within file URIs before globbing.
+
+Since `file://` URIs must be absolute, you can use a variable like `$CWD`
+or `$PWD` to construct an absolute path from the current directory:
+
+[A local PDF](file://$PWD/papers/some_paper.pdf#page=2)
+[My dataset](file://$DATA_ROOT/my_project/data.csv)
+
+This makes your `.lec` files more flexible. The variable expansion also
+works for `file:` and `exec:` URIs in your YAML configuration.
+
+**2. Precise PDF Referencing**
+
+For PDF documents, you can include a specific page or range of pages by
+adding a fragment identifier to the URI. This tells the LLM to focus only
+on the specified content.
+
+-   **Reference a single page:**
+    [Remote paper](https://arxiv.org/pdf/2201.12345.pdf#page=5)
+
+-   **Reference a range of pages:**
+    [Chapter 3](file:///path/to/book.pdf#pages=45-60)
+
+Page numbering starts at 1, and ranges are inclusive (e.g., `#pages=5-10`
+includes both page 5 and page 10). If you supply both `page` and
+`pages` in the fragment, `pages` will take precedence. If the page or
+range is malformed or out of bounds, Lectic will surface an error which
+will be visible to the LLM.
+
 ### Command Output References
 
 Include the output of shell commands directly in your conversations by using a
