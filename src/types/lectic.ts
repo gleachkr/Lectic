@@ -76,8 +76,12 @@ export class LecticHeader {
                         }
                     }
                     if (isExecToolSpec(spec)) {
-                        spec.usage = await loadFrom(spec.usage)
-                        register(new ExecTool(spec))
+                        // don't mutate spec, it's confusing elsewhere if it
+                        // starts to not match the YAML, for example if the
+                        // YAML uses &* references
+                        const loadedSpec = { ...spec }
+                        loadedSpec.usage = await loadFrom(spec.usage)
+                        register(new ExecTool(loadedSpec))
                     } else if (isSQLiteToolSpec(spec)) {
                         spec.details = await loadFrom(spec.details)
                         register(new SQLiteTool(spec))
@@ -86,14 +90,15 @@ export class LecticHeader {
                     } else if (isServeToolSpec(spec)) {
                         register(new ServeTool(spec))
                     } else if (isAgentToolSpec(spec)) {
-                        spec.usage = await loadFrom(spec.usage)
-                        register(new AgentTool(spec, this.interlocutors))
+                        const loadedSpec = { ...spec }
+                        loadedSpec.usage = await loadFrom(spec.usage)
+                        register(new AgentTool(loadedSpec, this.interlocutors))
                     } else if (isMCPSpec(spec)) {
                         (await MCPTool.fromSpec(spec)).map(register)
                     } else if (isNativeTool(spec)) {
                        // do nothing 
                     } else {
-                        throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized.` +
+                        throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized. ` +
                                     `Check the tool section of your YAML header.`)
                     }
                 }
