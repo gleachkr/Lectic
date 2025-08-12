@@ -2,11 +2,9 @@ import { LecticHeader, validateLecticHeaderSpec } from "../types/lectic"
 import type { Message } from "../types/message"
 import { UserMessage, AssistantMessage } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import * as YAML from "yaml"
 import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
-import { mergeValues } from "../utils/merge"
 
 export function getYaml(raw:string) : string | null {
     let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/
@@ -57,13 +55,11 @@ export async function parseLectic(raw: string, include : (string | null)[]) : Pr
     let headerSpec: unknown
 
     try {
-        headerSpec = [...include, rawYaml]
-            .filter(x => x !== null)
-            .map(h => YAML.parse(h))
-            .reduce(mergeValues)
+        headerSpec = LecticHeader.mergeInterlocutorSpecs([...include, rawYaml])
     } catch {
         throw new Error('could not parse YAML header, no include header provided')
     }
+
 
     if (!validateLecticHeaderSpec(headerSpec)) throw Error(
          "YAML Header is missing something. " +

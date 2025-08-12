@@ -1,4 +1,5 @@
 import type { Message } from "./message"
+import * as YAML from "yaml"
 import { Tool } from "./tool"
 import { validateInterlocutor, type Interlocutor } from "./interlocutor"
 import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
@@ -32,12 +33,8 @@ export class LecticHeader {
     macros: Macro[]
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
-            // We have some extra logic here to merge two entries if the
-            // interlocutor appears in the interlocutors list as well.
             const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
-            this.interlocutor = maybeExists 
-                ? mergeValues(maybeExists, spec.interlocutor)
-                : this.interlocutor = spec.interlocutor
+            this.interlocutor =  spec.interlocutor
             this.interlocutors = maybeExists
                 ? [this.interlocutor, ... (spec.interlocutors?.filter(i => i.name !== maybeExists.name) ?? [])]
                 : [this.interlocutor, ... (spec.interlocutors ?? [])]
@@ -46,6 +43,24 @@ export class LecticHeader {
             this.interlocutors = spec.interlocutors
         }
         this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
+    }
+
+    static mergeInterlocutorSpecs(yamls : (string | null)[]) {
+
+        const raw = yamls.filter(x => x !== null)
+            .map(h => YAML.parse(h))
+            .reduce(mergeValues)
+        // We have some extra logic here to merge two entries if the
+        // interlocutor appears in the interlocutors list as well.
+        if (typeof raw === "object" && raw !== null &&
+            "interlocutor" in raw && typeof raw.interlocutor === "object" && raw.interlocutor !== null &&
+            "interlocutors" in raw && Array.isArray(raw.interlocutors)) {
+            const theName = "name" in raw.interlocutor ? raw.interlocutor.name : undefined
+            const maybeExists = raw.interlocutors?.find((inter : unknown) => 
+                typeof inter === "object" && inter !== null && "name" in inter && inter.name === theName)
+            if (maybeExists) raw.interlocutor = mergeValues(maybeExists, raw.interlocutor)
+        }
+        return raw
     }
 
     setSpeaker(name : string) {

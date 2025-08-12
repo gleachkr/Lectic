@@ -81,7 +81,6 @@ async function main() {
 
     let headerPrinted = false
 
-
     validateOptions(opts)
 
     if (opts["log"]) Logger.logfile = opts["log"]
