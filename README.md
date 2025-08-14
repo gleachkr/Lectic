@@ -441,6 +441,8 @@ tools:
       usage: "Usage guide..."   # Instructions for the LLM
       sandbox: ./sandbox.sh     # Optional sandboxing script
       confirm: ./confirm.sh     # Optional confirmation script
+      env:                      # Optional additional environment variables
+        FOO: BAR
 ```
 
 For more complex tasks, you can provide an inline script directly in the

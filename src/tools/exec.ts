@@ -8,6 +8,7 @@ export type ExecToolSpec = {
     name?: string
     sandbox?: string
     confirm?: string
+    env?: { [key: string] : string}
 }
 
 export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
@@ -17,10 +18,16 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         typeof raw.exec === "string" &&
         ("usage" in raw ? typeof raw.usage === "string" : true) &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
-        ("confirm" in raw ? typeof raw.confirm === "string" : true)
+        ("confirm" in raw ? typeof raw.confirm === "string" : true) &&
+        ("env" in raw 
+            ? typeof raw.env === "object" && 
+                raw.env !== null && 
+                Object.values(raw.env).every(v => typeof v === "string")
+            : true
+        )
 }
 
-function execScript(script : string, args : string[], sandbox: string | undefined,) {
+function execScript(script : string, args : string[], sandbox: string | undefined, env: { [key: string] : string} ) {
     if (script.slice(0,2) !== "#!") {
         throw Error("expected shebang in first line of executable script")
     }
@@ -35,7 +42,7 @@ function execScript(script : string, args : string[], sandbox: string | undefine
         tmpName, 
         ...args], { 
             stderr: "pipe",
-            env: { ...process.env, ...lecticEnv }
+            env: { ...process.env, ...lecticEnv, ...env }
         })
     cleanup()
     return proc
@@ -49,6 +56,7 @@ export class ExecTool extends Tool {
     sandbox?: string
     description: string
     confirm?: string
+    env: { [key: string] : string}
     static count : number = 0
 
     constructor(spec: ExecToolSpec) {
@@ -58,6 +66,7 @@ export class ExecTool extends Tool {
         this.isScript = this.exec.split('\n').length > 1
         this.sandbox = spec.sandbox
         this.confirm = spec.confirm
+        this.env = spec.env ?? {}
         this.description = (this.isScript 
             ? `This tool executes the following script: \n \`\`\`\n${this.exec}\n\`\`\`\n` +
             `The script is applied to the array of arguments that you supply, in the order that they are supplied. ` +
@@ -97,7 +106,7 @@ export class ExecTool extends Tool {
         }
 
         const proc = this.isScript
-            ? execScript(this.exec, args.arguments, this.sandbox)
+            ? execScript(this.exec, args.arguments, this.sandbox, this.env)
             : Bun.spawnSync([
                 ...(this.sandbox ? [this.sandbox] : []), 
                 this.exec, 
