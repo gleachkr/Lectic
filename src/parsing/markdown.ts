@@ -20,24 +20,29 @@ export function nodeContentRaw(node : Parent, raw : string) : string {
     }
 }
 
-function extractType<T extends string>(node : RootContent, type : T) : (RootContent & { type : T })[] {
-    const links : (RootContent & { type : T })[] = []
+function extractType<T extends string>(
+    node : RootContent,
+    type : T
+) : (RootContent & { type : T })[] {
+    const matches : (RootContent & { type : T })[] = []
     if ("children" in node) {
-        links.push(...(node.children).flatMap(c => extractType(c, type)))
+        matches.push(...(node.children).flatMap(c => extractType(c, type)))
     }
     if (node.type == type) {
-        links.push(node as RootContent & { type : T })
+        matches.push(node as RootContent & { type : T })
     }
-    return links
+    return matches
 }
 
 export function parseReferences(raw: string) : (Link | Image)[] {
     const ast = remark().parse(raw)
     const links : Link[] = []
+    const images : Image[] = []
     for (const node of ast.children) {
         links.push(...extractType(node, "link"))
+        images.push(...extractType(node, "image"))
     }
-    return links
+    return [...links, ...images]
 }
 
 export function parseDirectives(raw: string) : TextDirective[] {
@@ -70,9 +75,11 @@ export function parseBlocks(raw: string) : RootContent[] {
             mergedChildren.push(block)
             // note: the html requirement here means that the intitial tool-call
             // tag does need to all fit in one block. So it can contain
-            // whitespace and up to one newline: https://spec.commonmark.org/0.31.2/#open-tag
-            // That *might* be too restrictive, watch out in the future.
-            if (block.type == "html" && block_raw.trim().slice(0,10) === "<tool-call") inCall = true
+            // whitespace and up to one newline:
+            // https://spec.commonmark.org/0.31.2/#open-tag
+            // That might be too restrictive; watch out in the future.
+            if (block.type == "html" &&
+                block_raw.trim().slice(0,10) === "<tool-call") inCall = true
         }
         if (block_raw.trim().slice(-12) === "</tool-call>") inCall = false
     }

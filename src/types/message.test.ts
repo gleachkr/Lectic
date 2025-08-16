@@ -26,6 +26,13 @@ describe('UserMessage', () => {
             expect(links[1].URI).toBe('https://two.com');
         });
 
+        it('should extract image references (alt text + URL + title)', () => {
+            const message = new UserMessage({ content: 'An image: ![alt text](https://example.com/a.png "Title")' });
+            const links = message.containedLinks();
+            expect(links).toHaveLength(1);
+            expect(links[0]).toEqual({ text: 'alt text', URI: 'https://example.com/a.png', title: 'Title' });
+        });
+
         it('should handle messages with no links', () => {
             const message = new UserMessage({ content: 'This is a plain message.' });
             const links = message.containedLinks();
