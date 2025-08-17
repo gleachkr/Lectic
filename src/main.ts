@@ -10,11 +10,23 @@ import { lecticConfigDir } from "./utils/xdg";
 import { UserMessage } from "./types/message"
 
 // XXX This really should be factored out.
+// Should be a method of Lectic, which should be a class.
 function handleDirectives(lectic : Lectic) {
-    for (const message of lectic.body.messages) {
+    const messages = lectic.body.messages
+    for (const message of messages) {
         if (message.role === "user") {
             for (const directive of message.containedDirectives()) {
                 if (directive.name === "ask") {
+                    lectic.header.setSpeaker(directive.text)
+                }
+            }
+        }
+    }
+    if (messages.length > 0) {
+        const message = messages[messages.length -1 ]
+        if (message.role === "user") {
+            for (const directive of message.containedDirectives()) {
+                if (directive.name === "aside") {
                     lectic.header.setSpeaker(directive.text)
                 }
             }
