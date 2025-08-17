@@ -74,6 +74,7 @@ export class SQLiteTool extends Tool {
             dialect: "sqlite",
             includeComments: true,
             includeSpaces: true,
+            includeNewlines: true,
         })
 
         const rslts : string[] = []
