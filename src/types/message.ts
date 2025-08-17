@@ -1,6 +1,5 @@
 import type { RootContent } from "mdast"
-import { parseReferences, parseDirectives, parseBlocks, nodeContentRaw, nodeRaw } from "../parsing/markdown"
-import { simultaneousReplace } from "../utils/replace"
+import { parseReferences, parseDirectives, parseBlocks, replaceDirectives, nodeContentRaw, nodeRaw } from "../parsing/markdown"
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
 import type { Interlocutor } from "./interlocutor"
@@ -51,18 +50,28 @@ export class UserMessage {
     async expandMacros(macros : Macro[]) {
         if (macros.length === 0) return
 
-        const expansionMap : { [key : string] : string }= {}
+        const expansionMap : { [macroName : string] : string }= {}
 
         // We run the expansions in parallel
-        await Promise.all(parseDirectives(this.content).filter(directive =>
-            directive.name === "macro"
-        ).map(async directive => {
-            const macroName = nodeContentRaw(directive, this.content)
-            const expansion = await macros.find(macro => macro.name.trim() == macroName.trim())?.expand()
-            if (expansion) expansionMap[nodeRaw(directive, this.content)] = expansion
-        }))
+        await Promise.all(
+            parseDirectives(this.content)
+                .filter(directive => directive.name === "macro")
+                .map(async directive => {
+                    const macroName = nodeContentRaw(directive as any, this.content).trim()
+                    const matched = macros.find(macro => macro.name.trim() === macroName)
+                    const expansion = await matched?.expand()
+                    if (expansion) expansionMap[macroName] = expansion
+                })
+        )
 
-        this.content = simultaneousReplace(expansionMap, this.content)
+        const replacer = (name: string, content:string) => {
+            if (name !== "macro") return null
+            const key = content.trim()
+            if (!(key in expansionMap)) return null
+            return expansionMap[key]
+        }
+
+        this.content = replaceDirectives(this.content, replacer)
     }
 }
 

@@ -105,6 +105,31 @@ describe('UserMessage', () => {
             await message.expandMacros(macros);
             expect(message.content).toBe('A message with :macro[unknown].');
         });
+
+        it('should not expand a macro in a code block', async () => {
+            const message = new UserMessage({ content: 'A message with :macro[greet] `:macro[greet]`.' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('A message with Hello, World! `:macro[greet]`.');
+        });
+
+        it('should leave non-macro directives untouched during expansion', async () => {
+            const message = new UserMessage({ content: 'Before :cmd[ls] and :macro[greet] after' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('Before :cmd[ls] and Hello, World! after');
+        });
+
+        it('trims final newline after macro expansion', async () => {
+            const withNL = new Macro({ name: 'with_nl', expansion: 'X\n' });
+            const noNL = new Macro({ name: 'no_nl', expansion: 'Y' });
+
+            const msg1 = new UserMessage({ content: ':macro[with_nl]' });
+            await msg1.expandMacros([withNL]);
+            expect(msg1.content.endsWith('\n')).toBe(false);
+
+            const msg2 = new UserMessage({ content: ':macro[no_nl]' });
+            await msg2.expandMacros([noNL]);
+            expect(msg2.content.endsWith('\n')).toBe(false);
+        });
     });
 });
 
