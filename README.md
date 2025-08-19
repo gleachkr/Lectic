@@ -265,6 +265,7 @@ Include local or remote content in conversations:
 
 ```markdown
 [Local Document](./notes.pdf)
+[Remote documentation](https://context7.com/d3/d3/llms.txt)
 [Remote Paper](https://arxiv.org/pdf/2201.12345.pdf)
 [Web Image](https://example.com/diagram.png)
 [S3 Bucket](s3://my_bucket/dataset.csv)
