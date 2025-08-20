@@ -259,6 +259,9 @@ Nonsense! …
 :::
 ````
 
+`:aside[NAME]` works similarly, but only for one round, so your next message 
+will be directed to your original interlocutor.
+
 ### Content References
 
 Include local or remote content in conversations:
