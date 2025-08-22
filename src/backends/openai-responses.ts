@@ -151,7 +151,7 @@ async function *handleToolUse(
                 'code_interpreter_call.outputs'
             ],
             temperature: lectic.header.interlocutor.temperature,
-            max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_output_tokens: lectic.header.interlocutor.max_tokens,
             tools: getTools(lectic)
         })
     
@@ -316,7 +316,7 @@ export class OpenAIResponsesBackend implements Backend {
                 'code_interpreter_call.outputs'
             ],
             temperature: lectic.header.interlocutor.temperature,
-            max_output_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_output_tokens: lectic.header.interlocutor.max_tokens,
             tools: getTools(lectic)
         });
 

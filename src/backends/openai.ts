@@ -126,7 +126,7 @@ async function *handleToolUse(
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model ?? "Missing default model",
             temperature: lectic.header.interlocutor.temperature,
-            max_completion_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_completion_tokens: lectic.header.interlocutor.max_tokens,
             tools: getTools(lectic)
         })
     
@@ -299,7 +299,7 @@ export class OpenAIBackend implements Backend {
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model,
             temperature: lectic.header.interlocutor.temperature,
-            max_completion_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_completion_tokens: lectic.header.interlocutor.max_tokens,
             stream: true,
             tools: getTools(lectic)
         });

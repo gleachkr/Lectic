@@ -282,7 +282,7 @@ async function* handleToolUse(
         Logger.debug("anthropic - messages (tool)", messages)
 
         let stream = client.messages.stream({
-            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_tokens: lectic.header.interlocutor.max_tokens || 2048,
             system: systemPrompt(lectic),
             messages: messages,
             model,
@@ -333,7 +333,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
             messages: messages,
             model,
             temperature: lectic.header.interlocutor.temperature,
-            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_tokens: lectic.header.interlocutor.max_tokens || 2048,
             tools: getTools(lectic)
         });
 
@@ -383,7 +383,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
             messages: messages,
             model,
             temperature: lectic.header.interlocutor.temperature,
-            max_tokens: lectic.header.interlocutor.max_tokens || 1024,
+            max_tokens: lectic.header.interlocutor.max_tokens || 2048,
             tools: getTools(lectic)
         });
 

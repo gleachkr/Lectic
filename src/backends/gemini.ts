@@ -84,7 +84,7 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentL
             },{
             }],
             temperature: lectic.header.interlocutor.temperature,
-            maxOutputTokens: lectic.header.interlocutor.max_tokens || 1024,
+            maxOutputTokens: lectic.header.interlocutor.max_tokens,
         }
     });
 }
