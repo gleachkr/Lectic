@@ -33,7 +33,7 @@ a problem.
    interlocutor:
        name: Assistant
        provider: anthropic
-       #↑ could be openai, gemini, openrouter, ollama, openai/responses, or  
+       #↑ could be openai, gemini, openrouter, ollama, openai/chat, or  
        # anthropic/bedrock
        prompt: Your base prompt here
        #↑ or file:my_prompt.txt, to read from a file.
@@ -284,8 +284,8 @@ Supported content types:
   [here](https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats))
 - Audio (Gemini, and OpenAI providers only right now. MP3, MPEG and WAV, more 
   for Gemini. OpenAI requires an audio model, and only supports this via the 
-  legacy chat interface, so you'll need `provider: openai` rather than 
-  `provider: openai/responses`)
+  legacy chat interface, so you'll need `provider: openai/chat` rather than 
+  `provider: openai`)
 
 Remote content can be included via HTTP/HTTPS, or from an amazon s3 bucket. 
 Using s3 requires that you have `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` 
@@ -798,8 +798,8 @@ tool use with Gemini, Anthropic, and OpenAI.
 - Anthropic support search only. For more information, you can read [this 
   announcement](https://www.anthropic.com/news/web-search-api).
 - OpenAI provides native search and code through the new responses API. So 
-  you'll need to use the `openai/responses` provider, rather than the plain 
-  `openai` provider.
+  you'll need to use the `openai` provider, rather than the legacy 
+  `openai/chat` provider.
 
 </details>
 

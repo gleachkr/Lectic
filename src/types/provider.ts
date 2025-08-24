@@ -1,8 +1,8 @@
 export enum LLMProvider {
     Anthropic = "anthropic",
     AnthropicBedrock = "anthropic/bedrock",
-    OpenAI = "openai",
-    OpenAIResponses = "openai/responses",
+    OpenAI = "openai/chat",
+    OpenAIResponses = "openai",
     Ollama = "ollama",
     Gemini = "gemini",
     OpenRouter = "openrouter",
