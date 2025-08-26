@@ -119,10 +119,13 @@ Configuration is merged in the following order of precedence (lower to higher):
     typically `.configuration/lectic/lectic.yaml` on Linux. This is a good 
     place to put your global, user-level configuration.
 
+2.  **Working Directory**: Lectic will also for a configuration file at 
+    `./lectic.yaml` in your working directory. This is a good place to put your 
+    project-level configuration.
+
 3.  **`--Include` (`-I`) Flag**: You can use the `--Include` (or `-I`) 
-    command-line flag to specify a YAML file to include. This is useful for 
-    project-specific configurations. This will override any settings from 
-    `$LECTIC_CONFIG`.
+    command-line flag to specify a YAML file to include. This will override any 
+    settings from `$LECTIC_CONFIG`.
 
 4.  **Lectic File Header**: The YAML front matter in your `.lec` file always 
     has the final say, overriding any settings from the other three sources.

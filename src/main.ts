@@ -82,6 +82,8 @@ async function getIncludes(opts: OptionValues) : Promise<(string | null)[]> {
             includes.push(await Bun.file(opts["Include"])
                     .text().catch(_ => null))
         }
+        includes.push(await Bun.file('./lectic.yaml')
+                .text().catch(_ => null))
         includes.push(await Bun.file(join(lecticConfigDir(), 'lectic.yaml'))
                 .text().catch(_ => null))
         return includes
