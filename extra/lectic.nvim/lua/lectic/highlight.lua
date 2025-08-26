@@ -31,7 +31,8 @@ function M.highlight_blocks()
                 end_row = end_line,
                 end_col = 3,
                 line_hl_group = 'LecticBlock',
-                strict = false
+                strict = false,
+                spell = false
             })
             in_block = false
         end
