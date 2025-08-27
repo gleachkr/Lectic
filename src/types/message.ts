@@ -57,7 +57,7 @@ export class UserMessage {
             parseDirectives(this.content)
                 .filter(directive => directive.name === "macro")
                 .map(async directive => {
-                    const macroName = nodeContentRaw(directive as any, this.content).trim()
+                    const macroName = nodeContentRaw(directive, this.content).trim()
                     const matched = macros.find(macro => macro.name.trim() === macroName)
                     const expansion = await matched?.expand()
                     if (expansion) expansionMap[macroName] = expansion
