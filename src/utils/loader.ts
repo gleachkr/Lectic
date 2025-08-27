@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { lecticEnv } from "../utils/xdg";
 import { expandEnv} from "./replace";
 
-function execScript(script : string) {
+function execScript(script : string, env: { [key: string] : string} = {}) {
     if (script.slice(0,2) !== "#!") {
         throw Error("Expected shebang in first line of executable script")
     }
@@ -15,13 +15,13 @@ function execScript(script : string) {
         ...shebangArgs, 
         tmpName], { 
             stderr: "ignore",
-            env: { ...process.env, ...lecticEnv }
+            env: { ...process.env, ...lecticEnv, ...env }
         })
     cleanup()
     return proc.stdout.toString();
 }
 
-function execCmd(cmd: string) {
+function execCmd(cmd: string, env: { [key: string] : string} = {}) {
     const args = cmd
         // break into whitespace-delimited pieces, allowing for quotes
         .match(/"[^"]*"|'[^']*'|\S+/g)
@@ -33,12 +33,12 @@ function execCmd(cmd: string) {
         );
     const proc = Bun.spawnSync(args ?? [], {
         stderr: "ignore",
-        env: { ...process.env, ...lecticEnv }
+        env: { ...process.env, ...lecticEnv, ...env }
     });
     return proc.stdout.toString();
 }
 
-export async function loadFrom<T>(something: T): Promise<T | string> {
+export async function loadFrom<T>(something: T, env: { [key: string] : string} = {}): Promise<T | string> {
     if (typeof something === "string") {
         if (something.slice(0, 5) === "file:") {
             // We expaned $VARIABLE names in paths and commands
@@ -53,8 +53,8 @@ export async function loadFrom<T>(something: T): Promise<T | string> {
                 throw new Error("Exec command cannot be empty.");
             }
             return command.split("\n").length > 1 
-                ? execScript(command)
-                : execCmd(expandEnv(command))
+                ? execScript(command, env)
+                : execCmd(expandEnv(command), env)
         } else {
             return something;
         }
