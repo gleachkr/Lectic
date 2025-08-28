@@ -22,7 +22,7 @@ export class Macro {
         this.expansion = expansion
     }
 
-    async expand() : Promise<string> {
-        return loadFrom(this.expansion)
+    async expand(env : Record<string, string | undefined> = {}) : Promise<string> {
+        return loadFrom(this.expansion, env)
     }
 }

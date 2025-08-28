@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { lecticEnv } from "../utils/xdg";
 import { expandEnv} from "./replace";
 
-function execScript(script : string, env: { [key: string] : string} = {}) {
+function execScript(script : string, env: Record<string, string | undefined> = {}) {
     if (script.slice(0,2) !== "#!") {
         throw Error("Expected shebang in first line of executable script")
     }
@@ -21,7 +21,7 @@ function execScript(script : string, env: { [key: string] : string} = {}) {
     return proc.stdout.toString();
 }
 
-function execCmd(cmd: string, env: { [key: string] : string} = {}) {
+function execCmd(cmd: string, env: Record<string, string | undefined> = {}) {
     const args = cmd
         // break into whitespace-delimited pieces, allowing for quotes
         .match(/"[^"]*"|'[^']*'|\S+/g)
@@ -38,7 +38,7 @@ function execCmd(cmd: string, env: { [key: string] : string} = {}) {
     return proc.stdout.toString();
 }
 
-export async function loadFrom<T>(something: T, env: { [key: string] : string} = {}): Promise<T | string> {
+export async function loadFrom<T>(something: T, env: Record<string, string | undefined> = {}): Promise<T | string> {
     if (typeof something === "string") {
         if (something.slice(0, 5) === "file:") {
             // We expaned $VARIABLE names in paths and commands

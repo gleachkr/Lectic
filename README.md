@@ -421,6 +421,30 @@ expansion happens before any other directives (like `:cmd`) are executed.
 Like the `prompt` field, the `expansion` can also load from a file or from the 
 output of an executable or an inline script, `file:` or `exec:` prefixes.
 
+#### Passing environment variables to macro expansions
+
+You can pass environment variables into a macro's expansion by adding
+attributes to the `:macro[...]` directive. These attributes are injected
+into the environment of `exec:` expansions (both one‑line commands and
+shebang scripts) when they run.
+
+- `:macro[name]{FOO="bar"}` sets `FOO=bar` for the expansion process.
+- `:macro[name]{EMPTY}` marks `EMPTY` as set with an empty value (set, not
+  unset).
+
+Example:
+
+```yaml
+macros:
+  - name: show_env
+    expansion: exec: bash -lc 'printf "%s:%s" "$FOO" "$EMPTY"'
+```
+
+```markdown
+Result: :macro[show_env]{FOO="bar" EMPTY}
+# → prints: bar:
+```
+
 ### Tools
 
 Lectic allows you to configure tools that your LLM can use to perform different 

@@ -130,6 +130,70 @@ describe('UserMessage', () => {
             await msg2.expandMacros([noNL]);
             expect(msg2.content.endsWith('\n')).toBe(false);
         });
+
+        it('passes directive attributes as env to exec command expansions', async () => {
+            const envMacro = new Macro({
+                name: 'env_cmd',
+                // Run through a shell so $FOO gets expanded
+                expansion: 'exec: bash -lc "printf %s $FOO"'
+            });
+            const message = new UserMessage({
+                content: 'Value: :macro[env_cmd]{FOO="bar"}'
+            });
+            await message.expandMacros([envMacro]);
+            expect(message.content).toBe('Value: bar');
+        });
+
+        it('passes directive attributes as env to exec script expansions', async () => {
+            const script = [
+                '#!/usr/bin/env bash',
+                'printf "%s" "$FOO"',
+                ''
+            ].join('\n');
+            const envScriptMacro = new Macro({
+                name: 'env_script',
+                expansion: `exec: ${script}`
+            });
+            const message = new UserMessage({
+                content: 'Script value: :macro[env_script]{FOO="baz"}'
+            });
+            await message.expandMacros([envScriptMacro]);
+            expect(message.content).toBe('Script value: baz');
+        });
+
+        it('treats valueless attribute as empty env var for exec commands', async () => {
+            const emptyMacro = new Macro({
+                name: 'env_empty',
+                expansion: 'exec: bash -lc "printf %s \"$EMPTY\""'
+            });
+            const message = new UserMessage({
+                content: 'Empty: :macro[env_empty]{EMPTY}'
+            });
+            await message.expandMacros([emptyMacro]);
+            expect(message.content).toBe('Empty: ');
+        });
+
+        it('marks empty attribute as set (not unset) and shows empty value', async () => {
+            const script = [
+                '#!/usr/bin/env bash',
+                'if [ -z "${EMPTY+x}" ]; then',
+                '  printf "unset"',
+                'else',
+                '  printf "set"',
+                'fi',
+                'printf ":%s" "$EMPTY"',
+                ''
+            ].join('\n');
+            const macro = new Macro({
+                name: 'env_empty_set',
+                expansion: `exec: ${script}`
+            });
+            const message = new UserMessage({
+                content: 'Status: :macro[env_empty_set]{EMPTY}'
+            });
+            await message.expandMacros([macro]);
+            expect(message.content).toBe('Status: set:');
+        });
     });
 });
 

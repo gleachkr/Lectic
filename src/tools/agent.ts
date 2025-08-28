@@ -52,6 +52,9 @@ export class AgentTool extends Tool {
     async call({ content }: { content: string }) : Promise<ToolCallResult[]> {
         this.validateArguments({ content });
         const lectic = {
+            // the agent we pass in is already initialized, so there's no need
+            // to initialize the header, or pass in other interlocutors for
+            // recursive agent calls.
             header: new LecticHeader({interlocutor: this.agent}),
             body: { messages: [new UserMessage({ content })] },
         }

@@ -59,8 +59,16 @@ export class UserMessage {
                 .map(async directive => {
                     const macroName = nodeContentRaw(directive, this.content).trim()
                     const matched = macros.find(macro => macro.name.trim() === macroName)
-                    const expansion = await matched?.expand()
-                    if (expansion) expansionMap[macroName] = expansion
+                    const attributes : Record<string, string | undefined>= {}
+                    for (const key in directive.attributes) {
+                        if (directive.attributes[key] === null) { 
+                            attributes[key] = undefined 
+                        } else {
+                            attributes[key] = directive.attributes[key]
+                        }
+                    }
+                    const expansion = await matched?.expand(attributes)
+                    if (typeof expansion === 'string') expansionMap[macroName] = expansion
                 })
         )
 
