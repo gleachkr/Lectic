@@ -8,7 +8,7 @@ export type ExecToolSpec = {
     name?: string
     sandbox?: string
     confirm?: string
-    env?: { [key: string] : string}
+    env?: Record<string, string>
 }
 
 export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
@@ -27,7 +27,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         )
 }
 
-function execScript(script : string, args : string[], sandbox: string | undefined, env: { [key: string] : string} ) {
+function execScript(script : string, args : string[], sandbox: string | undefined, env: Record<string, string> ) {
     if (script.slice(0,2) !== "#!") {
         throw Error("expected shebang in first line of executable script")
     }
@@ -56,7 +56,7 @@ export class ExecTool extends Tool {
     sandbox?: string
     description: string
     confirm?: string
-    env: { [key: string] : string}
+    env: Record<string, string>
     static count : number = 0
 
     constructor(spec: ExecToolSpec) {

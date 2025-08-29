@@ -11,7 +11,7 @@ import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 type MCPSpecSTDIO = {
     mcp_command: string
     args?: string[]
-    env?: { [key: string] : string }
+    env?: Record<string, string>
     sandbox?: string 
 }
 
@@ -182,7 +182,7 @@ export class MCPTool extends Tool {
         }
     };
 
-    async call(args : {[key : string] : unknown}) : Promise<ToolCallResult[]> {
+    async call(args : Record<string, unknown>) : Promise<ToolCallResult[]> {
 
         this.validateArguments(args)
 
@@ -214,7 +214,7 @@ export class MCPTool extends Tool {
         return results
     }
 
-    static client_registry : { [key : string] : Client } = {}
+    static client_registry : Record<string, Client> = {}
 
     static register(name : string | undefined, client : Client) {
         if (!name) {

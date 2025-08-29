@@ -16,7 +16,7 @@ export abstract class Tool {
     abstract required? : string[] //TODO: this should not be optional
     abstract call (arg : any) : Promise<ToolCallResult[]>
 
-    validateArguments(args: {[key : string] : unknown}) {
+    validateArguments(args: Record<string, unknown>) {
         if (this.required) {
             for (const key of this.required) {
                 if (!(key in args)) {
@@ -35,7 +35,7 @@ export abstract class Tool {
 
 export type ToolCall = { 
     name: string, 
-    args : { [key : string] : any }, 
+    args : Record<string, any>, 
     results : ToolCallResult[]
     id? : string
     isError? : boolean

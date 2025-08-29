@@ -37,7 +37,7 @@ type ObjectSchema = {
     type: "object",
     description: string
     required?: string[]
-    properties: { [key : string] : JSONSchema }
+    properties: Record<string, JSONSchema>
 }
 
 export type JSONSchema = StringSchema 

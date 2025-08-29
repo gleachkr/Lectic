@@ -14,7 +14,7 @@ export type MessageLink = {
 export type MessageDirective = {
     name: string
     text : string
-    attributes?: { [key: string] : string | null | undefined }
+    attributes?: Record<string, string | null | undefined>
 }
 
 export type MessageInteraction = {
@@ -86,7 +86,7 @@ export class UserMessage {
 export class AssistantMessage {
     content : string
     name: string
-    tools: { [key : string] : Tool }
+    tools: Record<string, Tool>
     role = "assistant" as const
 
     constructor({ content, interlocutor } : {content : string, interlocutor: Interlocutor}) {

@@ -114,8 +114,8 @@ async function* accumulateStream(
       consolidateText(accumulator)
 }
 
-function googleParameters(params: { [key: string] : JSONSchema }) : { [key: string] : Schema } {
-    const rslt : { [key: string] : Schema } = {}
+function googleParameters(params: Record<string, JSONSchema>) : Record<string, Schema> {
+    const rslt : Record<string, Schema> = {}
     for (const key of Object.keys(params)) {
         const param = googleParameter(params[key])
         if (!param) throw Error("Google parameter coercion failed")

@@ -7,7 +7,7 @@ export type Interlocutor = {
     name : string
     provider? : LLMProvider
     tools? : object[]
-    registry?: { [key: string] : Tool }
+    registry?: Record<string, Tool>
     model? : string
     temperature? : number
     max_tokens? : number

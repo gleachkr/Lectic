@@ -22,7 +22,7 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
         // probably be safely scrubbed
         //
         // c.f. https://json-schema.org/understanding-json-schema/reference/annotations
-        const cleanParameters : {[key: string] : JSONSchema } = {}
+        const cleanParameters : Record<string, JSONSchema> = {}
         for (const key in tool.parameters) {
             cleanParameters[key] = tool.parameters[key]
             if ("default" in cleanParameters[key]) {
