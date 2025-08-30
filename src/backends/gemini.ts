@@ -101,6 +101,9 @@ async function* accumulateStream(
                   if (typeof part.text == "string") {
                       yield part.text
                   }
+                  if (part.codeExecutionResult) {
+                      yield "\n\n"
+                  }
                   accumulator.candidates[0]?.content?.parts.push(part)
               }
           }
