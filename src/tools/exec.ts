@@ -1,6 +1,8 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { lecticEnv } from "../utils/xdg";
 import * as fs from "fs";
+import { withTimeout, TimeoutError } from "../utils/timeout";
+import { readStream } from "../utils/stream";
 
 export type ExecToolSpec = {
     exec: string
@@ -9,6 +11,7 @@ export type ExecToolSpec = {
     sandbox?: string
     confirm?: string
     env?: Record<string, string>
+    timeoutSeconds?: number
 }
 
 export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
@@ -19,6 +22,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         ("usage" in raw ? typeof raw.usage === "string" : true) &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
         ("confirm" in raw ? typeof raw.confirm === "string" : true) &&
+        ("timeoutSeconds" in raw ? typeof (raw as any).timeoutSeconds === "number" : true) &&
         ("env" in raw 
             ? typeof raw.env === "object" && 
                 raw.env !== null && 
@@ -27,7 +31,12 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         )
 }
 
-function execScript(script : string, args : string[], sandbox: string | undefined, env: Record<string, string> ) {
+async function spawnScript(
+    script : string,
+    args : string[],
+    sandbox: string | undefined,
+    env: Record<string, string>
+) {
     if (script.slice(0,2) !== "#!") {
         throw Error("expected shebang in first line of executable script")
     }
@@ -35,16 +44,35 @@ function execScript(script : string, args : string[], sandbox: string | undefine
     const tmpName = `./.lectic_script-${Bun.randomUUIDv7()}`
     const cleanup = () => fs.existsSync(tmpName) && fs.unlinkSync(tmpName)
     process.on('exit', cleanup)
-    Bun.write(tmpName, script)
-    const proc = Bun.spawnSync([
-        ...(sandbox ? [sandbox] : []), 
-        ...shebangArgs, 
-        tmpName, 
-        ...args], { 
-            stderr: "pipe",
-            env: { ...process.env, ...lecticEnv, ...env }
-        })
-    cleanup()
+    await Bun.write(tmpName, script)
+    const proc = Bun.spawn([
+        ...(sandbox ? [sandbox] : []),
+        ...shebangArgs,
+        tmpName,
+        ...args
+    ], {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env, ...lecticEnv, ...env }
+    })
+    return { proc, cleanup }
+}
+
+function spawnCommand(
+    command: string,
+    args: string[],
+    sandbox: string | undefined,
+    env: Record<string, string>
+) {
+    const proc = Bun.spawn([
+        ...(sandbox ? [sandbox] : []),
+        command,
+        ...args
+    ], {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env, ...lecticEnv, ...env }
+    })
     return proc
 }
 
@@ -57,6 +85,7 @@ export class ExecTool extends Tool {
     description: string
     confirm?: string
     env: Record<string, string>
+    timeoutSeconds?: number
     static count : number = 0
 
     constructor(spec: ExecToolSpec) {
@@ -67,6 +96,7 @@ export class ExecTool extends Tool {
         this.sandbox = spec.sandbox
         this.confirm = spec.confirm
         this.env = spec.env ?? {}
+        this.timeoutSeconds = spec.timeoutSeconds
         this.description = (this.isScript 
             ? `This tool executes the following script: \n \`\`\`\n${this.exec}\n\`\`\`\n` +
             `The script is applied to the array of arguments that you supply, in the order that they are supplied. ` +
@@ -105,23 +135,53 @@ export class ExecTool extends Tool {
             }
         }
 
-        const proc = this.isScript
-            ? execScript(this.exec, args.arguments, this.sandbox, this.env)
-            : Bun.spawnSync([
-                ...(this.sandbox ? [this.sandbox] : []), 
-                this.exec, 
-                ...args.arguments], { 
-                    stderr: "pipe",
-                    env: { ...process.env, ...lecticEnv }
-                })
+        let proc = null
+        let cleanup = () => {}
 
-        const results = []
-        const stdout = proc.stdout.toString()
-        const stderr = proc.stderr.toString()
+        if (this.isScript) {
+            ({proc, cleanup} = await spawnScript(
+                this.exec,
+                args.arguments,
+                this.sandbox,
+                this.env
+            ))
+        } else {
+            proc = spawnCommand(
+                this.exec,
+                args.arguments,
+                this.sandbox,
+                this.env
+            )
+        }
 
-        if (stdout.length > 0) results.push(`<stdout>${stdout}</stdout>`)
-        if (stderr.length > 0) results.push(`<stderr>${stderr}</stderr>`)
-        if (proc.exitCode != 0) results.push(`<exitCode>${proc.exitCode}</exitCode>`)
-        return ToolCallResults(results)
+        const collected = { stdout: "", stderr: "" }
+        const rslt = Promise.all([
+            readStream(proc.stdout, s => collected.stdout += s),
+            readStream(proc.stderr, s => collected.stderr += s),
+        ]).then(() => proc.exited)
+
+        try {
+            const code = await (this.timeoutSeconds && this.timeoutSeconds > 0
+                ? withTimeout(rslt, this.timeoutSeconds, "command", { onTimeout: proc.kill } )
+                : rslt)
+
+            const results: string[] = []
+            if (collected.stdout.length > 0) results.push(`<stdout>${collected.stdout}</stdout>`)
+            if (collected.stderr.length > 0) results.push(`<stderr>${collected.stderr}</stderr>`)
+            if (code !== 0) results.push(`<exitCode>${code}</exitCode>`)
+            return ToolCallResults(results)
+        } catch (e) {
+            if (e instanceof TimeoutError) {
+                // Surface stdout/stderr along with a timeout error indicator.
+                const chunks: string[] = []
+                if (collected.stdout.length > 0) chunks.push(`<stdout>${collected.stdout}</stdout>`)
+                if (collected.stderr.length > 0) chunks.push(`<stderr>${collected.stderr}</stderr>`)
+                chunks.push(`<error>Killed Process: ${e.message}</error>`)
+                throw new Error(chunks.join(""))
+            }
+            throw e
+        } finally {
+            cleanup()
+        }
     }
 }
