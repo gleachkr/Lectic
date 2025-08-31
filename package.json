@@ -8,7 +8,7 @@
     "@types/mdast": "^4.0.4",
     "commander": "^13.1.0",
     "open": "^10.1.1",
-    "openai": "^5.10.1",
+    "openai": "^5.16.0",
     "pdf-lib": "^1.17.1",
     "remark": "^15.0.1",
     "remark-directive": "^4.0.0",

@@ -82,7 +82,7 @@ async function *handleToolUse(
                         content: ToolCallResults(
                             "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
                     }
-                } else if (call.function.name in registry) {
+                } else if (call.type === "function" && call.function.name in registry) {
                     return registry[call.function.name].call(JSON.parse(call.function.arguments))
                         .then(content => ({
                             role, tool_call_id, content
@@ -95,7 +95,9 @@ async function *handleToolUse(
                         }))
                 } else {
                     return { role, tool_call_id,
-                        content: ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
+                        content: call.type === "function" 
+                            ? ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
+                            : ToolCallResults(`<error>Unrecognized tool. non-function custom tools are not currently supported.</error>`)
                     }
                 }
             })
@@ -105,7 +107,7 @@ async function *handleToolUse(
 
         for (const call of message.tool_calls) {
             const result = tool_call_results.find(result => result.tool_call_id === call.id)
-            if (result) {
+            if (result && call.type === "function") {
                 const theTool = call.function.name in registry 
                     ? registry[call.function.name] 
                     : null
