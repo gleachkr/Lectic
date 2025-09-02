@@ -474,6 +474,7 @@ tools:
       usage: "Usage guide..."   # Instructions for the LLM
       sandbox: ./sandbox.sh     # Optional sandboxing script
       confirm: ./confirm.sh     # Optional confirmation script
+      timeoutSeconds: 42        # Optional number of seconds until command timeout
       env:                      # Optional additional environment variables
         FOO: BAR
 ```
