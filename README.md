@@ -139,11 +139,12 @@ the following environment variables:
 - `$LECTIC_STATE`: Overrides the state directory path.
 
 These variables, along with `$LECTIC_TEMP` (which points to a temporary 
-directory), are automatically passed into the environment of any subprocesses 
-that Lectic spawns. This includes `exec` tools and any executables or scripts 
-used for generating prompts or usage instructions. This ensures that scripts or 
-nested `lectic` calls can easily access the same configuration and data context 
-as the main process.
+directory), and `LECTIC_FILE` (which points to the active `.lec` file, if 
+lectic was invoked to read from one), are automatically passed into the 
+environment of any subprocesses that Lectic spawns. This includes `exec` tools 
+and any executables or scripts used for generating prompts or usage 
+instructions. This ensures that scripts or nested `lectic` calls can easily 
+access the same configuration and data context as the main process.
 
 <details>
 
@@ -498,6 +499,11 @@ tools:
 When an inline script is executed, Lectic writes it to a temporary file
 and then runs it. The first line of the script must be a shebang (e.g.,
 `#!/bin/bash`) to specify the interpreter.
+
+The name of the interlocutor who invoked the tool will be available as an 
+variable `LECTIC_INTERLOCUTOR` in the execution environment. This is useful 
+for, e.g. writing scripts that record "memories", or other data that need to be 
+scoped by interlocutor.
 
 Example conversation using the exec tool:
 
