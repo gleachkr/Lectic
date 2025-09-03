@@ -88,14 +88,14 @@ export class ExecTool extends Tool {
     timeoutSeconds?: number
     static count : number = 0
 
-    constructor(spec: ExecToolSpec) {
+    constructor(spec: ExecToolSpec, interlocutor_name : string) {
         super()
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.isScript = this.exec.split('\n').length > 1
         this.sandbox = spec.sandbox
         this.confirm = spec.confirm
-        this.env = spec.env ?? {}
+        this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
         this.timeoutSeconds = spec.timeoutSeconds
         this.description = (this.isScript 
             ? `This tool executes the following script: \n \`\`\`\n${this.exec}\n\`\`\`\n` +

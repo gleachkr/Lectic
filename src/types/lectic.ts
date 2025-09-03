@@ -91,12 +91,12 @@ export class LecticHeader {
                         }
                     }
                     if (isExecToolSpec(spec)) {
-                        // don't mutate spec, it's confusing elsewhere if it
-                        // starts to not match the YAML, for example if the
-                        // YAML uses &* references
+                        // don't mutate spec, it's confusing elsewhere if the
+                        // tool spece starts to not match the YAML, for example
+                        // if the YAML uses &* references
                         const loadedSpec = { ...spec }
                         loadedSpec.usage = await loadFrom(spec.usage)
-                        register(new ExecTool(loadedSpec))
+                        register(new ExecTool(loadedSpec, interlocutor.name))
                     } else if (isSQLiteToolSpec(spec)) {
                         spec.details = await loadFrom(spec.details)
                         register(new SQLiteTool(spec))
