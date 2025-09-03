@@ -52,4 +52,5 @@ export const lecticEnv = {
     LECTIC_STATE: lecticStateDir(),
     LECTIC_CACHE: lecticCacheDir(),
     LECTIC_TEMP: lecticTempDir(),
+    LECTIC_FILE: undefined
 }

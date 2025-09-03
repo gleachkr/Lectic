@@ -6,7 +6,7 @@ import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
 import type { Lectic } from "./types/lectic"
 import { version } from "../package.json"
-import { lecticConfigDir } from "./utils/xdg";
+import { lecticConfigDir, lecticEnv } from "./utils/xdg";
 import { UserMessage } from "./types/message"
 
 // XXX This really should be factored out.
@@ -98,6 +98,10 @@ async function main() {
     validateOptions(opts)
 
     if (opts["log"]) Logger.logfile = opts["log"]
+
+    if (opts["inplace"] || opts["file"]) {
+        lecticEnv["LECTIC_FILE"] = opts["inplace"] || opts["file"]
+    }
 
     let lecticString = await getLecticString(opts)
 
