@@ -7,7 +7,7 @@ function texts(results: { type: "text"; text: string }[]) {
 
 describe("ExecTool (async)", () => {
   it("captures stdout for a simple command", async () => {
-    const tool = new ExecTool({ exec: "/bin/echo", name: "echo" });
+    const tool = new ExecTool({ exec: "/bin/echo", name: "echo" }, "Interlocutor_Name");
     const res = await tool.call({ arguments: ["hello"] });
     const out = texts(res).join("\n");
     expect(out).toContain("<stdout>hello\n</stdout>");
@@ -17,7 +17,7 @@ describe("ExecTool (async)", () => {
     const script = `#!/bin/bash\n` +
       `echo "OUT"\n` +
       `echo "ERR" 1>&2\n`;
-    const tool = new ExecTool({ exec: script, name: "script-io" });
+    const tool = new ExecTool({ exec: script, name: "script-io" }, "Interlocutor_Name");
     const res = await tool.call({ arguments: [] });
     const out = texts(res).join("\n");
     expect(out).toContain("<stdout>OUT\n</stdout>");
@@ -33,7 +33,7 @@ describe("ExecTool (async)", () => {
       exec: script,
       name: "timeout-script",
       timeoutSeconds: 0.05,
-    });
+    }, "Interlocutor_Name");
     try {
       await tool.call({ arguments: [] });
       throw new Error("expected timeout");
