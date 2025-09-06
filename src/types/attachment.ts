@@ -53,9 +53,9 @@ export class MessageAttachment {
                 }
                 default : {
                     const mcp_match = /^([^+]+)\+/.exec(url.protocol)
-                    if (mcp_match && mcp_match[1] in MCPTool.client_registry) {
-                        MCPTool.client_registry[mcp_match[1]]
-                        this.resource = MCPTool.client_registry[mcp_match[1]].readResource({
+                    if (mcp_match && mcp_match[1] in MCPTool.clientByName) {
+                        MCPTool.clientByName[mcp_match[1]]
+                        this.resource = MCPTool.clientByName[mcp_match[1]].readResource({
                             uri: this.URI.slice(mcp_match[1].length+1)
                         })
                     }

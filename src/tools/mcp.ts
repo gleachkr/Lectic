@@ -53,7 +53,8 @@ type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamable
 }
 
 type MCPToolSpec = {
-    name: string
+    name: string // a namespaced-by-server name for the tool
+    server_tool_name: string // the original name of the tool, known to the server
     description?: string
     confirm?: string
     sandbox?: string
@@ -101,6 +102,7 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
             isMCPSpecSSE(raw) || 
             isMCPSpecWebsocket(raw) || 
             isMCPSpecStreamableHttp(raw)) && 
+           ("server_name" in raw ? typeof raw.server_name === "string" : true) &&
            ("confirm" in raw ? typeof raw.confirm === "string" : true)
 }
 
@@ -114,17 +116,19 @@ function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
 
 class MCPListResources extends Tool {
 
-    name: string
+    server_name: string
     description: string
+    name : string
     client: Client
 
-    constructor({name, client}: {name : string, client: Client}) {
+    constructor({server_name, client}: {server_name : string, client: Client}) {
         super()
         this.client = client
-        this.name = name
+        this.server_name = server_name
+        this.name = `${server_name}:list_resources`
         // XXX: Which backends actually *require* the description field?
         this.description = 
-            `This tool can be used to list resources provided provided by the MCP server ${name}. ` +
+            `This tool can be used to list resources provided by the MCP server ${server_name}. ` +
             `Results will be of two kinds, either *direct resources* or *template resources*.` +
             `Direct resources will be listed with a URI used to access the resource, the name of the resource, ` + 
             `Template resources will be listed with a URI template, name, ` +
@@ -155,6 +159,7 @@ class MCPListResources extends Tool {
 
 export class MCPTool extends Tool {
     name: string
+    server_tool_name: string
     description: string
     parameters: { [_ : string] : JSONSchema }
     required?: string[]
@@ -162,11 +167,14 @@ export class MCPTool extends Tool {
     sandbox?: string
     client: Client
     static count : number = 0
+    static clientByHash : Record<string, Client> = {}
+    static clientByName : Record<string, Client> = {}
 
-    constructor({name, description, schema, confirm, client}: MCPToolSpec) {
+    constructor({name, server_tool_name, description, schema, confirm, client}: MCPToolSpec) {
         super()
         this.client = client
         this.name = name
+        this.server_tool_name = server_tool_name
         this.confirm = confirm
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
@@ -196,7 +204,7 @@ export class MCPTool extends Tool {
             }
         }
 
-        const response = await this.client.callTool({ name: this.name, arguments: args })
+        const response = await this.client.callTool({ name: this.server_tool_name, arguments: args })
         const content = response.content
 
         if (!Array.isArray(content) || content.length === 0) {
@@ -214,63 +222,82 @@ export class MCPTool extends Tool {
         return results
     }
 
-    static client_registry : Record<string, Client> = {}
 
-    static register(name : string | undefined, client : Client) {
-        if (!name) {
-            name = `mcp_server_${MCPTool.count}`
+    static async fromSpec(spec : MCPSpec) : Promise<Tool[]> {
+
+        const ident = [spec.roots, "mcp_sse" in spec 
+            ? spec.mcp_sse
+            : "mcp_shttp" in spec
+            ? spec.mcp_shttp
+            : "mcp_ws" in spec
+            ? spec.mcp_ws
+            : [spec.mcp_command, spec.args, spec.env, spec.sandbox]]
+
+        let prefix
+        if (spec.server_name) {
+            prefix = spec.server_name
+        } else {
+            prefix = `mcp_server_${MCPTool.count}`
             MCPTool.count++
         }
-        if (name in MCPTool.client_registry) {
-            throw new Error(`Two mcp servers have been given the same name, ${name}. Names must be distinct.`)
-        } else {
-            MCPTool.client_registry[name] = client
-        }
 
-    }
+        const hash = String(Bun.hash(JSON.stringify(ident)))
 
-    static async fromSpec(spec : MCPSpec) : Promise<MCPTool[]> {
-        const transport = "mcp_command" in spec
-            ? new StdioClientTransport(spec.sandbox ? {
-                command: spec.sandbox, 
-                args: [spec.mcp_command, ...(spec.args || []) ],
-                env: {...getDefaultEnvironment(), ...spec.env}
-            } : { 
-                command: spec.mcp_command, 
-                args: spec.args,
-                env: {...getDefaultEnvironment(), ...spec.env}
-            })
-            : "mcp_sse" in spec
-            ? new SSEClientTransport(new URL(spec.mcp_sse))
-            : "mcp_ws" in spec
-            ? new WebSocketClientTransport(new URL(spec.mcp_ws))
-            : new StreamableHTTPClientTransport(new URL(spec.mcp_shttp))
+        let client : Client
 
-        const client = new Client({
-            name: "Lectic",
-            version: "0.0.0" // should draw this from package.json
-        }, {
-            capabilities: {
-                ...spec.roots ? {roots: {}} : {}
+        if (hash in MCPTool.clientByHash) {
+            client = MCPTool.clientByHash[hash]
+            if (!(prefix in MCPTool.clientByName)) {
+                MCPTool.clientByName[prefix] = client
+            } else if (!(MCPTool.clientByName[prefix] === client)) {
+                throw Error(`MCP server name ${prefix} is duplicated. Servers need distinct names.`)
             }
-        })
-        
-        MCPTool.register(spec.server_name, client)
-
-        if (spec.roots) {
-            spec.roots.map(validateRoot)
-            client.setRequestHandler(ListRootsRequestSchema, (_request, _extra) => {
-                return {
-                    roots: spec.roots,
+        } else {
+            client = new Client({
+                name: "Lectic",
+                version: "0.0.0" // should draw this from package.json
+            }, {
+                capabilities: {
+                    ...spec.roots ? {roots: {}} : {}
                 }
             })
+
+            MCPTool.clientByHash[hash] = client
+            MCPTool.clientByName[prefix] = client
+
+            const transport = "mcp_command" in spec
+                ? new StdioClientTransport(spec.sandbox ? {
+                    command: spec.sandbox, 
+                    args: [spec.mcp_command, ...(spec.args || []) ],
+                    env: {...getDefaultEnvironment(), ...spec.env}
+                } : { 
+                    command: spec.mcp_command, 
+                    args: spec.args,
+                    env: {...getDefaultEnvironment(), ...spec.env}
+                })
+                : "mcp_sse" in spec
+                ? new SSEClientTransport(new URL(spec.mcp_sse))
+                : "mcp_ws" in spec
+                ? new WebSocketClientTransport(new URL(spec.mcp_ws))
+                : new StreamableHTTPClientTransport(new URL(spec.mcp_shttp))
+
+
+            if (spec.roots) {
+                spec.roots.map(validateRoot)
+                client.setRequestHandler(ListRootsRequestSchema, (_request, _extra) => {
+                    return {
+                        roots: spec.roots,
+                    }
+                })
+            }
+
+            await client.connect(transport)
         }
 
-        await client.connect(transport)
-
-        const associated_tools = (await client.listTools()).tools.map(tool => {
+        const associated_tools : Tool[] = (await client.listTools()).tools.map(tool => {
             return new MCPTool({
-                name: tool.name,
+                name: `${prefix}_${tool.name}`,
+                server_tool_name: tool.name,
                 description: tool.description,
                 // ↓ We cast here. The MCP docs seem to guarantee these are schemata
                 schema: tool.inputSchema as JSONSchema & { type: "object" },
@@ -280,7 +307,12 @@ export class MCPTool extends Tool {
             })
         })
 
-        associated_tools.push(new MCPListResources({name: spec.server_name || "mcp_server_unknown", client}))
+        if (spec.server_name) {
+            associated_tools.push(new MCPListResources({
+                server_name: spec.server_name,
+                client
+            }))
+        }
         
         return associated_tools 
     }
