@@ -125,7 +125,7 @@ class MCPListResources extends Tool {
         super()
         this.client = client
         this.server_name = server_name
-        this.name = `${server_name}:list_resources`
+        this.name = `${server_name}_list_resources`
         // XXX: Which backends actually *require* the description field?
         this.description = 
             `This tool can be used to list resources provided by the MCP server ${server_name}. ` +
