@@ -139,7 +139,7 @@ the following environment variables:
 - `$LECTIC_STATE`: Overrides the state directory path.
 
 These variables, along with `$LECTIC_TEMP` (which points to a temporary 
-directory), and `LECTIC_FILE` (which points to the active `.lec` file, if 
+directory), and `$LECTIC_FILE` (which points to the active `.lec` file, if 
 lectic was invoked to read from one), are automatically passed into the 
 environment of any subprocesses that Lectic spawns. This includes `exec` tools 
 and any executables or scripts used for generating prompts or usage 
