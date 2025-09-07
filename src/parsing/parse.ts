@@ -1,7 +1,7 @@
 import { LecticHeader, validateLecticHeaderSpec } from "../types/lectic"
 import type { Message } from "../types/message"
 import { UserMessage, AssistantMessage } from "../types/message"
-import type { Lectic } from "../types/lectic"
+import { Lectic } from "../types/lectic"
 import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
@@ -75,5 +75,5 @@ export async function parseLectic(raw: string, include : (string | null)[]) : Pr
 
     const messages = bodyToMessages(rawBody, header)
 
-    return { header, body : { messages }}
+    return new Lectic({ header, body : { messages }})
 }

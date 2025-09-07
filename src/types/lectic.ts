@@ -155,9 +155,36 @@ export function isLecticBody(raw: unknown): raw is LecticBody {
         raw.messages.every(isMessage);
 }
 
-export type Lectic = {
+export class Lectic {
     header : LecticHeader
     body : LecticBody
+    constructor({ header, body } : {header : LecticHeader, body : LecticBody }) {
+        this.header = header
+        this.body = body
+    }
+
+    handleDirectives() {
+        const messages = this.body.messages
+        for (const message of messages) {
+            if (message.role === "user") {
+                for (const directive of message.containedDirectives()) {
+                    if (directive.name === "ask") {
+                        this.header.setSpeaker(directive.text)
+                    }
+                }
+            }
+        }
+        if (messages.length > 0) {
+            const message = messages[messages.length -1 ]
+            if (message.role === "user") {
+                for (const directive of message.containedDirectives()) {
+                    if (directive.name === "aside") {
+                        this.header.setSpeaker(directive.text)
+                    }
+                }
+            }
+        }
+    }
 }
 
 export function isLectic(raw: unknown): raw is Lectic {

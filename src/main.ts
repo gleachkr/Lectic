@@ -4,35 +4,9 @@ import { program, type OptionValues } from 'commander'
 import { parseLectic, getYaml } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
-import type { Lectic } from "./types/lectic"
 import { version } from "../package.json"
 import { lecticConfigDir, lecticEnv } from "./utils/xdg";
 import { UserMessage } from "./types/message"
-
-// XXX This really should be factored out.
-// Should be a method of Lectic, which should be a class.
-function handleDirectives(lectic : Lectic) {
-    const messages = lectic.body.messages
-    for (const message of messages) {
-        if (message.role === "user") {
-            for (const directive of message.containedDirectives()) {
-                if (directive.name === "ask") {
-                    lectic.header.setSpeaker(directive.text)
-                }
-            }
-        }
-    }
-    if (messages.length > 0) {
-        const message = messages[messages.length -1 ]
-        if (message.role === "user") {
-            for (const directive of message.containedDirectives()) {
-                if (directive.name === "aside") {
-                    lectic.header.setSpeaker(directive.text)
-                }
-            }
-        }
-    }
-}
 
 function validateOptions(opts : OptionValues) {
     if (opts["header"]) {
@@ -132,7 +106,7 @@ async function main() {
             }
         } else {
             // we handle directives, which may update header fields
-            handleDirectives(lectic)
+            lectic.handleDirectives()
 
             const backend = getBackend(lectic.header.interlocutor)
 

@@ -2,7 +2,7 @@ import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { getBackend } from "../backends/util"
 import { Logger } from "../logging/logger"
 // XXX Circular import, would be good to fix eventually.
-import { LecticHeader } from "../types/lectic"
+import { LecticHeader, Lectic } from "../types/lectic"
 import { UserMessage } from "../types/message"
 import type { Interlocutor } from "../types/interlocutor"
 
@@ -51,13 +51,13 @@ export class AgentTool extends Tool {
 
     async call({ content }: { content: string }) : Promise<ToolCallResult[]> {
         this.validateArguments({ content });
-        const lectic = {
+        const lectic = new Lectic({
             // the agent we pass in is already initialized, so there's no need
             // to initialize the header, or pass in other interlocutors for
             // recursive agent calls.
             header: new LecticHeader({interlocutor: this.agent}),
             body: { messages: [new UserMessage({ content })] },
-        }
+        })
         const backend = getBackend(this.agent)
         const result = Logger.fromStream(backend.evaluate(lectic))
         for await (const _ of result.chunks) { }
