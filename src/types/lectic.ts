@@ -164,26 +164,26 @@ export class Lectic {
     }
 
     handleDirectives() {
-        const messages = this.body.messages
-        for (const message of messages) {
+        const entries = this.body.messages.entries()
+        let messages = this.body.messages
+        for (const [index, message] of entries) {
             if (message.role === "user") {
                 for (const directive of message.containedDirectives()) {
                     if (directive.name === "ask") {
                         this.header.setSpeaker(directive.text)
                     }
-                }
-            }
-        }
-        if (messages.length > 0) {
-            const message = messages[messages.length -1 ]
-            if (message.role === "user") {
-                for (const directive of message.containedDirectives()) {
-                    if (directive.name === "aside") {
+                    if (index === this.body.messages.length - 1
+                        && directive.name === "aside") {
                         this.header.setSpeaker(directive.text)
+                    }
+                    if (index < this.body.messages.length - 1
+                        && directive.name === "reset") {
+                        messages = this.body.messages.slice(index + 1)
                     }
                 }
             }
         }
+        this.body.messages = messages
     }
 }
 
