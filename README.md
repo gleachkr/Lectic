@@ -228,7 +228,12 @@ Your next prompt...
 The front matter should be YAML, and should open with three dashes and close
 with three dashes or three periods.
 
-### Multiparty Conversations
+### Directives
+
+Lectic supports inline directives, of the form `:name[CONTENT]{Key=val}`, which 
+are used to control a few subfeatures
+
+#### Multiparty Conversations
 
 Instead of specifying a single interlocutor in the `interlocutor` field, you 
 can specify a list of interlocutors. The conversation will continue with the 
@@ -266,9 +271,129 @@ Nonsense! …
 `:aside[NAME]` works similarly, but only for one round, so your next message 
 will be directed to your original interlocutor.
 
+#### Command Output References
+
+Include the output of shell commands directly in your conversations by using a
+markdown directive.
+
+```markdown
+:cmd[uname -a]                  #add system info to context
+:cmd[ls]                        #add directory contents to context
+:cmd[git diff]                  #add the latest diff to the context
+:cmd[ps aux | grep python]      #add the output of a pipeline to the context
+```
+
+When Lectic encounters a `cmd` [directive](https://talk.commonmark.org/t/generic-directives-plugins-syntax/444), 
+(inline text of the form `:cmd[COMMAND]`) it:
+1. Executes the specified command (using the [bun
+   shell](https://bun.sh/docs/runtime/shell)).
+2. Captures the output
+3. Includes the output in the user message.
+
+This is particularly useful for:
+- Including system information in debugging conversations
+- Showing the current state of a project or environment
+- Incorporating dynamic data into your conversations
+- Running analysis tools and discussing their output
+
+#### Macros
+
+Lectic supports a simple but powerful macro system that allows you to
+define and reuse snippets of text. This is useful for saving frequently
+used prompts, automating repetitive workflows, and composing complex,
+multi-step commands.
+
+Macros are defined in your YAML configuration (either in the `.lec` file
+header or in an included configuration file).
+
+```yaml
+macros:
+    - name: summarize
+      expansion: >
+        Please provide a concise, single-paragraph summary of our
+        conversation so far, focusing on the key decisions made and
+        conclusions reached.
+
+    - name: commit_msg
+      expansion: |
+        Please write a Conventional Commit message for the following changes:
+        :cmd[git diff --staged]
+```
+
+To use a macro, you invoke it using a directive in your message:
+
+```markdown
+This was a long and productive discussion. Could you wrap it up?
+
+:macro[summarize]
+```
+
+When Lectic processes the file, it will replace `:macro[summarize]` with the
+full text from the `expansion` field before sending it to the LLM. This
+expansion happens before any other directives (like `:cmd`) are executed.
+
+Like the `prompt` field, the `expansion` can also load from a file or from the 
+output of an executable or an inline script, `file:` or `exec:` prefixes.
+
+##### Passing environment variables to macro expansions
+
+You can pass environment variables into a macro's expansion by adding
+attributes to the `:macro[...]` directive. These attributes are injected
+into the environment of `exec:` expansions (both one‑line commands and
+shebang scripts) when they run.
+
+- `:macro[name]{FOO="bar"}` sets `FOO=bar` for the expansion process.
+- `:macro[name]{EMPTY}` marks `EMPTY` as set with an empty value (set, not
+  unset).
+
+Example:
+
+```yaml
+macros:
+  - name: show_env
+    expansion: exec: bash -lc 'printf "%s:%s" "$FOO" "$EMPTY"'
+```
+
+```markdown
+Result: :macro[show_env]{FOO="bar" EMPTY}
+# → prints: bar:
+```
+
+#### Context Management
+
+a `:reset[]` directive will cause the LLM to ignore all context preceding the 
+message containing the reset (after processing the reset message). So for 
+example you could write.
+
+````markdown
+Hey, I'm going to :reset[] your context, OK? Save your memories and get ready 
+for the next instruction.
+
+:::Assistant
+
+saving my memories...
+
+OK, ready for my next instruction
+
+:::
+
+How did this conversation begin?
+
+:::Assistant
+
+It begins with me saving my memories and saying that I'm ready for my next 
+instruction.
+
+:::
+````
+
+This is useful for easily "compacting" the context in a long running 
+conversation, either by asking the LLM to summarize in the reset message, or by
+using an external memory management system.
+
 ### Content References
 
-Include local or remote content in conversations:
+You can include local or remote content in conversations:
 
 ```markdown
 [Local Document](./notes.pdf)
@@ -358,93 +483,6 @@ includes both page 5 and page 10). If you supply both `page` and
 range is malformed or out of bounds, Lectic will surface an error which
 will be visible to the LLM.
 
-### Command Output References
-
-Include the output of shell commands directly in your conversations by using a
-markdown directive.
-
-```markdown
-:cmd[uname -a]                  #add system info to context
-:cmd[ls]                        #add directory contents to context
-:cmd[git diff]                  #add the latest diff to the context
-:cmd[ps aux | grep python]      #add the output of a pipeline to the context
-```
-
-When Lectic encounters a `cmd` [directive](https://talk.commonmark.org/t/generic-directives-plugins-syntax/444), 
-(inline text of the form `:cmd[COMMAND]`) it:
-1. Executes the specified command (using the [bun
-   shell](https://bun.sh/docs/runtime/shell)).
-2. Captures the output
-3. Includes the output in the user message.
-
-This is particularly useful for:
-- Including system information in debugging conversations
-- Showing the current state of a project or environment
-- Incorporating dynamic data into your conversations
-- Running analysis tools and discussing their output
-
-### Macros
-
-Lectic supports a simple but powerful macro system that allows you to
-define and reuse snippets of text. This is useful for saving frequently
-used prompts, automating repetitive workflows, and composing complex,
-multi-step commands.
-
-Macros are defined in your YAML configuration (either in the `.lec` file
-header or in an included configuration file).
-
-```yaml
-macros:
-    - name: summarize
-      expansion: >
-        Please provide a concise, single-paragraph summary of our
-        conversation so far, focusing on the key decisions made and
-        conclusions reached.
-
-    - name: commit_msg
-      expansion: |
-        Please write a Conventional Commit message for the following changes:
-        :cmd[git diff --staged]
-```
-
-To use a macro, you invoke it using a directive in your message:
-
-```markdown
-This was a long and productive discussion. Could you wrap it up?
-
-:macro[summarize]
-```
-
-When Lectic processes the file, it will replace `:macro[summarize]` with the
-full text from the `expansion` field before sending it to the LLM. This
-expansion happens before any other directives (like `:cmd`) are executed.
-
-Like the `prompt` field, the `expansion` can also load from a file or from the 
-output of an executable or an inline script, `file:` or `exec:` prefixes.
-
-#### Passing environment variables to macro expansions
-
-You can pass environment variables into a macro's expansion by adding
-attributes to the `:macro[...]` directive. These attributes are injected
-into the environment of `exec:` expansions (both one‑line commands and
-shebang scripts) when they run.
-
-- `:macro[name]{FOO="bar"}` sets `FOO=bar` for the expansion process.
-- `:macro[name]{EMPTY}` marks `EMPTY` as set with an empty value (set, not
-  unset).
-
-Example:
-
-```yaml
-macros:
-  - name: show_env
-    expansion: exec: bash -lc 'printf "%s:%s" "$FOO" "$EMPTY"'
-```
-
-```markdown
-Result: :macro[show_env]{FOO="bar" EMPTY}
-# → prints: bar:
-```
 
 ### Tools
 
@@ -472,7 +510,7 @@ run them in a sandbox.
 tools:
     - exec: python3             # Allow LLM to run Python
       name: python              # Optional custom name
-      usage: "Usage guide..."   # Instructions for the LLM
+      usage: "Usage guide..."   # Optional instructions for the LLM
       sandbox: ./sandbox.sh     # Optional sandboxing script
       confirm: ./confirm.sh     # Optional confirmation script
       timeoutSeconds: 42        # Optional number of seconds until command timeout
@@ -501,9 +539,10 @@ and then runs it. The first line of the script must be a shebang (e.g.,
 `#!/bin/bash`) to specify the interpreter.
 
 The name of the interlocutor who invoked the tool will be available as an 
-variable `LECTIC_INTERLOCUTOR` in the execution environment. This is useful 
-for, e.g. writing scripts that record "memories", or other data that need to be 
-scoped by interlocutor.
+variable `LECTIC_INTERLOCUTOR` in the execution environment, including within 
+any sandboxing scripts. This is useful for, e.g. writing scripts that record 
+"memories" and other data that need to be scoped by interlocutor, or for giving 
+each interlocutor a separate sandbox directory.
 
 Example conversation using the exec tool:
 
