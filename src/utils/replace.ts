@@ -5,8 +5,8 @@ export function simultaneousReplace(expansionMap : Record<string, string>, targe
     return target.replaceAll(regex, match => expansionMap[match] ?? match)
 }
 
-export function expandEnv(target : string) : string {
-    const env : Record<string, string | undefined> = { ...process.env, ...lecticEnv }
+export function expandEnv(target : string, extra?: Record<string, string>) : string {
+    const env : Record<string, string | undefined> = { ...process.env, ...lecticEnv, ...(extra ?? {}) }
     const newEnv : Record<string, string> = {}
     for (const key of Object.keys(env)) {
         if (env[key]) newEnv[`$${key}`] = env[key]

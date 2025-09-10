@@ -3,6 +3,7 @@ import { lecticEnv } from "../utils/xdg";
 import * as fs from "fs";
 import { withTimeout, TimeoutError } from "../utils/timeout";
 import { readStream } from "../utils/stream";
+import { expandEnv } from "../utils/replace";
 
 export type ExecToolSpec = {
     exec: string
@@ -93,9 +94,9 @@ export class ExecTool extends Tool {
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.isScript = this.exec.split('\n').length > 1
-        this.sandbox = spec.sandbox
-        this.confirm = spec.confirm
         this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
+        this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox
+        this.confirm = spec.confirm ? expandEnv(spec.confirm, this.env) : spec.confirm
         this.timeoutSeconds = spec.timeoutSeconds
         this.description = (this.isScript 
             ? `This tool executes the following script: \n \`\`\`\n${this.exec}\n\`\`\`\n` +

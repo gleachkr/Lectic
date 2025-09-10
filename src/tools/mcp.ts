@@ -7,6 +7,7 @@ import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
 import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
+import { expandEnv } from "../utils/replace";
 
 type MCPSpecSTDIO = {
     mcp_command: string
@@ -175,7 +176,7 @@ export class MCPTool extends Tool {
         this.client = client
         this.name = name
         this.server_tool_name = server_tool_name
-        this.confirm = confirm
+        this.confirm = confirm ? expandEnv(confirm) : confirm
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
         if (!schema) {
@@ -267,7 +268,7 @@ export class MCPTool extends Tool {
 
             const transport = "mcp_command" in spec
                 ? new StdioClientTransport(spec.sandbox ? {
-                    command: spec.sandbox, 
+                    command: expandEnv(spec.sandbox), 
                     args: [spec.mcp_command, ...(spec.args || []) ],
                     env: {...getDefaultEnvironment(), ...spec.env}
                 } : { 
