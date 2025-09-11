@@ -95,6 +95,7 @@ export class ExecTool extends Tool {
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.isScript = this.exec.split('\n').length > 1
         this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
+        if (!this.isScript) this.exec = expandEnv(this.exec, this.env)
         this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox
         this.confirm = spec.confirm ? expandEnv(spec.confirm, this.env) : spec.confirm
         this.timeoutSeconds = spec.timeoutSeconds
