@@ -2,3 +2,24 @@
 .direnv
 result
 node_modules
+
+# Editor sessions
+Session.vim
+
+# Logs
+*.log
+
+# Databases
+*.sqlite
+*.db
+
+# VSCode extension build outputs
+extra/lectic.vscode/out/
+extra/lectic.vscode/*.vsix
+
+# Neovim test plugin artifacts
+extra/lectic.nvim/lua/lectic_test/
+
+# macOS
+.DS_Store
+
