@@ -7,13 +7,21 @@ export type SQLiteToolSpec = {
     details?: string
     name?: string
     limit? : number
+    extensions?: string[] | string
 }
 
 export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
     return raw !== null &&
         typeof raw === "object" &&
         "sqlite" in raw &&
-        ("name" in raw ? typeof raw.name === "string" : true)
+        ("name" in raw ? typeof raw.name === "string" : true) &&
+        ("limit" in raw ? typeof raw.limit=== "number" : true) &&
+        ("details" in raw ? typeof raw.details=== "string" : true) &&
+        ("extensions" in raw 
+            ? typeof raw.extensions === "string" ||
+              Array.isArray(raw.extensions) && raw.extensions.every(ext => typeof ext === "string")
+            : true
+        )
 }
 
 const description = `
@@ -42,7 +50,19 @@ export class SQLiteTool extends Tool {
         this.limit = spec.limit
 
         this.db = new Database(spec.sqlite)
-        this.db.exec("PRAGMA foreign_keys = ON")
+        try {
+            switch (typeof spec.extensions) {
+                case "string" : this.db.loadExtension(spec.extensions); break
+                case "object" : spec.extensions.forEach(ext => this.db.loadExtension(ext)); break
+            }
+        } catch(e) {
+            throw Error(`Something went wrong while trying to load an sqlite extension: ${e}` +
+                        `\n\n NOTE: on MacOS you may be running into a limitation of the OS's standard sqlite build,` +
+                        ` see https://bun.sh/docs/api/sqlite#loadextension.`)
+        }
+        this.db.run("PRAGMA foreign_keys = ON")
+
+        SQLiteTool.count++
     }
 
     get description() {
@@ -94,7 +114,7 @@ export class SQLiteTool extends Tool {
                     }
                 }
                 const rslt = rslt_rows === null ? "Success" : JSON.stringify(rslt_rows)
-                if (rslt.length < (this.limit ?? 10_000)) Error("result was too large, try an more selective query.")
+                if (rslt.length > (this.limit ?? 10_000)) throw Error("result was too large, try a more selective query.")
                 rslts.push(rslt)
             }
         })
