@@ -50,7 +50,7 @@ describe("SQLiteTool serialization and limits", () => {
     expect(parsed).toEqual([]);
   });
 
-  it("handles multi-statement scripts without finalize errors", async () => {
+  it("handles multi-statement scripts", async () => {
     const tool = new SQLiteTool({ sqlite: ":memory:", name: "db5", limit: 10_000 });
     const script = [
       "DROP TABLE IF EXISTS t;",
@@ -63,14 +63,9 @@ describe("SQLiteTool serialization and limits", () => {
       "SELECT v FROM t ORDER BY v;",
     ].join("");
 
+    let res;
     for (let i = 0; i < 5; i++) {
-      let res;
-      try {
-        res = await tool.call({ query: script });
-      } catch (e) {
-        expect(String(e)).not.toMatch(/finali/i);
-        throw e;
-      }
+      res = await tool.call({ query: script });
       const outs = texts(res);
       const parsed = outs.map((o) => YAML.parse(o));
       expect(parsed[3]).toEqual([{ n: 3 }]);
@@ -82,4 +77,125 @@ describe("SQLiteTool serialization and limits", () => {
       expect(parsed[7]).toEqual([{ v: "B" }, { v: "a" }]);
     }
   });
+
+  it("handles multi-statement scripts with newlines", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "db5", limit: 10_000 });
+    const script = [
+      "DROP TABLE IF EXISTS t;",
+      "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);",
+      "INSERT INTO t(v) VALUES ('a'), ('b'), ('c');",
+      "SELECT COUNT(*) AS n FROM t;",
+      "UPDATE t SET v = upper(v) WHERE v = 'b';",
+      "SELECT * FROM t ORDER BY id;",
+      "DELETE FROM t WHERE v = 'c';",
+      "SELECT v FROM t ORDER BY v;",
+    ].join("\n");
+
+    let res;
+    for (let i = 0; i < 5; i++) {
+      res = await tool.call({ query: script });
+      const outs = texts(res);
+      const parsed = outs.map((o) => YAML.parse(o));
+      expect(parsed[3]).toEqual([{ n: 3 }]);
+      expect(parsed[5]).toEqual([
+        { id: 1, v: "a" },
+        { id: 2, v: "B" },
+        { id: 3, v: "c" },
+      ]);
+      expect(parsed[7]).toEqual([{ v: "B" }, { v: "a" }]);
+    }
+  });
+
+  it("handles multi-statement scripts with multiple newlines", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "db5", limit: 10_000 });
+    const script = [
+      "DROP TABLE IF EXISTS t;",
+      "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);",
+      "INSERT INTO t(v) VALUES ('a'), ('b'), ('c');",
+      "SELECT COUNT(*) AS n FROM t;",
+      "UPDATE t SET v = upper(v) WHERE v = 'b';",
+      "SELECT * FROM t ORDER BY id;",
+      "DELETE FROM t WHERE v = 'c';",
+      "SELECT v FROM t ORDER BY v;",
+    ].join("\n\n");
+
+    let res;
+    for (let i = 0; i < 5; i++) {
+      res = await tool.call({ query: script });
+      const outs = texts(res);
+      const parsed = outs.map((o) => YAML.parse(o));
+      expect(parsed[3]).toEqual([{ n: 3 }]);
+      expect(parsed[5]).toEqual([
+        { id: 1, v: "a" },
+        { id: 2, v: "B" },
+        { id: 3, v: "c" },
+      ]);
+      expect(parsed[7]).toEqual([{ v: "B" }, { v: "a" }]);
+    }
+  });
+
+  it("handles multi-statement scripts with empty queries", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "db5", limit: 10_000 });
+    const script = [
+      "DROP TABLE IF EXISTS t;",
+      "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);",
+      "INSERT INTO t(v) VALUES ('a'), ('b'), ('c');",
+      "SELECT COUNT(*) AS n FROM t;",
+      ";",
+      "UPDATE t SET v = upper(v) WHERE v = 'b';",
+      "SELECT * FROM t ORDER BY id;",
+      "DELETE FROM t WHERE v = 'c';",
+      "SELECT v FROM t ORDER BY v;",
+    ].join("");
+
+    let res;
+    for (let i = 0; i < 5; i++) {
+      res = await tool.call({ query: script });
+      const outs = texts(res);
+      const parsed = outs.map((o) => YAML.parse(o));
+      expect(parsed[3]).toEqual([{ n: 3 }]);
+      expect(parsed[5]).toEqual([
+        { id: 1, v: "a" },
+        { id: 2, v: "B" },
+        { id: 3, v: "c" },
+      ]);
+      expect(parsed[7]).toEqual([{ v: "B" }, { v: "a" }]);
+    }
+  });
+
+  it("handles scripts with trailing newlines", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "db5", limit: 10_000 });
+    const script = "DROP TABLE IF EXISTS t;\n"
+
+    for (let i = 0; i < 5; i++) { await tool.call({ query: script }) }
+  });
+
+  it("handles multi-statement scripts with multiple newlines, some trailing", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "db5", limit: 10_000 });
+    const script = [
+      "DROP TABLE \nIF EXISTS t;",
+      "CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);",
+      "INSERT INTO t(v) VALUES ('a'), ('b'), ('c');",
+      "SELECT COUNT(*) \nAS n FROM t;",
+      "UPDATE t SET v = upper(v) WHERE v = 'b';",
+      "SELECT * \nFROM t ORDER BY id;",
+      "DELETE FROM t WHERE v = 'c';",
+      "SELECT v \nFROM t ORDER BY v;\n\n",
+    ].join("\n\n");
+
+    let res;
+    for (let i = 0; i < 5; i++) {
+      res = await tool.call({ query: script });
+      const outs = texts(res);
+      const parsed = outs.map((o) => YAML.parse(o));
+      expect(parsed[3]).toEqual([{ n: 3 }]);
+      expect(parsed[5]).toEqual([
+        { id: 1, v: "a" },
+        { id: 2, v: "B" },
+        { id: 3, v: "c" },
+      ]);
+      expect(parsed[7]).toEqual([{ v: "B" }, { v: "a" }]);
+    }
+  });
+
 });

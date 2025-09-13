@@ -92,7 +92,9 @@ export class SQLiteTool extends Tool {
 
         this.validateArguments({ query });
 
-        const parsed = parse(query, {
+        //need to trim trailing newlines or the sqlite parser will hand the
+        //database an empty statement, causing an error
+        const parsed = parse(query.trim(), {
             dialect: "sqlite",
             includeComments: true,
             includeSpaces: true,
@@ -100,13 +102,10 @@ export class SQLiteTool extends Tool {
         })
 
         const rslts : string[] = []
-        // This is pretty delicate. I think there's a bun sqlite bug where it
-        // thinks that some of the queries below are finalized when they
-        // shouldn't be, if we write this as a regular loop. A forEach seems to work though.
         const processStatements = this.db.transaction(statements => {
-            statements.forEach((statement : Statement) => {
+            for (const statement of statements) {
                 const raw = show(statement)
-                if (raw.length === 0) return
+                if (raw.length === 0) continue
                 const rslt_rows = []
                 for (const row of this.db.query(raw).iterate()) {
                     if (typeof row === "object" && row !== null) {
@@ -126,7 +125,7 @@ export class SQLiteTool extends Tool {
                     throw Error("result was too large, try a more selective query.")
                 }
                 rslts.push(rslt)
-            })
+            }
         })
         processStatements(parsed.statements)
         return ToolCallResults(rslts)
