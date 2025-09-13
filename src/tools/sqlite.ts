@@ -1,6 +1,7 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Database } from "bun:sqlite"
 import { parse, show, type Statement } from "sql-parser-cst"
+import { expandEnv } from "../utils/replace";
 import * as YAML from "yaml"
 
 export type SQLiteToolSpec = {
@@ -50,7 +51,7 @@ export class SQLiteTool extends Tool {
         this.details = spec.details
         this.limit = spec.limit
 
-        this.db = new Database(spec.sqlite)
+        this.db = new Database(expandEnv(spec.sqlite))
         try {
             switch (typeof spec.extensions) {
                 case "string" : this.db.loadExtension(spec.extensions); break
