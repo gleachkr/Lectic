@@ -65,8 +65,11 @@ export async function pdfFragment(
         return await newPDF.save()
 }
 
-export function emitAssistantMessageEvent(text : string | undefined | null) {
+export function emitAssistantMessageEvent(text : string | undefined | null, name : string) {
     if (text && text.length > 0) {
-        Hook.events.emit("assistant_message", { ASSISTANT_MESSAGE: text })
+        Hook.events.emit("assistant_message", { 
+            ASSISTANT_MESSAGE: text,
+            LECTIC_INTERLOCUTOR: name
+        })
     }
 }

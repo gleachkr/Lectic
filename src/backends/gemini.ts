@@ -240,7 +240,7 @@ async function *handleToolUse(
 
         yield* accumulateStream(result, accumulatedResponse)
 
-        emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse))
+        emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic.header.interlocutor.name)
 
         Logger.debug("gemini - reply (tool)", {
             accumulatedResponse
@@ -404,7 +404,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       yield* accumulateStream(result, accumulatedResponse)
 
-      emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse))
+      emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic.header.interlocutor.name)
 
       if (accumulatedResponse.functionCalls?.length) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })

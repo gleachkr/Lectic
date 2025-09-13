@@ -167,7 +167,7 @@ async function *handleToolUse(
         message = await stream.finalResponse()
 
         Logger.debug("openai - reply (tool)", message)
-        emitAssistantMessageEvent(assistant)
+        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
 
     }
 }
@@ -337,7 +337,7 @@ export class OpenAIResponsesBackend implements Backend {
         let msg = await stream.finalResponse()
 
         Logger.debug(`${this.provider} - reply`, msg)
-        emitAssistantMessageEvent(assistant)
+        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
 
         if (msg.output.some(output => output.type === "function_call")) {
             yield* handleToolUse(msg, messages, lectic, this.client);

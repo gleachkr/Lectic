@@ -315,7 +315,7 @@ async function* handleToolUse(
         message = await stream.finalMessage()
 
         Logger.debug("anthropic - reply (tool)", message)
-        emitAssistantMessageEvent(assistant)
+        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
 
     }
 
@@ -355,7 +355,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
         let msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
-        emitAssistantMessageEvent(assistant)
+        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
 
         if (msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model)
@@ -405,7 +405,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
         let msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
-        emitAssistantMessageEvent(assistant)
+        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
 
         if (msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model)
