@@ -1,6 +1,7 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Database } from "bun:sqlite"
-import { parse, show } from "sql-parser-cst"
+import { parse, show, type Statement } from "sql-parser-cst"
+import * as YAML from "yaml"
 
 export type SQLiteToolSpec = {
     sqlite: string
@@ -25,7 +26,7 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
 }
 
 const description = `
-This tool gives you access to an sqlite database. You can provide well-formed SQLite script, and you will receive the results, encoded as JSON.
+This tool gives you access to an sqlite database. You can provide well-formed SQLite script, and you will receive the results, encoded as YAML.
 
 In order to avoid overwhelming you with extraneous information, results larger than a fixed size will result in an error. 
 
@@ -98,25 +99,33 @@ export class SQLiteTool extends Tool {
         })
 
         const rslts : string[] = []
+        // This is pretty delicate. I think there's a bun sqlite bug where it
+        // thinks that some of the queries below are finalized when they
+        // shouldn't be, if we write this as a regular loop. A forEach seems to work though.
         const processStatements = this.db.transaction(statements => {
-            for (const statement of statements ) {
+            statements.forEach((statement : Statement) => {
                 const raw = show(statement)
-                if (raw.length === 0) continue
-                const rslt_rows = this.db.query(raw).values()
-                // Something's off with bun's provided types, rslt_rows can be null in practice.
-                if (Array.isArray(rslt_rows)) {
-                    for (const row of rslt_rows) {
-                        for (const col of row) {
+                if (raw.length === 0) return
+                const rslt_rows = []
+                for (const row of this.db.query(raw).iterate()) {
+                    if (typeof row === "object" && row !== null) {
+                        for (const col of Object.values(row)) {
                             if (col instanceof Uint8Array) {
                                 throw Error("result contained a BLOB column, try refining to select only readable columns.")
                             }
                         }
+                        rslt_rows.push(row)
                     }
                 }
-                const rslt = rslt_rows === null ? "Success" : JSON.stringify(rslt_rows)
-                if (rslt.length > (this.limit ?? 10_000)) throw Error("result was too large, try a more selective query.")
+                // LLMs seem to find YAML easier to read than JSON - JSON does
+                // some string sanitization, like '\n' for newlines, which the
+                // LLM will sometimes think is just part of the string.
+                const rslt = YAML.stringify(rslt_rows)
+                if (rslt.length > (this.limit ?? 10_000)) {
+                    throw Error("result was too large, try a more selective query.")
+                }
                 rslts.push(rslt)
-            }
+            })
         })
         processStatements(parsed.statements)
         return ToolCallResults(rslts)
