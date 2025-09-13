@@ -2,7 +2,7 @@ import type { Message } from "./message"
 import * as YAML from "yaml"
 import { Tool } from "./tool"
 import { validateInterlocutor, type Interlocutor } from "./interlocutor"
-import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
+import { isMacroSpec, Macro, type MacroSpec } from "./macro"
 import { isMessage } from "./message"
 import { isExecToolSpec, ExecTool } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
@@ -137,7 +137,7 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
             && raw.interlocutors.length !== 0
             && raw.interlocutors.every(validateInterlocutor))
         ) && ('macros' in raw
-                ? Array.isArray(raw.macros) && raw.macros.every(validateMacroSpec)
+                ? Array.isArray(raw.macros) && raw.macros.every(isMacroSpec)
                 : true
              )
         

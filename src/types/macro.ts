@@ -5,7 +5,7 @@ export type MacroSpec = {
     expansion: string
 }
 
-export function validateMacroSpec (raw : unknown) : raw is MacroSpec {
+export function isMacroSpec (raw : unknown) : raw is MacroSpec {
     return typeof raw == "object" &&
         raw !== null &&
         'name' in raw &&
