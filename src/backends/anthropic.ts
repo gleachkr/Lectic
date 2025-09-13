@@ -8,7 +8,24 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment } from "./common.ts"
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent } from "./common.ts"
+
+// Yield only text deltas from an Anthropic stream, plus blank lines when
+// server tool use blocks begin (to preserve formatting semantics).
+export async function* anthropicTextChunks(
+    stream: any
+) : AsyncGenerator<string> {
+    for await (const messageEvent of stream) {
+        if (messageEvent.type === 'content_block_delta' && 
+            messageEvent.delta.type === "text_delta") {
+            yield messageEvent.delta.text
+        }
+        if (messageEvent.type === 'content_block_start' &&
+            (messageEvent as any).content_block?.type === 'server_tool_use') {
+            yield '\n\n'
+        }
+    }
+}
 
 async function partToContent(part: MessageAttachmentPart) {
     const media_type = part.mimetype
@@ -289,24 +306,16 @@ async function* handleToolUse(
             tools: getTools(lectic)
         });
 
-        for await (const messageEvent of stream) {
-            if (messageEvent.type === 'content_block_delta' && 
-                messageEvent.delta.type === "text_delta") {
-                yield messageEvent.delta.text
-            }
-
-            // This is intended to ensure proper line breaking when Claude
-            // performs a web search.
-            if (messageEvent.type === 'content_block_start' &&
-                messageEvent.content_block.type === 'server_tool_use') {
-                yield '\n\n'
-            }
-
+        let assistant = ""
+        for await (const text of anthropicTextChunks(stream)) {
+            yield text
+            assistant += text
         }
 
         message = await stream.finalMessage()
 
         Logger.debug("anthropic - reply (tool)", message)
+        emitAssistantMessageEvent(assistant)
 
     }
 
@@ -337,16 +346,16 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
             tools: getTools(lectic)
         });
 
-        for await (const messageEvent of stream) {
-            if (messageEvent.type === 'content_block_delta' && 
-                messageEvent.delta.type === "text_delta") {
-                yield messageEvent.delta.text
-            }
+        let assistant = ""
+        for await (const text of anthropicTextChunks(stream)) {
+            yield text
+            assistant += text
         }
 
         let msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
+        emitAssistantMessageEvent(assistant)
 
         if (msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model)
@@ -387,16 +396,16 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
             tools: getTools(lectic)
         });
 
-        for await (const messageEvent of stream) {
-            if (messageEvent.type === 'content_block_delta' && 
-                messageEvent.delta.type === "text_delta") {
-                yield messageEvent.delta.text
-            }
+        let assistant = ""
+        for await (const text of anthropicTextChunks(stream)) {
+            yield text
+            assistant += text
         }
 
         let msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
+        emitAssistantMessageEvent(assistant)
 
         if (msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model)

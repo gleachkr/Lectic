@@ -2,7 +2,8 @@ import type { Message } from "./message"
 import * as YAML from "yaml"
 import { Tool } from "./tool"
 import { validateInterlocutor, type Interlocutor } from "./interlocutor"
-import { isMacroSpec, Macro, type MacroSpec } from "./macro"
+import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
+import { validateHookSpec, Hook, type HookSpec } from "./hook"
 import { isMessage } from "./message"
 import { isExecToolSpec, ExecTool } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
@@ -18,11 +19,13 @@ type DialecticHeaderSpec = {
     interlocutor : Interlocutor
     interlocutors? : [ ...Interlocutor[] ]
     macros?: MacroSpec[]
+    hooks?: HookSpec[]
 }
 
 type ManylecticHeaderSpec = {
     interlocutors : [ Interlocutor, ...Interlocutor[] ]
     macros?: MacroSpec[]
+    hooks?: HookSpec[]
 }
 
 type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
@@ -31,6 +34,7 @@ export class LecticHeader {
     interlocutor : Interlocutor
     interlocutors : Interlocutor[]
     macros: Macro[]
+    hooks: Hook[]
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
@@ -43,6 +47,7 @@ export class LecticHeader {
             this.interlocutors = spec.interlocutors
         }
         this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
+        this.hooks = (spec.hooks ?? []).map(spec => new Hook(spec))
     }
 
     static mergeInterlocutorSpecs(yamls : (string | null)[]) {
@@ -137,7 +142,10 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
             && raw.interlocutors.length !== 0
             && raw.interlocutors.every(validateInterlocutor))
         ) && ('macros' in raw
-                ? Array.isArray(raw.macros) && raw.macros.every(isMacroSpec)
+                ? Array.isArray(raw.macros) && raw.macros.every(validateMacroSpec)
+                : true
+        ) && ('hooks' in raw
+                ? Array.isArray(raw.hooks) && raw.hooks.every(validateHookSpec)
                 : true
              )
         

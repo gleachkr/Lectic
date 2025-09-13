@@ -8,7 +8,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults,  type ToolCallResult } from "../types/tool"
-import { systemPrompt, pdfFragment } from './common.ts'
+import { systemPrompt, pdfFragment, emitAssistantMessageEvent } from './common.ts'
 
 
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
@@ -132,13 +132,17 @@ async function *handleToolUse(
             tools: getTools(lectic)
         })
     
+        let assistant = ""
         for await (const event of stream) {
-            yield event.choices[0].delta.content || ""
+            const text = event.choices[0].delta.content || ""
+            yield text
+            assistant += text
         }
 
         message = await stream.finalMessage()
 
         Logger.debug("openai - reply (tool)", message)
+        emitAssistantMessageEvent(assistant)
 
     }
 }
@@ -246,7 +250,8 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
         } catch (e) {
             content.push({
                 type: "text",
-                text: `<error>Something went wrong while retrieving ${part.title} from ${part.URI}:${(e as Error).message}</error>`
+                text: `<error>Something went wrong while retrieving ${part.title}` +
+                      `from ${part.URI}:${(e as Error).message}</error>`
             })
         }
     }
@@ -307,13 +312,17 @@ export class OpenAIBackend implements Backend {
         });
 
 
+        let assistant = ""
         for await (const event of stream) {
-            yield event.choices[0].delta.content || ""
+            const text = event.choices[0].delta.content || ""
+            yield text
+            assistant += text
         }
 
         let msg = await stream.finalMessage()
 
         Logger.debug(`${this.provider} - reply`, msg)
+        emitAssistantMessageEvent(assistant)
 
         if (msg.tool_calls) {
             yield* handleToolUse(msg, messages, lectic, this.client);

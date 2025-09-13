@@ -5,13 +5,20 @@ export type MacroSpec = {
     expansion: string
 }
 
-export function isMacroSpec (raw : unknown) : raw is MacroSpec {
-    return typeof raw == "object" &&
-        raw !== null &&
-        'name' in raw &&
-        typeof raw.name === "string" &&
-        'expansion' in raw &&
-        typeof raw.expansion === "string"
+export function validateMacroSpec (raw : unknown) : raw is MacroSpec {
+    if (typeof raw !== "object") {
+        throw Error(`Macro needs to be given with at least "name" and "expansion" fields. Got ${raw} instead.`)
+    }
+    if (raw === null) {
+        throw Error("Something went wrong, got null for macro")
+    }
+    if (!("name" in raw) || (typeof raw.name !== "string")) {
+        throw Error(`Macro needs to be given with a "name" field.`)
+    }
+    if (!("expansion" in raw) || (typeof raw.expansion !== "string")) {
+        throw Error(`Macro needs to be given with an "expansion" field.`)
+    }
+    return true
 }
 
 export class Macro {

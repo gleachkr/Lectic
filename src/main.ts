@@ -7,6 +7,7 @@ import { getBackend } from "./backends/util"
 import { version } from "../package.json"
 import { lecticConfigDir, lecticEnv } from "./utils/xdg";
 import { UserMessage } from "./types/message"
+import { Hook } from "./types/hook"
 
 function validateOptions(opts : OptionValues) {
     if (opts["header"]) {
@@ -91,12 +92,6 @@ async function main() {
 
         const lectic = await parseLectic(lecticString, includes)
 
-        for (const message of lectic.body.messages) {
-            if (message instanceof UserMessage) {
-                await message.expandMacros(lectic.header.macros)
-            }
-        }
-
         if (opts["header"]) {
             const newHeader = `---\n${getYaml(lecticString) ?? ""}\n---`
             await Logger.write(newHeader)
@@ -105,6 +100,19 @@ async function main() {
                 await Logger.write(newHeader)
             }
         } else {
+
+            for (const message of lectic.body.messages) {
+                if (message instanceof UserMessage) {
+                    await message.expandMacros(lectic.header.macros)
+                }
+            }
+
+            if (lectic.body.messages.at(-1) instanceof UserMessage) {
+                Hook.events.emit("user_message", {
+                    "USER_MESSAGE" : lectic.body.messages.at(-1)?.content ?? ""
+                })
+            }
+
             // we handle directives, which may update header fields
             lectic.handleDirectives()
 
@@ -134,14 +142,17 @@ async function main() {
         }
         process.exit(0)
     } catch (error) {
+
         if (!program.opts()["Short"] && !headerPrinted) {
             await Logger.write(`::: Error\n\n`)
             headerPrinted = true
         }
         if (error instanceof Error) {
             await Logger.write(`<error>\n${error.message}\n</error>`)
+            Hook.events.emit("error", { ERROR_MESSAGE: error.message })
         } else {
             await Logger.write(`<error>\n${JSON.stringify(error)}\n</error>`)
+            Hook.events.emit("error", { ERROR_MESSAGE: JSON.stringify(error) })
         }
         if (!program.opts()["Short"]) await Logger.write(`\n\n:::`)
         process.exit(1)

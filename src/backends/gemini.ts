@@ -10,7 +10,15 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent } from './common.ts'
+
+// Extract concatenated assistant text from a Gemini response.
+export function geminiAssistantText(
+    response: GenerateContentResponse
+) : string {
+    const parts = response.candidates?.[0]?.content?.parts || []
+    return parts.map(p => (p as any).text || "").join("")
+}
 
 type FunctionResponse = Part & { 
     functionResponse : { 
@@ -232,6 +240,8 @@ async function *handleToolUse(
 
         yield* accumulateStream(result, accumulatedResponse)
 
+        emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse))
+
         Logger.debug("gemini - reply (tool)", {
             accumulatedResponse
         })
@@ -393,6 +403,8 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       const accumulatedResponse = initResponse()
 
       yield* accumulateStream(result, accumulatedResponse)
+
+      emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse))
 
       if (accumulatedResponse.functionCalls?.length) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })

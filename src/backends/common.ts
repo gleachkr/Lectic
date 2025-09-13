@@ -1,5 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
 import type { Lectic } from "../types/lectic"
+import { Hook } from "../types/hook"
 
 export function wrapText({text, name} : { text : string, name: string}) {
     return `<speaker name="${name}">${text}</speaker>`
@@ -62,4 +63,10 @@ export async function pdfFragment(
         const pages = await newPDF.copyPages(origPDF, range)
         pages.forEach(page => newPDF.addPage(page))
         return await newPDF.save()
+}
+
+export function emitAssistantMessageEvent(text : string | undefined | null) {
+    if (text && text.length > 0) {
+        Hook.events.emit("assistant_message", { ASSISTANT_MESSAGE: text })
+    }
 }

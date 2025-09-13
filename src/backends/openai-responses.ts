@@ -8,7 +8,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults } from "../types/tool"
-import { systemPrompt, wrapText, pdfFragment } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent } from './common.ts'
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const tools : OpenAI.Responses.Tool[] = []
@@ -155,15 +155,19 @@ async function *handleToolUse(
             tools: getTools(lectic)
         })
     
+        let assistant = ""
         for await (const event of stream) {
             if (event.type == "response.output_text.delta") {
-                yield event.delta || ""
+                const text = event.delta || ""
+                yield text
+                assistant += text
             }
         }
 
         message = await stream.finalResponse()
 
         Logger.debug("openai - reply (tool)", message)
+        emitAssistantMessageEvent(assistant)
 
     }
 }
@@ -321,15 +325,19 @@ export class OpenAIResponsesBackend implements Backend {
         });
 
 
+        let assistant = ""
         for await (const event of stream) {
             if (event.type == "response.output_text.delta") {
-                yield event.delta || ""
+                const text = event.delta || ""
+                yield text
+                assistant += text
             }
         }
 
         let msg = await stream.finalResponse()
 
         Logger.debug(`${this.provider} - reply`, msg)
+        emitAssistantMessageEvent(assistant)
 
         if (msg.output.some(output => output.type === "function_call")) {
             yield* handleToolUse(msg, messages, lectic, this.client);
