@@ -1,6 +1,6 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Database } from "bun:sqlite"
-import { parse, show, type Statement } from "sql-parser-cst"
+import { parse, show } from "sql-parser-cst"
 import { expandEnv } from "../utils/replace";
 import * as YAML from "yaml"
 
