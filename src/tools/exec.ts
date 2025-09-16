@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { withTimeout, TimeoutError } from "../utils/timeout";
 import { readStream } from "../utils/stream";
 import { expandEnv } from "../utils/replace";
+import type { JSONSchema } from "../types/schema.ts"
 
 export type ExecToolSpec = {
     exec: string
@@ -12,6 +13,7 @@ export type ExecToolSpec = {
     sandbox?: string
     confirm?: string
     env?: Record<string, string>
+    schema?: Record<string, string>
     timeoutSeconds?: number
 }
 
@@ -25,9 +27,13 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         ("confirm" in raw ? typeof raw.confirm === "string" : true) &&
         ("timeoutSeconds" in raw ? typeof (raw as any).timeoutSeconds === "number" : true) &&
         ("env" in raw 
-            ? typeof raw.env === "object" && 
-                raw.env !== null && 
+            ? typeof raw.env === "object" && raw.env !== null && 
                 Object.values(raw.env).every(v => typeof v === "string")
+            : true
+        ) &&
+        ("schema" in raw ? 
+                typeof raw.schema=== "object" && raw.schema !== null && 
+                Object.values(raw.schema).every(v => typeof v === "string")
             : true
         )
 }
@@ -99,21 +105,36 @@ export class ExecTool extends Tool {
         this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox
         this.confirm = spec.confirm ? expandEnv(spec.confirm, this.env) : spec.confirm
         this.timeoutSeconds = spec.timeoutSeconds
+
+        if (spec.schema) {
+            this.parameters = {}
+            for (const [key,value] of Object.entries(spec.schema)) {
+                this.parameters[key] = { type: "string", description: value }
+            }
+            this.required = Object.keys(this.parameters)
+        } 
+
         this.description = (this.isScript 
             ? `This tool executes the following script: \n \`\`\`\n${this.exec}\n\`\`\`\n` +
-            `The script is applied to the array of arguments that you supply, in the order that they are supplied. ` +
-             `So for example if you supply ARG_ONE and ARG_TWO, what is run is \`the_script "ARG_ONE" "ARG_TWO"\`. `
+              (spec.schema 
+                  ? `The parameters to the tool call are supplied as environment variables, so for example if you supply ` +
+                    `an argument named FOO, assigning it the string "BAR", then in the script, $FOO will have the value "BAR". `
+                  : `The script is applied to the array of arguments that you supply, in the order that they are supplied. ` +
+                    `So for example if you supply ARG_ONE and ARG_TWO, what is run is \`the_script "ARG_ONE" "ARG_TWO"\`. `)
             : `This tool executes the command \`${this.exec}\`` +
-              `The command is applied to the array of arguments that you supply, in the order that they are supplied. ` + 
-               `So for example if you supply ARG_ONE and ARG_TWO, what is run is literally \`"${this.exec} "ARG_ONE" "ARG_TWO"\`. ` +
-            `If the command requires command line flags, those should be included in the list of arguments. `) +
+               (spec.schema ? `The parameters to the tool call are supplied as environment variables, so for example if you supply ` +
+                 `an argument named FOO, assigning it the string "BAR", then in the environment in which the command is executed, `  +
+                 `$FOO will will have the value "BAR"`
+               : `The command is applied to the array of arguments that you supply, in the order that they are supplied. ` + 
+                 `So for example if you supply ARG_ONE and ARG_TWO, what is run is literally \`"${this.exec} "ARG_ONE" "ARG_TWO"\`. ` +
+                 `If the command requires command line flags, those should be included in the list of arguments. `)) +
             `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features. ` +
             `The user cannot see the tool call result. You must explicitly report any requested information to the user. ` +
             (spec.usage ?? "")
         ExecTool.count++
     }
 
-    parameters = {
+    parameters : { [key : string] : JSONSchema } = {
         arguments : {
             type : "array",
             description : "the arguments to the command",
@@ -122,14 +143,18 @@ export class ExecTool extends Tool {
                 description: "a command argument"
             }
         }
-    } as const
+    } 
 
     required = ["arguments"]
 
-    async call(args : { arguments : string[] }) : Promise<ToolCallResult[]> {
-        this.validateArguments(args);
+    async call(params: { arguments : string[] } | Record<string,string> ) : Promise<ToolCallResult[]> {
+        this.validateArguments(params);
+
+        const args = Array.isArray(params.arguments) ? params.arguments : []
+        const env = Array.isArray(params.arguments) ? this.env : {...params, ...this.env} as Record<string,string>
+
         if (this.confirm) {
-            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)], {
+            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(params, null, 2)], {
                 env: { ...process.env, ...lecticEnv }
             })
             if (proc.exitCode !==0) {
@@ -141,19 +166,9 @@ export class ExecTool extends Tool {
         let cleanup = () => {}
 
         if (this.isScript) {
-            ({proc, cleanup} = await spawnScript(
-                this.exec,
-                args.arguments,
-                this.sandbox,
-                this.env
-            ))
+            ({proc, cleanup} = await spawnScript(this.exec, args, this.sandbox, env))
         } else {
-            proc = spawnCommand(
-                this.exec,
-                args.arguments,
-                this.sandbox,
-                this.env
-            )
+            proc = spawnCommand(this.exec, args, this.sandbox, env)
         }
 
         const collected = { stdout: "", stderr: "" }
