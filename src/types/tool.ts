@@ -75,7 +75,7 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
         for (const key in tool.parameters) {
             if (key in args) {
                 values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)
-            } else if (tool.required && key in tool.required) {
+            } else if (tool.required?.includes(key)) {
                 throw new Error(`missing required parameter: ${key}`)
             }
         }
