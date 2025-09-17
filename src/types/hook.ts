@@ -15,7 +15,7 @@ type HookEvents = {
 }
 
 export type HookSpec = {
-    on: keyof HookEvents
+    on: keyof HookEvents | (keyof HookEvents)[]
     do: string
 }
 
@@ -26,25 +26,28 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     if (raw === null) {
         throw Error("Something went wrong, got null for hook")
     }
-    if (!("on" in raw) || (typeof raw.on !== "string")) {
+    if (!("on" in raw)) {
         throw Error(`Hook needs to be given with an "on" field.`)
     }
-    if (!("do" in raw) || (typeof raw.do !== "string")) {
-        throw Error(`Hook needs to be given with an "on" field.`)
+    if (typeof raw.on !== "string" && !Array.isArray(raw.on)) {
+        throw Error(`The "on" field of a hook must be a string or array of strings.`)
     }
-    if (!hookTypes.includes(raw.on) ) {
+    if (!("do" in raw) || typeof raw.do !== "string") {
+        throw Error(`Hook needs to be given with a "do" field.`)
+    }
+    if (!(typeof raw.on === "string" ? hookTypes.includes(raw.on) : raw.on.forEach(on => hookTypes.includes(on)))) {
         throw Error(`Hook "on" needs to be one of ${hookTypes.join(", ")}.`)
     }
     return true
 }
 
 export class Hook {
-    on : keyof HookEvents
+    on : (keyof HookEvents)[]
     do : string
-    constructor(spec : { on: keyof HookEvents, do: string }) {
-        this.on = spec.on
+    constructor(spec : HookSpec) {
+        this.on = typeof spec.on === "string" ? [spec.on] : spec.on
         this.do = spec.do
-        Hook.events.on(this.on, env => this.run(env))
+        this.on.forEach(on => Hook.events.on(on, env => this.run(env)))
     }
 
     run(env : Record<string, string | undefined> = {}) {
