@@ -81,5 +81,5 @@ For local `mcp_command` tools, you can specify a `sandbox` script. This
 script will be used to launch the MCP server process in a controlled and
 isolated environment, limiting its access to your system.
 
-See the documentation for the [Exec Tool](./02_exec.md) for more details on
+See the documentation for the [Exec Tool](./02_exec.qmd) for more details on
 how confirmation and sandboxing scripts work.
