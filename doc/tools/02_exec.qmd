@@ -108,11 +108,14 @@ positional arguments to the command or script.
 
 ## Safety and trust
 
-> [!WARNING]
-> Granting an LLM the ability to execute commands can be dangerous. Treat
-> every `exec` tool as a capability you are delegating. Combine human-in-the-
-> loop confirmation and sandboxing to minimize risk. Do not expose sensitive
-> files or networks unless you fully trust the tool and its usage.
+::: {.callout-warning}
+
+Granting an LLM the ability to execute commands can be dangerous. Treat
+every `exec` tool as a capability you are delegating. Combine human-in-the-
+loop confirmation and sandboxing to minimize risk. Do not expose sensitive
+files or networks unless you fully trust the tool and its usage.
+
+:::
 
 Lectic provides two primary mechanisms to enhance the safety of `exec` tools:
 confirmation scripts and sandboxing.

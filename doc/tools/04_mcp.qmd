@@ -62,12 +62,15 @@ The LLM is also given a tool to list the available resources from the server.
 
 ## Safety and trust
 
-> [!WARNING]
-> While powerful, the MCP protocol carries significant security risks. Treat
-> MCP integration as a high-trust capability. Never connect to untrusted
-> servers; a malicious server could exfiltrate data or perform unwanted
-> actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved
-> LLM, not attacks from a hostile server.
+::: {.callout-warning}
+
+While powerful, the MCP protocol carries significant security risks. Treat
+MCP integration as a high-trust capability. Never connect to untrusted
+servers; a malicious server could exfiltrate data or perform unwanted
+actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved
+LLM, not attacks from a hostile server.
+
+:::
 
 ### Confirmation Scripts (`confirm`)
 
