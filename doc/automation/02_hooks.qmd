@@ -103,6 +103,7 @@ hooks:
 ```
 
 Notes:
+
 - Requires the `sqlite3` command-line tool to be installed and on your PATH.
 - The hook inspects which variable is set to decide whether the event was a
   user or assistant message.

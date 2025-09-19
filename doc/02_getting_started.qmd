@@ -114,10 +114,10 @@ replaced by the file contents or command output.
   ```
   
   Notes:
-  - Single‑line exec is executed directly, without a shell. For shell
-  features, invoke a shell explicitly (e.g., bash -c '...').
-  - Standard Lectic environment variables (LECTIC_DATA, etc.) are available
-  to exec commands and scripts.
+  - Single‑line exec is executed directly, without a shell. For shell features,
+    invoke a shell explicitly (e.g., bash -c '...').
+  - Standard Lectic environment variables (LECTIC_DATA, etc.) are available to
+    exec commands and scripts.
   - The prompt is evaluated fresh on each run. This makes it easy to build
     dynamic prompts that include the latest memory or other external state.
  

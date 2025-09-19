@@ -45,6 +45,7 @@ field.
     ```
     Multi‑line scripts are written to a temp file and executed with the
     interpreter given by the shebang.
+
 ## Using Macros
 
 To use a macro, you invoke it using a directive in your message:
@@ -77,6 +78,7 @@ Notes:
 - In single‑line commands, variables in the command string are expanded
   before execution. For multi‑line scripts, variables are available to the
   script via the environment.
+
 ### Example
 
 **Configuration:**
