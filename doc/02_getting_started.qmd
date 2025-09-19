@@ -121,7 +121,7 @@ replaced by the file contents or command output.
   - The prompt is evaluated fresh on each run. This makes it easy to build
     dynamic prompts that include the latest memory or other external state.
  
- ### 3. Run Lectic
+### 3. Run Lectic
 
 Now, from your terminal, you can run Lectic on this file. The `-i` flag
 tells Lectic to update the file in-place.
