@@ -271,7 +271,11 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
 
 function developerMessage(lectic : Lectic) {
     return {
-        role : "developer" as "developer",
+        // OpenAI has moved to "developer" for this role, but so far they're
+        // keeping backwards compatibility. Ollama however requires "system".
+        // Probably other OAI compatible endpoints do too.
+        // so we we'll use "system" until OAI descides to deprecate it.
+        role : "system" as "system",
         content: systemPrompt(lectic)
     }
 }
