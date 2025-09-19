@@ -26,15 +26,38 @@ An interlocutor object defines a single LLM "personality" or configuration.
 
 ### Model Configuration
 
-- `provider`: The LLM provider to use. Examples: `anthropic`, `openai`,
-  `gemini`, `ollama`, `openrouter`. Defaults to the first available API key
-  found in the environment.
+- `provider`: The LLM provider to use. Supported values include
+  `anthropic`, `anthropic/bedrock`, `openai` (Responses API),
+  `openai/chat` (legacy Chat Completions), `gemini`, `ollama`, and
+  `openrouter`.
 - `model`: The specific model to use, e.g., `claude-3-opus-20240229`.
 - `temperature`: A number between 0 and 1 controlling the randomness of the
   output.
 - `max_tokens`: The maximum number of tokens to generate in a response.
 - `max_tool_use`: The maximum number of tool calls the LLM is allowed to make
   in a single turn.
+
+#### Providers and defaults
+
+If you don’t specify `provider`, Lectic picks a default based on your
+environment. It checks for known API keys in this order and uses the first
+one it finds:
+
+1. ANTHROPIC_API_KEY → `anthropic`
+2. GEMINI_API_KEY → `gemini`
+3. OPENAI_API_KEY → `openai`
+4. OPENROUTER_API_KEY → `openrouter`
+
+AWS credentials for Bedrock are not considered for auto‑selection. If you
+want Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly
+and ensure your AWS environment is configured.
+
+OpenAI has two provider options:
+
+- `openai` uses the Responses API. You’ll want this for native tools
+  like search and code.
+- `openai/chat` uses the legacy Chat Completions API. You’ll need this
+  for certain audio workflows that still require chat‑style models.
 
 ### Context Management
 

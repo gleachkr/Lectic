@@ -29,8 +29,12 @@ What does this README say?
 - **Images**: PNG, JPEG, GIF, and WebP images are supported.
 - **PDFs**: Content from PDF files can be extracted (requires a provider that
   supports PDF ingestion, such as Anthropic, Gemini, or OpenAI).
-- **Audio/Video**: Certain providers (like Gemini and OpenAI) support
-  including audio and video files.
+- **Audio**: Gemini and OpenAI support audio inputs. For OpenAI, use
+  `provider: openai/chat` with an audio‑capable model; supported formats
+  include MP3, MPEG, and WAV. Gemini supports a broader set of audio types.
+- **Video**: Gemini supports video understanding. See supported formats in
+  Google’s docs:
+  https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats
 
 ### URI Schemes
 
@@ -44,6 +48,14 @@ Lectic supports several URI schemes for referencing content:
   requires AWS credentials to be configured in your environment.
 - **MCP Resources**: You can reference resources provided by an MCP server
   using a custom scheme, like `github+repo://...`.
+
+A few convenience rules apply:
+
+- For local file references using `file://`, use absolute paths. A
+  portable way to build these is with `$PWD` (e.g.,
+  `file://$PWD/papers/some.pdf`).
+- Environment variables in URIs use the `$VAR` form; `${VAR}` is not
+  supported. Expansion happens before any globbing.
 
 ### Advanced URI Features
 
@@ -78,6 +90,10 @@ by adding a fragment to the URI. Page numbering starts at 1.
 
 - **Single Page**: `[See page 5](file.pdf#page=5)`
 - **Page Range**: `[See Chapter 2](book.pdf#pages=20-35)`
+
+If both `page` and `pages` are supplied, `pages` takes precedence. If a page
+or range is malformed or out of bounds, Lectic will surface an error that is
+visible to the LLM.
 
 ## Command Output via `:cmd` Directive
 

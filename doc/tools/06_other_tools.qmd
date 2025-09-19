@@ -52,7 +52,9 @@ generated.
 
 When the LLM uses this tool, Lectic starts a server on the specified port. It
 will then attempt to open the page in your default web browser. The server
-shuts down automatically after the first request is served.
+shuts down automatically after the first request is served. While the page is
+loading, Lectic waits for the first request—so the conversation resumes once
+your browser has loaded the page.
 
 ### Configuration
 ```yaml

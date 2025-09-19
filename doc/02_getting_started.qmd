@@ -31,17 +31,28 @@ and environment.
 
 ### 1. Set Up Your API Keys
 
-Lectic interacts with LLM providers via their APIs. You will need to have the
-appropriate API key set as an environment variable. For example, to use an
-Anthropic model, you would set:
+Lectic interacts with LLM providers via their APIs. You’ll need to set the
+appropriate credentials in your environment. For example, to use an
+Anthropic model directly, set:
 
 ```bash
 export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
-Lectic supports `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`,
-and `OPENROUTER_API_KEY`. It will default to the first one it finds,
-alphabetically.
+Supported credentials include `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`,
+`OPENAI_API_KEY`, and `OPENROUTER_API_KEY`. Lectic will choose a default
+provider based on which keys are present (Anthropic, then Gemini, then
+OpenAI, then OpenRouter).
+
+If you prefer Anthropic via AWS Bedrock, set `provider: anthropic/bedrock`
+explicitly in your `.lec` file and make sure your AWS environment (for
+example, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`) is configured.
+Bedrock is not auto‑selected.
+
+Finally, OpenAI has two provider options. Use `openai` for the newer
+Responses API and native tools (search/code). Use `openai/chat` if you
+need the legacy Chat Completions API—for example, certain audio workflows
+still expect chat models.
 
 ### 2. Create a Conversation File
 
