@@ -1,0 +1,78 @@
+# Tools: Agent
+
+The `agent` tool allows you to create sophisticated multi-LLM workflows by
+enabling one interlocutor to call another as a tool. The "agent" interlocutor
+receives the query from the "caller" with no other context, processes it, and
+returns its response as the tool's output.
+
+This is a powerful way to separate concerns. You can create specialized
+agents and then compose them into more complex systems. For an excellent
+overview of the philosophy behind this approach, see Anthropic's blog post
+on their [multi-agent research system](https://www.anthropic.com/engineering/built-multi-agent-research-system).
+
+## Configuration
+
+To use the `agent` tool, you must have at least two interlocutors defined. In
+the configuration for one interlocutor, you add an `agent` tool that points to
+the `name` of the other.
+
+- `agent`: (Required) The name of the interlocutor to be called as an agent.
+- `name`: An optional name for the tool. If not provided, it defaults to the
+  agent's name.
+- `usage`: A string, `file:`, or `exec:` URI providing instructions for the
+  calling LLM on when and how to use this agent.
+
+### Example Configuration
+
+In this setup, `Kirk` is the main interlocutor. He has a tool named
+`communicator` which, when used, will call the `Spock` interlocutor. `Spock`
+has his own set of tools, including a `think_about` tool to encourage careful
+reasoning.
+
+```yaml
+interlocutors:
+  - name: Kirk
+    prompt: You are Captain Kirk. You are bold and decisive.
+    tools:
+      - agent: Spock
+        name: communicator
+        usage: Use this to contact Spock for logical analysis and advice.
+
+  - name: Spock
+    prompt: >
+      You are Mr. Spock. You respond with pure logic, suppressing all
+      emotion.
+    tools:
+      - think_about: how to logically solve the problem presented.
+```
+
+## Example Conversation
+
+Using the configuration above, Captain Kirk can delegate complex analysis to
+Spock.
+
+````markdown
+We've encountered an alien vessel of unknown origin. It is not responding to
+hails. What is the logical course of action?
+
+:::Kirk
+
+This situation requires careful analysis. I will consult my science officer.
+
+<tool-call with="communicator">
+  <arguments>
+    <content>Alien vessel, unknown origin, unresponsive. Propose logical
+    course of action.</content>
+  </arguments>
+  <results>
+    <result type="text">Insufficient data. Recommend passive scans to gather
+    information on their technological capabilities before initiating
+    further contact. Avoid any action that could be perceived as
+    hostile.</result>
+  </results>
+</tool-call>
+
+A logical approach. We will proceed with passive scans.
+
+:::
+````

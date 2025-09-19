@@ -1,0 +1,59 @@
+project:
+  type: website
+
+website:
+  title: "Lectic Documentation"
+  sidebar:
+    style: docked
+    search: true
+    contents:
+      - href: ./01_introduction.qmd
+        text: Introduction
+      - href: ./02_getting_started.qmd
+        text: Getting Started
+      - href: ./03_conversation_format.qmd
+        text: Conversation Format
+      - href: ./04_configuration.qmd
+        text: Configuration
+      - section: Context Management
+        contents:
+          - text: External Content
+            href: ./context_management/01_external_content.qmd
+          - text: Conversation Control
+            href: ./context_management/02_conversation_control.qmd
+      - section: Tools
+        contents:
+          - text: Overview
+            href: ./tools/01_overview.qmd
+          - text: Exec
+            href: ./tools/02_exec.qmd
+          - text: SQLite
+            href: ./tools/03_sqlite.qmd
+          - text: MCP
+            href: ./tools/04_mcp.qmd
+          - text: Agent
+            href: ./tools/05_agent.qmd
+          - text: Other Tools
+            href: ./tools/06_other_tools.qmd
+      - section: Automation
+        contents:
+          - text: Macros
+            href: ./automation/01_macros.qmd
+          - text: Hooks
+            href: ./automation/02_hooks.qmd
+      - section: Reference
+        contents:
+          - text: Cli
+            href: ./reference/01_cli.qmd
+          - text: Configuration
+            href: ./reference/02_configuration.qmd
+format:
+  html:
+    theme:
+      - cosmo
+      - brand
+    css: styles.css
+    toc: true
+
+
+

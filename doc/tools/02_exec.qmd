@@ -1,0 +1,138 @@
+# Tools: Command Execution (`exec`)
+
+The `exec` tool is one of the most versatile tools in Lectic. It allows the
+LLM to execute shell commands and scripts, enabling it to interact directly
+with your system, run code, and interface with other command‑line
+applications.
+
+## Configuration
+
+Note: The snippets below show only the tool definition. They assume you have
+an interlocutor with a valid prompt and model configuration. See Getting
+Started for a full header example.
+
+You can configure an `exec` tool by providing the command to be executed. You
+can also provide a custom `name` for the LLM to use, a `usage` guide, and
+several optional parameters for security and execution control.
+
+### Simple command
+
+This configuration allows the LLM to run the `python3` interpreter.
+
+```yaml
+tools:
+  - exec: python3
+    name: python
+    usage: >
+      Use this to execute Python code. The code to be executed should be
+      written inside the tool call block.
+```
+
+### Inline script
+
+For more complex or specialized tasks, you can provide a multi‑line script
+directly in the YAML. The first line of the script must be a shebang (e.g.,
+`#!/bin/bash`) to specify the interpreter.
+
+```yaml
+tools:
+  - name: line_counter
+    usage: "Counts the number of lines in a file. Takes one argument: the file path."
+    exec: |
+      #!/usr/bin/env bash
+      # A simple script to count the lines in a file
+      wc -l "$1"
+```
+
+### Configuration parameters
+
+- `exec`: (Required) The command or inline script to execute.
+- `name`: An optional name for the tool. If not provided, it defaults to the
+  base name of the command.
+- `usage`: A string, `file:`, or `exec:` URI providing instructions for the
+  LLM on how to use the tool.
+- `sandbox`: A path to a sandboxing script. See safety section below.
+- `confirm`: A path to a confirmation script. See safety section below.
+- `timeoutSeconds`: The number of seconds to wait before timing out the
+  command.
+- `env`: An object of environment variables to set for the command's
+  execution environment.
+- `schema`: A mapping of parameter name → description. When provided, the
+  tool accepts named string parameters instead of a positional argument
+  array. See the section below for details.
+
+## Command execution semantics
+
+- No shell is involved. The command (or script interpreter) is executed
+  directly, so shell features like globbing or command substitution will not
+  work.
+- When `exec` is a single line, environment variables in the command are
+  expanded before execution using values from the tool's `env` plus standard
+  Lectic variables.
+- When `exec` is multi‑line, it must start with a shebang and will be
+  written to a temporary file and executed with that interpreter.
+
+## Supplying parameters with `schema`
+
+If you define `schema`, the tool takes named parameters. Each parameter must
+be a string, and Lectic will expose these values to the subprocess via
+environment variables with the same names.
+
+This applies to both commands and scripts:
+
+- For scripts, parameters are available as `$PARAM_NAME` inside the script.
+- For commands, parameters are available in the subprocess environment
+  (e.g., `$PARAM_NAME` for Unix‑like tools).
+
+Example:
+
+```yaml
+# YAML configuration
+tools:
+  - name: greeter
+    exec: |
+      #!/usr/bin/env bash
+      echo "Hello, ${NAME}! Today is ${DAY}."
+    schema:
+      NAME: The name to greet.
+      DAY: The day string to include.
+```
+
+When the LLM calls this tool with parameters `{ NAME: "Ada", DAY: "Friday" }`,
+Lectic will run the script with `NAME=Ada` and `DAY=Friday` in the
+environment.
+
+If you do not provide `schema`, the tool instead accepts a single parameter
+named `arguments`, which is an array of strings. These are passed as
+positional arguments to the command or script.
+
+## Safety and trust
+
+> [!WARNING]
+> Granting an LLM the ability to execute commands can be dangerous. Treat
+> every `exec` tool as a capability you are delegating. Combine human-in-the-
+> loop confirmation and sandboxing to minimize risk. Do not expose sensitive
+> files or networks unless you fully trust the tool and its usage.
+
+Lectic provides two primary mechanisms to enhance the safety of `exec` tools:
+confirmation scripts and sandboxing.
+
+### Confirmation scripts (`confirm`)
+
+If a `confirm` script is provided, Lectic will execute it before every call
+to the tool. The script receives two arguments: the tool's name and a JSON
+string of the call arguments. If the confirmation script exits non‑zero, the
+call is cancelled.
+
+An example script that uses a graphical dialog box is provided in
+`extra/confirm/zenity-confirm.sh`.
+
+### Sandboxing (`sandbox`)
+
+When a `sandbox` script is configured, the LLM's command is not executed
+directly. Instead, the sandbox script is executed first, and the command and
+its arguments are passed as arguments to it. The sandbox script is then
+responsible for creating a controlled environment to run the command.
+
+For example, `extra/sandbox/bwrap-sandbox.sh` uses the Bubblewrap utility to
+create a minimal, isolated environment with a temporary home directory.

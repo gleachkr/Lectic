@@ -1,0 +1,84 @@
+# Reference: Command‑Line Interface
+
+The `lectic` command is the primary way to interact with Lectic. It can read
+from a file or from standard input, and it offers flags to control how the
+result is printed or saved.
+
+## Usage
+
+```bash
+lectic [FLAGS] [OPTIONS]
+```
+
+## Flags and options
+
+- `-v`, `--version`
+  Prints the version string.
+
+- `-f`, `--file <PATH>`
+  Path to the conversation file (`.lec`) to process. If omitted, Lectic
+  reads from standard input.
+
+- `-i`, `--inplace <PATH>`
+  Read from the given file and update it in place. Mutually exclusive with
+  `--file`.
+
+- `-s`, `--short`
+  Only emit the newly generated assistant message, not the full updated
+  conversation.
+
+- `-S`, `--Short`
+  Like `--short`, but emits only the raw message text (without the
+  `:::Speaker` wrapper).
+
+- `-H`, `--header`
+  Emit only the YAML frontmatter of the input. With `--inplace`, this will
+  overwrite the file to contain only the header (effectively resetting the
+  conversation).
+
+- `-I`, `--Include <PATH>`
+  Include an additional YAML file whose contents are merged into the active
+  configuration. Higher precedence than system and working‑directory config,
+  lower than the `.lec` header.
+
+- `-l`, `--log <PATH>`
+  Write detailed debug logs to the given file.
+
+- `-q`, `--quiet`
+  Suppress printing the assistant's response to stdout.
+
+- `-h`, `--help`
+  Show help for all flags and options.
+
+## Constraints
+
+- --inplace cannot be combined with --file.
+- --header cannot be combined with --short or --Short.
+- --quiet cannot be combined with --short or --Short.
+
+## Common examples
+
+- Generate the next message in a file and update it in place:
+  ```bash
+  lectic -i conversation.lec
+  ```
+
+- Read from stdin and write the full result to stdout:
+  ```bash
+  cat conversation.lec | lectic
+  ```
+
+- Stream just the new assistant message:
+  ```bash
+  lectic -s -f conversation.lec
+  ```
+
+- Add a message from the command line and update the file:
+  ```bash
+  echo "This is a new message." | lectic -i conversation.lec
+  ```
+
+- Use a project‑specific config file:
+  ```bash
+  lectic -I project.yaml -i conversation.lec
+  ```

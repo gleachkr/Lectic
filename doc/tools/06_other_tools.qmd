@@ -1,0 +1,118 @@
+# Other Tools: `think`, `serve`, and `native`
+
+This document covers three distinct types of tools: a cognitive tool for the
+LLM, a simple web server, and a way to access the native, built-in
+capabilities of the model provider.
+
+## The `think` Tool
+
+The `think` tool gives the LLM a private "scratch space" to pause and reason
+about a prompt before formulating its final response. This can improve the
+quality and thoughtfulness of the output, especially for complex or ambiguous
+questions.
+
+This technique was inspired by a post on [Anthropic's engineering
+blog](https://www.anthropic.com/engineering/claude-think-tool). The output of
+the `think` tool is hidden from the user by default in the editor plugins,
+though it is still present in the `.lec` file.
+
+### Configuration
+```yaml
+tools:
+  - think_about: >
+      What the user is really asking for, and what hidden assumptions they
+      might have.
+    name: scratchpad # Optional name
+```
+
+### Example
+```markdown
+What's the best city in the world?
+
+:::Assistant
+<tool-call with="scratchpad">
+  <arguments>
+    <thought>"Best" is subjective. The user could mean best for travel, for
+    food, for work, etc. I need to ask for clarification.</thought>
+  </arguments>
+  <results>
+    <result type="text">thought complete.</result>
+  </results>
+</tool-call>
+That depends on what you're looking for! Are you interested in the best city
+for tourism, career opportunities, or something else?
+:::
+```
+
+## The `serve` Tool
+
+The `serve` tool allows the LLM to spin up a simple, single-use web server to
+present content, such as an HTML file or a small web application it has
+generated.
+
+When the LLM uses this tool, Lectic starts a server on the specified port. It
+will then attempt to open the page in your default web browser. The server
+shuts down automatically after the first request is served.
+
+### Configuration
+```yaml
+tools:
+  - serve_on_port: 8080
+    name: web_server # Optional name
+```
+
+### Example
+```markdown
+Generate a simple tic-tac-toe game in HTML and serve it to me.
+
+:::Assistant
+<tool-call with="web_server">
+  <arguments>
+    <pageHtml>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tic-Tac-Toe</title>
+  ... (rest of the HTML/JS/CSS) ...
+</head>
+<body>
+  ...
+</body>
+</html>
+    </pageHtml>
+  </arguments>
+  <results>
+    <result type="text">page is now available</result>
+  </results>
+</tool-call>
+I have generated the game for you. It should be opening in your browser at
+http://localhost:8080.
+:::
+```
+
+## `native` Tools
+
+Native tools allow you to access functionality that is built directly into
+the LLM provider's backend, such as web search or a code interpreter
+environment for data analysis.
+
+Support for native tools varies by provider.
+
+### Configuration
+
+You enable native tools by specifying their type.
+
+```yaml
+tools:
+  - native: search # Enable the provider's built-in web search.
+  - native: code   # Enable the provider's built-in code interpreter.
+```
+
+### Provider Support
+
+- **Gemini**: Supports both `search` and `code`. Note that the Gemini API has
+  a limitation where you can only use one native tool at a time, and it
+  cannot be combined with other (non-native) tools.
+- **Anthropic**: Supports `search` only.
+- **OpenAI**: Supports both `search` and `code` via the `openai` provider
+  (not the legacy `openai/chat` provider).

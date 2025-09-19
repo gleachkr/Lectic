@@ -1,0 +1,85 @@
+# Tools: Model Context Protocol (`mcp`)
+
+Lectic can act as a client for servers that implement the [Model Context
+Protocol (MCP)](https://modelcontextprotocol.io). This allows you to connect
+your LLM to a vast and growing ecosystem of pre-built tools and services.
+
+You can find lists of available servers here:
+- [Official MCP Server List](https://github.com/modelcontextprotocol/servers)
+- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
+
+## Configuration
+
+Note: The snippets below show only the tool definition. They assume you have
+an interlocutor with a valid prompt and model configuration. See Getting
+Started for a full header example.
+
+You can connect to an MCP server in three ways: by running a local server as
+a command, or by connecting to a remote server over WebSockets or SSE.
+
+### Local MCP Server (`mcp_command`)
+
+This is the most common way to run an MCP server. You provide the command
+to start the server, and Lectic manages its lifecycle.
+
+```yaml
+tools:
+  - name: brave
+    mcp_command: npx
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-brave-search"
+    env:
+      BRAVE_API_KEY: "your_key_here"
+    roots:
+      - /home/user/research-docs/
+```
+
+### Remote MCP Servers
+
+You can also connect to running MCP servers.
+
+- `mcp_ws`: The URL for a remote server using a WebSocket connection.
+- `mcp_sse`: The URL for a remote server using Server-Sent Events (SSE).
+
+```yaml
+tools:
+  - name: remote_search
+    mcp_ws: wss://some-mcp-server.com/ws
+```
+
+### Server Resources and Content References
+
+If you give an MCP tool a `name` (e.g., `name: brave`), you can access any
+[resources](https://modelcontextprotocol.io/docs/concepts/resources) it
+provides using a special content reference syntax. The scheme is the server's
+name plus the resource type.
+
+For example, to access a `repo` resource from a server named `github`:
+`[README](github+repo://gleachkr/Lectic/contents/README.md)`
+
+The LLM is also given a tool to list the available resources from the server.
+
+## Safety and trust
+
+> [!WARNING]
+> While powerful, the MCP protocol carries significant security risks. Treat
+> MCP integration as a high-trust capability. Never connect to untrusted
+> servers; a malicious server could exfiltrate data or perform unwanted
+> actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved
+> LLM, not attacks from a hostile server.
+
+### Confirmation Scripts (`confirm`)
+
+Just like with the `exec` tool, you can specify a `confirm` script. This
+script will be executed before every tool call dispatched to the MCP server,
+giving you a chance to approve or deny the action.
+
+### Sandboxing (`sandbox`)
+
+For local `mcp_command` tools, you can specify a `sandbox` script. This
+script will be used to launch the MCP server process in a controlled and
+isolated environment, limiting its access to your system.
+
+See the documentation for the [Exec Tool](./02_exec.md) for more details on
+how confirmation and sandboxing scripts work.

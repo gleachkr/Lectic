@@ -1,0 +1,70 @@
+# Reference: Configuration Keys
+
+This document provides a reference for all the keys available in Lectic's
+YAML configuration, including the main `.lec` file frontmatter and any
+included configuration files.
+
+## Top-Level Keys
+
+- `interlocutor`: A single object defining the primary LLM speaker.
+- `interlocutors`: A list of interlocutor objects for multiparty
+  conversations.
+- `macros`: A list of macro definitions. See [Macros](../automation/01_macros.qmd).
+- `hooks`: A list of hook definitions. See [Hooks](../automation/02_hooks.qmd).
+
+---
+
+## The `interlocutor` Object
+
+An interlocutor object defines a single LLM "personality" or configuration.
+
+- `name`: (Required) The name of the speaker, used in the `:::Name`
+  response blocks.
+- `prompt`: (Required) The base system prompt that defines the LLM's
+  personality and instructions. The value can be a string, or it can be
+  loaded from a file (`file:./path.txt`) or a command (`exec:get-prompt`).
+
+### Model Configuration
+
+- `provider`: The LLM provider to use. Examples: `anthropic`, `openai`,
+  `gemini`, `ollama`, `openrouter`. Defaults to the first available API key
+  found in the environment.
+- `model`: The specific model to use, e.g., `claude-3-opus-20240229`.
+- `temperature`: A number between 0 and 1 controlling the randomness of the
+  output.
+- `max_tokens`: The maximum number of tokens to generate in a response.
+- `max_tool_use`: The maximum number of tool calls the LLM is allowed to make
+  in a single turn.
+
+### Context Management
+
+- `reminder`: A string that is invisibly added to the user's message on
+  every turn. Useful for reinforcing key instructions without cluttering the
+  conversation history.
+
+### Tools
+
+- `tools`: A list of tool definitions that this interlocutor can use. The
+  format of each object in the list depends on the tool type. See the
+  [Tools section](../tools/) for detailed configuration guides for each tool.
+
+---
+
+## The `macro` Object
+
+- `name`: (Required) The name of the macro, used when invoking it with
+  `:macro[name]`.
+- `expansion`: (Required) The content to be expanded. Can be a string, or
+  loaded via `file:` or `exec:`.
+
+---
+
+## The `hook` Object
+
+- `on`: (Required) A single event name or a list of event names to trigger
+  the hook. Supported events are `user_message`, `assistant_message`, and
+  `error`.
+- `do`: (Required) The command or inline script to run when the event
+  occurs. If multi‑line, it must start with a shebang (e.g., `#!/bin/bash`).
+  Event context is provided as environment variables. See the Hooks guide
+  for details.

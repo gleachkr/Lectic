@@ -1,0 +1,95 @@
+# Automation: Macros
+
+Lectic supports a simple but powerful macro system that allows you to define
+and reuse snippets of text. This is useful for saving frequently used
+prompts, automating repetitive workflows, and composing complex, multi-step
+commands.
+
+Macros are defined in your YAML configuration (either in a `.lec` file's
+header or in an included configuration file).
+
+## Defining Macros
+
+Macros are defined under the `macros` key. Each macro must have a `name` and
+an `expansion`.
+
+```yaml
+macros:
+  - name: summarize
+    expansion: >
+      Please provide a concise, single-paragraph summary of our
+      conversation so far, focusing on the key decisions made and
+      conclusions reached.
+
+  - name: commit_msg
+    expansion: |
+      Please write a Conventional Commit message for the following changes:
+      :cmd[git diff --staged]
+```
+
+### Expansion Sources
+
+The `expansion` field can be a simple string, or it can load its content
+dynamically from a file or the output of a command, just like the `prompt`
+field.
+
+- **File Source**: `expansion: file:./prompts/summarize.txt`
+- **Command/Script Source**:
+  - Single line: `expansion: exec:get-prompt-from-db --name summarize`
+    (executed directly, not via a shell)
+  - Multi‑line script: start with a shebang, e.g.
+    ```yaml
+    expansion: |
+      exec:#!/usr/bin/env bash
+      echo "Hello, ${TARGET}!"
+    ```
+    Multi‑line scripts are written to a temp file and executed with the
+    interpreter given by the shebang.
+## Using Macros
+
+To use a macro, you invoke it using a directive in your message:
+`:macro[macro_name]`.
+
+When Lectic processes the file, it replaces the macro directive with the
+full text from its `expansion` field *before* processing any other
+directives (like `:cmd`).
+
+```markdown
+This was a long and productive discussion. Could you wrap it up?
+
+:macro[summarize]
+```
+
+## Passing environment variables to expansions
+
+You can pass environment variables to a macro's expansion by adding
+attributes to the `:macro[...]` directive. These attributes are injected into
+the environment of `exec:` expansions when they run.
+
+- `:macro[name]{FOO="bar"}` sets the variable `FOO` to `bar`.
+- `:macro[name]{EMPTY}` sets the variable `EMPTY` to be unset/omitted.
+  If you need an empty string value, write `:macro[name]{EMPTY=""}`.
+
+Notes:
+- Single‑line `exec:` commands are not run through a shell. If you need
+  shell features, invoke a shell explicitly, e.g.,
+  `exec: bash -c 'echo "Hello, $TARGET"'`.
+- In single‑line commands, variables in the command string are expanded
+  before execution. For multi‑line scripts, variables are available to the
+  script via the environment.
+### Example
+
+**Configuration:**
+```yaml
+macros:
+  - name: greet
+    expansion: exec: bash -c 'echo "Hello, $TARGET!"'
+```
+
+**Conversation:**
+```markdown
+:macro[greet]{TARGET="World"}
+```
+
+When Lectic processes this, the `:macro` directive will be replaced by the
+output of the `exec` command, which is "Hello, World!".

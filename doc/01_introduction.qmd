@@ -1,0 +1,39 @@
+# Introduction to Lectic
+
+Lectic is a conversational LLM client designed for users who are most
+comfortable working with text files and command-line tools. It treats every
+conversation as a simple markdown file, a design choice that unlocks a
+surprising number of benefits.
+
+## The Power of Plain Text
+
+By making conversations plain text, Lectic ensures they are:
+
+- **Persistent by Default**: Your conversations are saved just like any
+  other document. There is no proprietary database or cloud service.
+- **Version Controllable**: You can use `git` and other version control
+  systems to track the history of a conversation, branch off new ideas, and
+  merge different lines of thought.
+- **Searchable and Portable**: Standard tools like `grep`, `sed`, and `awk`
+  can be used to search, analyze, and modify your conversations. They are
+  easy to back up, sync, and move between machines.
+- **Private**: Your conversations can stay entirely on your local machine if
+  you are using a local LLM provider like Ollama.
+
+## Who is Lectic For?
+
+Lectic is built to support deep, thoughtful work. It is for anyone who
+wants to use LLMs as a tool for:
+
+- **Research and Analysis**: Integrate data, run analyses, and discuss the
+  results with an LLM, all within a single, reproducible document.
+- **Reflection and Self-Study**: Keep a running journal of your thoughts
+  and explorations on a topic, using an LLM as a Socratic partner.
+- **Design and Engineering**: Draft code, review diffs, and document your
+  process in a way that can be committed directly into your project's
+  repository.
+
+Lectic makes it easy to manage conversational context using content
+references, integrate with external tools (for search, computation,
+database access, and more), and include multiple LLMs in a single
+conversation to bring a variety of perspectives to bear on a problem.

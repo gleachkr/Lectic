@@ -1,0 +1,84 @@
+# Tools Overview
+
+Tools give your LLM the ability to interact with the outside world. They are
+a powerful feature that transforms the LLM from a passive text generator into
+an active agent that can run code, query databases, search for information,
+and perform a wide range of actions on your behalf.
+
+In Lectic, you configure tools in the YAML frontmatter of your conversation.
+This grants the active interlocutor the ability to use them.
+
+## The Tool Use Workflow
+
+When you grant an LLM a tool, the conversation follows a four-step process:
+
+1.  **User Prompt**: You ask a question or give an instruction that requires
+    the use of a tool (e.g., "What is the current date?").
+2.  **LLM Tool Call**: The LLM, instead of answering directly, outputs a
+    special block of text indicating which tool it wants to use and with what
+    arguments.
+3.  **Lectic Executes**: Lectic detects this tool-use block, stops the LLM,
+    executes the specified tool, and captures its output.
+4.  **LLM Final Response**: Lectic sends the tool's output back to the LLM,
+    which then uses that information to formulate its final answer to you.
+
+### Tool Call Syntax
+
+A tool call is represented by a block starting with `{tool_name}` and ending
+with `{/tool_name}`. The content inside the block serves as the arguments
+for the tool.
+
+### Example
+
+Let's say you've configured a simple `exec` tool named `shell`:
+
+```yaml
+---
+interlocutor:
+  name: Assistant
+  tools:
+    - exec: date
+      name: get_date
+---
+
+What's the date today?
+```
+
+When you run `lectic`, the LLM will first make the tool call, which Lectic
+will capture and display in the file:
+
+````markdown
+...
+What's the date today?
+
+:::Assistant
+
+I will use the `get_date` tool to find out.
+
+{get_date}{/get_date}
+
+Okay, the tool returned: `Fri Mar 15 14:35:18 PDT 2024`.
+
+Today's date is March 15th, 2024.
+
+:::
+````
+
+## Parallel Tool Execution
+
+Tool calls are executed in parallel. If an LLM decides to use multiple tools in 
+a single turn, Lectic will run all of them concurrently, rather than one after 
+another. This significantly speeds up complex tasks that involve gathering 
+information from multiple sources.
+
+## Available Tool Types
+
+Lectic supports a variety of tool types, each with its own capabilities and
+configuration. Click on any tool type below for detailed documentation.
+
+- **[Exec](./02_exec.qmd)**: Execute shell commands and scripts.
+- **[SQLite](./03_sqlite.qmd)**: Query SQLite databases.
+- **[MCP](./04_mcp.qmd)**: Connect to Model Context Protocol (MCP) servers.
+- **[Agent](./05_agent.qmd)**: Allow one interlocutor to call another as a tool.
+- **[Other Tools](./06_other_tools.qmd)**: Includes `think`, `serve`, and
+  native provider tools.

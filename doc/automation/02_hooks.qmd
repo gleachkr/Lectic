@@ -1,0 +1,111 @@
+# Automation: Hooks
+
+Hooks are a powerful automation feature that let you run custom commands
+and scripts in response to events in Lectic's lifecycle. Use them for
+logging, notifications, post‑processing, or integrating with other tools
+and workflows.
+
+Hooks are defined in your YAML configuration under the `hooks` key.
+
+## Hook configuration
+
+A hook has two fields:
+
+- `on`: A single event name or a list of event names to listen for.
+- `do`: The command or inline script to run when the event fires.
+
+```yaml
+hooks:
+  - on: [assistant_message, user_message]
+    do: ./log-activity.sh
+```
+
+If `do` contains multiple lines, it is treated as a script and must begin
+with a shebang (e.g., `#!/bin/bash`). If it is a single line, it is treated
+as a command. Commands are executed directly (not through a shell), so
+shell features like command substitution will not work.
+
+## Available events and environment
+
+Lectic emits three hook events. When an event fires, the hook process
+receives its context as environment variables. No positional arguments are
+passed.
+
+- `user_message`
+  - Environment:
+    - `USER_MESSAGE`: The text of the most recent user message.
+    - Standard Lectic variables like `LECTIC_FILE`, `LECTIC_CONFIG`,
+      `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, and `LECTIC_TEMP` are
+      also set when available.
+  - When: Just before the request is sent to the LLM provider.
+
+- `assistant_message`
+  - Environment:
+    - `ASSISTANT_MESSAGE`: The full text of the assistant's response that
+      was just produced.
+    - `LECTIC_INTERLOCUTOR`: The name of the interlocutor who spoke.
+    - Standard Lectic variables as above.
+  - When: Immediately after the assistant's message is streamed.
+
+- `error`
+  - Environment:
+    - `ERROR_MESSAGE`: A descriptive error message.
+    - Standard Lectic variables as above.
+  - When: Whenever an uncaught error is encountered.
+
+## Example: log messages to SQLite for long‑term memory
+
+This example persists every user and assistant message to an SQLite
+database located in your Lectic data directory. You can later query this
+for personal memory, project history, or analytics.
+
+Configuration:
+
+```yaml
+hooks:
+  - on: [user_message, assistant_message]
+    do: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      DB_ROOT="${LECTIC_DATA:-$HOME/.local/share/lectic}"
+      DB_PATH="${DB_ROOT}/memory.sqlite3"
+      mkdir -p "${DB_ROOT}"
+
+      # Determine role and text from available variables
+      if [[ -n "${ASSISTANT_MESSAGE:-}" ]]; then
+        ROLE="assistant"
+        TEXT="$ASSISTANT_MESSAGE"
+      else
+        ROLE="user"
+        TEXT="${USER_MESSAGE:-}"
+      fi
+
+      # Basic sanitizer for single quotes for SQL literal
+      esc_sq() { printf %s "$1" | sed "s/'/''/g"; }
+
+      TS=$(date -Is)
+      FILE_PATH="${LECTIC_FILE:-}"
+      NAME="${LECTIC_INTERLOCUTOR:-}"
+
+      sqlite3 "$DB_PATH" <<SQL
+      CREATE TABLE IF NOT EXISTS memory (
+        id INTEGER PRIMARY KEY,
+        ts TEXT NOT NULL,
+        role TEXT NOT NULL,
+        interlocutor TEXT,
+        file TEXT,
+        text TEXT NOT NULL
+      );
+      INSERT INTO memory(ts, role, interlocutor, file, text)
+      VALUES ('${TS}', '${ROLE}', '$(esc_sq "$NAME")',
+              '$(esc_sq "$FILE_PATH")', '$(esc_sq "$TEXT")');
+      SQL
+```
+
+Notes:
+- Requires the `sqlite3` command-line tool to be installed and on your PATH.
+- The hook inspects which variable is set to decide whether the event was a
+  user or assistant message.
+- `LECTIC_FILE` is populated when using `-f`/`-i` and may be empty when
+  streaming from stdin.
+- Adjust the table schema to suit your use case.

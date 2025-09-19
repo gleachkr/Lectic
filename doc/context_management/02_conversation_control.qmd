@@ -1,0 +1,102 @@
+# Managing Context: Conversation Control
+
+Beyond simply adding external data, Lectic provides directives that allow you
+to actively manage the flow of a conversation. You can switch between
+different LLM interlocutors and control the context window that is sent to the
+model.
+
+## Multiparty Conversations with `:ask` and `:aside`
+
+Lectic allows you to define multiple interlocutors in the YAML frontmatter.
+This enables you to bring different "personalities" or models with different
+capabilities into a single conversation.
+
+To do this, use the `interlocutors` key (instead of `interlocutor`) and provide
+a list of configurations.
+
+```yaml
+---
+interlocutors:
+  - name: Boggle
+    provider: anthropic
+    model: claude-3-sonnet-20240229
+    prompt: You are an expert on personal finance.
+  - name: Oggle
+    provider: gemini
+    prompt: You are very skeptical of conventional financial advice.
+---
+```
+
+Once multiple interlocutors are defined, Lectic will continue with whichever
+one was last active. To direct your message to a specific interlocutor, you
+use the `:ask` and `:aside` directives.
+
+### `:ask[Name]` - Permanently Switch Interlocutor
+
+The `:ask[InterlocutorName]` directive changes the active speaker. All
+subsequent conversation turns will be handled by this new interlocutor until
+another `:ask` directive is used.
+
+````markdown
+:ask[Boggle] What is the best way to save for retirement?
+
+:::Boggle
+The most common advice is to invest in a diversified portfolio of low-cost
+index funds.
+:::
+
+:ask[Oggle] What's your take on that?
+
+:::Oggle
+"Common advice" is often just dogma. That strategy leaves you completely
+exposed to market downturns.
+:::
+````
+
+### `:aside[Name]` - Switch for a Single Turn
+
+The `:aside[InterlocutorName]` directive is for a one-off question or
+comment. It directs the current message to the specified interlocutor, but the
+conversation then reverts back to the previously active speaker for the
+*next* user message.
+
+This is useful for quick interjections or for getting a second opinion
+without derailing the main flow of the conversation.
+
+## Context Management with `:reset`
+
+As a conversation grows longer, the context sent to the LLM on each turn also
+grows. This can increase costs and, in some cases, lead to the model getting
+"stuck" on earlier parts of the dialogue.
+
+The `:reset[]` directive gives you manual control over the context window.
+When Lectic processes a message containing `:reset[]`, it instructs the LLM
+to **ignore all preceding conversation history**. The context for that turn
+effectively begins with the message containing the directive.
+
+````markdown
+...a very long conversation happens here...
+
+Okay, let's start fresh. I'm going to :reset[] your context now. Please
+summarize our previous discussion and then we can move on to the next topic.
+
+:::Assistant
+Understood. I have cleared my context.
+
+Previously, we discussed the history of the Roman Empire, focusing on the
+reign of Augustus and the establishment of the Pax Romana. We concluded that
+economic stability was a key factor in the era's success.
+
+I am ready for the next topic.
+:::
+
+Excellent. Now, how did this conversation begin?
+
+:::Assistant
+This conversation began with you instructing me to reset my context and provide
+a summary of our previous discussion about the Roman Empire.
+:::
+````
+
+This is a powerful tool for managing long-running conversations, allowing you
+to "compact" the context manually or with the help of the LLM.

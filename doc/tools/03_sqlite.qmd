@@ -1,0 +1,105 @@
+# Tools: SQLite Query
+
+The `sqlite` tool gives your LLM the ability to query SQLite databases
+directly. This is an incredibly powerful way to provide access to structured
+data, allowing the LLM to perform data analysis, answer questions from a
+knowledge base, or check the state of an application.
+
+## Configuration
+
+Note: The snippets below show only the tool definition. They assume you have
+an interlocutor with a valid prompt and model configuration. See Getting
+Started for a full header example.
+
+To configure the tool, you must provide the path to the SQLite database
+file. The database schema is automatically introspected and provided to the
+LLM, so it knows what tables and columns are available.
+
+```yaml
+tools:
+  - sqlite: ./products.db
+    name: db_query
+    limit: 10000
+    details: >
+      Contains the full product catalog and inventory levels.
+      Use this to answer questions about what's in stock.
+    extensions:
+      - ./lib/vector0
+      - ./lib/math
+```
+
+The path to the database can contain environment variables (e.g.,
+`$DATA_DIR/main.db`), which Lectic will expand.
+
+### Configuration Parameters
+
+- `sqlite`: (Required) The path to the SQLite database file.
+- `name`: An optional name for the tool.
+- `limit`: An optional integer specifying the maximum size of the serialized
+  response in bytes. This prevents the LLM from being overwhelmed by huge
+  query results.
+- `details`: A string, `file:`, or `exec:` URI providing extra high-level
+  details about the database's purpose or contents.
+- `extensions`: An optional list of paths to SQLite extension libraries to
+  load before executing queries. This allows you to use extensions for
+  features like vector search, advanced math functions, and more.
+
+## Query and response format
+
+When the LLM uses the `sqlite` tool, it provides the SQL text in the
+`<query>` argument of the tool call. Lectic executes the query against the
+specified database and returns the result.
+
+For better readability and structure, the query result is formatted as YAML.
+
+### Example conversation
+
+**Configuration:**
+```yaml
+tools:
+  - sqlite: ./chinook.db
+    name: chinook
+```
+
+**Conversation:**
+````markdown
+Who are the top 5 artists by number of tracks?
+
+:::Assistant
+
+I will query the database to find out.
+
+<tool-call with="chinook">
+  <arguments>
+    <query>
+SELECT
+  ar.Name,
+  COUNT(t.TrackId) AS TrackCount
+FROM Artists ar
+JOIN Albums al ON ar.ArtistId = al.ArtistId
+JOIN Tracks t ON al.AlbumId = t.AlbumId
+GROUP BY ar.Name
+ORDER BY TrackCount DESC
+LIMIT 5;
+    </query>
+  </arguments>
+  <results>
+    <result type="text">- Name: Iron Maiden
+  TrackCount: 213
+- Name: Led Zeppelin
+  TrackCount: 114
+- Name: Metallica
+  TrackCount: 112
+- Name: U2
+  TrackCount: 110
+- Name: Deep Purple
+  TrackCount: 92
+</result>
+  </results>
+</tool-call>
+
+Based on the data, the top 5 artists by number of tracks are Iron Maiden,
+Led Zeppelin, Metallica, U2, and Deep Purple.
+
+:::
+````

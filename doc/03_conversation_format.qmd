@@ -1,0 +1,85 @@
+# The Lectic Conversation Format
+
+Lectic conversations are stored in plain markdown files, typically with a
+`.lec` extension. They use a superset of CommonMark, adding two specific
+conventions: a YAML frontmatter block for configuration and "container
+directives" for assistant responses.
+
+## 1. YAML Frontmatter
+
+Every Lectic file begins with a YAML frontmatter block, enclosed by three
+dashes (`---`). This is where you configure the conversation, defining the
+interlocutor(s), their models, prompts, and any tools they might use.
+
+A minimal header looks like this:
+
+```yaml
+---
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: anthropic
+  model: claude-3-haiku-20240307
+---
+```
+
+The frontmatter can be closed with either three dashes (`---`) or three
+periods (`...`). For a complete guide to all available options, see the
+[Configuration Reference](./04_configuration.qmd).
+
+## 2. User Messages
+
+Anything in the file that is not part of the YAML frontmatter or an
+assistant response block is considered a user message. You write your
+prompts, questions, and instructions here as plain text or standard
+markdown.
+
+```markdown
+This is a user message.
+
+So is this. You can include any markdown you like, such as **bold text** or
+`inline code`.
+```
+
+## 3. Assistant Responses
+
+Lectic uses a syntax called "container directives" to represent messages from
+the LLM. These are fenced blocks that start with three or more colons,
+followed immediately by the name of the interlocutor.
+
+The block is opened by `:::[InterlocutorName]` and closed by a matching
+number of colons `:::`.
+
+### Example
+
+Here is a complete, simple conversation file showing all the parts together:
+
+````markdown
+---
+interlocutor:
+  name: Oggle
+  prompt: You are a skeptical assistant.
+---
+
+I'd like to know more about container directives.
+
+:::Oggle
+
+Are you sure? It seems like a rather niche topic. They are part of a
+[proposed extension to CommonMark](https://talk.commonmark.org/t/generic-directives-plugins-syntax/444)
+that allows for custom block-level elements.
+
+Inside one of these blocks, standard markdown is still supported:
+
+```python
+# This is a regular code block
+print("Hello from inside a directive!")
+```
+
+Is that all you wanted to know?
+
+:::
+````
+
+When you run `lectic`, it reads the entire file, sends the content to the
+LLM, and then appends the next assistant response in a new directive block.

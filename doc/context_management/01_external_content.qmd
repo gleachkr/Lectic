@@ -1,0 +1,104 @@
+# Managing Context: External Content
+
+A key feature of Lectic is its ability to pull external information into the
+conversation, providing the LLM with the context it needs to answer
+questions, analyze data, or perform tasks.
+
+This is done in two primary ways: by referencing files and URIs using
+standard Markdown links, and by executing shell commands with the `:cmd`
+directive.
+
+## Content References via Markdown Links
+
+You can include local or remote content using the standard Markdown link
+syntax, `[Title](URI)`. Lectic will fetch the content from the URI and
+include it in the context for the LLM.
+
+```markdown
+Please summarize this local document: [Notes](./notes.md)
+
+Analyze the data in this S3 bucket: [Dataset](s3://my_bucket/dataset.csv)
+
+What does this README say?
+[Repo](github+repo://gleachkr/Lectic/contents/README.md)
+```
+
+### Supported Content Types
+
+- **Text**: Plain text files are included directly.
+- **Images**: PNG, JPEG, GIF, and WebP images are supported.
+- **PDFs**: Content from PDF files can be extracted (requires a provider that
+  supports PDF ingestion, such as Anthropic, Gemini, or OpenAI).
+- **Audio/Video**: Certain providers (like Gemini and OpenAI) support
+  including audio and video files.
+
+### URI Schemes
+
+Lectic supports several URI schemes for referencing content:
+
+- **Local Files**: Simple relative paths like `./src/main.rs` or absolute
+  `file:///path/to/file.txt` URIs.
+- **Remote Content**: `http://` and `https://` for web pages and other
+  online resources.
+- **Amazon S3**: `s3://` for referencing objects in S3 buckets. This
+  requires AWS credentials to be configured in your environment.
+- **MCP Resources**: You can reference resources provided by an MCP server
+  using a custom scheme, like `github+repo://...`.
+
+### Advanced URI Features
+
+Using full `file://` URIs for local content enables additional capabilities.
+
+#### 1. Globbing
+
+You can use glob patterns to include multiple files at once. This is useful
+for providing the entire source code of a project as context.
+
+```markdown
+[All source code](./src/**/*.ts)
+[All images in this directory](./images/*.jpg)
+```
+
+Lectic uses Bun's [Glob API](https://bun.sh/docs/api/glob) for matching.
+
+#### 2. Environment Variable Expansion
+
+Lectic supports environment variable expansion in URIs. This helps in
+creating portable `.lec` files that don't rely on hardcoded absolute paths.
+
+```markdown
+[My dataset](file://$DATA_ROOT/my_project/data.csv)
+[Log file](file://$PWD/logs/latest.log)
+```
+
+#### 3. PDF Page Selection
+
+When referencing a PDF, you can point to a specific page or a range of pages
+by adding a fragment to the URI. Page numbering starts at 1.
+
+- **Single Page**: `[See page 5](file.pdf#page=5)`
+- **Page Range**: `[See Chapter 2](book.pdf#pages=20-35)`
+
+## Command Output via `:cmd` Directive
+
+For dynamic content, you can use the `:cmd[...]` directive to execute a
+shell command and insert its standard output directly into your message.
+
+Lectic executes the command using the fast and modern [Bun
+shell](https://bun.sh/docs/runtime/shell).
+
+### Use Cases
+
+This is a powerful way to provide the LLM with real-time information.
+
+- **System Information**:
+  `What can you tell me about my system? :cmd[uname -a]`
+
+- **Project State**:
+  `Please write a commit message for these changes: :cmd[git diff --staged]`
+
+- **Data Analysis**:
+  `Based on this data, what's the average? :cmd[cat data.csv | awk '...']`
+
+The output of the command is seamlessly included in the user message that is
+sent to the LLM.
