@@ -332,9 +332,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="your-first-conversation">Your First Conversation</h2>
 <section id="set-up-your-api-keys" class="level3">
 <h3 class="anchored" data-anchor-id="set-up-your-api-keys">1. Set Up Your API Keys</h3>
-<p>Lectic interacts with LLM providers via their APIs. You will need to have the appropriate API key set as an environment variable. For example, to use an Anthropic model, you would set:</p>
+<p>Lectic interacts with LLM providers via their APIs. You’ll need to set the appropriate credentials in your environment. For example, to use an Anthropic model directly, set:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">ANTHROPIC_API_KEY</span><span class="op">=</span><span class="st">"your-api-key-here"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Lectic supports <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>OPENAI_API_KEY</code>, and <code>OPENROUTER_API_KEY</code>. It will default to the first one it finds, alphabetically.</p>
+<p>Supported credentials include <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>OPENAI_API_KEY</code>, and <code>OPENROUTER_API_KEY</code>. Lectic will choose a default provider based on which keys are present (Anthropic, then Gemini, then OpenAI, then OpenRouter).</p>
+<p>If you prefer Anthropic via AWS Bedrock, set <code>provider: anthropic/bedrock</code> explicitly in your <code>.lec</code> file and make sure your AWS environment (for example, <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code>) is configured. Bedrock is not auto‑selected.</p>
+<p>Finally, OpenAI has two provider options. Use <code>openai</code> for the newer Responses API and native tools (search/code). Use <code>openai/chat</code> if you need the legacy Chat Completions API—for example, certain audio workflows still expect chat models.</p>
 </section>
 <section id="create-a-conversation-file" class="level3">
 <h3 class="anchored" data-anchor-id="create-a-conversation-file">2. Create a Conversation File</h3>

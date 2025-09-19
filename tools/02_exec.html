@@ -301,6 +301,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#command-execution-semantics" id="toc-command-execution-semantics" class="nav-link" data-scroll-target="#command-execution-semantics">Command execution semantics</a></li>
   <li><a href="#supplying-parameters-with-schema" id="toc-supplying-parameters-with-schema" class="nav-link" data-scroll-target="#supplying-parameters-with-schema">Supplying parameters with <code>schema</code></a></li>
+  <li><a href="#execution-environment" id="toc-execution-environment" class="nav-link" data-scroll-target="#execution-environment">Execution environment</a></li>
   <li><a href="#safety-and-trust" id="toc-safety-and-trust" class="nav-link" data-scroll-target="#safety-and-trust">Safety and trust</a>
   <ul class="collapse">
   <li><a href="#confirmation-scripts-confirm" id="toc-confirmation-scripts-confirm" class="nav-link" data-scroll-target="#confirmation-scripts-confirm">Confirmation scripts (<code>confirm</code>)</a></li>
@@ -386,6 +387,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">DAY</span><span class="kw">:</span><span class="at"> The day string to include.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When the LLM calls this tool with parameters <code>{ NAME: "Ada", DAY: "Friday" }</code>, Lectic will run the script with <code>NAME=Ada</code> and <code>DAY=Friday</code> in the environment.</p>
 <p>If you do not provide <code>schema</code>, the tool instead accepts a single parameter named <code>arguments</code>, which is an array of strings. These are passed as positional arguments to the command or script.</p>
+</section>
+<section id="execution-environment" class="level2">
+<h2 class="anchored" data-anchor-id="execution-environment">Execution environment</h2>
+<p>When Lectic runs your command or script, it sets a few helpful environment variables. In particular, <code>LECTIC_INTERLOCUTOR</code> is set to the name of the interlocutor who invoked the tool. This makes it easy to maintain per‑interlocutor state (for example, separate scratch directories or memory stores) in your scripts or sandbox wrappers.</p>
 </section>
 <section id="safety-and-trust" class="level2">
 <h2 class="anchored" data-anchor-id="safety-and-trust">Safety and trust</h2>

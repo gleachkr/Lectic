@@ -355,7 +355,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="the-serve-tool" class="level2">
 <h2 class="anchored" data-anchor-id="the-serve-tool">The <code>serve</code> Tool</h2>
 <p>The <code>serve</code> tool allows the LLM to spin up a simple, single-use web server to present content, such as an HTML file or a small web application it has generated.</p>
-<p>When the LLM uses this tool, Lectic starts a server on the specified port. It will then attempt to open the page in your default web browser. The server shuts down automatically after the first request is served.</p>
+<p>When the LLM uses this tool, Lectic starts a server on the specified port. It will then attempt to open the page in your default web browser. The server shuts down automatically after the first request is served. While the page is loading, Lectic waits for the first request—so the conversation resumes once your browser has loaded the page.</p>
 <section id="configuration-1" class="level3">
 <h3 class="anchored" data-anchor-id="configuration-1">Configuration</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>

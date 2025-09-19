@@ -332,7 +332,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Text</strong>: Plain text files are included directly.</li>
 <li><strong>Images</strong>: PNG, JPEG, GIF, and WebP images are supported.</li>
 <li><strong>PDFs</strong>: Content from PDF files can be extracted (requires a provider that supports PDF ingestion, such as Anthropic, Gemini, or OpenAI).</li>
-<li><strong>Audio/Video</strong>: Certain providers (like Gemini and OpenAI) support including audio and video files.</li>
+<li><strong>Audio</strong>: Gemini and OpenAI support audio inputs. For OpenAI, use <code>provider: openai/chat</code> with an audio‑capable model; supported formats include MP3, MPEG, and WAV. Gemini supports a broader set of audio types.</li>
+<li><strong>Video</strong>: Gemini supports video understanding. See supported formats in Google’s docs: https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats</li>
 </ul>
 </section>
 <section id="uri-schemes" class="level3">
@@ -343,6 +344,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Remote Content</strong>: <code>http://</code> and <code>https://</code> for web pages and other online resources.</li>
 <li><strong>Amazon S3</strong>: <code>s3://</code> for referencing objects in S3 buckets. This requires AWS credentials to be configured in your environment.</li>
 <li><strong>MCP Resources</strong>: You can reference resources provided by an MCP server using a custom scheme, like <code>github+repo://...</code>.</li>
+</ul>
+<p>A few convenience rules apply:</p>
+<ul>
+<li>For local file references using <code>file://</code>, use absolute paths. A portable way to build these is with <code>$PWD</code> (e.g., <code>file://$PWD/papers/some.pdf</code>).</li>
+<li>Environment variables in URIs use the <code>$VAR</code> form; <code>${VAR}</code> is not supported. Expansion happens before any globbing.</li>
 </ul>
 </section>
 <section id="advanced-uri-features" class="level3">
@@ -368,6 +374,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Single Page</strong>: <code>[See page 5](file.pdf#page=5)</code></li>
 <li><strong>Page Range</strong>: <code>[See Chapter 2](book.pdf#pages=20-35)</code></li>
 </ul>
+<p>If both <code>page</code> and <code>pages</code> are supplied, <code>pages</code> takes precedence. If a page or range is malformed or out of bounds, Lectic will surface an error that is visible to the LLM.</p>
 </section>
 </section>
 </section>

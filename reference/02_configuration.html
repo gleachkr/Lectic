@@ -300,12 +300,28 @@ ul.task-list li input[type="checkbox"] {
 <section id="model-configuration" class="level3">
 <h3 class="anchored" data-anchor-id="model-configuration">Model Configuration</h3>
 <ul>
-<li><code>provider</code>: The LLM provider to use. Examples: <code>anthropic</code>, <code>openai</code>, <code>gemini</code>, <code>ollama</code>, <code>openrouter</code>. Defaults to the first available API key found in the environment.</li>
+<li><code>provider</code>: The LLM provider to use. Supported values include <code>anthropic</code>, <code>anthropic/bedrock</code>, <code>openai</code> (Responses API), <code>openai/chat</code> (legacy Chat Completions), <code>gemini</code>, <code>ollama</code>, and <code>openrouter</code>.</li>
 <li><code>model</code>: The specific model to use, e.g., <code>claude-3-opus-20240229</code>.</li>
 <li><code>temperature</code>: A number between 0 and 1 controlling the randomness of the output.</li>
 <li><code>max_tokens</code>: The maximum number of tokens to generate in a response.</li>
 <li><code>max_tool_use</code>: The maximum number of tool calls the LLM is allowed to make in a single turn.</li>
 </ul>
+<section id="providers-and-defaults" class="level4">
+<h4 class="anchored" data-anchor-id="providers-and-defaults">Providers and defaults</h4>
+<p>If you don’t specify <code>provider</code>, Lectic picks a default based on your environment. It checks for known API keys in this order and uses the first one it finds:</p>
+<ol type="1">
+<li>ANTHROPIC_API_KEY → <code>anthropic</code></li>
+<li>GEMINI_API_KEY → <code>gemini</code></li>
+<li>OPENAI_API_KEY → <code>openai</code></li>
+<li>OPENROUTER_API_KEY → <code>openrouter</code></li>
+</ol>
+<p>AWS credentials for Bedrock are not considered for auto‑selection. If you want Anthropic via Bedrock, set <code>provider: anthropic/bedrock</code> explicitly and ensure your AWS environment is configured.</p>
+<p>OpenAI has two provider options:</p>
+<ul>
+<li><code>openai</code> uses the Responses API. You’ll want this for native tools like search and code.</li>
+<li><code>openai/chat</code> uses the legacy Chat Completions API. You’ll need this for certain audio workflows that still require chat‑style models.</li>
+</ul>
+</section>
 </section>
 <section id="context-management" class="level3">
 <h3 class="anchored" data-anchor-id="context-management">Context Management</h3>
