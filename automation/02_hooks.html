@@ -398,7 +398,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>      VALUES ('${TS}', '${ROLE}', '$(esc_sq "$NAME")',</span>
 <span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>              '$(esc_sq "$FILE_PATH")', '$(esc_sq "$TEXT")');</span>
 <span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>      SQL</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Notes: - Requires the <code>sqlite3</code> command-line tool to be installed and on your PATH. - The hook inspects which variable is set to decide whether the event was a user or assistant message. - <code>LECTIC_FILE</code> is populated when using <code>-f</code>/<code>-i</code> and may be empty when streaming from stdin. - Adjust the table schema to suit your use case.</p>
+<p>Notes:</p>
+<ul>
+<li>Requires the <code>sqlite3</code> command-line tool to be installed and on your PATH.</li>
+<li>The hook inspects which variable is set to decide whether the event was a user or assistant message.</li>
+<li><code>LECTIC_FILE</code> is populated when using <code>-f</code>/<code>-i</code> and may be empty when streaming from stdin.</li>
+<li>Adjust the table schema to suit your use case.</li>
+</ul>
 
 
 </section>

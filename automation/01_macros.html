@@ -297,7 +297,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#expansion-sources" id="toc-expansion-sources" class="nav-link" data-scroll-target="#expansion-sources">Expansion Sources</a></li>
   </ul></li>
-  <li><a href="#passing-environment-variables-to-expansions" id="toc-passing-environment-variables-to-expansions" class="nav-link" data-scroll-target="#passing-environment-variables-to-expansions">Passing environment variables to expansions</a></li>
+  <li><a href="#using-macros" id="toc-using-macros" class="nav-link" data-scroll-target="#using-macros">Using Macros</a></li>
+  <li><a href="#passing-environment-variables-to-expansions" id="toc-passing-environment-variables-to-expansions" class="nav-link" data-scroll-target="#passing-environment-variables-to-expansions">Passing environment variables to expansions</a>
+  <ul class="collapse">
+  <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 </nav>
@@ -338,15 +342,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">expansion</span><span class="kw">: </span><span class="ch">|</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  exec:#!/usr/bin/env bash</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  echo "Hello, ${TARGET}!"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Multi‑line scripts are written to a temp file and executed with the interpreter given by the shebang. ## Using Macros</p></li>
+<p>Multi‑line scripts are written to a temp file and executed with the interpreter given by the shebang.</p></li>
 </ul></li>
 </ul>
+</section>
+</section>
+<section id="using-macros" class="level2">
+<h2 class="anchored" data-anchor-id="using-macros">Using Macros</h2>
 <p>To use a macro, you invoke it using a directive in your message: <code>:macro[macro_name]</code>.</p>
 <p>When Lectic processes the file, it replaces the macro directive with the full text from its <code>expansion</code> field <em>before</em> processing any other directives (like <code>:cmd</code>).</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>This was a long and productive discussion. Could you wrap it up?</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>:macro<span class="co">[</span><span class="ot">summarize</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
 </section>
 <section id="passing-environment-variables-to-expansions" class="level2">
 <h2 class="anchored" data-anchor-id="passing-environment-variables-to-expansions">Passing environment variables to expansions</h2>
@@ -355,7 +362,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>:macro[name]{FOO="bar"}</code> sets the variable <code>FOO</code> to <code>bar</code>.</li>
 <li><code>:macro[name]{EMPTY}</code> sets the variable <code>EMPTY</code> to be unset/omitted. If you need an empty string value, write <code>:macro[name]{EMPTY=""}</code>.</li>
 </ul>
-<p>Notes: - Single‑line <code>exec:</code> commands are not run through a shell. If you need shell features, invoke a shell explicitly, e.g., <code>exec: bash -c 'echo "Hello, $TARGET"'</code>. - In single‑line commands, variables in the command string are expanded before execution. For multi‑line scripts, variables are available to the script via the environment. ### Example</p>
+<p>Notes: - Single‑line <code>exec:</code> commands are not run through a shell. If you need shell features, invoke a shell explicitly, e.g., <code>exec: bash -c 'echo "Hello, $TARGET"'</code>. - In single‑line commands, variables in the command string are expanded before execution. For multi‑line scripts, variables are available to the script via the environment.</p>
+<section id="example" class="level3">
+<h3 class="anchored" data-anchor-id="example">Example</h3>
 <p><strong>Configuration:</strong></p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> greet</span></span>
@@ -365,6 +374,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>When Lectic processes this, the <code>:macro</code> directive will be replaced by the output of the <code>exec</code> command, which is “Hello, World!”.</p>
 
 
+</section>
 </section>
 </section>
 
