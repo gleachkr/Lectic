@@ -300,6 +300,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#create-a-conversation-file" id="toc-create-a-conversation-file" class="nav-link" data-scroll-target="#create-a-conversation-file">2. Create a Conversation File</a></li>
   <li><a href="#core-configuration-you-need" id="toc-core-configuration-you-need" class="nav-link" data-scroll-target="#core-configuration-you-need">Core configuration you need</a></li>
   <li><a href="#using-file-and-exec-for-prompts" id="toc-using-file-and-exec-for-prompts" class="nav-link" data-scroll-target="#using-file-and-exec-for-prompts">Using file: and exec: for prompts</a></li>
+  <li><a href="#run-lectic" id="toc-run-lectic" class="nav-link" data-scroll-target="#run-lectic">3. Run Lectic</a></li>
   </ul></li>
   <li><a href="#editor-integration" id="toc-editor-integration" class="nav-link" data-scroll-target="#editor-integration">Editor Integration</a></li>
   </ul></li>
@@ -396,7 +397,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>The prompt is evaluated fresh on each run. This makes it easy to build dynamic prompts that include the latest memory or other external state.</li>
 </ul></li>
 </ul>
-<p>### 3. Run Lectic</p>
+</section>
+<section id="run-lectic" class="level3">
+<h3 class="anchored" data-anchor-id="run-lectic">3. Run Lectic</h3>
 <p>Now, from your terminal, you can run Lectic on this file. The <code>-i</code> flag tells Lectic to update the file in-place.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> my_convo.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Lectic will send your message to the LLM and append its response to the file. The file will now look something like this:</p>
