@@ -356,9 +356,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="safety-and-trust" class="level2">
 <h2 class="anchored" data-anchor-id="safety-and-trust">Safety and trust</h2>
-<blockquote class="blockquote">
-<p>[!WARNING] While powerful, the MCP protocol carries significant security risks. Treat MCP integration as a high-trust capability. Never connect to untrusted servers; a malicious server could exfiltrate data or perform unwanted actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved LLM, not attacks from a hostile server.</p>
-</blockquote>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>While powerful, the MCP protocol carries significant security risks. Treat MCP integration as a high-trust capability. Never connect to untrusted servers; a malicious server could exfiltrate data or perform unwanted actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved LLM, not attacks from a hostile server.</p>
+</div>
+</div>
 <section id="confirmation-scripts-confirm" class="level3">
 <h3 class="anchored" data-anchor-id="confirmation-scripts-confirm">Confirmation Scripts (<code>confirm</code>)</h3>
 <p>Just like with the <code>exec</code> tool, you can specify a <code>confirm</code> script. This script will be executed before every tool call dispatched to the MCP server, giving you a chance to approve or deny the action.</p>
