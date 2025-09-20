@@ -48,7 +48,7 @@ function validateRoot(root : MCPRoot) {
 }
 
 type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamableHTTP) & { 
-    server_name?: string
+    name?: string
     confirm?: string 
     roots?: MCPRoot[]
 }
@@ -103,7 +103,7 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
             isMCPSpecSSE(raw) || 
             isMCPSpecWebsocket(raw) || 
             isMCPSpecStreamableHttp(raw)) && 
-           ("server_name" in raw ? typeof raw.server_name === "string" : true) &&
+           ("name" in raw ? typeof raw.name === "string" : true) &&
            ("confirm" in raw ? typeof raw.confirm === "string" : true)
 }
 
@@ -235,8 +235,8 @@ export class MCPTool extends Tool {
             : [spec.mcp_command, spec.args, spec.env, spec.sandbox]]
 
         let prefix
-        if (spec.server_name) {
-            prefix = spec.server_name
+        if (spec.name) {
+            prefix = spec.name
         } else {
             prefix = `mcp_server_${MCPTool.count}`
             MCPTool.count++
@@ -308,9 +308,9 @@ export class MCPTool extends Tool {
             })
         })
 
-        if (spec.server_name) {
+        if (spec.name) {
             associated_tools.push(new MCPListResources({
-                server_name: spec.server_name,
+                server_name: spec.name,
                 client
             }))
         }

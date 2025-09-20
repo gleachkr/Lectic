@@ -44,10 +44,10 @@ beforeEach(() => {
 });
 
 describe("MCPTool.fromSpec registration and namespacing", () => {
-  it("registers by explicit server_name and adds list_resources", async () => {
+  it("registers by explicit name and adds list_resources", async () => {
     const tools = await MCPTool.fromSpec({
       mcp_sse: "http://example.com",
-      server_name: "foo",
+      name: "foo",
     } as any);
     const names = tools.map((t: any) => t.name).sort();
     expect(names).toContain("foo_search");
@@ -59,7 +59,7 @@ describe("MCPTool.fromSpec registration and namespacing", () => {
     expect(searchTool.client).toBe(client);
   });
 
-  it("uses generated prefix when server_name is absent", async () => {
+  it("uses generated prefix when name is absent", async () => {
     const tools = await MCPTool.fromSpec({ mcp_sse: "http://example.com" } as any);
     const names = tools.map((t: any) => t.name).sort();
     // count starts at 0 in beforeEach
@@ -76,12 +76,12 @@ describe("Identity keys include roots and sandbox", () => {
   it("different roots => different clients for same URL", async () => {
     const a = await MCPTool.fromSpec({
       mcp_sse: "http://example.com",
-      server_name: "a",
+      name: "a",
       roots: [{ uri: "file:///tmp" }],
     } as any);
     const b = await MCPTool.fromSpec({
       mcp_sse: "http://example.com",
-      server_name: "b",
+      name: "b",
       roots: [{ uri: "file:///home" }],
     } as any);
     const clientA = (a.find((t: any) => t.name === "a_search") as any).client;
@@ -92,12 +92,12 @@ describe("Identity keys include roots and sandbox", () => {
   it("different sandbox => different stdio clients", async () => {
     const a = await MCPTool.fromSpec({
       mcp_command: "echo",
-      server_name: "a",
+      name: "a",
       sandbox: "/bin/sh",
     } as any);
     const b = await MCPTool.fromSpec({
       mcp_command: "echo",
-      server_name: "b",
+      name: "b",
       sandbox: "/usr/bin/env bash",
     } as any);
     const clientA = (a.find((t: any) => t.name === "a_search") as any).client;
@@ -145,7 +145,7 @@ describe("Client reuse", () => {
       connects += 1;
     };
     // First call
-    const spec: any = { mcp_sse: "http://example.com", server_name: "foo" };
+    const spec: any = { mcp_sse: "http://example.com", name: "foo" };
     const t1 = await MCPTool.fromSpec(spec);
     const c1 = (t1.find((t: any) => t.name === "foo_search") as any).client;
     // Second call with identical spec
