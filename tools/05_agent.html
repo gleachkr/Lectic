@@ -317,8 +317,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>To use the <code>agent</code> tool, you must have at least two interlocutors defined. In the configuration for one interlocutor, you add an <code>agent</code> tool that points to the <code>name</code> of the other.</p>
 <ul>
 <li><code>agent</code>: (Required) The name of the interlocutor to be called as an agent.</li>
-<li><code>name</code>: An optional name for the tool. If not provided, it defaults to the agent’s name.</li>
+<li><code>name</code>: An optional name for the tool.</li>
 <li><code>usage</code>: A string, <code>file:</code>, or <code>exec:</code> URI providing instructions for the calling LLM on when and how to use this agent.</li>
+<li><code>raw_output</code>: A boolean value. Normally an agent’s output will be sanitized, so that raw tool call results are not visible to the interlocutor who called the agent. Setting raw_output to true puts the full output from the agent into the main interlocutor’s tool call results.</li>
 </ul>
 <section id="example-configuration" class="level3">
 <h3 class="anchored" data-anchor-id="example-configuration">Example Configuration</h3>
