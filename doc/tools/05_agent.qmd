@@ -17,10 +17,13 @@ the configuration for one interlocutor, you add an `agent` tool that points to
 the `name` of the other.
 
 - `agent`: (Required) The name of the interlocutor to be called as an agent.
-- `name`: An optional name for the tool. If not provided, it defaults to the
-  agent's name.
+- `name`: An optional name for the tool.
 - `usage`: A string, `file:`, or `exec:` URI providing instructions for the
   calling LLM on when and how to use this agent.
+- `raw_output`: A boolean value. Normally an agent's output will be sanitized,
+  so that raw tool call results are not visible to the interlocutor who called
+  the agent. Setting raw_output to true puts the full output from the agent
+  into the main interlocutor's tool call results. 
 
 ### Example Configuration
 

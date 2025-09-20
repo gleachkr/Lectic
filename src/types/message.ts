@@ -17,6 +17,7 @@ export type MessageDirective = {
     attributes?: Record<string, string | null | undefined>
 }
 
+// Represents a single interaction with the LLM, text first, followed by tool calls and results
 export type MessageInteraction = {
     text : string
     calls: ToolCall[]

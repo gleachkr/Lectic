@@ -3,13 +3,14 @@ import { getBackend } from "../backends/util"
 import { Logger } from "../logging/logger"
 // XXX Circular import, would be good to fix eventually.
 import { LecticHeader, Lectic } from "../types/lectic"
-import { UserMessage } from "../types/message"
+import { UserMessage, AssistantMessage } from "../types/message"
 import type { Interlocutor } from "../types/interlocutor"
 
 export type AgentToolSpec = {
     agent: string
     name?: string
     usage?: string
+    raw_output?: boolean
 }
 
 export function isAgentToolSpec(raw : unknown) : raw is AgentToolSpec {
@@ -21,6 +22,7 @@ export class AgentTool extends Tool {
     name: string
     agent: Interlocutor
     description: string
+    raw_output: boolean
     static count : number = 0
 
     constructor(spec: AgentToolSpec, interlocutors: Interlocutor[] ) {
@@ -29,6 +31,7 @@ export class AgentTool extends Tool {
         const agent = interlocutors.find(i => i.name === spec.agent)
         if (agent === undefined) throw Error(`There's no interlocutor named ${spec.agent}`)
         this.agent = agent
+        this.raw_output = spec.raw_output ?? false
         this.description = 
             `Use the tool to send a request to the LLM ${spec.agent}. ` +
             `Each interaction is distinct, and the LLM retains no memory of your previous interactions, ` +
@@ -61,6 +64,18 @@ export class AgentTool extends Tool {
         const backend = getBackend(this.agent)
         const result = Logger.fromStream(backend.evaluate(lectic))
         for await (const _ of result.chunks) { }
-        return ToolCallResults(await result.string)
+        if (this.raw_output) {
+            return ToolCallResults(await result.string)
+        } else {
+            const assistantMessage = new AssistantMessage({
+                content: await result.string,
+                interlocutor: this.agent
+            })
+            const sanitizedText = assistantMessage.containedInteractions().map(interaction => {
+                const callstring = interaction.calls.map(call => `<toolcall name=${call.name}/>`).join("\n\n")
+                return `${interaction.text}\n\n${callstring}`
+            }).join('\n')
+            return ToolCallResults(sanitizedText)
+        }
     }
 }
