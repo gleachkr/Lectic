@@ -1,5 +1,8 @@
-import { UserMessage } from './message';
+import { UserMessage, AssistantMessage } from './message';
 import { Macro } from './macro';
+import { serializeCall, ToolCallResults } from './tool';
+import type { Interlocutor } from "./interlocutor"
+import type { Tool } from './tool';
 import { expect, it, describe } from "bun:test";
 
 describe('UserMessage', () => {
@@ -198,6 +201,55 @@ describe('UserMessage', () => {
 });
 
 describe('AssistantMessage', () => {
-    // We'll add tests for AssistantMessage later if needed.
-    // For now, the focus is on UserMessage.
+        it('should extract a tool call', async () => {
+            const tool: Tool = {
+                name: 'booleanTool',
+                description: 'Tool that handles booleans',
+                parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
+                call: async (_arg) => ToolCallResults('done'),
+                validateArguments: _ => null
+            };
+
+            const call = {
+                name: 'booleanTool',
+                args : { confirmed: true },
+                results : ToolCallResults('done')
+            }
+
+            const serialized = serializeCall(tool, call);
+
+            const content = `hello!\n\n${serialized}\n\ngoodbye!`
+
+            const fakeInterlocutor = { registry: { booleanTool: tool } } as unknown as Interlocutor
+
+            const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
+
+            expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
+        })
+
+        it('should extract a tool call whose results contain line breaks', async () => {
+            const tool: Tool = {
+                name: 'booleanTool',
+                description: 'Tool that handles booleans',
+                parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
+                call: async (_arg) => ToolCallResults('done\n\ndone\n\ndone\n\ndone'),
+                validateArguments: _ => null
+            };
+
+            const call = {
+                name: 'booleanTool',
+                args : { confirmed: true },
+                results : ToolCallResults('done')
+            }
+
+            const serialized = serializeCall(tool, call);
+
+            const content = `hello!\n\n${serialized}\n\ngoodbye!`
+
+            const fakeInterlocutor = { registry: { booleanTool: tool } } as unknown as Interlocutor
+
+            const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
+
+            expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
+        })
 });
