@@ -164,7 +164,7 @@ export function deserialize(xml: string, schema: JSONSchema): any {
     xml = xml.trim();
     switch (schema.type) {
         case "string":
-            if (schema.enum && !schema.enum.includes(xml)) {
+            if (schema.enum && !schema.enum.includes(unescapeTags(xml))) {
                 throw new Error("Invalid serialized string");
             }
             return unescapeTags(xml);
