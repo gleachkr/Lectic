@@ -44,79 +44,6 @@
     ]
   },
   {
-    "objectID": "04_configuration.html",
-    "href": "04_configuration.html",
-    "title": "Lectic Configuration",
-    "section": "",
-    "text": "Lectic offers a flexible configuration system that lets you set global defaults, create per-project settings, and make conversation-specific overrides. This is managed through a hierarchy of YAML files.\n\n\nConfiguration settings are merged from multiple sources. Each source in the list below overrides the one before it, with the .lec file’s own header always having the final say.\n\nSystem Config Directory: Lectic first looks for a configuration file at lectic/lectic.yaml within your system’s standard config location (e.g., ~/.config/lectic/lectic.yaml on Linux). This is the ideal place for your global, user-level defaults.\nWorking Directory: Next, it looks for a lectic.yaml file in the current working directory. This is useful for project-level configuration that you might commit to a git repository.\n--Include (-I) Flag: You can specify an arbitrary YAML file to include using the --Include or -I command-line flag. This is handy for temporary or experimental settings. bash     lectic -I project_settings.yaml -f my_convo.lec\nLectic File Header: The YAML frontmatter within your .lec file is the final and highest-precedence source of configuration.\n\n\n\n\nYou can change the default locations for Lectic’s data directories by setting the following environment variables:\n\n$LECTIC_CONFIG: Overrides the base configuration directory path.\n$LECTIC_DATA: Overrides the data directory path.\n$LECTIC_CACHE: Overrides the cache directory path.\n$LECTIC_STATE: Overrides the state directory path.\n\nThese variables, along with $LECTIC_TEMP (a temporary directory) and $LECTIC_FILE (the path to the active .lec file), are automatically passed into the environment of any subprocesses Lectic spawns, such as exec tools. This ensures your custom scripts have access to the same context as the main process.\n\n\n\nWhen combining settings from multiple configuration files, Lectic follows specific rules:\n\nObjects (Mappings): Merged recursively. If a key exists in multiple sources, the value from the source with higher precedence wins.\nArrays (Lists): Merged based on the name attribute of their elements. If two objects in an array share the same name, they are merged. Otherwise, the elements are simply combined. This is especially useful for managing lists of tools and interlocutors.\nOther Values: For simple values (strings, numbers) or if the types don’t match, the value from the highest-precedence source is used without any merging.\n\n\n\nImagine you have a global config in ~/.config/lectic/lectic.yaml:\n# ~/.config/lectic/lectic.yaml\ninterlocutors:\n    - name: opus\n      provider: anthropic\n      model: claude-3-opus-20240229\nAnd a project-specific file, project.yaml:\n# ./project.yaml\ninterlocutor:\n    name: haiku\n    model: claude-3-haiku-20240307\n    tools:\n        - exec: bash\n        - agent: opus\nIf you run lectic -I project.yaml ..., the haiku interlocutor will be configured with the claude-3-haiku model, and it will have access to a bash tool and an agent tool that can call opus. You could then switch interlocutors to opus within the conversation if needed.",
-    "crumbs": [
-      "Configuration"
-    ]
-  },
-  {
-    "objectID": "04_configuration.html#configuration-hierarchy",
-    "href": "04_configuration.html#configuration-hierarchy",
-    "title": "Lectic Configuration",
-    "section": "",
-    "text": "Configuration settings are merged from multiple sources. Each source in the list below overrides the one before it, with the .lec file’s own header always having the final say.\n\nSystem Config Directory: Lectic first looks for a configuration file at lectic/lectic.yaml within your system’s standard config location (e.g., ~/.config/lectic/lectic.yaml on Linux). This is the ideal place for your global, user-level defaults.\nWorking Directory: Next, it looks for a lectic.yaml file in the current working directory. This is useful for project-level configuration that you might commit to a git repository.\n--Include (-I) Flag: You can specify an arbitrary YAML file to include using the --Include or -I command-line flag. This is handy for temporary or experimental settings. bash     lectic -I project_settings.yaml -f my_convo.lec\nLectic File Header: The YAML frontmatter within your .lec file is the final and highest-precedence source of configuration.",
-    "crumbs": [
-      "Configuration"
-    ]
-  },
-  {
-    "objectID": "04_configuration.html#overriding-default-directories",
-    "href": "04_configuration.html#overriding-default-directories",
-    "title": "Lectic Configuration",
-    "section": "",
-    "text": "You can change the default locations for Lectic’s data directories by setting the following environment variables:\n\n$LECTIC_CONFIG: Overrides the base configuration directory path.\n$LECTIC_DATA: Overrides the data directory path.\n$LECTIC_CACHE: Overrides the cache directory path.\n$LECTIC_STATE: Overrides the state directory path.\n\nThese variables, along with $LECTIC_TEMP (a temporary directory) and $LECTIC_FILE (the path to the active .lec file), are automatically passed into the environment of any subprocesses Lectic spawns, such as exec tools. This ensures your custom scripts have access to the same context as the main process.",
-    "crumbs": [
-      "Configuration"
-    ]
-  },
-  {
-    "objectID": "04_configuration.html#merging-logic",
-    "href": "04_configuration.html#merging-logic",
-    "title": "Lectic Configuration",
-    "section": "",
-    "text": "When combining settings from multiple configuration files, Lectic follows specific rules:\n\nObjects (Mappings): Merged recursively. If a key exists in multiple sources, the value from the source with higher precedence wins.\nArrays (Lists): Merged based on the name attribute of their elements. If two objects in an array share the same name, they are merged. Otherwise, the elements are simply combined. This is especially useful for managing lists of tools and interlocutors.\nOther Values: For simple values (strings, numbers) or if the types don’t match, the value from the highest-precedence source is used without any merging.\n\n\n\nImagine you have a global config in ~/.config/lectic/lectic.yaml:\n# ~/.config/lectic/lectic.yaml\ninterlocutors:\n    - name: opus\n      provider: anthropic\n      model: claude-3-opus-20240229\nAnd a project-specific file, project.yaml:\n# ./project.yaml\ninterlocutor:\n    name: haiku\n    model: claude-3-haiku-20240307\n    tools:\n        - exec: bash\n        - agent: opus\nIf you run lectic -I project.yaml ..., the haiku interlocutor will be configured with the claude-3-haiku model, and it will have access to a bash tool and an agent tool that can call opus. You could then switch interlocutors to opus within the conversation if needed.",
-    "crumbs": [
-      "Configuration"
-    ]
-  },
-  {
-    "objectID": "context_management/01_external_content.html",
-    "href": "context_management/01_external_content.html",
-    "title": "Managing Context: External Content",
-    "section": "",
-    "text": "A key feature of Lectic is its ability to pull external information into the conversation, providing the LLM with the context it needs to answer questions, analyze data, or perform tasks.\nThis is done in two primary ways: by referencing files and URIs using standard Markdown links, and by executing shell commands with the :cmd directive.\n\n\nYou can include local or remote content using the standard Markdown link syntax, [Title](URI). Lectic will fetch the content from the URI and include it in the context for the LLM.\nPlease summarize this local document: [Notes](./notes.md)\n\nAnalyze the data in this S3 bucket: [Dataset](s3://my_bucket/dataset.csv)\n\nWhat does this README say?\n[Repo](github+repo://gleachkr/Lectic/contents/README.md)\n\n\n\nText: Plain text files are included directly.\nImages: PNG, JPEG, GIF, and WebP images are supported.\nPDFs: Content from PDF files can be extracted (requires a provider that supports PDF ingestion, such as Anthropic, Gemini, or OpenAI).\nAudio: Gemini and OpenAI support audio inputs. For OpenAI, use provider: openai/chat with an audio‑capable model; supported formats include MP3, MPEG, and WAV. Gemini supports a broader set of audio types.\nVideo: Gemini supports video understanding. See supported formats in Google’s docs: https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats\n\n\n\n\nLectic supports several URI schemes for referencing content:\n\nLocal Files: Simple relative paths like ./src/main.rs or absolute file:///path/to/file.txt URIs.\nRemote Content: http:// and https:// for web pages and other online resources.\nAmazon S3: s3:// for referencing objects in S3 buckets. This requires AWS credentials to be configured in your environment.\nMCP Resources: You can reference resources provided by an MCP server using a custom scheme, like github+repo://....\n\nA few convenience rules apply:\n\nFor local file references using file://, use absolute paths. A portable way to build these is with $PWD (e.g., file://$PWD/papers/some.pdf).\nEnvironment variables in URIs use the $VAR form; ${VAR} is not supported. Expansion happens before any globbing.\n\n\n\n\nUsing full file:// URIs for local content enables additional capabilities.\n\n\nYou can use glob patterns to include multiple files at once. This is useful for providing the entire source code of a project as context.\n[All source code](./src/**/*.ts)\n[All images in this directory](./images/*.jpg)\nLectic uses Bun’s Glob API for matching.\n\n\n\nLectic supports environment variable expansion in URIs. This helps in creating portable .lec files that don’t rely on hardcoded absolute paths.\n[My dataset](file://$DATA_ROOT/my_project/data.csv)\n[Log file](file://$PWD/logs/latest.log)\n\n\n\nWhen referencing a PDF, you can point to a specific page or a range of pages by adding a fragment to the URI. Page numbering starts at 1.\n\nSingle Page: [See page 5](file.pdf#page=5)\nPage Range: [See Chapter 2](book.pdf#pages=20-35)\n\nIf both page and pages are supplied, pages takes precedence. If a page or range is malformed or out of bounds, Lectic will surface an error that is visible to the LLM.\n\n\n\n\n\nFor dynamic content, you can use the :cmd[...] directive to execute a shell command and insert its standard output directly into your message.\nLectic executes the command using the fast and modern Bun shell.\n\n\nThis is a powerful way to provide the LLM with real-time information.\n\nSystem Information: What can you tell me about my system? :cmd[uname -a]\nProject State: Please write a commit message for these changes: :cmd[git diff --staged]\nData Analysis: Based on this data, what's the average? :cmd[cat data.csv | awk '...']\n\nThe output of the command is seamlessly included in the user message that is sent to the LLM.",
-    "crumbs": [
-      "Context Management",
-      "External Content"
-    ]
-  },
-  {
-    "objectID": "context_management/01_external_content.html#content-references-via-markdown-links",
-    "href": "context_management/01_external_content.html#content-references-via-markdown-links",
-    "title": "Managing Context: External Content",
-    "section": "",
-    "text": "You can include local or remote content using the standard Markdown link syntax, [Title](URI). Lectic will fetch the content from the URI and include it in the context for the LLM.\nPlease summarize this local document: [Notes](./notes.md)\n\nAnalyze the data in this S3 bucket: [Dataset](s3://my_bucket/dataset.csv)\n\nWhat does this README say?\n[Repo](github+repo://gleachkr/Lectic/contents/README.md)\n\n\n\nText: Plain text files are included directly.\nImages: PNG, JPEG, GIF, and WebP images are supported.\nPDFs: Content from PDF files can be extracted (requires a provider that supports PDF ingestion, such as Anthropic, Gemini, or OpenAI).\nAudio: Gemini and OpenAI support audio inputs. For OpenAI, use provider: openai/chat with an audio‑capable model; supported formats include MP3, MPEG, and WAV. Gemini supports a broader set of audio types.\nVideo: Gemini supports video understanding. See supported formats in Google’s docs: https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats\n\n\n\n\nLectic supports several URI schemes for referencing content:\n\nLocal Files: Simple relative paths like ./src/main.rs or absolute file:///path/to/file.txt URIs.\nRemote Content: http:// and https:// for web pages and other online resources.\nAmazon S3: s3:// for referencing objects in S3 buckets. This requires AWS credentials to be configured in your environment.\nMCP Resources: You can reference resources provided by an MCP server using a custom scheme, like github+repo://....\n\nA few convenience rules apply:\n\nFor local file references using file://, use absolute paths. A portable way to build these is with $PWD (e.g., file://$PWD/papers/some.pdf).\nEnvironment variables in URIs use the $VAR form; ${VAR} is not supported. Expansion happens before any globbing.\n\n\n\n\nUsing full file:// URIs for local content enables additional capabilities.\n\n\nYou can use glob patterns to include multiple files at once. This is useful for providing the entire source code of a project as context.\n[All source code](./src/**/*.ts)\n[All images in this directory](./images/*.jpg)\nLectic uses Bun’s Glob API for matching.\n\n\n\nLectic supports environment variable expansion in URIs. This helps in creating portable .lec files that don’t rely on hardcoded absolute paths.\n[My dataset](file://$DATA_ROOT/my_project/data.csv)\n[Log file](file://$PWD/logs/latest.log)\n\n\n\nWhen referencing a PDF, you can point to a specific page or a range of pages by adding a fragment to the URI. Page numbering starts at 1.\n\nSingle Page: [See page 5](file.pdf#page=5)\nPage Range: [See Chapter 2](book.pdf#pages=20-35)\n\nIf both page and pages are supplied, pages takes precedence. If a page or range is malformed or out of bounds, Lectic will surface an error that is visible to the LLM.",
-    "crumbs": [
-      "Context Management",
-      "External Content"
-    ]
-  },
-  {
-    "objectID": "context_management/01_external_content.html#command-output-via-cmd-directive",
-    "href": "context_management/01_external_content.html#command-output-via-cmd-directive",
-    "title": "Managing Context: External Content",
-    "section": "",
-    "text": "For dynamic content, you can use the :cmd[...] directive to execute a shell command and insert its standard output directly into your message.\nLectic executes the command using the fast and modern Bun shell.\n\n\nThis is a powerful way to provide the LLM with real-time information.\n\nSystem Information: What can you tell me about my system? :cmd[uname -a]\nProject State: Please write a commit message for these changes: :cmd[git diff --staged]\nData Analysis: Based on this data, what's the average? :cmd[cat data.csv | awk '...']\n\nThe output of the command is seamlessly included in the user message that is sent to the LLM.",
-    "crumbs": [
-      "Context Management",
-      "External Content"
-    ]
-  },
-  {
     "objectID": "03_conversation_format.html",
     "href": "03_conversation_format.html",
     "title": "The Lectic Conversation Format",
@@ -190,80 +117,113 @@
     ]
   },
   {
-    "objectID": "tools/01_overview.html",
-    "href": "tools/01_overview.html",
-    "title": "Tools Overview",
+    "objectID": "tools/06_other_tools.html",
+    "href": "tools/06_other_tools.html",
+    "title": "Other Tools: think, serve, and native",
     "section": "",
-    "text": "Tools give your LLM the ability to interact with the outside world. They are a powerful feature that transforms the LLM from a passive text generator into an active agent that can run code, query databases, search for information, and perform a wide range of actions on your behalf.\nIn Lectic, you configure tools in the YAML frontmatter of your conversation. This grants the active interlocutor the ability to use them.\n\n\nWhen you grant an LLM a tool, the conversation follows a four-step process:\n\nUser Prompt: You ask a question or give an instruction that requires the use of a tool (e.g., “What is the current date?”).\nLLM Tool Call: The LLM, instead of answering directly, outputs a special block of text indicating which tool it wants to use and with what arguments.\nLectic Executes: Lectic detects this tool-use block, stops the LLM, executes the specified tool, and captures its output.\nLLM Final Response: Lectic sends the tool’s output back to the LLM, which then uses that information to formulate its final answer to you.\n\n\n\nA tool call is represented by a block starting with {tool_name} and ending with {/tool_name}. The content inside the block serves as the arguments for the tool.\n\n\n\nLet’s say you’ve configured a simple exec tool named shell:\n---\ninterlocutor:\n  name: Assistant\n  tools:\n    - exec: date\n      name: get_date\n---\n\nWhat's the date today?\nWhen you run lectic, the LLM will first make the tool call, which Lectic will capture and display in the file:\n...\nWhat's the date today?\n\n:::Assistant\n\nI will use the `get_date` tool to find out.\n\n{get_date}{/get_date}\n\nOkay, the tool returned: `Fri Mar 15 14:35:18 PDT 2024`.\n\nToday's date is March 15th, 2024.\n\n:::\n\n\n\n\nTool calls are executed in parallel. If an LLM decides to use multiple tools in a single turn, Lectic will run all of them concurrently, rather than one after another. This significantly speeds up complex tasks that involve gathering information from multiple sources.\n\n\n\nLectic supports a variety of tool types, each with its own capabilities and configuration. Click on any tool type below for detailed documentation.\n\nExec: Execute shell commands and scripts.\nSQLite: Query SQLite databases.\nMCP: Connect to Model Context Protocol (MCP) servers.\nAgent: Allow one interlocutor to call another as a tool.\nOther Tools: Includes think, serve, and native provider tools.",
+    "text": "This document covers three distinct types of tools: a cognitive tool for the LLM, a simple web server, and a way to access the native, built-in capabilities of the model provider.\n\n\nThe think tool gives the LLM a private “scratch space” to pause and reason about a prompt before formulating its final response. This can improve the quality and thoughtfulness of the output, especially for complex or ambiguous questions.\nThis technique was inspired by a post on Anthropic’s engineering blog. The output of the think tool is hidden from the user by default in the editor plugins, though it is still present in the .lec file.\n\n\ntools:\n  - think_about: &gt;\n      What the user is really asking for, and what hidden assumptions they\n      might have.\n    name: scratchpad # Optional name\n\n\n\nWhat's the best city in the world?\n\n:::Assistant\n&lt;tool-call with=\"scratchpad\"&gt;\n  &lt;arguments&gt;\n    &lt;thought&gt;\"Best\" is subjective. The user could mean best for travel, for\n    food, for work, etc. I need to ask for clarification.&lt;/thought&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;thought complete.&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nThat depends on what you're looking for! Are you interested in the best city\nfor tourism, career opportunities, or something else?\n:::\n\n\n\n\nThe serve tool allows the LLM to spin up a simple, single-use web server to present content, such as an HTML file or a small web application it has generated.\nWhen the LLM uses this tool, Lectic starts a server on the specified port. It will then attempt to open the page in your default web browser. The server shuts down automatically after the first request is served. While the page is loading, Lectic waits for the first request—so the conversation resumes once your browser has loaded the page.\n\n\ntools:\n  - serve_on_port: 8080\n    name: web_server # Optional name\n\n\n\nGenerate a simple tic-tac-toe game in HTML and serve it to me.\n\n:::Assistant\n&lt;tool-call with=\"web_server\"&gt;\n  &lt;arguments&gt;\n    &lt;pageHtml&gt;\n&lt;!DOCTYPE html&gt;\n&lt;html&gt;\n&lt;head&gt;\n  &lt;title&gt;Tic-Tac-Toe&lt;/title&gt;\n  ... (rest of the HTML/JS/CSS) ...\n&lt;/head&gt;\n&lt;body&gt;\n  ...\n&lt;/body&gt;\n&lt;/html&gt;\n    &lt;/pageHtml&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;page is now available&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nI have generated the game for you. It should be opening in your browser at\nhttp://localhost:8080.\n:::\n\n\n\n\nNative tools allow you to access functionality that is built directly into the LLM provider’s backend, such as web search or a code interpreter environment for data analysis.\nSupport for native tools varies by provider.\n\n\nYou enable native tools by specifying their type.\ntools:\n  - native: search # Enable the provider's built-in web search.\n  - native: code   # Enable the provider's built-in code interpreter.\n\n\n\n\nGemini: Supports both search and code. Note that the Gemini API has a limitation where you can only use one native tool at a time, and it cannot be combined with other (non-native) tools.\nAnthropic: Supports search only.\nOpenAI: Supports both search and code via the openai provider (not the legacy openai/chat provider).",
     "crumbs": [
       "Tools",
-      "Overview"
+      "Other Tools"
     ]
   },
   {
-    "objectID": "tools/01_overview.html#the-tool-use-workflow",
-    "href": "tools/01_overview.html#the-tool-use-workflow",
-    "title": "Tools Overview",
+    "objectID": "tools/06_other_tools.html#the-think-tool",
+    "href": "tools/06_other_tools.html#the-think-tool",
+    "title": "Other Tools: think, serve, and native",
     "section": "",
-    "text": "When you grant an LLM a tool, the conversation follows a four-step process:\n\nUser Prompt: You ask a question or give an instruction that requires the use of a tool (e.g., “What is the current date?”).\nLLM Tool Call: The LLM, instead of answering directly, outputs a special block of text indicating which tool it wants to use and with what arguments.\nLectic Executes: Lectic detects this tool-use block, stops the LLM, executes the specified tool, and captures its output.\nLLM Final Response: Lectic sends the tool’s output back to the LLM, which then uses that information to formulate its final answer to you.\n\n\n\nA tool call is represented by a block starting with {tool_name} and ending with {/tool_name}. The content inside the block serves as the arguments for the tool.\n\n\n\nLet’s say you’ve configured a simple exec tool named shell:\n---\ninterlocutor:\n  name: Assistant\n  tools:\n    - exec: date\n      name: get_date\n---\n\nWhat's the date today?\nWhen you run lectic, the LLM will first make the tool call, which Lectic will capture and display in the file:\n...\nWhat's the date today?\n\n:::Assistant\n\nI will use the `get_date` tool to find out.\n\n{get_date}{/get_date}\n\nOkay, the tool returned: `Fri Mar 15 14:35:18 PDT 2024`.\n\nToday's date is March 15th, 2024.\n\n:::",
+    "text": "The think tool gives the LLM a private “scratch space” to pause and reason about a prompt before formulating its final response. This can improve the quality and thoughtfulness of the output, especially for complex or ambiguous questions.\nThis technique was inspired by a post on Anthropic’s engineering blog. The output of the think tool is hidden from the user by default in the editor plugins, though it is still present in the .lec file.\n\n\ntools:\n  - think_about: &gt;\n      What the user is really asking for, and what hidden assumptions they\n      might have.\n    name: scratchpad # Optional name\n\n\n\nWhat's the best city in the world?\n\n:::Assistant\n&lt;tool-call with=\"scratchpad\"&gt;\n  &lt;arguments&gt;\n    &lt;thought&gt;\"Best\" is subjective. The user could mean best for travel, for\n    food, for work, etc. I need to ask for clarification.&lt;/thought&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;thought complete.&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nThat depends on what you're looking for! Are you interested in the best city\nfor tourism, career opportunities, or something else?\n:::",
     "crumbs": [
       "Tools",
-      "Overview"
+      "Other Tools"
     ]
   },
   {
-    "objectID": "tools/01_overview.html#parallel-tool-execution",
-    "href": "tools/01_overview.html#parallel-tool-execution",
-    "title": "Tools Overview",
+    "objectID": "tools/06_other_tools.html#the-serve-tool",
+    "href": "tools/06_other_tools.html#the-serve-tool",
+    "title": "Other Tools: think, serve, and native",
     "section": "",
-    "text": "Tool calls are executed in parallel. If an LLM decides to use multiple tools in a single turn, Lectic will run all of them concurrently, rather than one after another. This significantly speeds up complex tasks that involve gathering information from multiple sources.",
+    "text": "The serve tool allows the LLM to spin up a simple, single-use web server to present content, such as an HTML file or a small web application it has generated.\nWhen the LLM uses this tool, Lectic starts a server on the specified port. It will then attempt to open the page in your default web browser. The server shuts down automatically after the first request is served. While the page is loading, Lectic waits for the first request—so the conversation resumes once your browser has loaded the page.\n\n\ntools:\n  - serve_on_port: 8080\n    name: web_server # Optional name\n\n\n\nGenerate a simple tic-tac-toe game in HTML and serve it to me.\n\n:::Assistant\n&lt;tool-call with=\"web_server\"&gt;\n  &lt;arguments&gt;\n    &lt;pageHtml&gt;\n&lt;!DOCTYPE html&gt;\n&lt;html&gt;\n&lt;head&gt;\n  &lt;title&gt;Tic-Tac-Toe&lt;/title&gt;\n  ... (rest of the HTML/JS/CSS) ...\n&lt;/head&gt;\n&lt;body&gt;\n  ...\n&lt;/body&gt;\n&lt;/html&gt;\n    &lt;/pageHtml&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;page is now available&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nI have generated the game for you. It should be opening in your browser at\nhttp://localhost:8080.\n:::",
     "crumbs": [
       "Tools",
-      "Overview"
+      "Other Tools"
     ]
   },
   {
-    "objectID": "tools/01_overview.html#available-tool-types",
-    "href": "tools/01_overview.html#available-tool-types",
-    "title": "Tools Overview",
+    "objectID": "tools/06_other_tools.html#native-tools",
+    "href": "tools/06_other_tools.html#native-tools",
+    "title": "Other Tools: think, serve, and native",
     "section": "",
-    "text": "Lectic supports a variety of tool types, each with its own capabilities and configuration. Click on any tool type below for detailed documentation.\n\nExec: Execute shell commands and scripts.\nSQLite: Query SQLite databases.\nMCP: Connect to Model Context Protocol (MCP) servers.\nAgent: Allow one interlocutor to call another as a tool.\nOther Tools: Includes think, serve, and native provider tools.",
+    "text": "Native tools allow you to access functionality that is built directly into the LLM provider’s backend, such as web search or a code interpreter environment for data analysis.\nSupport for native tools varies by provider.\n\n\nYou enable native tools by specifying their type.\ntools:\n  - native: search # Enable the provider's built-in web search.\n  - native: code   # Enable the provider's built-in code interpreter.\n\n\n\n\nGemini: Supports both search and code. Note that the Gemini API has a limitation where you can only use one native tool at a time, and it cannot be combined with other (non-native) tools.\nAnthropic: Supports search only.\nOpenAI: Supports both search and code via the openai provider (not the legacy openai/chat provider).",
     "crumbs": [
       "Tools",
-      "Overview"
+      "Other Tools"
     ]
   },
   {
-    "objectID": "tools/04_mcp.html",
-    "href": "tools/04_mcp.html",
-    "title": "Tools: Model Context Protocol (mcp)",
+    "objectID": "tools/02_exec.html",
+    "href": "tools/02_exec.html",
+    "title": "Tools: Command Execution (exec)",
     "section": "",
-    "text": "Lectic can act as a client for servers that implement the Model Context Protocol (MCP). This allows you to connect your LLM to a vast and growing ecosystem of pre-built tools and services.\nYou can find lists of available servers here: - Official MCP Server List - Awesome MCP Servers\n\n\nNote: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can connect to an MCP server in three ways: by running a local server as a command, or by connecting to a remote server over WebSockets or SSE.\n\n\nThis is the most common way to run an MCP server. You provide the command to start the server, and Lectic manages its lifecycle.\ntools:\n  - name: brave\n    mcp_command: npx\n    args:\n      - \"-y\"\n      - \"@modelcontextprotocol/server-brave-search\"\n    env:\n      BRAVE_API_KEY: \"your_key_here\"\n    roots:\n      - /home/user/research-docs/\n\n\n\nYou can also connect to running MCP servers.\n\nmcp_ws: The URL for a remote server using a WebSocket connection.\nmcp_sse: The URL for a remote server using Server-Sent Events (SSE).\n\ntools:\n  - name: remote_search\n    mcp_ws: wss://some-mcp-server.com/ws\n\n\n\nIf you give an MCP tool a name (e.g., name: brave), you can access any resources it provides using a special content reference syntax. The scheme is the server’s name plus the resource type.\nFor example, to access a repo resource from a server named github: [README](github+repo://gleachkr/Lectic/contents/README.md)\nThe LLM is also given a tool to list the available resources from the server.\n\n\n\n\n\n\n\n\n\n\nWarning\n\n\n\nWhile powerful, the MCP protocol carries significant security risks. Treat MCP integration as a high-trust capability. Never connect to untrusted servers; a malicious server could exfiltrate data or perform unwanted actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved LLM, not attacks from a hostile server.\n\n\n\n\nJust like with the exec tool, you can specify a confirm script. This script will be executed before every tool call dispatched to the MCP server, giving you a chance to approve or deny the action.\n\n\n\nFor local mcp_command tools, you can specify a sandbox script. This script will be used to launch the MCP server process in a controlled and isolated environment, limiting its access to your system.\nSee the documentation for the Exec Tool for more details on how confirmation and sandboxing scripts work.",
+    "text": "The exec tool is one of the most versatile tools in Lectic. It allows the LLM to execute shell commands and scripts, enabling it to interact directly with your system, run code, and interface with other command‑line applications.\n\n\nNote: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can configure an exec tool by providing the command to be executed. You can also provide a custom name for the LLM to use, a usage guide, and several optional parameters for security and execution control.\n\n\nThis configuration allows the LLM to run the python3 interpreter.\ntools:\n  - exec: python3\n    name: python\n    usage: &gt;\n      Use this to execute Python code. The code to be executed should be\n      written inside the tool call block.\n\n\n\nFor more complex or specialized tasks, you can provide a multi‑line script directly in the YAML. The first line of the script must be a shebang (e.g., #!/bin/bash) to specify the interpreter.\ntools:\n  - name: line_counter\n    usage: \"Counts the number of lines in a file. Takes one argument: the file path.\"\n    exec: |\n      #!/usr/bin/env bash\n      # A simple script to count the lines in a file\n      wc -l \"$1\"\n\n\n\n\nexec: (Required) The command or inline script to execute.\nname: An optional name for the tool. If not provided, it defaults to the base name of the command.\nusage: A string, file:, or exec: URI providing instructions for the LLM on how to use the tool.\nsandbox: A path to a sandboxing script. See safety section below.\nconfirm: A path to a confirmation script. See safety section below.\ntimeoutSeconds: The number of seconds to wait before timing out the command.\nenv: An object of environment variables to set for the command’s execution environment.\nschema: A mapping of parameter name → description. When provided, the tool accepts named string parameters instead of a positional argument array. See the section below for details.\n\n\n\n\n\n\nNo shell is involved. The command (or script interpreter) is executed directly, so shell features like globbing or command substitution will not work.\nWhen exec is a single line, environment variables in the command are expanded before execution using values from the tool’s env plus standard Lectic variables.\nWhen exec is multi‑line, it must start with a shebang and will be written to a temporary file and executed with that interpreter.\n\n\n\n\nIf you define schema, the tool takes named parameters. Each parameter must be a string, and Lectic will expose these values to the subprocess via environment variables with the same names.\nThis applies to both commands and scripts:\n\nFor scripts, parameters are available as $PARAM_NAME inside the script.\nFor commands, parameters are available in the subprocess environment (e.g., $PARAM_NAME for Unix‑like tools).\n\nExample:\n# YAML configuration\ntools:\n  - name: greeter\n    exec: |\n      #!/usr/bin/env bash\n      echo \"Hello, ${NAME}! Today is ${DAY}.\"\n    schema:\n      NAME: The name to greet.\n      DAY: The day string to include.\nWhen the LLM calls this tool with parameters { NAME: \"Ada\", DAY: \"Friday\" }, Lectic will run the script with NAME=Ada and DAY=Friday in the environment.\nIf you do not provide schema, the tool instead accepts a single parameter named arguments, which is an array of strings. These are passed as positional arguments to the command or script.\n\n\n\nWhen Lectic runs your command or script, it sets a few helpful environment variables. In particular, LECTIC_INTERLOCUTOR is set to the name of the interlocutor who invoked the tool. This makes it easy to maintain per‑interlocutor state (for example, separate scratch directories or memory stores) in your scripts or sandbox wrappers.\n\n\n\n\n\n\n\n\n\nWarning\n\n\n\nGranting an LLM the ability to execute commands can be dangerous. Treat every exec tool as a capability you are delegating. Combine human-in-the- loop confirmation and sandboxing to minimize risk. Do not expose sensitive files or networks unless you fully trust the tool and its usage.\n\n\nLectic provides two primary mechanisms to enhance the safety of exec tools: confirmation scripts and sandboxing.\n\n\nIf a confirm script is provided, Lectic will execute it before every call to the tool. The script receives two arguments: the tool’s name and a JSON string of the call arguments. If the confirmation script exits non‑zero, the call is cancelled.\nAn example script that uses a graphical dialog box is provided in extra/confirm/zenity-confirm.sh.\n\n\n\nWhen a sandbox script is configured, the LLM’s command is not executed directly. Instead, the sandbox script is executed first, and the command and its arguments are passed as arguments to it. The sandbox script is then responsible for creating a controlled environment to run the command.\nFor example, extra/sandbox/bwrap-sandbox.sh uses the Bubblewrap utility to create a minimal, isolated environment with a temporary home directory.",
     "crumbs": [
       "Tools",
-      "MCP"
+      "Exec"
     ]
   },
   {
-    "objectID": "tools/04_mcp.html#configuration",
-    "href": "tools/04_mcp.html#configuration",
-    "title": "Tools: Model Context Protocol (mcp)",
+    "objectID": "tools/02_exec.html#configuration",
+    "href": "tools/02_exec.html#configuration",
+    "title": "Tools: Command Execution (exec)",
     "section": "",
-    "text": "Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can connect to an MCP server in three ways: by running a local server as a command, or by connecting to a remote server over WebSockets or SSE.\n\n\nThis is the most common way to run an MCP server. You provide the command to start the server, and Lectic manages its lifecycle.\ntools:\n  - name: brave\n    mcp_command: npx\n    args:\n      - \"-y\"\n      - \"@modelcontextprotocol/server-brave-search\"\n    env:\n      BRAVE_API_KEY: \"your_key_here\"\n    roots:\n      - /home/user/research-docs/\n\n\n\nYou can also connect to running MCP servers.\n\nmcp_ws: The URL for a remote server using a WebSocket connection.\nmcp_sse: The URL for a remote server using Server-Sent Events (SSE).\n\ntools:\n  - name: remote_search\n    mcp_ws: wss://some-mcp-server.com/ws\n\n\n\nIf you give an MCP tool a name (e.g., name: brave), you can access any resources it provides using a special content reference syntax. The scheme is the server’s name plus the resource type.\nFor example, to access a repo resource from a server named github: [README](github+repo://gleachkr/Lectic/contents/README.md)\nThe LLM is also given a tool to list the available resources from the server.",
+    "text": "Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can configure an exec tool by providing the command to be executed. You can also provide a custom name for the LLM to use, a usage guide, and several optional parameters for security and execution control.\n\n\nThis configuration allows the LLM to run the python3 interpreter.\ntools:\n  - exec: python3\n    name: python\n    usage: &gt;\n      Use this to execute Python code. The code to be executed should be\n      written inside the tool call block.\n\n\n\nFor more complex or specialized tasks, you can provide a multi‑line script directly in the YAML. The first line of the script must be a shebang (e.g., #!/bin/bash) to specify the interpreter.\ntools:\n  - name: line_counter\n    usage: \"Counts the number of lines in a file. Takes one argument: the file path.\"\n    exec: |\n      #!/usr/bin/env bash\n      # A simple script to count the lines in a file\n      wc -l \"$1\"\n\n\n\n\nexec: (Required) The command or inline script to execute.\nname: An optional name for the tool. If not provided, it defaults to the base name of the command.\nusage: A string, file:, or exec: URI providing instructions for the LLM on how to use the tool.\nsandbox: A path to a sandboxing script. See safety section below.\nconfirm: A path to a confirmation script. See safety section below.\ntimeoutSeconds: The number of seconds to wait before timing out the command.\nenv: An object of environment variables to set for the command’s execution environment.\nschema: A mapping of parameter name → description. When provided, the tool accepts named string parameters instead of a positional argument array. See the section below for details.",
     "crumbs": [
       "Tools",
-      "MCP"
+      "Exec"
     ]
   },
   {
-    "objectID": "tools/04_mcp.html#safety-and-trust",
-    "href": "tools/04_mcp.html#safety-and-trust",
-    "title": "Tools: Model Context Protocol (mcp)",
+    "objectID": "tools/02_exec.html#command-execution-semantics",
+    "href": "tools/02_exec.html#command-execution-semantics",
+    "title": "Tools: Command Execution (exec)",
     "section": "",
-    "text": "Warning\n\n\n\nWhile powerful, the MCP protocol carries significant security risks. Treat MCP integration as a high-trust capability. Never connect to untrusted servers; a malicious server could exfiltrate data or perform unwanted actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved LLM, not attacks from a hostile server.\n\n\n\n\nJust like with the exec tool, you can specify a confirm script. This script will be executed before every tool call dispatched to the MCP server, giving you a chance to approve or deny the action.\n\n\n\nFor local mcp_command tools, you can specify a sandbox script. This script will be used to launch the MCP server process in a controlled and isolated environment, limiting its access to your system.\nSee the documentation for the Exec Tool for more details on how confirmation and sandboxing scripts work.",
+    "text": "No shell is involved. The command (or script interpreter) is executed directly, so shell features like globbing or command substitution will not work.\nWhen exec is a single line, environment variables in the command are expanded before execution using values from the tool’s env plus standard Lectic variables.\nWhen exec is multi‑line, it must start with a shebang and will be written to a temporary file and executed with that interpreter.",
     "crumbs": [
       "Tools",
-      "MCP"
+      "Exec"
+    ]
+  },
+  {
+    "objectID": "tools/02_exec.html#supplying-parameters-with-schema",
+    "href": "tools/02_exec.html#supplying-parameters-with-schema",
+    "title": "Tools: Command Execution (exec)",
+    "section": "",
+    "text": "If you define schema, the tool takes named parameters. Each parameter must be a string, and Lectic will expose these values to the subprocess via environment variables with the same names.\nThis applies to both commands and scripts:\n\nFor scripts, parameters are available as $PARAM_NAME inside the script.\nFor commands, parameters are available in the subprocess environment (e.g., $PARAM_NAME for Unix‑like tools).\n\nExample:\n# YAML configuration\ntools:\n  - name: greeter\n    exec: |\n      #!/usr/bin/env bash\n      echo \"Hello, ${NAME}! Today is ${DAY}.\"\n    schema:\n      NAME: The name to greet.\n      DAY: The day string to include.\nWhen the LLM calls this tool with parameters { NAME: \"Ada\", DAY: \"Friday\" }, Lectic will run the script with NAME=Ada and DAY=Friday in the environment.\nIf you do not provide schema, the tool instead accepts a single parameter named arguments, which is an array of strings. These are passed as positional arguments to the command or script.",
+    "crumbs": [
+      "Tools",
+      "Exec"
+    ]
+  },
+  {
+    "objectID": "tools/02_exec.html#execution-environment",
+    "href": "tools/02_exec.html#execution-environment",
+    "title": "Tools: Command Execution (exec)",
+    "section": "",
+    "text": "When Lectic runs your command or script, it sets a few helpful environment variables. In particular, LECTIC_INTERLOCUTOR is set to the name of the interlocutor who invoked the tool. This makes it easy to maintain per‑interlocutor state (for example, separate scratch directories or memory stores) in your scripts or sandbox wrappers.",
+    "crumbs": [
+      "Tools",
+      "Exec"
+    ]
+  },
+  {
+    "objectID": "tools/02_exec.html#safety-and-trust",
+    "href": "tools/02_exec.html#safety-and-trust",
+    "title": "Tools: Command Execution (exec)",
+    "section": "",
+    "text": "Warning\n\n\n\nGranting an LLM the ability to execute commands can be dangerous. Treat every exec tool as a capability you are delegating. Combine human-in-the- loop confirmation and sandboxing to minimize risk. Do not expose sensitive files or networks unless you fully trust the tool and its usage.\n\n\nLectic provides two primary mechanisms to enhance the safety of exec tools: confirmation scripts and sandboxing.\n\n\nIf a confirm script is provided, Lectic will execute it before every call to the tool. The script receives two arguments: the tool’s name and a JSON string of the call arguments. If the confirmation script exits non‑zero, the call is cancelled.\nAn example script that uses a graphical dialog box is provided in extra/confirm/zenity-confirm.sh.\n\n\n\nWhen a sandbox script is configured, the LLM’s command is not executed directly. Instead, the sandbox script is executed first, and the command and its arguments are passed as arguments to it. The sandbox script is then responsible for creating a controlled environment to run the command.\nFor example, extra/sandbox/bwrap-sandbox.sh uses the Bubblewrap utility to create a minimal, isolated environment with a temporary home directory.",
+    "crumbs": [
+      "Tools",
+      "Exec"
     ]
   },
   {
@@ -362,6 +322,142 @@
     ]
   },
   {
+    "objectID": "context_management/01_external_content.html",
+    "href": "context_management/01_external_content.html",
+    "title": "Managing Context: External Content",
+    "section": "",
+    "text": "A key feature of Lectic is its ability to pull external information into the conversation, providing the LLM with the context it needs to answer questions, analyze data, or perform tasks.\nThis is done in two primary ways: by referencing files and URIs using standard Markdown links, and by executing shell commands with the :cmd directive.\n\n\nYou can include local or remote content using the standard Markdown link syntax, [Title](URI). Lectic will fetch the content from the URI and include it in the context for the LLM.\nPlease summarize this local document: [Notes](./notes.md)\n\nAnalyze the data in this S3 bucket: [Dataset](s3://my_bucket/dataset.csv)\n\nWhat does this README say?\n[Repo](github+repo://gleachkr/Lectic/contents/README.md)\n\n\n\nText: Plain text files are included directly.\nImages: PNG, JPEG, GIF, and WebP images are supported.\nPDFs: Content from PDF files can be extracted (requires a provider that supports PDF ingestion, such as Anthropic, Gemini, or OpenAI).\nAudio: Gemini and OpenAI support audio inputs. For OpenAI, use provider: openai/chat with an audio‑capable model; supported formats include MP3, MPEG, and WAV. Gemini supports a broader set of audio types.\nVideo: Gemini supports video understanding. See supported formats in Google’s docs: https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats\n\n\n\n\nLectic supports several URI schemes for referencing content:\n\nLocal Files: Simple relative paths like ./src/main.rs or absolute file:///path/to/file.txt URIs.\nRemote Content: http:// and https:// for web pages and other online resources.\nAmazon S3: s3:// for referencing objects in S3 buckets. This requires AWS credentials to be configured in your environment.\nMCP Resources: You can reference resources provided by an MCP server using a custom scheme, like github+repo://....\n\nA few convenience rules apply:\n\nFor local file references using file://, use absolute paths. A portable way to build these is with $PWD (e.g., file://$PWD/papers/some.pdf).\nEnvironment variables in URIs use the $VAR form; ${VAR} is not supported. Expansion happens before any globbing.\n\n\n\n\nUsing full file:// URIs for local content enables additional capabilities.\n\n\nYou can use glob patterns to include multiple files at once. This is useful for providing the entire source code of a project as context.\n[All source code](./src/**/*.ts)\n[All images in this directory](./images/*.jpg)\nLectic uses Bun’s Glob API for matching.\n\n\n\nLectic supports environment variable expansion in URIs. This helps in creating portable .lec files that don’t rely on hardcoded absolute paths.\n[My dataset](file://$DATA_ROOT/my_project/data.csv)\n[Log file](file://$PWD/logs/latest.log)\n\n\n\nWhen referencing a PDF, you can point to a specific page or a range of pages by adding a fragment to the URI. Page numbering starts at 1.\n\nSingle Page: [See page 5](file.pdf#page=5)\nPage Range: [See Chapter 2](book.pdf#pages=20-35)\n\nIf both page and pages are supplied, pages takes precedence. If a page or range is malformed or out of bounds, Lectic will surface an error that is visible to the LLM.\n\n\n\n\n\nFor dynamic content, you can use the :cmd[...] directive to execute a shell command and insert its standard output directly into your message.\nLectic executes the command using the fast and modern Bun shell.\n\n\nThis is a powerful way to provide the LLM with real-time information.\n\nSystem Information: What can you tell me about my system? :cmd[uname -a]\nProject State: Please write a commit message for these changes: :cmd[git diff --staged]\nData Analysis: Based on this data, what's the average? :cmd[cat data.csv | awk '...']\n\nThe output of the command is seamlessly included in the user message that is sent to the LLM.",
+    "crumbs": [
+      "Context Management",
+      "External Content"
+    ]
+  },
+  {
+    "objectID": "context_management/01_external_content.html#content-references-via-markdown-links",
+    "href": "context_management/01_external_content.html#content-references-via-markdown-links",
+    "title": "Managing Context: External Content",
+    "section": "",
+    "text": "You can include local or remote content using the standard Markdown link syntax, [Title](URI). Lectic will fetch the content from the URI and include it in the context for the LLM.\nPlease summarize this local document: [Notes](./notes.md)\n\nAnalyze the data in this S3 bucket: [Dataset](s3://my_bucket/dataset.csv)\n\nWhat does this README say?\n[Repo](github+repo://gleachkr/Lectic/contents/README.md)\n\n\n\nText: Plain text files are included directly.\nImages: PNG, JPEG, GIF, and WebP images are supported.\nPDFs: Content from PDF files can be extracted (requires a provider that supports PDF ingestion, such as Anthropic, Gemini, or OpenAI).\nAudio: Gemini and OpenAI support audio inputs. For OpenAI, use provider: openai/chat with an audio‑capable model; supported formats include MP3, MPEG, and WAV. Gemini supports a broader set of audio types.\nVideo: Gemini supports video understanding. See supported formats in Google’s docs: https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats\n\n\n\n\nLectic supports several URI schemes for referencing content:\n\nLocal Files: Simple relative paths like ./src/main.rs or absolute file:///path/to/file.txt URIs.\nRemote Content: http:// and https:// for web pages and other online resources.\nAmazon S3: s3:// for referencing objects in S3 buckets. This requires AWS credentials to be configured in your environment.\nMCP Resources: You can reference resources provided by an MCP server using a custom scheme, like github+repo://....\n\nA few convenience rules apply:\n\nFor local file references using file://, use absolute paths. A portable way to build these is with $PWD (e.g., file://$PWD/papers/some.pdf).\nEnvironment variables in URIs use the $VAR form; ${VAR} is not supported. Expansion happens before any globbing.\n\n\n\n\nUsing full file:// URIs for local content enables additional capabilities.\n\n\nYou can use glob patterns to include multiple files at once. This is useful for providing the entire source code of a project as context.\n[All source code](./src/**/*.ts)\n[All images in this directory](./images/*.jpg)\nLectic uses Bun’s Glob API for matching.\n\n\n\nLectic supports environment variable expansion in URIs. This helps in creating portable .lec files that don’t rely on hardcoded absolute paths.\n[My dataset](file://$DATA_ROOT/my_project/data.csv)\n[Log file](file://$PWD/logs/latest.log)\n\n\n\nWhen referencing a PDF, you can point to a specific page or a range of pages by adding a fragment to the URI. Page numbering starts at 1.\n\nSingle Page: [See page 5](file.pdf#page=5)\nPage Range: [See Chapter 2](book.pdf#pages=20-35)\n\nIf both page and pages are supplied, pages takes precedence. If a page or range is malformed or out of bounds, Lectic will surface an error that is visible to the LLM.",
+    "crumbs": [
+      "Context Management",
+      "External Content"
+    ]
+  },
+  {
+    "objectID": "context_management/01_external_content.html#command-output-via-cmd-directive",
+    "href": "context_management/01_external_content.html#command-output-via-cmd-directive",
+    "title": "Managing Context: External Content",
+    "section": "",
+    "text": "For dynamic content, you can use the :cmd[...] directive to execute a shell command and insert its standard output directly into your message.\nLectic executes the command using the fast and modern Bun shell.\n\n\nThis is a powerful way to provide the LLM with real-time information.\n\nSystem Information: What can you tell me about my system? :cmd[uname -a]\nProject State: Please write a commit message for these changes: :cmd[git diff --staged]\nData Analysis: Based on this data, what's the average? :cmd[cat data.csv | awk '...']\n\nThe output of the command is seamlessly included in the user message that is sent to the LLM.",
+    "crumbs": [
+      "Context Management",
+      "External Content"
+    ]
+  },
+  {
+    "objectID": "context_management/02_conversation_control.html",
+    "href": "context_management/02_conversation_control.html",
+    "title": "Managing Context: Conversation Control",
+    "section": "",
+    "text": "Beyond simply adding external data, Lectic provides directives that allow you to actively manage the flow of a conversation. You can switch between different LLM interlocutors and control the context window that is sent to the model.\n\n\nLectic allows you to define multiple interlocutors in the YAML frontmatter. This enables you to bring different “personalities” or models with different capabilities into a single conversation.\nTo do this, use the interlocutors key (instead of interlocutor) and provide a list of configurations.\n---\ninterlocutors:\n  - name: Boggle\n    provider: anthropic\n    model: claude-3-sonnet-20240229\n    prompt: You are an expert on personal finance.\n  - name: Oggle\n    provider: gemini\n    prompt: You are very skeptical of conventional financial advice.\n---\nOnce multiple interlocutors are defined, Lectic will continue with whichever one was last active. To direct your message to a specific interlocutor, you use the :ask and :aside directives.\n\n\nThe :ask[InterlocutorName] directive changes the active speaker. All subsequent conversation turns will be handled by this new interlocutor until another :ask directive is used.\n:ask[Boggle] What is the best way to save for retirement?\n\n:::Boggle\nThe most common advice is to invest in a diversified portfolio of low-cost\nindex funds.\n:::\n\n:ask[Oggle] What's your take on that?\n\n:::Oggle\n\"Common advice\" is often just dogma. That strategy leaves you completely\nexposed to market downturns.\n:::\n\n\n\nThe :aside[InterlocutorName] directive is for a one-off question or comment. It directs the current message to the specified interlocutor, but the conversation then reverts back to the previously active speaker for the next user message.\nThis is useful for quick interjections or for getting a second opinion without derailing the main flow of the conversation.\n\n\n\n\nAs a conversation grows longer, the context sent to the LLM on each turn also grows. This can increase costs and, in some cases, lead to the model getting “stuck” on earlier parts of the dialogue.\nThe :reset[] directive gives you manual control over the context window. When Lectic processes a message containing :reset[], it instructs the LLM to ignore all preceding conversation history. The context for that turn effectively begins with the message containing the directive.\n...a very long conversation happens here...\n\nOkay, let's start fresh. I'm going to :reset[] your context now. Please\nsummarize our previous discussion and then we can move on to the next topic.\n\n:::Assistant\nUnderstood. I have cleared my context.\n\nPreviously, we discussed the history of the Roman Empire, focusing on the\nreign of Augustus and the establishment of the Pax Romana. We concluded that\neconomic stability was a key factor in the era's success.\n\nI am ready for the next topic.\n:::\n\nExcellent. Now, how did this conversation begin?\n\n:::Assistant\nThis conversation began with you instructing me to reset my context and provide\na summary of our previous discussion about the Roman Empire.\n:::\nThis is a powerful tool for managing long-running conversations, allowing you to “compact” the context manually or with the help of the LLM.",
+    "crumbs": [
+      "Context Management",
+      "Conversation Control"
+    ]
+  },
+  {
+    "objectID": "context_management/02_conversation_control.html#multiparty-conversations-with-ask-and-aside",
+    "href": "context_management/02_conversation_control.html#multiparty-conversations-with-ask-and-aside",
+    "title": "Managing Context: Conversation Control",
+    "section": "",
+    "text": "Lectic allows you to define multiple interlocutors in the YAML frontmatter. This enables you to bring different “personalities” or models with different capabilities into a single conversation.\nTo do this, use the interlocutors key (instead of interlocutor) and provide a list of configurations.\n---\ninterlocutors:\n  - name: Boggle\n    provider: anthropic\n    model: claude-3-sonnet-20240229\n    prompt: You are an expert on personal finance.\n  - name: Oggle\n    provider: gemini\n    prompt: You are very skeptical of conventional financial advice.\n---\nOnce multiple interlocutors are defined, Lectic will continue with whichever one was last active. To direct your message to a specific interlocutor, you use the :ask and :aside directives.\n\n\nThe :ask[InterlocutorName] directive changes the active speaker. All subsequent conversation turns will be handled by this new interlocutor until another :ask directive is used.\n:ask[Boggle] What is the best way to save for retirement?\n\n:::Boggle\nThe most common advice is to invest in a diversified portfolio of low-cost\nindex funds.\n:::\n\n:ask[Oggle] What's your take on that?\n\n:::Oggle\n\"Common advice\" is often just dogma. That strategy leaves you completely\nexposed to market downturns.\n:::\n\n\n\nThe :aside[InterlocutorName] directive is for a one-off question or comment. It directs the current message to the specified interlocutor, but the conversation then reverts back to the previously active speaker for the next user message.\nThis is useful for quick interjections or for getting a second opinion without derailing the main flow of the conversation.",
+    "crumbs": [
+      "Context Management",
+      "Conversation Control"
+    ]
+  },
+  {
+    "objectID": "context_management/02_conversation_control.html#context-management-with-reset",
+    "href": "context_management/02_conversation_control.html#context-management-with-reset",
+    "title": "Managing Context: Conversation Control",
+    "section": "",
+    "text": "As a conversation grows longer, the context sent to the LLM on each turn also grows. This can increase costs and, in some cases, lead to the model getting “stuck” on earlier parts of the dialogue.\nThe :reset[] directive gives you manual control over the context window. When Lectic processes a message containing :reset[], it instructs the LLM to ignore all preceding conversation history. The context for that turn effectively begins with the message containing the directive.\n...a very long conversation happens here...\n\nOkay, let's start fresh. I'm going to :reset[] your context now. Please\nsummarize our previous discussion and then we can move on to the next topic.\n\n:::Assistant\nUnderstood. I have cleared my context.\n\nPreviously, we discussed the history of the Roman Empire, focusing on the\nreign of Augustus and the establishment of the Pax Romana. We concluded that\neconomic stability was a key factor in the era's success.\n\nI am ready for the next topic.\n:::\n\nExcellent. Now, how did this conversation begin?\n\n:::Assistant\nThis conversation began with you instructing me to reset my context and provide\na summary of our previous discussion about the Roman Empire.\n:::\nThis is a powerful tool for managing long-running conversations, allowing you to “compact” the context manually or with the help of the LLM.",
+    "crumbs": [
+      "Context Management",
+      "Conversation Control"
+    ]
+  },
+  {
+    "objectID": "01_introduction.html",
+    "href": "01_introduction.html",
+    "title": "Introduction to Lectic",
+    "section": "",
+    "text": "Lectic is a conversational LLM client designed for users who are most comfortable working with text files and command-line tools. It treats every conversation as a simple markdown file, a design choice that unlocks a surprising number of benefits.\n\n\nBy making conversations plain text, Lectic ensures they are:\n\nPersistent by Default: Your conversations are saved just like any other document. There is no proprietary database or cloud service.\nVersion Controllable: You can use git and other version control systems to track the history of a conversation, branch off new ideas, and merge different lines of thought.\nSearchable and Portable: Standard tools like grep, sed, and awk can be used to search, analyze, and modify your conversations. They are easy to back up, sync, and move between machines.\nPrivate: Your conversations can stay entirely on your local machine if you are using a local LLM provider like Ollama.\n\n\n\n\nLectic is built to support deep, thoughtful work. It is for anyone who wants to use LLMs as a tool for:\n\nResearch and Analysis: Integrate data, run analyses, and discuss the results with an LLM, all within a single, reproducible document.\nReflection and Self-Study: Keep a running journal of your thoughts and explorations on a topic, using an LLM as a Socratic partner.\nDesign and Engineering: Draft code, review diffs, and document your process in a way that can be committed directly into your project’s repository.\n\nLectic makes it easy to manage conversational context using content references, integrate with external tools (for search, computation, database access, and more), and include multiple LLMs in a single conversation to bring a variety of perspectives to bear on a problem.",
+    "crumbs": [
+      "Introduction"
+    ]
+  },
+  {
+    "objectID": "01_introduction.html#the-power-of-plain-text",
+    "href": "01_introduction.html#the-power-of-plain-text",
+    "title": "Introduction to Lectic",
+    "section": "",
+    "text": "By making conversations plain text, Lectic ensures they are:\n\nPersistent by Default: Your conversations are saved just like any other document. There is no proprietary database or cloud service.\nVersion Controllable: You can use git and other version control systems to track the history of a conversation, branch off new ideas, and merge different lines of thought.\nSearchable and Portable: Standard tools like grep, sed, and awk can be used to search, analyze, and modify your conversations. They are easy to back up, sync, and move between machines.\nPrivate: Your conversations can stay entirely on your local machine if you are using a local LLM provider like Ollama.",
+    "crumbs": [
+      "Introduction"
+    ]
+  },
+  {
+    "objectID": "01_introduction.html#who-is-lectic-for",
+    "href": "01_introduction.html#who-is-lectic-for",
+    "title": "Introduction to Lectic",
+    "section": "",
+    "text": "Lectic is built to support deep, thoughtful work. It is for anyone who wants to use LLMs as a tool for:\n\nResearch and Analysis: Integrate data, run analyses, and discuss the results with an LLM, all within a single, reproducible document.\nReflection and Self-Study: Keep a running journal of your thoughts and explorations on a topic, using an LLM as a Socratic partner.\nDesign and Engineering: Draft code, review diffs, and document your process in a way that can be committed directly into your project’s repository.\n\nLectic makes it easy to manage conversational context using content references, integrate with external tools (for search, computation, database access, and more), and include multiple LLMs in a single conversation to bring a variety of perspectives to bear on a problem.",
+    "crumbs": [
+      "Introduction"
+    ]
+  },
+  {
+    "objectID": "04_configuration.html",
+    "href": "04_configuration.html",
+    "title": "Lectic Configuration",
+    "section": "",
+    "text": "Lectic offers a flexible configuration system that lets you set global defaults, create per-project settings, and make conversation-specific overrides. This is managed through a hierarchy of YAML files.\n\n\nConfiguration settings are merged from multiple sources. Each source in the list below overrides the one before it, with the .lec file’s own header always having the final say.\n\nSystem Config Directory: Lectic first looks for a configuration file at lectic/lectic.yaml within your system’s standard config location (e.g., ~/.config/lectic/lectic.yaml on Linux). This is the ideal place for your global, user-level defaults.\nWorking Directory: Next, it looks for a lectic.yaml file in the current working directory. This is useful for project-level configuration that you might commit to a git repository.\n--Include (-I) Flag: You can specify an arbitrary YAML file to include using the --Include or -I command-line flag. This is handy for temporary or experimental settings. bash     lectic -I project_settings.yaml -f my_convo.lec\nLectic File Header: The YAML frontmatter within your .lec file is the final and highest-precedence source of configuration.\n\n\n\n\nYou can change the default locations for Lectic’s data directories by setting the following environment variables:\n\n$LECTIC_CONFIG: Overrides the base configuration directory path.\n$LECTIC_DATA: Overrides the data directory path.\n$LECTIC_CACHE: Overrides the cache directory path.\n$LECTIC_STATE: Overrides the state directory path.\n\nThese variables, along with $LECTIC_TEMP (a temporary directory) and $LECTIC_FILE (the path to the active .lec file), are automatically passed into the environment of any subprocesses Lectic spawns, such as exec tools. This ensures your custom scripts have access to the same context as the main process.\n\n\n\nWhen combining settings from multiple configuration files, Lectic follows specific rules:\n\nObjects (Mappings): Merged recursively. If a key exists in multiple sources, the value from the source with higher precedence wins.\nArrays (Lists): Merged based on the name attribute of their elements. If two objects in an array share the same name, they are merged. Otherwise, the elements are simply combined. This is especially useful for managing lists of tools and interlocutors.\nOther Values: For simple values (strings, numbers) or if the types don’t match, the value from the highest-precedence source is used without any merging.\n\n\n\nImagine you have a global config in ~/.config/lectic/lectic.yaml:\n# ~/.config/lectic/lectic.yaml\ninterlocutors:\n    - name: opus\n      provider: anthropic\n      model: claude-3-opus-20240229\nAnd a project-specific file, project.yaml:\n# ./project.yaml\ninterlocutor:\n    name: haiku\n    model: claude-3-haiku-20240307\n    tools:\n        - exec: bash\n        - agent: opus\nIf you run lectic -I project.yaml ..., the haiku interlocutor will be configured with the claude-3-haiku model, and it will have access to a bash tool and an agent tool that can call opus. You could then switch interlocutors to opus within the conversation if needed.",
+    "crumbs": [
+      "Configuration"
+    ]
+  },
+  {
+    "objectID": "04_configuration.html#configuration-hierarchy",
+    "href": "04_configuration.html#configuration-hierarchy",
+    "title": "Lectic Configuration",
+    "section": "",
+    "text": "Configuration settings are merged from multiple sources. Each source in the list below overrides the one before it, with the .lec file’s own header always having the final say.\n\nSystem Config Directory: Lectic first looks for a configuration file at lectic/lectic.yaml within your system’s standard config location (e.g., ~/.config/lectic/lectic.yaml on Linux). This is the ideal place for your global, user-level defaults.\nWorking Directory: Next, it looks for a lectic.yaml file in the current working directory. This is useful for project-level configuration that you might commit to a git repository.\n--Include (-I) Flag: You can specify an arbitrary YAML file to include using the --Include or -I command-line flag. This is handy for temporary or experimental settings. bash     lectic -I project_settings.yaml -f my_convo.lec\nLectic File Header: The YAML frontmatter within your .lec file is the final and highest-precedence source of configuration.",
+    "crumbs": [
+      "Configuration"
+    ]
+  },
+  {
+    "objectID": "04_configuration.html#overriding-default-directories",
+    "href": "04_configuration.html#overriding-default-directories",
+    "title": "Lectic Configuration",
+    "section": "",
+    "text": "You can change the default locations for Lectic’s data directories by setting the following environment variables:\n\n$LECTIC_CONFIG: Overrides the base configuration directory path.\n$LECTIC_DATA: Overrides the data directory path.\n$LECTIC_CACHE: Overrides the cache directory path.\n$LECTIC_STATE: Overrides the state directory path.\n\nThese variables, along with $LECTIC_TEMP (a temporary directory) and $LECTIC_FILE (the path to the active .lec file), are automatically passed into the environment of any subprocesses Lectic spawns, such as exec tools. This ensures your custom scripts have access to the same context as the main process.",
+    "crumbs": [
+      "Configuration"
+    ]
+  },
+  {
+    "objectID": "04_configuration.html#merging-logic",
+    "href": "04_configuration.html#merging-logic",
+    "title": "Lectic Configuration",
+    "section": "",
+    "text": "When combining settings from multiple configuration files, Lectic follows specific rules:\n\nObjects (Mappings): Merged recursively. If a key exists in multiple sources, the value from the source with higher precedence wins.\nArrays (Lists): Merged based on the name attribute of their elements. If two objects in an array share the same name, they are merged. Otherwise, the elements are simply combined. This is especially useful for managing lists of tools and interlocutors.\nOther Values: For simple values (strings, numbers) or if the types don’t match, the value from the highest-precedence source is used without any merging.\n\n\n\nImagine you have a global config in ~/.config/lectic/lectic.yaml:\n# ~/.config/lectic/lectic.yaml\ninterlocutors:\n    - name: opus\n      provider: anthropic\n      model: claude-3-opus-20240229\nAnd a project-specific file, project.yaml:\n# ./project.yaml\ninterlocutor:\n    name: haiku\n    model: claude-3-haiku-20240307\n    tools:\n        - exec: bash\n        - agent: opus\nIf you run lectic -I project.yaml ..., the haiku interlocutor will be configured with the claude-3-haiku model, and it will have access to a bash tool and an agent tool that can call opus. You could then switch interlocutors to opus within the conversation if needed.",
+    "crumbs": [
+      "Configuration"
+    ]
+  },
+  {
     "objectID": "reference/02_configuration.html",
     "href": "reference/02_configuration.html",
     "title": "Reference: Configuration Keys",
@@ -417,50 +513,6 @@
     ]
   },
   {
-    "objectID": "tools/06_other_tools.html",
-    "href": "tools/06_other_tools.html",
-    "title": "Other Tools: think, serve, and native",
-    "section": "",
-    "text": "This document covers three distinct types of tools: a cognitive tool for the LLM, a simple web server, and a way to access the native, built-in capabilities of the model provider.\n\n\nThe think tool gives the LLM a private “scratch space” to pause and reason about a prompt before formulating its final response. This can improve the quality and thoughtfulness of the output, especially for complex or ambiguous questions.\nThis technique was inspired by a post on Anthropic’s engineering blog. The output of the think tool is hidden from the user by default in the editor plugins, though it is still present in the .lec file.\n\n\ntools:\n  - think_about: &gt;\n      What the user is really asking for, and what hidden assumptions they\n      might have.\n    name: scratchpad # Optional name\n\n\n\nWhat's the best city in the world?\n\n:::Assistant\n&lt;tool-call with=\"scratchpad\"&gt;\n  &lt;arguments&gt;\n    &lt;thought&gt;\"Best\" is subjective. The user could mean best for travel, for\n    food, for work, etc. I need to ask for clarification.&lt;/thought&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;thought complete.&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nThat depends on what you're looking for! Are you interested in the best city\nfor tourism, career opportunities, or something else?\n:::\n\n\n\n\nThe serve tool allows the LLM to spin up a simple, single-use web server to present content, such as an HTML file or a small web application it has generated.\nWhen the LLM uses this tool, Lectic starts a server on the specified port. It will then attempt to open the page in your default web browser. The server shuts down automatically after the first request is served. While the page is loading, Lectic waits for the first request—so the conversation resumes once your browser has loaded the page.\n\n\ntools:\n  - serve_on_port: 8080\n    name: web_server # Optional name\n\n\n\nGenerate a simple tic-tac-toe game in HTML and serve it to me.\n\n:::Assistant\n&lt;tool-call with=\"web_server\"&gt;\n  &lt;arguments&gt;\n    &lt;pageHtml&gt;\n&lt;!DOCTYPE html&gt;\n&lt;html&gt;\n&lt;head&gt;\n  &lt;title&gt;Tic-Tac-Toe&lt;/title&gt;\n  ... (rest of the HTML/JS/CSS) ...\n&lt;/head&gt;\n&lt;body&gt;\n  ...\n&lt;/body&gt;\n&lt;/html&gt;\n    &lt;/pageHtml&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;page is now available&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nI have generated the game for you. It should be opening in your browser at\nhttp://localhost:8080.\n:::\n\n\n\n\nNative tools allow you to access functionality that is built directly into the LLM provider’s backend, such as web search or a code interpreter environment for data analysis.\nSupport for native tools varies by provider.\n\n\nYou enable native tools by specifying their type.\ntools:\n  - native: search # Enable the provider's built-in web search.\n  - native: code   # Enable the provider's built-in code interpreter.\n\n\n\n\nGemini: Supports both search and code. Note that the Gemini API has a limitation where you can only use one native tool at a time, and it cannot be combined with other (non-native) tools.\nAnthropic: Supports search only.\nOpenAI: Supports both search and code via the openai provider (not the legacy openai/chat provider).",
-    "crumbs": [
-      "Tools",
-      "Other Tools"
-    ]
-  },
-  {
-    "objectID": "tools/06_other_tools.html#the-think-tool",
-    "href": "tools/06_other_tools.html#the-think-tool",
-    "title": "Other Tools: think, serve, and native",
-    "section": "",
-    "text": "The think tool gives the LLM a private “scratch space” to pause and reason about a prompt before formulating its final response. This can improve the quality and thoughtfulness of the output, especially for complex or ambiguous questions.\nThis technique was inspired by a post on Anthropic’s engineering blog. The output of the think tool is hidden from the user by default in the editor plugins, though it is still present in the .lec file.\n\n\ntools:\n  - think_about: &gt;\n      What the user is really asking for, and what hidden assumptions they\n      might have.\n    name: scratchpad # Optional name\n\n\n\nWhat's the best city in the world?\n\n:::Assistant\n&lt;tool-call with=\"scratchpad\"&gt;\n  &lt;arguments&gt;\n    &lt;thought&gt;\"Best\" is subjective. The user could mean best for travel, for\n    food, for work, etc. I need to ask for clarification.&lt;/thought&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;thought complete.&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nThat depends on what you're looking for! Are you interested in the best city\nfor tourism, career opportunities, or something else?\n:::",
-    "crumbs": [
-      "Tools",
-      "Other Tools"
-    ]
-  },
-  {
-    "objectID": "tools/06_other_tools.html#the-serve-tool",
-    "href": "tools/06_other_tools.html#the-serve-tool",
-    "title": "Other Tools: think, serve, and native",
-    "section": "",
-    "text": "The serve tool allows the LLM to spin up a simple, single-use web server to present content, such as an HTML file or a small web application it has generated.\nWhen the LLM uses this tool, Lectic starts a server on the specified port. It will then attempt to open the page in your default web browser. The server shuts down automatically after the first request is served. While the page is loading, Lectic waits for the first request—so the conversation resumes once your browser has loaded the page.\n\n\ntools:\n  - serve_on_port: 8080\n    name: web_server # Optional name\n\n\n\nGenerate a simple tic-tac-toe game in HTML and serve it to me.\n\n:::Assistant\n&lt;tool-call with=\"web_server\"&gt;\n  &lt;arguments&gt;\n    &lt;pageHtml&gt;\n&lt;!DOCTYPE html&gt;\n&lt;html&gt;\n&lt;head&gt;\n  &lt;title&gt;Tic-Tac-Toe&lt;/title&gt;\n  ... (rest of the HTML/JS/CSS) ...\n&lt;/head&gt;\n&lt;body&gt;\n  ...\n&lt;/body&gt;\n&lt;/html&gt;\n    &lt;/pageHtml&gt;\n  &lt;/arguments&gt;\n  &lt;results&gt;\n    &lt;result type=\"text\"&gt;page is now available&lt;/result&gt;\n  &lt;/results&gt;\n&lt;/tool-call&gt;\nI have generated the game for you. It should be opening in your browser at\nhttp://localhost:8080.\n:::",
-    "crumbs": [
-      "Tools",
-      "Other Tools"
-    ]
-  },
-  {
-    "objectID": "tools/06_other_tools.html#native-tools",
-    "href": "tools/06_other_tools.html#native-tools",
-    "title": "Other Tools: think, serve, and native",
-    "section": "",
-    "text": "Native tools allow you to access functionality that is built directly into the LLM provider’s backend, such as web search or a code interpreter environment for data analysis.\nSupport for native tools varies by provider.\n\n\nYou enable native tools by specifying their type.\ntools:\n  - native: search # Enable the provider's built-in web search.\n  - native: code   # Enable the provider's built-in code interpreter.\n\n\n\n\nGemini: Supports both search and code. Note that the Gemini API has a limitation where you can only use one native tool at a time, and it cannot be combined with other (non-native) tools.\nAnthropic: Supports search only.\nOpenAI: Supports both search and code via the openai provider (not the legacy openai/chat provider).",
-    "crumbs": [
-      "Tools",
-      "Other Tools"
-    ]
-  },
-  {
     "objectID": "tools/03_sqlite.html",
     "href": "tools/03_sqlite.html",
     "title": "Tools: SQLite Query",
@@ -494,132 +546,80 @@
     ]
   },
   {
-    "objectID": "tools/02_exec.html",
-    "href": "tools/02_exec.html",
-    "title": "Tools: Command Execution (exec)",
+    "objectID": "tools/01_overview.html",
+    "href": "tools/01_overview.html",
+    "title": "Tools Overview",
     "section": "",
-    "text": "The exec tool is one of the most versatile tools in Lectic. It allows the LLM to execute shell commands and scripts, enabling it to interact directly with your system, run code, and interface with other command‑line applications.\n\n\nNote: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can configure an exec tool by providing the command to be executed. You can also provide a custom name for the LLM to use, a usage guide, and several optional parameters for security and execution control.\n\n\nThis configuration allows the LLM to run the python3 interpreter.\ntools:\n  - exec: python3\n    name: python\n    usage: &gt;\n      Use this to execute Python code. The code to be executed should be\n      written inside the tool call block.\n\n\n\nFor more complex or specialized tasks, you can provide a multi‑line script directly in the YAML. The first line of the script must be a shebang (e.g., #!/bin/bash) to specify the interpreter.\ntools:\n  - name: line_counter\n    usage: \"Counts the number of lines in a file. Takes one argument: the file path.\"\n    exec: |\n      #!/usr/bin/env bash\n      # A simple script to count the lines in a file\n      wc -l \"$1\"\n\n\n\n\nexec: (Required) The command or inline script to execute.\nname: An optional name for the tool. If not provided, it defaults to the base name of the command.\nusage: A string, file:, or exec: URI providing instructions for the LLM on how to use the tool.\nsandbox: A path to a sandboxing script. See safety section below.\nconfirm: A path to a confirmation script. See safety section below.\ntimeoutSeconds: The number of seconds to wait before timing out the command.\nenv: An object of environment variables to set for the command’s execution environment.\nschema: A mapping of parameter name → description. When provided, the tool accepts named string parameters instead of a positional argument array. See the section below for details.\n\n\n\n\n\n\nNo shell is involved. The command (or script interpreter) is executed directly, so shell features like globbing or command substitution will not work.\nWhen exec is a single line, environment variables in the command are expanded before execution using values from the tool’s env plus standard Lectic variables.\nWhen exec is multi‑line, it must start with a shebang and will be written to a temporary file and executed with that interpreter.\n\n\n\n\nIf you define schema, the tool takes named parameters. Each parameter must be a string, and Lectic will expose these values to the subprocess via environment variables with the same names.\nThis applies to both commands and scripts:\n\nFor scripts, parameters are available as $PARAM_NAME inside the script.\nFor commands, parameters are available in the subprocess environment (e.g., $PARAM_NAME for Unix‑like tools).\n\nExample:\n# YAML configuration\ntools:\n  - name: greeter\n    exec: |\n      #!/usr/bin/env bash\n      echo \"Hello, ${NAME}! Today is ${DAY}.\"\n    schema:\n      NAME: The name to greet.\n      DAY: The day string to include.\nWhen the LLM calls this tool with parameters { NAME: \"Ada\", DAY: \"Friday\" }, Lectic will run the script with NAME=Ada and DAY=Friday in the environment.\nIf you do not provide schema, the tool instead accepts a single parameter named arguments, which is an array of strings. These are passed as positional arguments to the command or script.\n\n\n\nWhen Lectic runs your command or script, it sets a few helpful environment variables. In particular, LECTIC_INTERLOCUTOR is set to the name of the interlocutor who invoked the tool. This makes it easy to maintain per‑interlocutor state (for example, separate scratch directories or memory stores) in your scripts or sandbox wrappers.\n\n\n\n\n\n\n\n\n\nWarning\n\n\n\nGranting an LLM the ability to execute commands can be dangerous. Treat every exec tool as a capability you are delegating. Combine human-in-the- loop confirmation and sandboxing to minimize risk. Do not expose sensitive files or networks unless you fully trust the tool and its usage.\n\n\nLectic provides two primary mechanisms to enhance the safety of exec tools: confirmation scripts and sandboxing.\n\n\nIf a confirm script is provided, Lectic will execute it before every call to the tool. The script receives two arguments: the tool’s name and a JSON string of the call arguments. If the confirmation script exits non‑zero, the call is cancelled.\nAn example script that uses a graphical dialog box is provided in extra/confirm/zenity-confirm.sh.\n\n\n\nWhen a sandbox script is configured, the LLM’s command is not executed directly. Instead, the sandbox script is executed first, and the command and its arguments are passed as arguments to it. The sandbox script is then responsible for creating a controlled environment to run the command.\nFor example, extra/sandbox/bwrap-sandbox.sh uses the Bubblewrap utility to create a minimal, isolated environment with a temporary home directory.",
+    "text": "Tools give your LLM the ability to interact with the outside world. They are a powerful feature that transforms the LLM from a passive text generator into an active agent that can run code, query databases, search for information, and perform a wide range of actions on your behalf.\nIn Lectic, you configure tools in the YAML frontmatter of your conversation. This grants the active interlocutor the ability to use them.\n\n\nWhen you grant an LLM a tool, the conversation follows a four-step process:\n\nUser Prompt: You ask a question or give an instruction that requires the use of a tool (e.g., “What is the current date?”).\nLLM Tool Call: The LLM, instead of answering directly, outputs a special block of text indicating which tool it wants to use and with what arguments.\nLectic Executes: Lectic detects this tool-use block, stops the LLM, executes the specified tool, and captures its output.\nLLM Final Response: Lectic sends the tool’s output back to the LLM, which then uses that information to formulate its final answer to you.\n\n\n\nA tool call is represented by a block starting with {tool_name} and ending with {/tool_name}. The content inside the block serves as the arguments for the tool.\n\n\n\nLet’s say you’ve configured a simple exec tool named shell:\n---\ninterlocutor:\n  name: Assistant\n  tools:\n    - exec: date\n      name: get_date\n---\n\nWhat's the date today?\nWhen you run lectic, the LLM will first make the tool call, which Lectic will capture and display in the file:\n...\nWhat's the date today?\n\n:::Assistant\n\nI will use the `get_date` tool to find out.\n\n{get_date}{/get_date}\n\nOkay, the tool returned: `Fri Mar 15 14:35:18 PDT 2024`.\n\nToday's date is March 15th, 2024.\n\n:::\n\n\n\n\nTool calls are executed in parallel. If an LLM decides to use multiple tools in a single turn, Lectic will run all of them concurrently, rather than one after another. This significantly speeds up complex tasks that involve gathering information from multiple sources.\n\n\n\nLectic supports a variety of tool types, each with its own capabilities and configuration. Click on any tool type below for detailed documentation.\n\nExec: Execute shell commands and scripts.\nSQLite: Query SQLite databases.\nMCP: Connect to Model Context Protocol (MCP) servers.\nAgent: Allow one interlocutor to call another as a tool.\nOther Tools: Includes think, serve, and native provider tools.",
     "crumbs": [
       "Tools",
-      "Exec"
+      "Overview"
     ]
   },
   {
-    "objectID": "tools/02_exec.html#configuration",
-    "href": "tools/02_exec.html#configuration",
-    "title": "Tools: Command Execution (exec)",
+    "objectID": "tools/01_overview.html#the-tool-use-workflow",
+    "href": "tools/01_overview.html#the-tool-use-workflow",
+    "title": "Tools Overview",
     "section": "",
-    "text": "Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can configure an exec tool by providing the command to be executed. You can also provide a custom name for the LLM to use, a usage guide, and several optional parameters for security and execution control.\n\n\nThis configuration allows the LLM to run the python3 interpreter.\ntools:\n  - exec: python3\n    name: python\n    usage: &gt;\n      Use this to execute Python code. The code to be executed should be\n      written inside the tool call block.\n\n\n\nFor more complex or specialized tasks, you can provide a multi‑line script directly in the YAML. The first line of the script must be a shebang (e.g., #!/bin/bash) to specify the interpreter.\ntools:\n  - name: line_counter\n    usage: \"Counts the number of lines in a file. Takes one argument: the file path.\"\n    exec: |\n      #!/usr/bin/env bash\n      # A simple script to count the lines in a file\n      wc -l \"$1\"\n\n\n\n\nexec: (Required) The command or inline script to execute.\nname: An optional name for the tool. If not provided, it defaults to the base name of the command.\nusage: A string, file:, or exec: URI providing instructions for the LLM on how to use the tool.\nsandbox: A path to a sandboxing script. See safety section below.\nconfirm: A path to a confirmation script. See safety section below.\ntimeoutSeconds: The number of seconds to wait before timing out the command.\nenv: An object of environment variables to set for the command’s execution environment.\nschema: A mapping of parameter name → description. When provided, the tool accepts named string parameters instead of a positional argument array. See the section below for details.",
+    "text": "When you grant an LLM a tool, the conversation follows a four-step process:\n\nUser Prompt: You ask a question or give an instruction that requires the use of a tool (e.g., “What is the current date?”).\nLLM Tool Call: The LLM, instead of answering directly, outputs a special block of text indicating which tool it wants to use and with what arguments.\nLectic Executes: Lectic detects this tool-use block, stops the LLM, executes the specified tool, and captures its output.\nLLM Final Response: Lectic sends the tool’s output back to the LLM, which then uses that information to formulate its final answer to you.\n\n\n\nA tool call is represented by a block starting with {tool_name} and ending with {/tool_name}. The content inside the block serves as the arguments for the tool.\n\n\n\nLet’s say you’ve configured a simple exec tool named shell:\n---\ninterlocutor:\n  name: Assistant\n  tools:\n    - exec: date\n      name: get_date\n---\n\nWhat's the date today?\nWhen you run lectic, the LLM will first make the tool call, which Lectic will capture and display in the file:\n...\nWhat's the date today?\n\n:::Assistant\n\nI will use the `get_date` tool to find out.\n\n{get_date}{/get_date}\n\nOkay, the tool returned: `Fri Mar 15 14:35:18 PDT 2024`.\n\nToday's date is March 15th, 2024.\n\n:::",
     "crumbs": [
       "Tools",
-      "Exec"
+      "Overview"
     ]
   },
   {
-    "objectID": "tools/02_exec.html#command-execution-semantics",
-    "href": "tools/02_exec.html#command-execution-semantics",
-    "title": "Tools: Command Execution (exec)",
+    "objectID": "tools/01_overview.html#parallel-tool-execution",
+    "href": "tools/01_overview.html#parallel-tool-execution",
+    "title": "Tools Overview",
     "section": "",
-    "text": "No shell is involved. The command (or script interpreter) is executed directly, so shell features like globbing or command substitution will not work.\nWhen exec is a single line, environment variables in the command are expanded before execution using values from the tool’s env plus standard Lectic variables.\nWhen exec is multi‑line, it must start with a shebang and will be written to a temporary file and executed with that interpreter.",
+    "text": "Tool calls are executed in parallel. If an LLM decides to use multiple tools in a single turn, Lectic will run all of them concurrently, rather than one after another. This significantly speeds up complex tasks that involve gathering information from multiple sources.",
     "crumbs": [
       "Tools",
-      "Exec"
+      "Overview"
     ]
   },
   {
-    "objectID": "tools/02_exec.html#supplying-parameters-with-schema",
-    "href": "tools/02_exec.html#supplying-parameters-with-schema",
-    "title": "Tools: Command Execution (exec)",
+    "objectID": "tools/01_overview.html#available-tool-types",
+    "href": "tools/01_overview.html#available-tool-types",
+    "title": "Tools Overview",
     "section": "",
-    "text": "If you define schema, the tool takes named parameters. Each parameter must be a string, and Lectic will expose these values to the subprocess via environment variables with the same names.\nThis applies to both commands and scripts:\n\nFor scripts, parameters are available as $PARAM_NAME inside the script.\nFor commands, parameters are available in the subprocess environment (e.g., $PARAM_NAME for Unix‑like tools).\n\nExample:\n# YAML configuration\ntools:\n  - name: greeter\n    exec: |\n      #!/usr/bin/env bash\n      echo \"Hello, ${NAME}! Today is ${DAY}.\"\n    schema:\n      NAME: The name to greet.\n      DAY: The day string to include.\nWhen the LLM calls this tool with parameters { NAME: \"Ada\", DAY: \"Friday\" }, Lectic will run the script with NAME=Ada and DAY=Friday in the environment.\nIf you do not provide schema, the tool instead accepts a single parameter named arguments, which is an array of strings. These are passed as positional arguments to the command or script.",
+    "text": "Lectic supports a variety of tool types, each with its own capabilities and configuration. Click on any tool type below for detailed documentation.\n\nExec: Execute shell commands and scripts.\nSQLite: Query SQLite databases.\nMCP: Connect to Model Context Protocol (MCP) servers.\nAgent: Allow one interlocutor to call another as a tool.\nOther Tools: Includes think, serve, and native provider tools.",
     "crumbs": [
       "Tools",
-      "Exec"
+      "Overview"
     ]
   },
   {
-    "objectID": "tools/02_exec.html#execution-environment",
-    "href": "tools/02_exec.html#execution-environment",
-    "title": "Tools: Command Execution (exec)",
+    "objectID": "tools/04_mcp.html",
+    "href": "tools/04_mcp.html",
+    "title": "Tools: Model Context Protocol (mcp)",
     "section": "",
-    "text": "When Lectic runs your command or script, it sets a few helpful environment variables. In particular, LECTIC_INTERLOCUTOR is set to the name of the interlocutor who invoked the tool. This makes it easy to maintain per‑interlocutor state (for example, separate scratch directories or memory stores) in your scripts or sandbox wrappers.",
+    "text": "Lectic can act as a client for servers that implement the Model Context Protocol (MCP). This allows you to connect your LLM to a vast and growing ecosystem of pre-built tools and services.\nYou can find lists of available servers here: - Official MCP Server List - Awesome MCP Servers\n\n\nNote: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can connect to an MCP server in three ways: by running a local server as a command, or by connecting to a remote server over WebSockets or SSE.\n\n\nThis is the most common way to run an MCP server. You provide the command to start the server, and Lectic manages its lifecycle.\ntools:\n  - name: brave\n    mcp_command: npx\n    args:\n      - \"-y\"\n      - \"@modelcontextprotocol/server-brave-search\"\n    env:\n      BRAVE_API_KEY: \"your_key_here\"\n    roots:\n      - /home/user/research-docs/\n\n\n\nYou can also connect to running MCP servers.\n\nmcp_ws: The URL for a remote server using a WebSocket connection.\nmcp_sse: The URL for a remote server using Server-Sent Events (SSE).\n\ntools:\n  - name: remote_search\n    mcp_ws: wss://some-mcp-server.com/ws\n\n\n\nIf you give an MCP tool a name (e.g., name: brave), you can access any resources it provides using a special content reference syntax. The scheme is the server’s name plus the resource type.\nFor example, to access a repo resource from a server named github: [README](github+repo://gleachkr/Lectic/contents/README.md)\nThe LLM is also given a tool to list the available resources from the server.\n\n\n\n\n\n\n\n\n\n\nWarning\n\n\n\nWhile powerful, the MCP protocol carries significant security risks. Treat MCP integration as a high-trust capability. Never connect to untrusted servers; a malicious server could exfiltrate data or perform unwanted actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved LLM, not attacks from a hostile server.\n\n\n\n\nJust like with the exec tool, you can specify a confirm script. This script will be executed before every tool call dispatched to the MCP server, giving you a chance to approve or deny the action.\n\n\n\nFor local mcp_command tools, you can specify a sandbox script. This script will be used to launch the MCP server process in a controlled and isolated environment, limiting its access to your system.\nSee the documentation for the Exec Tool for more details on how confirmation and sandboxing scripts work.",
     "crumbs": [
       "Tools",
-      "Exec"
+      "MCP"
     ]
   },
   {
-    "objectID": "tools/02_exec.html#safety-and-trust",
-    "href": "tools/02_exec.html#safety-and-trust",
-    "title": "Tools: Command Execution (exec)",
+    "objectID": "tools/04_mcp.html#configuration",
+    "href": "tools/04_mcp.html#configuration",
+    "title": "Tools: Model Context Protocol (mcp)",
     "section": "",
-    "text": "Warning\n\n\n\nGranting an LLM the ability to execute commands can be dangerous. Treat every exec tool as a capability you are delegating. Combine human-in-the- loop confirmation and sandboxing to minimize risk. Do not expose sensitive files or networks unless you fully trust the tool and its usage.\n\n\nLectic provides two primary mechanisms to enhance the safety of exec tools: confirmation scripts and sandboxing.\n\n\nIf a confirm script is provided, Lectic will execute it before every call to the tool. The script receives two arguments: the tool’s name and a JSON string of the call arguments. If the confirmation script exits non‑zero, the call is cancelled.\nAn example script that uses a graphical dialog box is provided in extra/confirm/zenity-confirm.sh.\n\n\n\nWhen a sandbox script is configured, the LLM’s command is not executed directly. Instead, the sandbox script is executed first, and the command and its arguments are passed as arguments to it. The sandbox script is then responsible for creating a controlled environment to run the command.\nFor example, extra/sandbox/bwrap-sandbox.sh uses the Bubblewrap utility to create a minimal, isolated environment with a temporary home directory.",
+    "text": "Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.\nYou can connect to an MCP server in three ways: by running a local server as a command, or by connecting to a remote server over WebSockets or SSE.\n\n\nThis is the most common way to run an MCP server. You provide the command to start the server, and Lectic manages its lifecycle.\ntools:\n  - name: brave\n    mcp_command: npx\n    args:\n      - \"-y\"\n      - \"@modelcontextprotocol/server-brave-search\"\n    env:\n      BRAVE_API_KEY: \"your_key_here\"\n    roots:\n      - /home/user/research-docs/\n\n\n\nYou can also connect to running MCP servers.\n\nmcp_ws: The URL for a remote server using a WebSocket connection.\nmcp_sse: The URL for a remote server using Server-Sent Events (SSE).\n\ntools:\n  - name: remote_search\n    mcp_ws: wss://some-mcp-server.com/ws\n\n\n\nIf you give an MCP tool a name (e.g., name: brave), you can access any resources it provides using a special content reference syntax. The scheme is the server’s name plus the resource type.\nFor example, to access a repo resource from a server named github: [README](github+repo://gleachkr/Lectic/contents/README.md)\nThe LLM is also given a tool to list the available resources from the server.",
     "crumbs": [
       "Tools",
-      "Exec"
+      "MCP"
     ]
   },
   {
-    "objectID": "01_introduction.html",
-    "href": "01_introduction.html",
-    "title": "Introduction to Lectic",
+    "objectID": "tools/04_mcp.html#safety-and-trust",
+    "href": "tools/04_mcp.html#safety-and-trust",
+    "title": "Tools: Model Context Protocol (mcp)",
     "section": "",
-    "text": "Lectic is a conversational LLM client designed for users who are most comfortable working with text files and command-line tools. It treats every conversation as a simple markdown file, a design choice that unlocks a surprising number of benefits.\n\n\nBy making conversations plain text, Lectic ensures they are:\n\nPersistent by Default: Your conversations are saved just like any other document. There is no proprietary database or cloud service.\nVersion Controllable: You can use git and other version control systems to track the history of a conversation, branch off new ideas, and merge different lines of thought.\nSearchable and Portable: Standard tools like grep, sed, and awk can be used to search, analyze, and modify your conversations. They are easy to back up, sync, and move between machines.\nPrivate: Your conversations can stay entirely on your local machine if you are using a local LLM provider like Ollama.\n\n\n\n\nLectic is built to support deep, thoughtful work. It is for anyone who wants to use LLMs as a tool for:\n\nResearch and Analysis: Integrate data, run analyses, and discuss the results with an LLM, all within a single, reproducible document.\nReflection and Self-Study: Keep a running journal of your thoughts and explorations on a topic, using an LLM as a Socratic partner.\nDesign and Engineering: Draft code, review diffs, and document your process in a way that can be committed directly into your project’s repository.\n\nLectic makes it easy to manage conversational context using content references, integrate with external tools (for search, computation, database access, and more), and include multiple LLMs in a single conversation to bring a variety of perspectives to bear on a problem.",
+    "text": "Warning\n\n\n\nWhile powerful, the MCP protocol carries significant security risks. Treat MCP integration as a high-trust capability. Never connect to untrusted servers; a malicious server could exfiltrate data or perform unwanted actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved LLM, not attacks from a hostile server.\n\n\n\n\nJust like with the exec tool, you can specify a confirm script. This script will be executed before every tool call dispatched to the MCP server, giving you a chance to approve or deny the action.\n\n\n\nFor local mcp_command tools, you can specify a sandbox script. This script will be used to launch the MCP server process in a controlled and isolated environment, limiting its access to your system.\nSee the documentation for the Exec Tool for more details on how confirmation and sandboxing scripts work.",
     "crumbs": [
-      "Introduction"
-    ]
-  },
-  {
-    "objectID": "01_introduction.html#the-power-of-plain-text",
-    "href": "01_introduction.html#the-power-of-plain-text",
-    "title": "Introduction to Lectic",
-    "section": "",
-    "text": "By making conversations plain text, Lectic ensures they are:\n\nPersistent by Default: Your conversations are saved just like any other document. There is no proprietary database or cloud service.\nVersion Controllable: You can use git and other version control systems to track the history of a conversation, branch off new ideas, and merge different lines of thought.\nSearchable and Portable: Standard tools like grep, sed, and awk can be used to search, analyze, and modify your conversations. They are easy to back up, sync, and move between machines.\nPrivate: Your conversations can stay entirely on your local machine if you are using a local LLM provider like Ollama.",
-    "crumbs": [
-      "Introduction"
-    ]
-  },
-  {
-    "objectID": "01_introduction.html#who-is-lectic-for",
-    "href": "01_introduction.html#who-is-lectic-for",
-    "title": "Introduction to Lectic",
-    "section": "",
-    "text": "Lectic is built to support deep, thoughtful work. It is for anyone who wants to use LLMs as a tool for:\n\nResearch and Analysis: Integrate data, run analyses, and discuss the results with an LLM, all within a single, reproducible document.\nReflection and Self-Study: Keep a running journal of your thoughts and explorations on a topic, using an LLM as a Socratic partner.\nDesign and Engineering: Draft code, review diffs, and document your process in a way that can be committed directly into your project’s repository.\n\nLectic makes it easy to manage conversational context using content references, integrate with external tools (for search, computation, database access, and more), and include multiple LLMs in a single conversation to bring a variety of perspectives to bear on a problem.",
-    "crumbs": [
-      "Introduction"
-    ]
-  },
-  {
-    "objectID": "context_management/02_conversation_control.html",
-    "href": "context_management/02_conversation_control.html",
-    "title": "Managing Context: Conversation Control",
-    "section": "",
-    "text": "Beyond simply adding external data, Lectic provides directives that allow you to actively manage the flow of a conversation. You can switch between different LLM interlocutors and control the context window that is sent to the model.\n\n\nLectic allows you to define multiple interlocutors in the YAML frontmatter. This enables you to bring different “personalities” or models with different capabilities into a single conversation.\nTo do this, use the interlocutors key (instead of interlocutor) and provide a list of configurations.\n---\ninterlocutors:\n  - name: Boggle\n    provider: anthropic\n    model: claude-3-sonnet-20240229\n    prompt: You are an expert on personal finance.\n  - name: Oggle\n    provider: gemini\n    prompt: You are very skeptical of conventional financial advice.\n---\nOnce multiple interlocutors are defined, Lectic will continue with whichever one was last active. To direct your message to a specific interlocutor, you use the :ask and :aside directives.\n\n\nThe :ask[InterlocutorName] directive changes the active speaker. All subsequent conversation turns will be handled by this new interlocutor until another :ask directive is used.\n:ask[Boggle] What is the best way to save for retirement?\n\n:::Boggle\nThe most common advice is to invest in a diversified portfolio of low-cost\nindex funds.\n:::\n\n:ask[Oggle] What's your take on that?\n\n:::Oggle\n\"Common advice\" is often just dogma. That strategy leaves you completely\nexposed to market downturns.\n:::\n\n\n\nThe :aside[InterlocutorName] directive is for a one-off question or comment. It directs the current message to the specified interlocutor, but the conversation then reverts back to the previously active speaker for the next user message.\nThis is useful for quick interjections or for getting a second opinion without derailing the main flow of the conversation.\n\n\n\n\nAs a conversation grows longer, the context sent to the LLM on each turn also grows. This can increase costs and, in some cases, lead to the model getting “stuck” on earlier parts of the dialogue.\nThe :reset[] directive gives you manual control over the context window. When Lectic processes a message containing :reset[], it instructs the LLM to ignore all preceding conversation history. The context for that turn effectively begins with the message containing the directive.\n...a very long conversation happens here...\n\nOkay, let's start fresh. I'm going to :reset[] your context now. Please\nsummarize our previous discussion and then we can move on to the next topic.\n\n:::Assistant\nUnderstood. I have cleared my context.\n\nPreviously, we discussed the history of the Roman Empire, focusing on the\nreign of Augustus and the establishment of the Pax Romana. We concluded that\neconomic stability was a key factor in the era's success.\n\nI am ready for the next topic.\n:::\n\nExcellent. Now, how did this conversation begin?\n\n:::Assistant\nThis conversation began with you instructing me to reset my context and provide\na summary of our previous discussion about the Roman Empire.\n:::\nThis is a powerful tool for managing long-running conversations, allowing you to “compact” the context manually or with the help of the LLM.",
-    "crumbs": [
-      "Context Management",
-      "Conversation Control"
-    ]
-  },
-  {
-    "objectID": "context_management/02_conversation_control.html#multiparty-conversations-with-ask-and-aside",
-    "href": "context_management/02_conversation_control.html#multiparty-conversations-with-ask-and-aside",
-    "title": "Managing Context: Conversation Control",
-    "section": "",
-    "text": "Lectic allows you to define multiple interlocutors in the YAML frontmatter. This enables you to bring different “personalities” or models with different capabilities into a single conversation.\nTo do this, use the interlocutors key (instead of interlocutor) and provide a list of configurations.\n---\ninterlocutors:\n  - name: Boggle\n    provider: anthropic\n    model: claude-3-sonnet-20240229\n    prompt: You are an expert on personal finance.\n  - name: Oggle\n    provider: gemini\n    prompt: You are very skeptical of conventional financial advice.\n---\nOnce multiple interlocutors are defined, Lectic will continue with whichever one was last active. To direct your message to a specific interlocutor, you use the :ask and :aside directives.\n\n\nThe :ask[InterlocutorName] directive changes the active speaker. All subsequent conversation turns will be handled by this new interlocutor until another :ask directive is used.\n:ask[Boggle] What is the best way to save for retirement?\n\n:::Boggle\nThe most common advice is to invest in a diversified portfolio of low-cost\nindex funds.\n:::\n\n:ask[Oggle] What's your take on that?\n\n:::Oggle\n\"Common advice\" is often just dogma. That strategy leaves you completely\nexposed to market downturns.\n:::\n\n\n\nThe :aside[InterlocutorName] directive is for a one-off question or comment. It directs the current message to the specified interlocutor, but the conversation then reverts back to the previously active speaker for the next user message.\nThis is useful for quick interjections or for getting a second opinion without derailing the main flow of the conversation.",
-    "crumbs": [
-      "Context Management",
-      "Conversation Control"
-    ]
-  },
-  {
-    "objectID": "context_management/02_conversation_control.html#context-management-with-reset",
-    "href": "context_management/02_conversation_control.html#context-management-with-reset",
-    "title": "Managing Context: Conversation Control",
-    "section": "",
-    "text": "As a conversation grows longer, the context sent to the LLM on each turn also grows. This can increase costs and, in some cases, lead to the model getting “stuck” on earlier parts of the dialogue.\nThe :reset[] directive gives you manual control over the context window. When Lectic processes a message containing :reset[], it instructs the LLM to ignore all preceding conversation history. The context for that turn effectively begins with the message containing the directive.\n...a very long conversation happens here...\n\nOkay, let's start fresh. I'm going to :reset[] your context now. Please\nsummarize our previous discussion and then we can move on to the next topic.\n\n:::Assistant\nUnderstood. I have cleared my context.\n\nPreviously, we discussed the history of the Roman Empire, focusing on the\nreign of Augustus and the establishment of the Pax Romana. We concluded that\neconomic stability was a key factor in the era's success.\n\nI am ready for the next topic.\n:::\n\nExcellent. Now, how did this conversation begin?\n\n:::Assistant\nThis conversation began with you instructing me to reset my context and provide\na summary of our previous discussion about the Roman Empire.\n:::\nThis is a powerful tool for managing long-running conversations, allowing you to “compact” the context manually or with the help of the LLM.",
-    "crumbs": [
-      "Context Management",
-      "Conversation Control"
+      "Tools",
+      "MCP"
     ]
   },
   {
