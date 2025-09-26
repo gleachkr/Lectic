@@ -25,13 +25,11 @@ your favorite text editor.
 
 To get started with Lectic, check out our documentation:
 
-- **[Introduction](https://gleachkr.github.io/Lectic/01_introduction.qmd)**: 
-  Learn more about the
-  philosophy behind Lectic.
+- **[Introduction](https://gleachkr.github.io/Lectic/01_introduction.html)**: 
+  Learn more about the philosophy behind Lectic.
 - **[Getting Started 
-  Guide](https://gleachkr.github.io/Lectic/02_getting_started.qmd)**: Install 
-  Lectic and
-  create your first conversation.
+  Guide](https://gleachkr.github.io/Lectic/02_getting_started.html)**: Install 
+  Lectic and create your first conversation.
 
 ## How It Works
 
@@ -58,5 +56,5 @@ The capital of France is Paris.
 :::
 ```
 
-To learn more about the conversation format, configuration, and features, 
-please dive into the full **[documentation](https://gleachkr.github.io/Lectic)**.
+To learn more about the conversation format, configuration, and features, check 
+out the **[documentation](https://gleachkr.github.io/Lectic)**.
