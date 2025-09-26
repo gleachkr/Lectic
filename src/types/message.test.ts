@@ -201,55 +201,151 @@ describe('UserMessage', () => {
 });
 
 describe('AssistantMessage', () => {
-        it('should extract a tool call', async () => {
-            const tool: Tool = {
-                name: 'booleanTool',
-                description: 'Tool that handles booleans',
-                parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
-                call: async (_arg) => ToolCallResults('done'),
-                validateArguments: _ => null
-            };
+    it('should extract a tool call', async () => {
+        const tool: Tool = {
+            name: 'booleanTool',
+            description: 'Tool that handles booleans',
+            parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
+            call: async (_arg) => ToolCallResults('done'),
+            validateArguments: _ => null
+        };
 
-            const call = {
-                name: 'booleanTool',
-                args : { confirmed: true },
-                results : ToolCallResults('done')
-            }
+        const call = {
+            name: 'booleanTool',
+            args : { confirmed: true },
+            results : ToolCallResults('done')
+        }
 
-            const serialized = serializeCall(tool, call);
+        const serialized = serializeCall(tool, call);
 
-            const content = `hello!\n\n${serialized}\n\ngoodbye!`
+        const content = `hello!\n\n${serialized}\n\ngoodbye!`
 
-            const fakeInterlocutor = { registry: { booleanTool: tool } } as unknown as Interlocutor
+        const fakeInterlocutor = { registry: { booleanTool: tool }, name: 'A', prompt: '' } as unknown as Interlocutor
 
-            const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
+        const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
 
-            expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
-        })
+        expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
+    })
 
-        it('should extract a tool call whose results contain line breaks', async () => {
-            const tool: Tool = {
-                name: 'booleanTool',
-                description: 'Tool that handles booleans',
-                parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
-                call: async (_arg) => ToolCallResults('done\n\ndone\n\ndone\n\ndone'),
-                validateArguments: _ => null
-            };
+    it('should extract a tool call whose results contain line breaks', async () => {
+        const tool: Tool = {
+            name: 'booleanTool',
+            description: 'Tool that handles booleans',
+            parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
+            call: async (_arg) => ToolCallResults('done\n\ndone\n\ndone\n\ndone'),
+            validateArguments: _ => null
+        };
 
-            const call = {
-                name: 'booleanTool',
-                args : { confirmed: true },
-                results : ToolCallResults('done')
-            }
+        const call = {
+            name: 'booleanTool',
+            args : { confirmed: true },
+            results : ToolCallResults('done')
+        }
 
-            const serialized = serializeCall(tool, call);
+        const serialized = serializeCall(tool, call);
 
-            const content = `hello!\n\n${serialized}\n\ngoodbye!`
+        const content = `hello!\n\n${serialized}\n\ngoodbye!`
 
-            const fakeInterlocutor = { registry: { booleanTool: tool } } as unknown as Interlocutor
+        const fakeInterlocutor = { registry: { booleanTool: tool }, name: 'A', prompt: '' } as unknown as Interlocutor
 
-            const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
+        const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
 
-            expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
-        })
+        expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
+    })
+
+    it('groups consecutive tool calls into a single interaction', async () => {
+        const tool: Tool = {
+            name: 'echo',
+            description: 'echo tool',
+            parameters: { s: { type: 'string', description: 'string' } },
+            call: async (_arg) => ToolCallResults('x'),
+            validateArguments: _ => null
+        };
+        const call1 = { name: 'echo', args: { s: 'a' }, results: ToolCallResults('ra') };
+        const call2 = { name: 'echo', args: { s: 'b' }, results: ToolCallResults('rb') };
+        const s1 = serializeCall(tool, call1);
+        const s2 = serializeCall(tool, call2);
+        const content = `prelude\n\n${s1}\n\n${s2}\n\ntrail`;
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: { echo: tool } } as any;
+        const msg = new AssistantMessage({ content, interlocutor: fake });
+        const interactions = msg.containedInteractions();
+        expect(interactions.length).toBe(2);
+        expect(interactions[0].calls.length).toBe(2);
+        expect(interactions[1].calls.length).toBe(0);
+        expect(interactions[0].text.includes('prelude')).toBe(true);
+        expect(interactions[1].text.includes('trail')).toBe(true);
+    });
+
+    it('handles a leading tool call (empty text in first interaction)', async () => {
+        const tool: Tool = {
+            name: 'noop',
+            description: 'noop',
+            parameters: {},
+            call: async (_arg) => ToolCallResults('done'),
+            validateArguments: _ => null
+        };
+        const s = serializeCall(tool, { name: 'noop', args: {}, results: ToolCallResults('r')});
+        const content = `${s}\n\nthen some text`;
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: { noop: tool } } as any;
+        const msg = new AssistantMessage({ content, interlocutor: fake });
+        const interactions = msg.containedInteractions();
+        expect(interactions.length).toBe(2);
+        expect(interactions[0].text).toBe("");
+        expect(interactions[0].calls.length).toBe(1);
+        expect(interactions[1].text).toContain('then some text');
+        expect(interactions[1].calls.length).toBe(0);
+    });
+
+    it('returns a single text-only interaction when there are no tool calls', () => {
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
+        const content = 'just text\n\nmore text';
+        const msg = new AssistantMessage({ content, interlocutor: fake });
+        const interactions = msg.containedInteractions();
+        expect(interactions.length).toBe(1);
+        expect(interactions[0].calls.length).toBe(0);
+        expect(interactions[0].text).toContain('just text');
+    });
+
+    it('parses id and is-error flags from serialized tool calls', () => {
+        const tool: Tool = {
+            name: 'sum',
+            description: 'sum',
+            parameters: { a: { type: 'number', description: 'a' }, b: { type: 'number', description: 'b' } },
+            call: async (_arg) => ToolCallResults('3'),
+            validateArguments: _ => null
+        };
+        const call = {
+            name: 'sum',
+            args: { a: 1, b: 2 },
+            results: ToolCallResults('3'),
+            id: 'abc-123',
+            isError: true
+        };
+        const s = serializeCall(tool, call);
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: { sum: tool } } as any;
+        const msg = new AssistantMessage({ content: s, interlocutor: fake });
+        const interactions = msg.containedInteractions();
+        expect(interactions.length).toBe(1);
+        expect(interactions[0].calls.length).toBe(1);
+        const parsed = interactions[0].calls[0];
+        expect(parsed.id).toBe('abc-123');
+        expect(parsed.isError).toBe(true);
+    });
+
+    it('parses tool calls even if the tool is missing from the registry', () => {
+        const tool: Tool = {
+            name: 'echo',
+            description: 'echo',
+            parameters: { s: { type: 'string', description: 's' } },
+            call: async (_arg) => ToolCallResults('x'),
+            validateArguments: _ => null
+        };
+        const s = serializeCall(tool, { name: 'echo', args: { s: 'hi' }, results: ToolCallResults('ok')});
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any; // echo missing
+        const msg = new AssistantMessage({ content: `before\n\n${s}\n\nafter`, interlocutor: fake });
+        const interactions = msg.containedInteractions();
+        expect(interactions.length).toBe(2);
+        expect(interactions[0].calls.length).toBe(1);
+        expect(interactions[0].calls[0].name).toBe('echo');
+    });
 });
