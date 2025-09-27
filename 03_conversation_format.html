@@ -195,7 +195,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">External Sources (file:, exec:)</span></a>
+ <span class="menu-text">External Prompts and Instructions</span></a>
   </div>
 </li>
       </ul>
@@ -349,12 +349,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="assistant-responses">3. Assistant Responses</h2>
 <p>Lectic uses “container directives” to represent messages from the LLM. These are fenced blocks that start with a run of colons, followed immediately by the name of the interlocutor.</p>
 <p>The canonical form is exactly three colons on open and close, like this:</p>
-<pre><code>:::Name
-
-Some content.
-
-:::</code></pre>
-<p>Markdown code fences inside assistant blocks can also use three backticks. In rare cases, nested fences can confuse some renderers. Lectic will always generate three colons for assistant blocks today. In the future, Lectic may choose a longer run of colons when needed, and will always require that the close fence matches the count that opened the block.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>:::Name</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>Some content.</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Markdown code fences inside assistant blocks can also use three backticks.</p>
 <section id="example" class="level3">
 <h3 class="anchored" data-anchor-id="example">Example</h3>
 <p>Here is a complete, simple conversation file showing all the parts together:</p>

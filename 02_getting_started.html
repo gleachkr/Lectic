@@ -195,7 +195,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">External Sources (file:, exec:)</span></a>
+ <span class="menu-text">External Prompts and Instructions</span></a>
   </div>
 </li>
       </ul>
@@ -306,6 +306,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#getting-started-with-lectic" id="toc-getting-started-with-lectic" class="nav-link active" data-scroll-target="#getting-started-with-lectic">Getting Started with Lectic</a>
   <ul class="collapse">
   <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
+  <li><a href="#verify-the-install" id="toc-verify-the-install" class="nav-link" data-scroll-target="#verify-the-install">Verify the install</a></li>
   <li><a href="#your-first-conversation" id="toc-your-first-conversation" class="nav-link" data-scroll-target="#your-first-conversation">Your first conversation</a></li>
   <li><a href="#editor-integration" id="toc-editor-integration" class="nav-link" data-scroll-target="#editor-integration">Editor integration</a></li>
   </ul></li>
@@ -338,19 +339,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="macos" class="level4">
 <h4 class="anchored" data-anchor-id="macos">macOS</h4>
 <p>Download the macOS binary from the <a href="https://github.com/gleachkr/Lectic/releases">GitHub Releases page</a> and put it on your PATH.</p>
-<p>Verify the install</p>
+</section>
+</section>
+<section id="verify-the-install" class="level2">
+<h2 class="anchored" data-anchor-id="verify-the-install">Verify the install</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">--version</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If you see a version number, you are ready to go.</p>
 </section>
-</section>
 <section id="your-first-conversation" class="level2">
 <h2 class="anchored" data-anchor-id="your-first-conversation">Your first conversation</h2>
-<p>Set up an API key</p>
+<section id="set-up-an-api-key" class="level4">
+<h4 class="anchored" data-anchor-id="set-up-an-api-key">Set up an API key</h4>
 <p>Lectic talks to LLM providers. Put at least one provider key in your environment so Lectic can pick a default.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">ANTHROPIC_API_KEY</span><span class="op">=</span><span class="st">"your-api-key-here"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Lectic chooses a default provider by checking for keys in this order: Anthropic, then Gemini, then OpenAI, then OpenRouter. If you need Bedrock, set <code>provider: anthropic/bedrock</code> explicitly in your file and make sure your AWS credentials are configured. Bedrock is not auto‑selected.</p>
 <p>Finally, OpenAI has two provider choices. Use <code>openai</code> for the newer Responses API and native tools. Use <code>openai/chat</code> for the legacy Chat Completions API when you need it.</p>
-<p>Create a conversation file</p>
+</section>
+<section id="create-a-conversation-file" class="level4">
+<h4 class="anchored" data-anchor-id="create-a-conversation-file">Create a conversation file</h4>
 <p>Make a new file, for example <code>my_convo.lec</code>. The <code>.lec</code> extension helps with editor integration.</p>
 <p>Add a minimal YAML header and your first user message:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
@@ -362,11 +368,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="at">Hello, world! What is a fun fact about the Rust programming language?</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Run Lectic</p>
+</section>
+<section id="run-lectic" class="level4">
+<h4 class="anchored" data-anchor-id="run-lectic">Run Lectic</h4>
 <p>From your terminal, run Lectic on the file. The <code>-i</code> flag updates the file in place.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> my_convo.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Lectic sends your message to the model and appends its response in a new assistant block. You can add your next message under that block and run the command again to continue the conversation.</p>
-<p>Use a tiny tool</p>
+</section>
+<section id="use-a-tiny-tool" class="level4">
+<h4 class="anchored" data-anchor-id="use-a-tiny-tool">Use a tiny tool</h4>
 <p>Now add a very small tool to see the tool flow. This one exposes <code>date</code>.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
@@ -395,6 +405,7 @@ Tip
 </div>
 </div>
 </section>
+</section>
 <section id="editor-integration" class="level2">
 <h2 class="anchored" data-anchor-id="editor-integration">Editor integration</h2>
 <p>The intended workflow is to wire Lectic into your editor so you can update a conversation with a single key press.</p>
@@ -405,7 +416,9 @@ Tip
 <section id="vs-code" class="level4">
 <h4 class="anchored" data-anchor-id="vs-code">VS Code</h4>
 <p>An extension is available in <code>extra/lectic.vscode</code>.</p>
-<p>Other editors</p>
+</section>
+<section id="other-editors" class="level4">
+<h4 class="anchored" data-anchor-id="other-editors">Other editors</h4>
 <p>Most editors support sending the current buffer to an external command. You can configure yours to replace the buffer with the output of:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> your_file.lec <span class="kw">|</span> <span class="ex">lectic</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 

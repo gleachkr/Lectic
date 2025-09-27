@@ -195,7 +195,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">External Sources (file:, exec:)</span></a>
+ <span class="menu-text">External Prompts and Instructions</span></a>
   </div>
 </li>
       </ul>
@@ -333,12 +333,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ol>
 <section id="tool-call-syntax" class="level2">
 <h2 class="anchored" data-anchor-id="tool-call-syntax">Tool call syntax</h2>
-<p>Lectic uses an XML block for tool calls. This is the canonical and only supported form. The opening tag names the tool, and the block contains two children: an <arguments> element and a <results> element.</results></arguments></p>
+<p>Lectic uses an XML block for tool calls. This is the canonical and only supported form. The opening tag names the tool, and the block contains two children: an <code>&lt;arguments&gt;</code> element and a <code>&lt;results&gt;</code> element.</p>
 <ul>
-<li><tool-call with="NAME"> starts the block.</tool-call></li>
-<li><arguments> holds one element per parameter in the tool’s schema. If a tool takes no inputs, <arguments> can be empty.</arguments></arguments></li>
-<li><results> is filled by Lectic after execution. Each tool result is serialized as a <result> element inside <results>.</results></result></results></li>
-<li> closes the block.</li>
+<li><code>&lt;tool-call with="NAME"&gt;</code> starts the block.</li>
+<li><code>&lt;arguments&gt;</code> holds one element per parameter in the tool’s schema. If a tool takes no inputs, <code>&lt;arguments&gt;</code> can be empty.</li>
+<li><code>&lt;results&gt;</code> is filled by Lectic after execution. Each tool result is serialized as a <code>&lt;result&gt;</code> element inside <code>&lt;results&gt;</code>.</li>
+<li><code>&lt;/tool-call&gt;</code> closes the block.</li>
 </ul>
 <p>You will see these blocks in the assistant’s container directive. Lectic writes the block once the model asks for a tool, then appends results after running it.</p>
 <section id="example" class="level3">

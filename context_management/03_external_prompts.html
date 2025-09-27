@@ -117,7 +117,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../context_management/01_external_content.html">Context Management</a></li><li class="breadcrumb-item"><a href="../context_management/03_external_prompts.html">External Sources (file:, exec:)</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../context_management/01_external_content.html">Context Management</a></li><li class="breadcrumb-item"><a href="../context_management/03_external_prompts.html">External Prompts and Instructions</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -195,7 +195,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">External Sources (file:, exec:)</span></a>
+ <span class="menu-text">External Prompts and Instructions</span></a>
   </div>
 </li>
       </ul>
@@ -303,10 +303,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#external-prompts-and-instructions-file-and-exec" id="toc-external-prompts-and-instructions-file-and-exec" class="nav-link active" data-scroll-target="#external-prompts-and-instructions-file-and-exec">External Prompts and instructions: <code>file:</code> and <code>exec:</code></a>
+  <li><a href="#external-prompts-and-instructions-file-and-exec" id="toc-external-prompts-and-instructions-file-and-exec" class="nav-link active" data-scroll-target="#external-prompts-and-instructions-file-and-exec">External Prompts and Instructions: <code>file:</code> and <code>exec:</code></a>
   <ul class="collapse">
   <li><a href="#filepath" id="toc-filepath" class="nav-link" data-scroll-target="#filepath"><code>file:PATH</code></a></li>
-  <li><a href="#execcommand-or-execscript" id="toc-execcommand-or-execscript" class="nav-link" data-scroll-target="#execcommand-or-execscript"><code>exec:COMMAND or exec:SCRIPT</code></a></li>
+  <li><a href="#execcommand-or-execscript" id="toc-execcommand-or-execscript" class="nav-link" data-scroll-target="#execcommand-or-execscript"><code>exec:COMMAND</code> or <code>exec:SCRIPT</code></a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#working-directory-and-environment" id="toc-working-directory-and-environment" class="nav-link" data-scroll-target="#working-directory-and-environment">Working directory and environment</a></li>
   <li><a href="#behavior-and-errors" id="toc-behavior-and-errors" class="nav-link" data-scroll-target="#behavior-and-errors">Behavior and errors</a></li>
@@ -315,13 +315,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../context_management/01_external_content.html">Context Management</a></li><li class="breadcrumb-item"><a href="../context_management/03_external_prompts.html">External Sources (file:, exec:)</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../context_management/01_external_content.html">Context Management</a></li><li class="breadcrumb-item"><a href="../context_management/03_external_prompts.html">External Prompts and Instructions</a></li></ol></nav></header>
 
 
 
 
 <section id="external-prompts-and-instructions-file-and-exec" class="level1">
-<h1>External Prompts and instructions: <code>file:</code> and <code>exec:</code></h1>
+<h1>External Prompts and Instructions: <code>file:</code> and <code>exec:</code></h1>
 <p>Many Lectic fields can load their text from outside the document. You can point a field at a file on disk, or run a command (or script) and use its output. This lets you keep prompts, usage text, and notes in one place, or compute them on demand.</p>
 <p>What supports external sources:</p>
 <ul>
@@ -343,7 +343,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">expansion</span><span class="kw">:</span><span class="at"> file:$HOME/.config/lectic/prompts/summarize.txt</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="execcommand-or-execscript" class="level2">
-<h2 class="anchored" data-anchor-id="execcommand-or-execscript"><code>exec:COMMAND or exec:SCRIPT</code></h2>
+<h2 class="anchored" data-anchor-id="execcommand-or-execscript"><code>exec:COMMAND</code> or <code>exec:SCRIPT</code></h2>
 <p>Runs the command and uses its stdout as the field value. There are two forms:</p>
 <ul>
 <li>Single line: executed directly, not through a shell. Shell features like globbing and command substitution do not work. If you need them, invoke a shell explicitly (for example, <code>bash -lc '...'</code>).</li>
