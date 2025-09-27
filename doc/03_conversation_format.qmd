@@ -25,7 +25,7 @@ interlocutor:
 
 The frontmatter can be closed with either three dashes (`---`) or three
 periods (`...`). For a complete guide to all available options, see the
-[Configuration Reference](./04_configuration.qmd).
+Configuration page.
 
 ## 2. User Messages
 
@@ -43,12 +43,25 @@ So is this. You can include any markdown you like, such as **bold text** or
 
 ## 3. Assistant Responses
 
-Lectic uses a syntax called "container directives" to represent messages from
-the LLM. These are fenced blocks that start with three or more colons,
-followed immediately by the name of the interlocutor.
+Lectic uses "container directives" to represent messages from the LLM. These
+are fenced blocks that start with a run of colons, followed immediately by
+the name of the interlocutor.
 
-The block is opened by `:::[InterlocutorName]` and closed by a matching
-number of colons `:::`.
+The canonical form is exactly three colons on open and close, like this:
+
+```
+:::Name
+
+Some content.
+
+:::
+```
+
+Markdown code fences inside assistant blocks can also use three backticks. In
+rare cases, nested fences can confuse some renderers. Lectic will always
+generate three colons for assistant blocks today. In the future, Lectic may
+choose a longer run of colons when needed, and will always require that the
+close fence matches the count that opened the block.
 
 ### Example
 
@@ -66,8 +79,8 @@ I'd like to know more about container directives.
 :::Oggle
 
 Are you sure? It seems like a rather niche topic. They are part of a
-[proposed extension to CommonMark](https://talk.commonmark.org/t/generic-directives-plugins-syntax/444)
-that allows for custom block-level elements.
+proposed extension to CommonMark that allows for custom block-level
+elements.
 
 Inside one of these blocks, standard markdown is still supported:
 

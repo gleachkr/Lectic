@@ -40,12 +40,14 @@ tools:
 You can also connect to running MCP servers.
 
 - `mcp_ws`: The URL for a remote server using a WebSocket connection.
-- `mcp_sse`: The URL for a remote server using Server-Sent Events (SSE).
+- `mcp_sse`: The URL for a remote server using Server-Sent Events.
+- `mcp_shttp`: The URL for a remote server using Streamable HTTP.
 
+For example:
 ```yaml
 tools:
-  - name: remote_search
-    mcp_ws: wss://some-mcp-server.com/ws
+  - name: documentation_search 
+    mcp_shttp: https://mcp.context7.com/mcp
 ```
 
 ### Server Resources and Content References

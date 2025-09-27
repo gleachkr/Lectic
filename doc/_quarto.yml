@@ -15,12 +15,16 @@ website:
         text: Conversation Format
       - href: ./04_configuration.qmd
         text: Configuration
+      - href: ./05_providers_and_models.qmd
+        text: Providers and Models
       - section: Context Management
         contents:
           - text: External Content
             href: ./context_management/01_external_content.qmd
           - text: Conversation Control
             href: ./context_management/02_conversation_control.qmd
+          - text: External Sources (file:, exec:)
+            href: ./context_management/03_external_prompts.qmd
       - section: Tools
         contents:
           - text: Overview

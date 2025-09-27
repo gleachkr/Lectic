@@ -23,6 +23,9 @@ An interlocutor object defines a single LLM "personality" or configuration.
 - `prompt`: (Required) The base system prompt that defines the LLM's
   personality and instructions. The value can be a string, or it can be
   loaded from a file (`file:./path.txt`) or a command (`exec:get-prompt`).
+  See
+  [External Sources (file:, exec:)](../context_management/03_external_prompts.qmd)
+  for details and examples.
 
 ### Model Configuration
 
@@ -43,10 +46,10 @@ If you don’t specify `provider`, Lectic picks a default based on your
 environment. It checks for known API keys in this order and uses the first
 one it finds:
 
-1. ANTHROPIC_API_KEY → `anthropic`
-2. GEMINI_API_KEY → `gemini`
-3. OPENAI_API_KEY → `openai`
-4. OPENROUTER_API_KEY → `openrouter`
+1. ANTHROPIC_API_KEY
+2. GEMINI_API_KEY
+3. OPENAI_API_KEY
+4. OPENROUTER_API_KEY
 
 AWS credentials for Bedrock are not considered for auto‑selection. If you
 want Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly
@@ -59,6 +62,9 @@ OpenAI has two provider options:
 - `openai/chat` uses the legacy Chat Completions API. You’ll need this
   for certain audio workflows that still require chat‑style models.
 
+For a more detailed discussion of provider and model options, see
+[Providers and Models](../05_providers_and_models.qmd).
+
 ### Context Management
 
 - `reminder`: A string that is invisibly added to the user's message on
@@ -69,8 +75,8 @@ OpenAI has two provider options:
 
 - `tools`: A list of tool definitions that this interlocutor can use. The
   format of each object in the list depends on the tool type. See the
-  [Tools section](../tools/) for detailed configuration guides for each tool.
-
+  [Tools section](../tools/01_overview.qmd) for detailed configuration guides for each tool.
+`
 ---
 
 ## The `macro` Object
@@ -78,7 +84,7 @@ OpenAI has two provider options:
 - `name`: (Required) The name of the macro, used when invoking it with
   `:macro[name]`.
 - `expansion`: (Required) The content to be expanded. Can be a string, or
-  loaded via `file:` or `exec:`.
+  loaded via `file:` or `exec:` (see 
 
 ---
 

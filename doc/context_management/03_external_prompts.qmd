@@ -1,0 +1,107 @@
+# External Prompts and instructions: `file:` and `exec:`
+
+Many Lectic fields can load their text from outside the document. You can
+point a field at a file on disk, or run a command (or script) and use its
+output. This lets you keep prompts, usage text, and notes in one place, or
+compute them on demand.
+
+What supports external sources:
+
+- interlocutor.prompt
+- macros[].expansion
+- tools[].usage (for tools that accept a usage string)
+- tools[].details (for tools that provide extra details)
+
+Each of these accepts either a plain string, or a string beginning with one
+of the prefixes below.
+
+## `file:PATH`
+
+Loads the contents of PATH and uses that as the field value. Environment
+variables in the path are expanded before reading.
+
+Examples
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: file:./prompts/assistant.md
+```
+
+```yaml
+macros:
+  - name: summarize
+    expansion: file:$HOME/.config/lectic/prompts/summarize.txt
+```
+
+## `exec:COMMAND or exec:SCRIPT`
+
+Runs the command and uses its stdout as the field value. There are two
+forms:
+
+- Single line: executed directly, not through a shell. Shell features like
+  globbing and command substitution do not work. If you need them, invoke a
+  shell explicitly (for example, `bash -lc '...'`).
+- Multi‑line: treated as a script. The first line must be a shebang (for
+  example, `#!/usr/bin/env bash`). The script is written to a temporary file
+  and executed with the interpreter from the shebang.
+
+Environment variables in a single‑line command are expanded before running.
+For multi‑line scripts, variables are available via the process environment
+at runtime.
+
+## Examples
+
+Single line
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: exec:echo "You are a helpful assistant."
+```
+
+Multi‑line script
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: |
+    exec:#!/usr/bin/env bash
+    cat <<'PREFACE'
+    You are a helpful assistant.
+    You will incorporate recent memory below.
+    PREFACE
+    echo
+    echo "Recent memory:"
+    sqlite3 "$LECTIC_DATA/memory.sqlite3" \
+      "SELECT printf('- %s (%s)', text, ts) FROM memory \
+       ORDER BY ts DESC LIMIT 5;"
+```
+
+## Working directory and environment
+
+- `file:` and `exec:` resolve relative paths and run commands in the current
+  working directory of the lectic process (the directory from which you
+  invoked the command). If you used -f or -i, note that the working
+  directory does not automatically switch to the .lec file's directory for
+  these expansions. Use absolute paths or cd if you need a different base.
+- Standard Lectic environment variables are provided, including
+  `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, `LECTIC_TEMP`, and
+  `LECTIC_FILE` (when using `-f` or `-i`). Your shell environment is also passed
+  through.
+- Macro expansions can inject additional variables into `exec:` via directive
+  attributes. See the [Macros guide](../automation/01_macros.qmd) for details.
+
+## Behavior and errors
+
+- The value is recomputed on each run. This makes it easy to incorporate
+  recent state (for example, "memory" from a local database) into a prompt.
+- If a file cannot be read or a command fails, Lectic reports an error and
+  aborts the run. Fix the source and try again.
+
+See also
+
+- [External Content](./01_external_content.qmd) for attaching files to user
+  messages.
+- [Macros](../automation/01_macros.qmd) for passing variables into `exec:`
+  expansions within macros.

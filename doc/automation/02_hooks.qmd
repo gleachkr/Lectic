@@ -25,6 +25,9 @@ with a shebang (e.g., `#!/bin/bash`). If it is a single line, it is treated
 as a command. Commands are executed directly (not through a shell), so
 shell features like command substitution will not work.
 
+Hook commands run synchronously. Their stdout, stderr, and exit status are
+ignored by Lectic. Use your own logging inside the hook if you want persistent records.
+
 ## Available events and environment
 
 Lectic emits three hook events. When an event fires, the hook process

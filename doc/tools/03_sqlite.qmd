@@ -1,14 +1,14 @@
 # Tools: SQLite Query
 
 The `sqlite` tool gives your LLM the ability to query SQLite databases
-directly. This is an incredibly powerful way to provide access to structured
+directly. This is a powerful way to provide access to structured
 data, allowing the LLM to perform data analysis, answer questions from a
 knowledge base, or check the state of an application.
 
 ## Configuration
 
-Note: The snippets below show only the tool definition. They assume you have
-an interlocutor with a valid prompt and model configuration. See Getting
+The snippets below show only the tool definition. They assume you have an
+interlocutor with a valid prompt and model configuration. See Getting
 Started for a full header example.
 
 To configure the tool, you must provide the path to the SQLite database
@@ -21,47 +21,39 @@ tools:
     name: db_query
     limit: 10000
     details: >
-      Contains the full product catalog and inventory levels.
-      Use this to answer questions about what's in stock.
+      Contains the full product catalog and inventory levels. Use this to
+      answer questions about what is in stock.
     extensions:
       - ./lib/vector0
       - ./lib/math
 ```
 
-The path to the database can contain environment variables (e.g.,
-`$DATA_DIR/main.db`), which Lectic will expand.
+The path can include environment variables (for example,
+`$DATA_DIR/main.db`), which Lectic expands.
 
-### Configuration Parameters
+### Configuration parameters
 
-- `sqlite`: (Required) The path to the SQLite database file.
-- `name`: An optional name for the tool.
-- `limit`: An optional integer specifying the maximum size of the serialized
-  response in bytes. This prevents the LLM from being overwhelmed by huge
-  query results.
-- `details`: A string, `file:`, or `exec:` URI providing extra high-level
-  details about the database's purpose or contents.
-- `extensions`: An optional list of paths to SQLite extension libraries to
-  load before executing queries. This allows you to use extensions for
-  features like vector search, advanced math functions, and more.
-
-## Query and response format
-
-When the LLM uses the `sqlite` tool, it provides the SQL text in the
-`<query>` argument of the tool call. Lectic executes the query against the
-specified database and returns the result.
-
-For better readability and structure, the query result is formatted as YAML.
+- `sqlite`: (Required) Path to the SQLite database file.
+- `name`: A custom tool name.
+- `limit`: Maximum size of the serialized response in bytes. Large results
+  raise an error instead of flooding the model.
+- `details`: Extra high‑level context for the model. String, `file:`, or
+  `exec:` are accepted. See
+  [External Prompts (file:, exec:)](../context_management/03_external_prompts.qmd).
+- `extensions`: A list of SQLite extension libraries to load before queries.
 
 ### Example conversation
 
-**Configuration:**
+Configuration:
+
 ```yaml
 tools:
   - sqlite: ./chinook.db
     name: chinook
 ```
 
-**Conversation:**
+Conversation:
+
 ````markdown
 Who are the top 5 artists by number of tracks?
 
@@ -98,8 +90,27 @@ LIMIT 5;
   </results>
 </tool-call>
 
-Based on the data, the top 5 artists by number of tracks are Iron Maiden,
-Led Zeppelin, Metallica, U2, and Deep Purple.
+Based on the data, the top artists by track count are Iron Maiden, Led
+Zeppelin, Metallica, U2, and Deep Purple.
 
 :::
 ````
+
+## Writes and transactions
+
+Writes are allowed by default. Each tool call runs inside a transaction and
+is atomic. If any statement in the call fails, Lectic rolls back the entire
+call, so the database is unchanged.
+
+## Limits and large results
+
+The `limit` parameter caps the size of the serialized YAML that Lectic
+returns. If a result exceeds the cap, the tool raises an error. Tighten your
+query (for example, add `LIMIT` or select fewer columns) to stay under the
+cap.
+
+## Extensions
+
+You can load extensions by path before queries run. On macOS, note that the
+system SQLite build may restrict loading extensions. Consult the Bun SQLite
+extension documentation if you hit issues.

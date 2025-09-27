@@ -1,8 +1,8 @@
 # Managing Context: External Content
 
-A key feature of Lectic is its ability to pull external information into the
-conversation, providing the LLM with the context it needs to answer
-questions, analyze data, or perform tasks.
+Lectic aims to make it easy to pull external information into the conversation,
+providing the LLM with the context it needs to answer questions, analyze data,
+or perform tasks.
 
 This is done in two primary ways: by referencing files and URIs using
 standard Markdown links, and by executing shell commands with the `:cmd`

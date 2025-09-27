@@ -1,0 +1,115 @@
+# Providers and Models
+
+Lectic speaks to several providers. You pick a provider and a model in your
+YAML header, or let Lectic choose a default based on which API keys are in
+your environment.
+
+## Picking a default provider
+
+If you do not set `provider`, Lectic checks for keys in this order and uses
+the first one it finds:
+
+Anthropic → Gemini → OpenAI → OpenRouter.
+
+Set one of these environment variables before you run Lectic:
+
+- ANTHROPIC_API_KEY
+- GEMINI_API_KEY
+- OPENAI_API_KEY
+- OPENROUTER_API_KEY
+
+AWS credentials for Bedrock are not used for auto‑selection. If you want
+Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly and make
+sure your AWS environment is configured.
+
+## OpenAI: two provider strings
+
+OpenAI has two modes in Lectic today.
+
+- `openai` selects the Responses API. Choose this when you want native tools
+  like search and code.
+- `openai/chat` selects the legacy Chat Completions API.
+
+## Examples
+
+Anthropic, direct API:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: anthropic
+  model: claude-3-haiku-20240307
+```
+
+Anthropic via Bedrock:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: anthropic/bedrock
+  model: anthropic.claude-3-haiku-20240307-v1:0
+```
+
+OpenAI Responses API:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: openai
+  model: gpt-4o-mini
+```
+
+OpenAI Chat Completions:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: openai/chat
+  model: gpt-4o-mini
+```
+
+Gemini:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: gemini
+  model: gemini-2.5-flash
+```
+
+OpenRouter:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: openrouter
+  model: meta-llama/llama-3.1-70b-instruct
+```
+
+Ollama (local inference):
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: ollama
+  model: llama3.1
+```
+
+## Capabilities and media
+
+Providers differ in what they accept as input. Most accept plain text and
+images. Many accept PDFs and short audio clips. Support changes quickly, so
+consult each provider's documentation for current limits on formats, sizes,
+page counts, and rate limits.
+
+In Lectic, you attach external content by linking files in the user message
+body. Lectic will package these and send them to the provider in a way that
+fits that provider's API. See [External
+Content](./context_management/01_external_content.qmd) for examples and tips.
