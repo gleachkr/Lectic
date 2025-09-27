@@ -20,6 +20,7 @@ tools:
   - sqlite: ./products.db
     name: db_query
     limit: 10000
+    readonly: true
     details: >
       Contains the full product catalog and inventory levels. Use this to
       answer questions about what is in stock.
@@ -35,11 +36,12 @@ The path can include environment variables (for example,
 
 - `sqlite`: (Required) Path to the SQLite database file.
 - `name`: A custom tool name.
+- `readonly`: To set the database as read only.
 - `limit`: Maximum size of the serialized response in bytes. Large results
   raise an error instead of flooding the model.
 - `details`: Extra high‑level context for the model. String, `file:`, or
   `exec:` are accepted. See
-  [External Prompts (file:, exec:)](../context_management/03_external_prompts.qmd).
+  [External Prompts](../context_management/03_external_prompts.qmd).
 - `extensions`: A list of SQLite extension libraries to load before queries.
 
 ### Example conversation

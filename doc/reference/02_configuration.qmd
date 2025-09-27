@@ -24,7 +24,7 @@ An interlocutor object defines a single LLM "personality" or configuration.
   personality and instructions. The value can be a string, or it can be
   loaded from a file (`file:./path.txt`) or a command (`exec:get-prompt`).
   See
-  [External Sources (file:, exec:)](../context_management/03_external_prompts.qmd)
+  [External Prompts](../context_management/03_external_prompts.qmd)
   for details and examples.
 
 ### Model Configuration

@@ -1,4 +1,4 @@
-# External Prompts and Instructions: `file:` and `exec:`
+# External Prompts and Instructions
 
 Many Lectic fields can load their text from outside the document. You can
 point a field at a file on disk, or run a command (or script) and use its

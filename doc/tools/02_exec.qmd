@@ -49,7 +49,7 @@ tools:
 - `name`: An optional name for the tool.
 - `usage`: A string with instructions for the LLM. It also accepts `file:`
   and `exec:` sources. See
-  [External Sources (file:, exec:)](../context_management/03_external_prompts.qmd)
+  [External Prompts](../context_management/03_external_prompts.qmd)
   for semantics.
 - `sandbox`: A path to a sandboxing script. See safety below.
 - `confirm`: A path to a confirmation script. See safety below.

@@ -32,7 +32,7 @@ macros:
 The `expansion` field can be a simple string, or it can load its content
 from a file or from the output of a command, just like the `prompt` field.
 For full semantics of `file:` and `exec:`, see
-[External Prompts (file:, exec:)](../context_management/03_external_prompts.qmd).
+[External Prompts](../context_management/03_external_prompts.qmd).
 
 - **File Source**: `expansion: file:./prompts/summarize.txt`
 - **Command/Script Source**:
