@@ -116,7 +116,7 @@ the recorded results. You will see tags like <tool-call>, <arguments>, and
 ::: {.callout-tip} 
 
 You can load prompts from files or compute them with commands using
-`file:` and `exec:`. See [External prompts (file:, exec:)](./context_management/03_external_prompts.qmd).
+`file:` and `exec:`. See [External Prompts](./context_management/03_external_prompts.qmd).
 
 :::
 
