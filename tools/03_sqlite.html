@@ -165,6 +165,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../05_providers_and_models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Providers and Models</span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -184,6 +190,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../context_management/02_conversation_control.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Conversation Control</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">External Sources (file:, exec:)</span></a>
   </div>
 </li>
       </ul>
@@ -295,12 +307,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a>
   <ul class="collapse">
-  <li><a href="#configuration-parameters" id="toc-configuration-parameters" class="nav-link" data-scroll-target="#configuration-parameters">Configuration Parameters</a></li>
-  </ul></li>
-  <li><a href="#query-and-response-format" id="toc-query-and-response-format" class="nav-link" data-scroll-target="#query-and-response-format">Query and response format</a>
-  <ul class="collapse">
+  <li><a href="#configuration-parameters" id="toc-configuration-parameters" class="nav-link" data-scroll-target="#configuration-parameters">Configuration parameters</a></li>
   <li><a href="#example-conversation" id="toc-example-conversation" class="nav-link" data-scroll-target="#example-conversation">Example conversation</a></li>
   </ul></li>
+  <li><a href="#writes-and-transactions" id="toc-writes-and-transactions" class="nav-link" data-scroll-target="#writes-and-transactions">Writes and transactions</a></li>
+  <li><a href="#limits-and-large-results" id="toc-limits-and-large-results" class="nav-link" data-scroll-target="#limits-and-large-results">Limits and large results</a></li>
+  <li><a href="#extensions" id="toc-extensions" class="nav-link" data-scroll-target="#extensions">Extensions</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -313,44 +325,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="tools-sqlite-query" class="level1">
 <h1>Tools: SQLite Query</h1>
-<p>The <code>sqlite</code> tool gives your LLM the ability to query SQLite databases directly. This is an incredibly powerful way to provide access to structured data, allowing the LLM to perform data analysis, answer questions from a knowledge base, or check the state of an application.</p>
+<p>The <code>sqlite</code> tool gives your LLM the ability to query SQLite databases directly. This is a powerful way to provide access to structured data, allowing the LLM to perform data analysis, answer questions from a knowledge base, or check the state of an application.</p>
 <section id="configuration" class="level2">
 <h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
-<p>Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.</p>
+<p>The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.</p>
 <p>To configure the tool, you must provide the path to the SQLite database file. The database schema is automatically introspected and provided to the LLM, so it knows what tables and columns are available.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">sqlite</span><span class="kw">:</span><span class="at"> ./products.db</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> db_query</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">limit</span><span class="kw">:</span><span class="at"> </span><span class="dv">10000</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">    details</span><span class="kw">: </span><span class="ch">&gt;</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>      Contains the full product catalog and inventory levels.</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      Use this to answer questions about what's in stock.</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>      Contains the full product catalog and inventory levels. Use this to</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      answer questions about what is in stock.</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">extensions</span><span class="kw">:</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> ./lib/vector0</span></span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> ./lib/math</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The path to the database can contain environment variables (e.g., <code>$DATA_DIR/main.db</code>), which Lectic will expand.</p>
+<p>The path can include environment variables (for example, <code>$DATA_DIR/main.db</code>), which Lectic expands.</p>
 <section id="configuration-parameters" class="level3">
-<h3 class="anchored" data-anchor-id="configuration-parameters">Configuration Parameters</h3>
+<h3 class="anchored" data-anchor-id="configuration-parameters">Configuration parameters</h3>
 <ul>
-<li><code>sqlite</code>: (Required) The path to the SQLite database file.</li>
-<li><code>name</code>: An optional name for the tool.</li>
-<li><code>limit</code>: An optional integer specifying the maximum size of the serialized response in bytes. This prevents the LLM from being overwhelmed by huge query results.</li>
-<li><code>details</code>: A string, <code>file:</code>, or <code>exec:</code> URI providing extra high-level details about the database’s purpose or contents.</li>
-<li><code>extensions</code>: An optional list of paths to SQLite extension libraries to load before executing queries. This allows you to use extensions for features like vector search, advanced math functions, and more.</li>
+<li><code>sqlite</code>: (Required) Path to the SQLite database file.</li>
+<li><code>name</code>: A custom tool name.</li>
+<li><code>limit</code>: Maximum size of the serialized response in bytes. Large results raise an error instead of flooding the model.</li>
+<li><code>details</code>: Extra high‑level context for the model. String, <code>file:</code>, or <code>exec:</code> are accepted. See <a href="../context_management/03_external_prompts.html">External Prompts (file:, exec:)</a>.</li>
+<li><code>extensions</code>: A list of SQLite extension libraries to load before queries.</li>
 </ul>
 </section>
-</section>
-<section id="query-and-response-format" class="level2">
-<h2 class="anchored" data-anchor-id="query-and-response-format">Query and response format</h2>
-<p>When the LLM uses the <code>sqlite</code> tool, it provides the SQL text in the <code>&lt;query&gt;</code> argument of the tool call. Lectic executes the query against the specified database and returns the result.</p>
-<p>For better readability and structure, the query result is formatted as YAML.</p>
 <section id="example-conversation" class="level3">
 <h3 class="anchored" data-anchor-id="example-conversation">Example conversation</h3>
-<p><strong>Configuration:</strong></p>
+<p>Configuration:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">sqlite</span><span class="kw">:</span><span class="at"> ./chinook.db</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> chinook</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>Conversation:</strong></p>
+<p>Conversation:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Who are the top 5 artists by number of tracks?</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>:::Assistant</span>
@@ -386,13 +393,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;/</span><span class="kw">results</span><span class="dt">&gt;</span></span>
 <span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tool-call</span><span class="dt">&gt;</span></span>
 <span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>Based on the data, the top 5 artists by number of tracks are Iron Maiden,</span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>Led Zeppelin, Metallica, U2, and Deep Purple.</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>Based on the data, the top artists by track count are Iron Maiden, Led</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>Zeppelin, Metallica, U2, and Deep Purple.</span>
 <span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-
-
 </section>
+</section>
+<section id="writes-and-transactions" class="level2">
+<h2 class="anchored" data-anchor-id="writes-and-transactions">Writes and transactions</h2>
+<p>Writes are allowed by default. Each tool call runs inside a transaction and is atomic. If any statement in the call fails, Lectic rolls back the entire call, so the database is unchanged.</p>
+</section>
+<section id="limits-and-large-results" class="level2">
+<h2 class="anchored" data-anchor-id="limits-and-large-results">Limits and large results</h2>
+<p>The <code>limit</code> parameter caps the size of the serialized YAML that Lectic returns. If a result exceeds the cap, the tool raises an error. Tighten your query (for example, add <code>LIMIT</code> or select fewer columns) to stay under the cap.</p>
+</section>
+<section id="extensions" class="level2">
+<h2 class="anchored" data-anchor-id="extensions">Extensions</h2>
+<p>You can load extensions by path before queries run. On macOS, note that the system SQLite build may restrict loading extensions. Consult the Bun SQLite extension documentation if you hit issues.</p>
+
+
 </section>
 </section>
 

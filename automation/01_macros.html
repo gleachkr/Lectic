@@ -165,6 +165,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../05_providers_and_models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Providers and Models</span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -184,6 +190,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../context_management/02_conversation_control.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Conversation Control</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">External Sources (file:, exec:)</span></a>
   </div>
 </li>
       </ul>
@@ -332,7 +344,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>      :cmd[git diff --staged]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="expansion-sources" class="level3">
 <h3 class="anchored" data-anchor-id="expansion-sources">Expansion Sources</h3>
-<p>The <code>expansion</code> field can be a simple string, or it can load its content dynamically from a file or the output of a command, just like the <code>prompt</code> field.</p>
+<p>The <code>expansion</code> field can be a simple string, or it can load its content from a file or from the output of a command, just like the <code>prompt</code> field. For full semantics of <code>file:</code> and <code>exec:</code>, see <a href="../context_management/03_external_prompts.html">External Prompts (file:, exec:)</a>.</p>
 <ul>
 <li><strong>File Source</strong>: <code>expansion: file:./prompts/summarize.txt</code></li>
 <li><strong>Command/Script Source</strong>:
@@ -360,7 +372,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>You can pass environment variables to a macro’s expansion by adding attributes to the <code>:macro[...]</code> directive. These attributes are injected into the environment of <code>exec:</code> expansions when they run.</p>
 <ul>
 <li><code>:macro[name]{FOO="bar"}</code> sets the variable <code>FOO</code> to <code>bar</code>.</li>
-<li><code>:macro[name]{EMPTY}</code> sets the variable <code>EMPTY</code> to be unset/omitted. If you need an empty string value, write <code>:macro[name]{EMPTY=""}</code>.</li>
+<li><code>:macro[name]{EMPTY}</code> sets the variable <code>EMPTY</code> to be undefined. If you need an empty string value, write <code>:macro[name]{EMPTY=""}</code>.</li>
 </ul>
 <p>Notes: - Single‑line <code>exec:</code> commands are not run through a shell. If you need shell features, invoke a shell explicitly, e.g., <code>exec: bash -c 'echo "Hello, $TARGET"'</code>. - In single‑line commands, variables in the command string are expanded before execution. For multi‑line scripts, variables are available to the script via the environment.</p>
 <section id="example" class="level3">

@@ -165,6 +165,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../05_providers_and_models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Providers and Models</span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -184,6 +190,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../context_management/02_conversation_control.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Conversation Control</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">External Sources (file:, exec:)</span></a>
   </div>
 </li>
       </ul>
@@ -321,6 +333,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">assistant_message</span><span class="kw">,</span><span class="at"> user_message</span><span class="kw">]</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> ./log-activity.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If <code>do</code> contains multiple lines, it is treated as a script and must begin with a shebang (e.g., <code>#!/bin/bash</code>). If it is a single line, it is treated as a command. Commands are executed directly (not through a shell), so shell features like command substitution will not work.</p>
+<p>Hook commands run synchronously. Their stdout, stderr, and exit status are ignored by Lectic. Use your own logging inside the hook if you want persistent records.</p>
 </section>
 <section id="available-events-and-environment" class="level2">
 <h2 class="anchored" data-anchor-id="available-events-and-environment">Available events and environment</h2>

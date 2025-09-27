@@ -165,6 +165,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../05_providers_and_models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Providers and Models</span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -184,6 +190,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../context_management/02_conversation_control.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Conversation Control</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">External Sources (file:, exec:)</span></a>
   </div>
 </li>
       </ul>
@@ -299,8 +311,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#inline-script" id="toc-inline-script" class="nav-link" data-scroll-target="#inline-script">Inline script</a></li>
   <li><a href="#configuration-parameters" id="toc-configuration-parameters" class="nav-link" data-scroll-target="#configuration-parameters">Configuration parameters</a></li>
   </ul></li>
-  <li><a href="#command-execution-semantics" id="toc-command-execution-semantics" class="nav-link" data-scroll-target="#command-execution-semantics">Command execution semantics</a></li>
-  <li><a href="#supplying-parameters-with-schema" id="toc-supplying-parameters-with-schema" class="nav-link" data-scroll-target="#supplying-parameters-with-schema">Supplying parameters with <code>schema</code></a></li>
+  <li><a href="#command-execution-semantics" id="toc-command-execution-semantics" class="nav-link" data-scroll-target="#command-execution-semantics">Command execution semantics</a>
+  <ul class="collapse">
+  <li><a href="#working-directory-and-files" id="toc-working-directory-and-files" class="nav-link" data-scroll-target="#working-directory-and-files">Working directory and files</a></li>
+  <li><a href="#stdout-stderr-and-exit-codes" id="toc-stdout-stderr-and-exit-codes" class="nav-link" data-scroll-target="#stdout-stderr-and-exit-codes">Stdout, stderr, and exit codes</a></li>
+  <li><a href="#named-parameters-with-schema" id="toc-named-parameters-with-schema" class="nav-link" data-scroll-target="#named-parameters-with-schema">Named parameters with <code>schema</code></a></li>
+  </ul></li>
   <li><a href="#execution-environment" id="toc-execution-environment" class="nav-link" data-scroll-target="#execution-environment">Execution environment</a></li>
   <li><a href="#safety-and-trust" id="toc-safety-and-trust" class="nav-link" data-scroll-target="#safety-and-trust">Safety and trust</a>
   <ul class="collapse">
@@ -319,11 +335,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="tools-command-execution-exec" class="level1">
 <h1>Tools: Command Execution (<code>exec</code>)</h1>
-<p>The <code>exec</code> tool is one of the most versatile tools in Lectic. It allows the LLM to execute shell commands and scripts, enabling it to interact directly with your system, run code, and interface with other command‑line applications.</p>
+<p>The <code>exec</code> tool is one of the most versatile tools in Lectic. It allows the LLM to execute commands and scripts, enabling it to interact directly with your system, run code, and interface with other command‑line applications.</p>
 <section id="configuration" class="level2">
 <h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
-<p>Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.</p>
-<p>You can configure an <code>exec</code> tool by providing the command to be executed. You can also provide a custom <code>name</code> for the LLM to use, a <code>usage</code> guide, and several optional parameters for security and execution control.</p>
+<p>The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.</p>
+<p>You configure an <code>exec</code> tool by providing the command to be executed. You can also provide a custom <code>name</code> for the LLM to use, a <code>usage</code> guide, and optional parameters for security and execution control.</p>
 <section id="simple-command" class="level3">
 <h3 class="anchored" data-anchor-id="simple-command">Simple command</h3>
 <p>This configuration allows the LLM to run the <code>python3</code> interpreter.</p>
@@ -336,10 +352,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="inline-script" class="level3">
 <h3 class="anchored" data-anchor-id="inline-script">Inline script</h3>
-<p>For more complex or specialized tasks, you can provide a multi‑line script directly in the YAML. The first line of the script must be a shebang (e.g., <code>#!/bin/bash</code>) to specify the interpreter.</p>
+<p>You can also provide a multi‑line script in the YAML. The first line of the script must be a shebang (for example, <code>#!/usr/bin/env bash</code>) to choose the interpreter.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> line_counter</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> </span><span class="st">"Counts the number of lines in a file. Takes one argument: the file path."</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> </span><span class="st">"Counts the number of lines in a file. Takes one argument: path."</span></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    exec</span><span class="kw">: </span><span class="ch">|</span></span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      # A simple script to count the lines in a file</span>
@@ -349,31 +365,44 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="configuration-parameters">Configuration parameters</h3>
 <ul>
 <li><code>exec</code>: (Required) The command or inline script to execute.</li>
-<li><code>name</code>: An optional name for the tool. If not provided, it defaults to the base name of the command.</li>
-<li><code>usage</code>: A string, <code>file:</code>, or <code>exec:</code> URI providing instructions for the LLM on how to use the tool.</li>
-<li><code>sandbox</code>: A path to a sandboxing script. See safety section below.</li>
-<li><code>confirm</code>: A path to a confirmation script. See safety section below.</li>
-<li><code>timeoutSeconds</code>: The number of seconds to wait before timing out the command.</li>
-<li><code>env</code>: An object of environment variables to set for the command’s execution environment.</li>
-<li><code>schema</code>: A mapping of parameter name → description. When provided, the tool accepts named string parameters instead of a positional argument array. See the section below for details.</li>
+<li><code>name</code>: An optional name for the tool.</li>
+<li><code>usage</code>: A string with instructions for the LLM. It also accepts <code>file:</code> and <code>exec:</code> sources. See <a href="../context_management/03_external_prompts.html">External Sources (file:, exec:)</a> for semantics.</li>
+<li><code>sandbox</code>: A path to a sandboxing script. See safety below.</li>
+<li><code>confirm</code>: A path to a confirmation script. See safety below.</li>
+<li><code>timeoutSeconds</code>: Seconds to wait before aborting a long‑running call.</li>
+<li><code>env</code>: Environment variables to set for the subprocess.</li>
+<li><code>schema</code>: A map of parameter name → description. When present, the tool takes named string parameters (exposed as env vars). When absent, the tool instead takes a required <code>arguments</code> array of strings.</li>
 </ul>
 </section>
 </section>
 <section id="command-execution-semantics" class="level2">
 <h2 class="anchored" data-anchor-id="command-execution-semantics">Command execution semantics</h2>
 <ul>
-<li>No shell is involved. The command (or script interpreter) is executed directly, so shell features like globbing or command substitution will not work.</li>
-<li>When <code>exec</code> is a single line, environment variables in the command are expanded before execution using values from the tool’s <code>env</code> plus standard Lectic variables.</li>
-<li>When <code>exec</code> is multi‑line, it must start with a shebang and will be written to a temporary file and executed with that interpreter.</li>
+<li>No shell is involved. The command (or script’s interpreter) is executed directly. Shell features like globbing or command substitution will not work unless you invoke a shell yourself.</li>
+<li>Single‑line <code>exec</code> values have environment variables expanded before execution using the tool’s <code>env</code> plus standard Lectic variables.</li>
+<li>Multi‑line <code>exec</code> values must start with a shebang. Lectic writes the script to a temporary file and executes it with that interpreter.</li>
 </ul>
+<section id="working-directory-and-files" class="level3">
+<h3 class="anchored" data-anchor-id="working-directory-and-files">Working directory and files</h3>
+<p>The current working directory for <code>exec</code> is:</p>
+<ul>
+<li>If you run with <code>-f</code> or <code>-i</code>: the directory containing the <code>.lec</code> file.</li>
+<li>Otherwise: the directory from which you invoked the <code>lectic</code> command.</li>
+</ul>
+<p>This means relative paths in your commands and scripts resolve relative to that directory. Temporary scripts are written into the same working directory.</p>
 </section>
-<section id="supplying-parameters-with-schema" class="level2">
-<h2 class="anchored" data-anchor-id="supplying-parameters-with-schema">Supplying parameters with <code>schema</code></h2>
-<p>If you define <code>schema</code>, the tool takes named parameters. Each parameter must be a string, and Lectic will expose these values to the subprocess via environment variables with the same names.</p>
+<section id="stdout-stderr-and-exit-codes" class="level3">
+<h3 class="anchored" data-anchor-id="stdout-stderr-and-exit-codes">Stdout, stderr, and exit codes</h3>
+<p>Lectic captures stdout and stderr separately and returns both to the model. It also includes the numeric exit code when it is non‑zero. You will see these serialized inside the tool call results as XML tags like <stdout>, <stderr>, and <exitcode>.</exitcode></stderr></stdout></p>
+<p>If a timeout occurs, Lectic kills the subprocess and throws an error that includes any partial stdout and stderr collected so far.</p>
+</section>
+<section id="named-parameters-with-schema" class="level3">
+<h3 class="anchored" data-anchor-id="named-parameters-with-schema">Named parameters with <code>schema</code></h3>
+<p>You might want to control what arguments your LLM can pass to a command or script, or offer a template for correct usage. If your configuration includes a <code>schema</code>, the LLM will be guided to provide specific parameters when calling the script or command. Each parameter is a string and Lectic exposes it to the subprocess via an environment variable with the same name.</p>
 <p>This applies to both commands and scripts:</p>
 <ul>
 <li>For scripts, parameters are available as <code>$PARAM_NAME</code> inside the script.</li>
-<li>For commands, parameters are available in the subprocess environment (e.g., <code>$PARAM_NAME</code> for Unix‑like tools).</li>
+<li>For commands, parameters are available in the subprocess environment.</li>
 </ul>
 <p>Example:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># YAML configuration</span></span>
@@ -385,8 +414,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">schema</span><span class="kw">:</span></span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">NAME</span><span class="kw">:</span><span class="at"> The name to greet.</span></span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">DAY</span><span class="kw">:</span><span class="at"> The day string to include.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>When the LLM calls this tool with parameters <code>{ NAME: "Ada", DAY: "Friday" }</code>, Lectic will run the script with <code>NAME=Ada</code> and <code>DAY=Friday</code> in the environment.</p>
-<p>If you do not provide <code>schema</code>, the tool instead accepts a single parameter named <code>arguments</code>, which is an array of strings. These are passed as positional arguments to the command or script.</p>
+<p>If the LLM provides <code>{ NAME: "Ada", DAY: "Friday" }</code> Lectic will fill in the results:</p>
+<pre><code>&lt;tool-call with="greeter"&gt;
+  &lt;arguments&gt;
+    &lt;NAME&gt;"Ada"&lt;/NAME&gt;
+    &lt;DAY&gt;"Friday"&lt;/DAY&gt;
+  &lt;/arguments&gt;
+  &lt;results&gt;
+    &lt;result type="text"&gt;Hello, Ada! Today is Friday.\n&lt;/result&gt;
+  &lt;/results&gt;
+&lt;/tool-call&gt;</code></pre>
+</section>
 </section>
 <section id="execution-environment" class="level2">
 <h2 class="anchored" data-anchor-id="execution-environment">Execution environment</h2>
@@ -404,19 +442,19 @@ Warning
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>Granting an LLM the ability to execute commands can be dangerous. Treat every <code>exec</code> tool as a capability you are delegating. Combine human-in-the- loop confirmation and sandboxing to minimize risk. Do not expose sensitive files or networks unless you fully trust the tool and its usage.</p>
+<p>Granting an LLM the ability to execute commands can be dangerous. Treat every <code>exec</code> tool as a capability you are delegating. Combine human‑in‑the‑ loop confirmation and sandboxing to minimize risk. Do not expose sensitive files or networks unless you fully trust the tool and its usage.</p>
 </div>
 </div>
-<p>Lectic provides two primary mechanisms to enhance the safety of <code>exec</code> tools: confirmation scripts and sandboxing.</p>
+<p>Lectic provides two mechanisms to help you keep <code>exec</code> tools safe: confirmation scripts and sandboxing.</p>
 <section id="confirmation-scripts-confirm" class="level3">
 <h3 class="anchored" data-anchor-id="confirmation-scripts-confirm">Confirmation scripts (<code>confirm</code>)</h3>
-<p>If a <code>confirm</code> script is provided, Lectic will execute it before every call to the tool. The script receives two arguments: the tool’s name and a JSON string of the call arguments. If the confirmation script exits non‑zero, the call is cancelled.</p>
-<p>An example script that uses a graphical dialog box is provided in <code>extra/confirm/zenity-confirm.sh</code>.</p>
+<p>If a <code>confirm</code> script is provided, Lectic runs it before every call. The script receives two arguments: the tool’s name and a JSON string of the call arguments. If the confirmation script exits non‑zero, the call is cancelled.</p>
+<p>An example script that uses a graphical dialog is in <code>extra/confirm/zenity-confirm.sh</code>.</p>
 </section>
 <section id="sandboxing-sandbox" class="level3">
 <h3 class="anchored" data-anchor-id="sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</h3>
-<p>When a <code>sandbox</code> script is configured, the LLM’s command is not executed directly. Instead, the sandbox script is executed first, and the command and its arguments are passed as arguments to it. The sandbox script is then responsible for creating a controlled environment to run the command.</p>
-<p>For example, <code>extra/sandbox/bwrap-sandbox.sh</code> uses the Bubblewrap utility to create a minimal, isolated environment with a temporary home directory.</p>
+<p>When a <code>sandbox</code> script is configured, a command call will actually execute the <code>sandbox</code> script, which will receive the command and the LLM provided parameters as arguments. The wrapper is responsible for creating a controlled environment to run the command.</p>
+<p>For example, <code>extra/sandbox/bwrap-sandbox.sh</code> uses Bubblewrap to create a minimal, isolated environment with a temporary home directory.</p>
 
 
 </section>

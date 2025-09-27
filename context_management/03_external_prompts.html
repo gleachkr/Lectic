@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>agent – Lectic Documentation</title>
+<title>external_prompts – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -117,7 +117,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/05_agent.html">Agent</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../context_management/01_external_content.html">Context Management</a></li><li class="breadcrumb-item"><a href="../context_management/03_external_prompts.html">External Sources (file:, exec:)</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -194,7 +194,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
+  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">External Sources (file:, exec:)</span></a>
   </div>
 </li>
@@ -235,7 +235,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/05_agent.html" class="sidebar-item-text sidebar-link active">
+  <a href="../tools/05_agent.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Agent</span></a>
   </div>
 </li>
@@ -303,81 +303,94 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#tools-agent" id="toc-tools-agent" class="nav-link active" data-scroll-target="#tools-agent">Tools: Agent</a>
+  <li><a href="#external-prompts-and-instructions-file-and-exec" id="toc-external-prompts-and-instructions-file-and-exec" class="nav-link active" data-scroll-target="#external-prompts-and-instructions-file-and-exec">External Prompts and instructions: <code>file:</code> and <code>exec:</code></a>
   <ul class="collapse">
-  <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a>
-  <ul class="collapse">
-  <li><a href="#example-configuration" id="toc-example-configuration" class="nav-link" data-scroll-target="#example-configuration">Example Configuration</a></li>
-  </ul></li>
-  <li><a href="#example-conversation" id="toc-example-conversation" class="nav-link" data-scroll-target="#example-conversation">Example Conversation</a></li>
+  <li><a href="#filepath" id="toc-filepath" class="nav-link" data-scroll-target="#filepath"><code>file:PATH</code></a></li>
+  <li><a href="#execcommand-or-execscript" id="toc-execcommand-or-execscript" class="nav-link" data-scroll-target="#execcommand-or-execscript"><code>exec:COMMAND or exec:SCRIPT</code></a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#working-directory-and-environment" id="toc-working-directory-and-environment" class="nav-link" data-scroll-target="#working-directory-and-environment">Working directory and environment</a></li>
+  <li><a href="#behavior-and-errors" id="toc-behavior-and-errors" class="nav-link" data-scroll-target="#behavior-and-errors">Behavior and errors</a></li>
   </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/05_agent.html">Agent</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../context_management/01_external_content.html">Context Management</a></li><li class="breadcrumb-item"><a href="../context_management/03_external_prompts.html">External Sources (file:, exec:)</a></li></ol></nav></header>
 
 
 
 
-<section id="tools-agent" class="level1">
-<h1>Tools: Agent</h1>
-<p>The <code>agent</code> tool allows you to create sophisticated multi-LLM workflows by enabling one interlocutor to call another as a tool. The “agent” interlocutor receives the query from the “caller” with no other context, processes it, and returns its response as the tool’s output.</p>
-<p>This is a powerful way to separate concerns. You can create specialized agents and then compose them into more complex systems. For an excellent overview of the philosophy behind this approach, see Anthropic’s blog post on their <a href="https://www.anthropic.com/engineering/built-multi-agent-research-system">multi-agent research system</a>.</p>
-<section id="configuration" class="level2">
-<h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
-<p>To use the <code>agent</code> tool, you must have at least two interlocutors defined. In the configuration for one interlocutor, you add an <code>agent</code> tool that points to the <code>name</code> of the other.</p>
+<section id="external-prompts-and-instructions-file-and-exec" class="level1">
+<h1>External Prompts and instructions: <code>file:</code> and <code>exec:</code></h1>
+<p>Many Lectic fields can load their text from outside the document. You can point a field at a file on disk, or run a command (or script) and use its output. This lets you keep prompts, usage text, and notes in one place, or compute them on demand.</p>
+<p>What supports external sources:</p>
 <ul>
-<li><code>agent</code>: (Required) The name of the interlocutor to be called as an agent.</li>
-<li><code>name</code>: An optional name for the tool.</li>
-<li><code>usage</code>: A string, <code>file:</code>, or <code>exec:</code> URI providing instructions for the calling LLM on when and how to use this agent.</li>
-<li><code>raw_output</code>: A boolean value. Normally an agent’s output will be sanitized, so that raw tool call results are not visible to the interlocutor who called the agent. Setting raw_output to true puts the full output from the agent into the main interlocutor’s tool call results.</li>
+<li>interlocutor.prompt</li>
+<li>macros[].expansion</li>
+<li>tools[].usage (for tools that accept a usage string)</li>
+<li>tools[].details (for tools that provide extra details)</li>
 </ul>
-<section id="example-configuration" class="level3">
-<h3 class="anchored" data-anchor-id="example-configuration">Example Configuration</h3>
-<p>In this setup, <code>Kirk</code> is the main interlocutor. He has a tool named <code>communicator</code> which, when used, will call the <code>Spock</code> interlocutor. <code>Spock</code> has his own set of tools, including a <code>think_about</code> tool to encourage careful reasoning.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Kirk</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are Captain Kirk. You are bold and decisive.</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> Spock</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> communicator</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> Use this to contact Spock for logical analysis and advice.</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Spock</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">    prompt</span><span class="kw">: </span><span class="ch">&gt;</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>      You are Mr. Spock. You respond with pure logic, suppressing all</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>      emotion.</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">think_about</span><span class="kw">:</span><span class="at"> how to logically solve the problem presented.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Each of these accepts either a plain string, or a string beginning with one of the prefixes below.</p>
+<section id="filepath" class="level2">
+<h2 class="anchored" data-anchor-id="filepath"><code>file:PATH</code></h2>
+<p>Loads the contents of PATH and uses that as the field value. Environment variables in the path are expanded before reading.</p>
+<p>Examples</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> file:./prompts/assistant.md</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> summarize</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">expansion</span><span class="kw">:</span><span class="at"> file:$HOME/.config/lectic/prompts/summarize.txt</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
+<section id="execcommand-or-execscript" class="level2">
+<h2 class="anchored" data-anchor-id="execcommand-or-execscript"><code>exec:COMMAND or exec:SCRIPT</code></h2>
+<p>Runs the command and uses its stdout as the field value. There are two forms:</p>
+<ul>
+<li>Single line: executed directly, not through a shell. Shell features like globbing and command substitution do not work. If you need them, invoke a shell explicitly (for example, <code>bash -lc '...'</code>).</li>
+<li>Multi‑line: treated as a script. The first line must be a shebang (for example, <code>#!/usr/bin/env bash</code>). The script is written to a temporary file and executed with the interpreter from the shebang.</li>
+</ul>
+<p>Environment variables in a single‑line command are expanded before running. For multi‑line scripts, variables are available via the process environment at runtime.</p>
 </section>
-<section id="example-conversation" class="level2">
-<h2 class="anchored" data-anchor-id="example-conversation">Example Conversation</h2>
-<p>Using the configuration above, Captain Kirk can delegate complex analysis to Spock.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>We've encountered an alien vessel of unknown origin. It is not responding to</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>hails. What is the logical course of action?</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>:::Kirk</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>This situation requires careful analysis. I will consult my science officer.</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tool-call</span><span class="ot"> with</span><span class="op">=</span><span class="st">"communicator"</span><span class="dt">&gt;</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">content</span><span class="dt">&gt;</span>Alien vessel, unknown origin, unresponsive. Propose logical</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    course of action.<span class="dt">&lt;/</span><span class="kw">content</span><span class="dt">&gt;</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;/</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;</span><span class="kw">results</span><span class="dt">&gt;</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">result</span><span class="ot"> type</span><span class="op">=</span><span class="st">"text"</span><span class="dt">&gt;</span>Insufficient data. Recommend passive scans to gather</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    information on their technological capabilities before initiating</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    further contact. Avoid any action that could be perceived as</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    hostile.<span class="dt">&lt;/</span><span class="kw">result</span><span class="dt">&gt;</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;/</span><span class="kw">results</span><span class="dt">&gt;</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tool-call</span><span class="dt">&gt;</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>A logical approach. We will proceed with passive scans.</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="examples" class="level2">
+<h2 class="anchored" data-anchor-id="examples">Examples</h2>
+<p>Single line</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> exec:echo "You are a helpful assistant."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Multi‑line script</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  prompt</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    exec:#!/usr/bin/env bash</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    cat &lt;&lt;'PREFACE'</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    You are a helpful assistant.</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    You will incorporate recent memory below.</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    PREFACE</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    echo</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    echo "Recent memory:"</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    sqlite3 "$LECTIC_DATA/memory.sqlite3" \</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      "SELECT printf('- %s (%s)', text, ts) FROM memory \</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>       ORDER BY ts DESC LIMIT 5;"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="working-directory-and-environment" class="level2">
+<h2 class="anchored" data-anchor-id="working-directory-and-environment">Working directory and environment</h2>
+<ul>
+<li><code>file:</code> and <code>exec:</code> resolve relative paths and run commands in the current working directory of the lectic process (the directory from which you invoked the command). If you used -f or -i, note that the working directory does not automatically switch to the .lec file’s directory for these expansions. Use absolute paths or cd if you need a different base.</li>
+<li>Standard Lectic environment variables are provided, including <code>LECTIC_CONFIG</code>, <code>LECTIC_DATA</code>, <code>LECTIC_CACHE</code>, <code>LECTIC_STATE</code>, <code>LECTIC_TEMP</code>, and <code>LECTIC_FILE</code> (when using <code>-f</code> or <code>-i</code>). Your shell environment is also passed through.</li>
+<li>Macro expansions can inject additional variables into <code>exec:</code> via directive attributes. See the <a href="../automation/01_macros.html">Macros guide</a> for details.</li>
+</ul>
+</section>
+<section id="behavior-and-errors" class="level2">
+<h2 class="anchored" data-anchor-id="behavior-and-errors">Behavior and errors</h2>
+<ul>
+<li>The value is recomputed on each run. This makes it easy to incorporate recent state (for example, “memory” from a local database) into a prompt.</li>
+<li>If a file cannot be read or a command fails, Lectic reports an error and aborts the run. Fix the source and try again.</li>
+</ul>
+<p>See also</p>
+<ul>
+<li><a href="../context_management/01_external_content.html">External Content</a> for attaching files to user messages.</li>
+<li><a href="../automation/01_macros.html">Macros</a> for passing variables into <code>exec:</code> expansions within macros.</li>
+</ul>
 
 
 </section>

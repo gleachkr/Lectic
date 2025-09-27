@@ -165,6 +165,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../05_providers_and_models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Providers and Models</span></a>
+  </div>
+</li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
@@ -184,6 +190,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../context_management/02_conversation_control.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Conversation Control</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">External Sources (file:, exec:)</span></a>
   </div>
 </li>
       </ul>
@@ -341,11 +353,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>You can also connect to running MCP servers.</p>
 <ul>
 <li><code>mcp_ws</code>: The URL for a remote server using a WebSocket connection.</li>
-<li><code>mcp_sse</code>: The URL for a remote server using Server-Sent Events (SSE).</li>
+<li><code>mcp_sse</code>: The URL for a remote server using Server-Sent Events.</li>
+<li><code>mcp_shttp</code>: The URL for a remote server using Streamable HTTP.</li>
 </ul>
+<p>For example:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> remote_search</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_ws</span><span class="kw">:</span><span class="at"> wss://some-mcp-server.com/ws</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> documentation_search </span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://mcp.context7.com/mcp</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="server-resources-and-content-references" class="level3">
 <h3 class="anchored" data-anchor-id="server-resources-and-content-references">Server Resources and Content References</h3>
