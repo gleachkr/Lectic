@@ -1,4 +1,4 @@
-# External Prompts and instructions: `file:` and `exec:`
+# External Prompts and Instructions: `file:` and `exec:`
 
 Many Lectic fields can load their text from outside the document. You can
 point a field at a file on disk, or run a command (or script) and use its
@@ -34,7 +34,7 @@ macros:
     expansion: file:$HOME/.config/lectic/prompts/summarize.txt
 ```
 
-## `exec:COMMAND or exec:SCRIPT`
+## `exec:COMMAND` or `exec:SCRIPT`
 
 Runs the command and uses its stdout as the field value. There are two
 forms:

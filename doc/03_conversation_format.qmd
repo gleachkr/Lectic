@@ -49,7 +49,7 @@ the name of the interlocutor.
 
 The canonical form is exactly three colons on open and close, like this:
 
-```
+```markdown
 :::Name
 
 Some content.
@@ -57,11 +57,7 @@ Some content.
 :::
 ```
 
-Markdown code fences inside assistant blocks can also use three backticks. In
-rare cases, nested fences can confuse some renderers. Lectic will always
-generate three colons for assistant blocks today. In the future, Lectic may
-choose a longer run of colons when needed, and will always require that the
-close fence matches the count that opened the block.
+Markdown code fences inside assistant blocks can also use three backticks.
 
 ### Example
 

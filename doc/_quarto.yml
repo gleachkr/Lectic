@@ -23,7 +23,7 @@ website:
             href: ./context_management/01_external_content.qmd
           - text: Conversation Control
             href: ./context_management/02_conversation_control.qmd
-          - text: External Sources (file:, exec:)
+          - text: External Prompts and Instructions
             href: ./context_management/03_external_prompts.qmd
       - section: Tools
         contents:

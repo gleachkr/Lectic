@@ -21,14 +21,14 @@ describing that interlocutor. A tool call follows a four-step process:
 
 Lectic uses an XML block for tool calls. This is the canonical and only
 supported form. The opening tag names the tool, and the block contains two
-children: an <arguments> element and a <results> element.
+children: an `<arguments>` element and a `<results>` element.
 
-- <tool-call with="NAME"> starts the block.
-- <arguments> holds one element per parameter in the tool's schema. If a tool
-  takes no inputs, <arguments> can be empty.
-- <results> is filled by Lectic after execution. Each tool result is
-  serialized as a <result> element inside <results>.
-- </tool-call> closes the block.
+- `<tool-call with="NAME">` starts the block.
+- `<arguments>` holds one element per parameter in the tool's schema. If a tool
+  takes no inputs, `<arguments>` can be empty.
+- `<results>` is filled by Lectic after execution. Each tool result is
+  serialized as a `<result>` element inside `<results>`.
+- `</tool-call>` closes the block.
 
 You will see these blocks in the assistant's container directive. Lectic
 writes the block once the model asks for a tool, then appends results after

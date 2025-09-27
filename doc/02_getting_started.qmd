@@ -30,7 +30,7 @@ mv lectic-*.AppImage ~/.local/bin/lectic
 
 Download the macOS binary from the [GitHub Releases page](https://github.com/gleachkr/Lectic/releases) and put it on your PATH.
 
-Verify the install
+## Verify the install
 
 ```bash
 lectic --version
@@ -40,7 +40,7 @@ If you see a version number, you are ready to go.
 
 ## Your first conversation
 
-Set up an API key
+#### Set up an API key
 
 Lectic talks to LLM providers. Put at least one provider key in your environment so
 Lectic can pick a default.
@@ -58,7 +58,7 @@ Finally, OpenAI has two provider choices. Use `openai` for the newer
 Responses API and native tools. Use `openai/chat` for the legacy Chat
 Completions API when you need it.
 
-Create a conversation file
+#### Create a conversation file
 
 Make a new file, for example `my_convo.lec`. The `.lec` extension helps with
 editor integration.
@@ -77,7 +77,7 @@ interlocutor:
 Hello, world! What is a fun fact about the Rust programming language?
 ```
 
-Run Lectic
+#### Run Lectic
 
 From your terminal, run Lectic on the file. The `-i` flag updates the file
 in place.
@@ -90,7 +90,7 @@ Lectic sends your message to the model and appends its response in a new
 assistant block. You can add your next message under that block and run the
 command again to continue the conversation.
 
-Use a tiny tool
+#### Use a tiny tool
 
 Now add a very small tool to see the tool flow. This one exposes `date`.
 
@@ -134,7 +134,7 @@ syntax, folding, and one‑shot submission.
 
 An extension is available in `extra/lectic.vscode`.
 
-Other editors
+#### Other editors
 
 Most editors support sending the current buffer to an external command. You
 can configure yours to replace the buffer with the output of:
