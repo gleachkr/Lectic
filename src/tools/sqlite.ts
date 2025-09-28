@@ -53,7 +53,9 @@ export class SQLiteTool extends Tool {
         this.details = spec.details
         this.limit = spec.limit
 
-        this.db = new Database(expandEnv(spec.sqlite), { readonly : spec.readonly ?? false } )
+        this.db = spec.readonly 
+            ? new Database(expandEnv(spec.sqlite), { readonly: true})
+            : new Database(expandEnv(spec.sqlite))
 
         try {
             switch (typeof spec.extensions) {
