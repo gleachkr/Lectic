@@ -175,3 +175,55 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         expect(deserialized).toEqual(call);
     });
 });
+
+describe('Result escaping round-trip edge cases', () => {
+    const tool: Tool = {
+        name: 'edgeTool',
+        description: 'Tool for edge cases',
+        parameters: { },
+        call: async (_arg) => ToolCallResults('ok'),
+        validateArguments: _ => null
+    };
+
+    const cases: string[] = [
+        // simple special characters previously escaped
+        '& < > " \' : ` _ *',
+        // looks like closing tag
+        'foo </tool-call> bar',
+        // already neutralized sequence present
+        '<│ already here and < also here',
+        // lines starting with the prefix marker
+        '┆leading',
+        'line1\n┆line2',
+        '┆first\nsecond',
+        // multiple blank lines and mixes
+        'a\n\n\n b\n',
+        // mixture of everything
+        'A<tool> B</tool-call> C\n┆start\n<│bar\n\nEND&',
+    ];
+
+    for (const [i, content] of cases.entries()) {
+        it(`roundtrips result content case #${i+1}`, () => {
+            const call = {
+                name: 'edgeTool',
+                args: { },
+                results: ToolCallResults(content)
+            };
+            const serialized = serializeCall(tool, call);
+            const deserialized = deserializeCall(tool, serialized);
+            expect(deserialized).toEqual(call);
+        });
+    }
+
+    it('roundtrips literal "<│" and lines beginning with "┆" after newline', () => {
+        const content = 'x<│y\na\n┆b\nc';
+        const call = {
+            name: 'edgeTool',
+            args: { },
+            results: ToolCallResults(content)
+        };
+        const serialized = serializeCall(tool, call);
+        const deserialized = deserializeCall(tool, serialized);
+        expect(deserialized).toEqual(call);
+    });
+});

@@ -5,7 +5,7 @@ import { expect, it, describe } from "bun:test"
 describe('serialize function', () => {
     it('should serialize a valid string', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
-        expect(serialize('hello', schema)).toBe('hello');
+        expect(serialize('hello', schema)).toBe('\n┆hello\n');
     });
 
     it('should throw error for invalid string', () => {
@@ -45,7 +45,7 @@ describe('serialize function', () => {
 
     it('should serialize an array of strings', () => {
         const schema: JSONSchema = { type: "array", description: "An array", items: { type: "string", description: "String item" } };
-        expect(serialize(['item1', 'item2'], schema)).toBe('<array><item>item1</item><item>item2</item></array>');
+        expect(serialize(['item1', 'item2'], schema)).toBe('<array><item>\n┆item1\n</item><item>\n┆item2\n</item></array>');
     });
 
     it('should throw error for non-array value', () => {
@@ -60,7 +60,7 @@ describe('serialize function', () => {
             }
         };
         const obj = { key1: 'value1', key2: 42 };
-        expect(serialize(obj, schema)).toBe('<object><key1>value1</key1><key2>42</key2></object>');
+        expect(serialize(obj, schema)).toBe('<object><key1>\n┆value1\n</key1><key2>42</key2></object>');
     });
 
     it('should throw an error for integer below minimum constraint', () => {
@@ -116,7 +116,7 @@ describe('serialize function', () => {
 describe('deserialize function', () => {
     it('should deserialize a valid string', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
-        expect(deserialize('hello', schema)).toBe('hello');
+        expect(deserialize('\n┆hello\n', schema)).toBe('hello');
     });
 
     it('should throw error for invalid literal as string', () => {
@@ -151,7 +151,7 @@ describe('deserialize function', () => {
 
     it('should deserialize an array of strings', () => {
         const schema: JSONSchema = { type: "array", description: "An array", items: { type: "string", description: "String item" } };
-        const xml = '<array><item>item1</item><item>item2</item></array>';
+        const xml = '<array><item>\n┆item1\n</item><item>\n┆item2\n</item></array>';
         expect(deserialize(xml, schema)).toEqual(['item1', 'item2']);
     });
 

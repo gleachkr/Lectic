@@ -39,27 +39,15 @@ export function extractElements(xml: string): string[] {
 }
 
 export function escapeTags(string : string) {
-    return string
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-    .replace(/:/g, "&#58;")
-    .replace(/`/g, "&#96;")
-    .replace(/_/g, "&#95;")
-    .replace(/\*/g, "&#42;")
+    return `\n${string}`
+        .replace(/\n/g, '\n┆')
+        .replace(/</g, '<│') + '\n'
+
 }
 
 export function unescapeTags(string : string) {
-    return string
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#39;/g, "'")
-    .replace(/&#96;/g, "`")
-    .replace(/&#95;/g, "_")
-    .replace(/&#42;/g, "*")
-    .replace(/&#58;/g, ":")
-    .replace(/&amp;/g, "&");
+    return string.slice(0,-1)
+        .replace(/\n┆/g, '\n')
+        .replace(/^\r?\n/, '')
+        .replace(/<│/g, '<')
 }

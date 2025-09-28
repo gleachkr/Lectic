@@ -161,20 +161,24 @@ export function validateAgainstSchema(arg: any, schema: JSONSchema) : boolean {
 
 
 export function deserialize(xml: string, schema: JSONSchema): any {
-    xml = xml.trim();
     switch (schema.type) {
-        case "string":
-            if (schema.enum && !schema.enum.includes(unescapeTags(xml))) {
+        case "string": {
+            // Don't trim: preserve exact whitespace for strings.
+            const unescaped = unescapeTags(xml)
+            if (schema.enum && !schema.enum.includes(unescaped)) {
                 throw new Error("Invalid serialized string");
             }
-            return unescapeTags(xml);
+            return unescaped;
+        }
 
         case "boolean":
+            xml = xml.trim();
             if (xml === "true") return true;
             if (xml === "false") return false;
             throw new Error("Invalid serialized boolean");
 
         case "number": {
+            xml = xml.trim();
             const num = Number(xml);
             if (isNaN(num) 
                 || (schema.minimum !== undefined && num < schema.minimum) 
@@ -186,6 +190,7 @@ export function deserialize(xml: string, schema: JSONSchema): any {
         }
 
         case "integer": {
+            xml = xml.trim();
             const num = Number(xml);
             if (isNaN(num) 
                 || !Number.isInteger(num) 
