@@ -19,9 +19,9 @@ describing that interlocutor. A tool call follows a four-step process:
 
 ## Tool call syntax
 
-Lectic uses an XML block for tool calls. This is the canonical and only
-supported form. The opening tag names the tool, and the block contains two
-children: an `<arguments>` element and a `<results>` element.
+Lectic uses an XML block for tool calls. The opening tag names the tool, and
+the block contains two children: an `<arguments>` element and a `<results>`
+element.
 
 - `<tool-call with="NAME">` starts the block.
 - `<arguments>` holds one element per parameter in the tool's schema. If a tool

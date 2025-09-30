@@ -59,15 +59,15 @@ tools:
   takes named string parameters (exposed as env vars). When absent, the tool
   instead takes a required `arguments` array of strings.
 
-## Command execution semantics
+## Execution details
 
-- No shell is involved. The command (or script's interpreter) is executed
-  directly. Shell features like globbing or command substitution will not
-  work unless you invoke a shell yourself.
+- No shell is involved when executing single line commands. The command is
+  executed directly. Shell features like globbing or command substitution will
+  not work unless you invoke a shell yourself.
 - Single‑line `exec` values have environment variables expanded before
   execution using the tool's `env` plus standard Lectic variables.
-- Multi‑line `exec` values must start with a shebang. Lectic writes the
-  script to a temporary file and executes it with that interpreter.
+- Multi‑line `exec` values must start with a shebang. Lectic writes the script
+  to a temporary file and executes it with that interpreter.
 
 ### Working directory and files
 
@@ -101,7 +101,8 @@ subprocess via an environment variable with the same name.
 This applies to both commands and scripts:
 
 - For scripts, parameters are available as `$PARAM_NAME` inside the script.
-- For commands, parameters are available in the subprocess environment.
+- For commands, parameters are available in the subprocess environment and also
+  expanded in the command.
 
 Example:
 
@@ -116,6 +117,19 @@ tools:
       NAME: The name to greet.
       DAY: The day string to include.
 ```
+
+or equivalently
+
+```yaml
+# YAML configuration
+tools:
+  - name: greeter
+    exec: echo "Hello, ${NAME}! Today is ${DAY}."
+    schema:
+      NAME: The name to greet.
+      DAY: The day string to include.
+```
+
 
 If the LLM provides `{ NAME: "Ada", DAY: "Friday" }` Lectic will fill in the results:
 
