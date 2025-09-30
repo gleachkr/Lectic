@@ -71,9 +71,24 @@ function spawnCommand(
     sandbox: string | undefined,
     env: Record<string, string>
 ) {
+
+    const parts = command
+        // break into whitespace-delimited pieces, allowing for quotes
+        .match(/"[^"]*"|'[^']*'|\S+/g)
+        // remove surrounding quotes from pieces
+        ?.map(arg => (arg.startsWith('"') && arg.endsWith('"'))
+            || (arg.startsWith("'") && arg.endsWith("'"))
+            ? arg.slice(1, -1)
+            : arg
+        );
+
+    if (parts === undefined) {
+        throw Error(`Could not read command ${command}`)
+    }
+
     const proc = Bun.spawn([
         ...(sandbox ? [sandbox] : []),
-        command,
+        ...parts,
         ...args
     ], {
         stdout: "pipe",
@@ -101,7 +116,6 @@ export class ExecTool extends Tool {
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.isScript = this.exec.split('\n').length > 1
         this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
-        if (!this.isScript) this.exec = expandEnv(this.exec, this.env)
         this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox
         this.confirm = spec.confirm ? expandEnv(spec.confirm, this.env) : spec.confirm
         this.timeoutSeconds = spec.timeoutSeconds
@@ -168,7 +182,7 @@ export class ExecTool extends Tool {
         if (this.isScript) {
             ({proc, cleanup} = await spawnScript(this.exec, args, this.sandbox, env))
         } else {
-            proc = spawnCommand(this.exec, args, this.sandbox, env)
+            proc = spawnCommand(expandEnv(this.exec, env), args, this.sandbox, env)
         }
 
         const collected = { stdout: "", stderr: "" }
