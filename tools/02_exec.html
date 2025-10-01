@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.8.24">
+<meta name="generator" content="quarto-1.8.25">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -72,7 +72,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -291,6 +291,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LSP Server (Experimental)</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -311,7 +317,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#inline-script" id="toc-inline-script" class="nav-link" data-scroll-target="#inline-script">Inline script</a></li>
   <li><a href="#configuration-parameters" id="toc-configuration-parameters" class="nav-link" data-scroll-target="#configuration-parameters">Configuration parameters</a></li>
   </ul></li>
-  <li><a href="#command-execution-semantics" id="toc-command-execution-semantics" class="nav-link" data-scroll-target="#command-execution-semantics">Command execution semantics</a>
+  <li><a href="#execution-details" id="toc-execution-details" class="nav-link" data-scroll-target="#execution-details">Execution details</a>
   <ul class="collapse">
   <li><a href="#working-directory-and-files" id="toc-working-directory-and-files" class="nav-link" data-scroll-target="#working-directory-and-files">Working directory and files</a></li>
   <li><a href="#stdout-stderr-and-exit-codes" id="toc-stdout-stderr-and-exit-codes" class="nav-link" data-scroll-target="#stdout-stderr-and-exit-codes">Stdout, stderr, and exit codes</a></li>
@@ -375,10 +381,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 </section>
 </section>
-<section id="command-execution-semantics" class="level2">
-<h2 class="anchored" data-anchor-id="command-execution-semantics">Command execution semantics</h2>
+<section id="execution-details" class="level2">
+<h2 class="anchored" data-anchor-id="execution-details">Execution details</h2>
 <ul>
-<li>No shell is involved. The command (or script’s interpreter) is executed directly. Shell features like globbing or command substitution will not work unless you invoke a shell yourself.</li>
+<li>No shell is involved when executing single line commands. The command is executed directly. Shell features like globbing or command substitution will not work unless you invoke a shell yourself.</li>
 <li>Single‑line <code>exec</code> values have environment variables expanded before execution using the tool’s <code>env</code> plus standard Lectic variables.</li>
 <li>Multi‑line <code>exec</code> values must start with a shebang. Lectic writes the script to a temporary file and executes it with that interpreter.</li>
 </ul>
@@ -402,7 +408,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>This applies to both commands and scripts:</p>
 <ul>
 <li>For scripts, parameters are available as <code>$PARAM_NAME</code> inside the script.</li>
-<li>For commands, parameters are available in the subprocess environment.</li>
+<li>For commands, parameters are available in the subprocess environment and also expanded in the command.</li>
 </ul>
 <p>Example:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># YAML configuration</span></span>
@@ -414,15 +420,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">schema</span><span class="kw">:</span></span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">NAME</span><span class="kw">:</span><span class="at"> The name to greet.</span></span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">DAY</span><span class="kw">:</span><span class="at"> The day string to include.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>or equivalently</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># YAML configuration</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> greeter</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> echo "Hello, ${NAME}! Today is ${DAY}."</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">schema</span><span class="kw">:</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">NAME</span><span class="kw">:</span><span class="at"> The name to greet.</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">DAY</span><span class="kw">:</span><span class="at"> The day string to include.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If the LLM provides <code>{ NAME: "Ada", DAY: "Friday" }</code> Lectic will fill in the results:</p>
 <pre><code>&lt;tool-call with="greeter"&gt;
-  &lt;arguments&gt;
-    &lt;NAME&gt;"Ada"&lt;/NAME&gt;
-    &lt;DAY&gt;"Friday"&lt;/DAY&gt;
-  &lt;/arguments&gt;
-  &lt;results&gt;
-    &lt;result type="text"&gt;Hello, Ada! Today is Friday.\n&lt;/result&gt;
-  &lt;/results&gt;
+&lt;arguments&gt;
+&lt;NAME&gt;
+┆Ada
+&lt;/NAME&gt;
+&lt;DAY&gt;
+┆Friday
+&lt;/DAY&gt;
+&lt;/arguments&gt;
+&lt;results&gt;
+&lt;result type="text"&gt;
+┆Hello, Ada! Today is Friday.
+┆
+&lt;/result&gt;
+&lt;/results&gt;
 &lt;/tool-call&gt;</code></pre>
 </section>
 </section>

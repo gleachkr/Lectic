@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>introduction – Lectic Documentation</title>
+<title>LSP Server (Experimental) – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -20,27 +20,62 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
-<script src="site_libs/quarto-nav/quarto-nav.js"></script>
-<script src="site_libs/quarto-nav/headroom.min.js"></script>
-<script src="site_libs/clipboard/clipboard.min.js"></script>
-<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
-<script src="site_libs/quarto-search/fuse.min.js"></script>
-<script src="site_libs/quarto-search/quarto-search.js"></script>
-<meta name="quarto:offset" content="./">
-<script src="site_libs/quarto-html/quarto.js" type="module"></script>
-<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="site_libs/quarto-html/popper.min.js"></script>
-<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
-<script src="site_libs/quarto-html/anchor.min.js"></script>
-<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="site_libs/bootstrap/bootstrap.min.js"></script>
-<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -70,7 +105,7 @@ ul.task-list li input[type="checkbox"] {
 }</script>
 
 
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="../styles.css">
 </head>
 
 <body class="nav-sidebar docked quarto-light">
@@ -82,7 +117,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./01_introduction.html">Introduction</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/03_lsp.html">LSP Server (Experimental)</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -96,7 +131,7 @@ ul.task-list li input[type="checkbox"] {
 <!-- sidebar -->
   <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
-      <a href="./index.html" class="sidebar-logo-link">
+      <a href="../index.html" class="sidebar-logo-link">
       </a>
       </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
@@ -108,31 +143,31 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./01_introduction.html" class="sidebar-item-text sidebar-link active">
+  <a href="../01_introduction.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Introduction</span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./02_getting_started.html" class="sidebar-item-text sidebar-link">
+  <a href="../02_getting_started.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Getting Started</span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./03_conversation_format.html" class="sidebar-item-text sidebar-link">
+  <a href="../03_conversation_format.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Conversation Format</span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./04_configuration.html" class="sidebar-item-text sidebar-link">
+  <a href="../04_configuration.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./05_providers_and_models.html" class="sidebar-item-text sidebar-link">
+  <a href="../05_providers_and_models.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Providers and Models</span></a>
   </div>
 </li>
@@ -147,19 +182,19 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./context_management/01_external_content.html" class="sidebar-item-text sidebar-link">
+  <a href="../context_management/01_external_content.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">External Content</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./context_management/02_conversation_control.html" class="sidebar-item-text sidebar-link">
+  <a href="../context_management/02_conversation_control.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Conversation Control</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
+  <a href="../context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">External Prompts and Instructions</span></a>
   </div>
 </li>
@@ -176,37 +211,37 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tools/01_overview.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/01_overview.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tools/02_exec.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/02_exec.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Exec</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tools/03_sqlite.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/03_sqlite.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SQLite</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tools/04_mcp.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/04_mcp.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">MCP</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tools/05_agent.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/05_agent.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Agent</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Other Tools</span></a>
   </div>
 </li>
@@ -223,13 +258,13 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./automation/01_macros.html" class="sidebar-item-text sidebar-link">
+  <a href="../automation/01_macros.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Macros</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./automation/02_hooks.html" class="sidebar-item-text sidebar-link">
+  <a href="../automation/02_hooks.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Hooks</span></a>
   </div>
 </li>
@@ -246,19 +281,19 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./reference/01_cli.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/01_cli.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Cli</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./reference/02_configuration.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/02_configuration.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Configuration</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./reference/03_lsp.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">LSP Server (Experimental)</span></a>
   </div>
 </li>
@@ -269,51 +304,94 @@ ul.task-list li input[type="checkbox"] {
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">On this page</h2>
-   
-  <ul>
-  <li><a href="#introduction-to-lectic" id="toc-introduction-to-lectic" class="nav-link active" data-scroll-target="#introduction-to-lectic">Introduction to Lectic</a>
-  <ul class="collapse">
-  <li><a href="#the-power-of-plain-text" id="toc-the-power-of-plain-text" class="nav-link" data-scroll-target="#the-power-of-plain-text">The Power of Plain Text</a></li>
-  <li><a href="#who-is-lectic-for" id="toc-who-is-lectic-for" class="nav-link" data-scroll-target="#who-is-lectic-for">Who is Lectic For?</a></li>
-  </ul></li>
-  </ul>
-</nav>
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+        
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/03_lsp.html">LSP Server (Experimental)</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">LSP Server (Experimental)</h1>
+</div>
 
 
 
+<div class="quarto-title-meta">
 
-<section id="introduction-to-lectic" class="level1">
-<h1>Introduction to Lectic</h1>
-<p>Lectic is a conversational LLM client designed for users who are most comfortable working with text files and command-line tools. It treats every conversation as a simple markdown file, a design choice that unlocks a surprising number of benefits.</p>
-<section id="the-power-of-plain-text" class="level2">
-<h2 class="anchored" data-anchor-id="the-power-of-plain-text">The Power of Plain Text</h2>
-<p>By making conversations plain text, Lectic ensures they are:</p>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Lectic includes a small Language Server Protocol (LSP) server that provides completion for directives and macros. It is stdio only.</p>
+<p>Overview - Command: <code>lectic lsp</code> - Transport: stdio (no <code>--node-ipc</code> or <code>--socket</code>) - Feature: <code>textDocument/completion</code> - Trigger: a single colon <code>:</code> - Insertions - Directives use snippets and place the cursor inside brackets (or at the end for reset): <code>:cmd[${0:command}]</code>, <code>:ask[${0:Interlocutor}]</code>, <code>:aside[${0:Interlocutor}]</code>, <code>:reset[]$0</code>. - Macros insert exactly <code>:macro[NAME]</code>. - Matching: case‑insensitive; typed prefix after <code>:</code> is respected - Fences: no suggestions inside <code>::</code> or <code>:::</code> runs</p>
+<p>Where completions come from - Directives: built‑in suggestions for <code>:cmd</code>, <code>:ask</code>, <code>:aside</code>, and <code>:reset</code>. - Macros: merged from the same places and precedence as the CLI (higher wins): 1) System config: <code>${LECTIC_CONFIG}/lectic.yaml</code> 2) Workspace config: <code>lectic.yaml</code> in the document directory 3) The document’s YAML header - De‑duplication is case‑insensitive on name. Higher‑precedence entry wins. - The server shows a simple preview in the completion item.</p>
+<p>Behavior examples - Type <code>:</code> → suggestions for directives and all known macros. - Type <code>:su</code> → suggestions filtered to names starting with <code>su</code>. - Select a macro suggestion → <code>:macro[name]</code> replaces from the <code>:</code> through the typed prefix. - Select a directive suggestion → a snippet is inserted with the cursor inside the brackets. - Type <code>::</code> or <code>:::</code> → no suggestions (reserved for directive fences).</p>
+<p>Neovim setup (vim.lsp.start) - Minimal startup for the current buffer:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">local</span> <span class="va">client_id</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">lsp</span><span class="op">.</span>start<span class="op">({</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="va">name</span> <span class="op">=</span> <span class="st">"lectic"</span><span class="op">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">cmd</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"lsp"</span> <span class="op">},</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">root_dir</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">fs</span><span class="op">.</span>root<span class="op">(</span><span class="dv">0</span><span class="op">,</span> <span class="op">{</span> <span class="st">".git"</span><span class="op">,</span> <span class="st">"lectic.yaml"</span> <span class="op">})</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>             <span class="kw">or</span> <span class="va">vim</span><span class="op">.</span><span class="va">fn</span><span class="op">.</span>getcwd<span class="op">(),</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="va">single_file_support</span> <span class="op">=</span> <span class="kw">true</span><span class="op">,</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="op">})</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li><strong>Persistent by Default</strong>: Your conversations are saved just like any other document. There is no proprietary database or cloud service.</li>
-<li><strong>Version Controllable</strong>: You can use <code>git</code> and other version control systems to track the history of a conversation, branch off new ideas, and merge different lines of thought.</li>
-<li><strong>Searchable and Portable</strong>: Standard tools like <code>grep</code>, <code>sed</code>, and <code>awk</code> can be used to search, analyze, and modify your conversations. They are easy to back up, sync, and move between machines.</li>
-<li><strong>Private</strong>: Your conversations can stay entirely on your local machine if you are using a local LLM provider like Ollama.</li>
+<li>Auto‑start for <code>.lec</code> (and optionally markdown) files:</li>
 </ul>
-</section>
-<section id="who-is-lectic-for" class="level2">
-<h2 class="anchored" data-anchor-id="who-is-lectic-for">Who is Lectic For?</h2>
-<p>Lectic is built to support deep, thoughtful work. It is for anyone who wants to use LLMs as a tool for:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">vim</span><span class="op">.</span><span class="va">api</span><span class="op">.</span>nvim_create_autocmd<span class="op">(</span><span class="st">"FileType"</span><span class="op">,</span> <span class="op">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="va">pattern</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"markdown.lectic"</span><span class="op">,</span> <span class="st">"lectic.markdown"</span> <span class="op">},</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">callback</span> <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">args</span><span class="op">)</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="va">vim</span><span class="op">.</span><span class="va">lsp</span><span class="op">.</span>start<span class="op">({</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      <span class="va">name</span> <span class="op">=</span> <span class="st">"lectic"</span><span class="op">,</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="va">cmd</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"lsp"</span> <span class="op">},</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      <span class="va">root_dir</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">fs</span><span class="op">.</span>root<span class="op">(</span><span class="va">args</span><span class="op">.</span><span class="va">buf</span><span class="op">,</span> <span class="op">{</span> <span class="st">".git"</span><span class="op">,</span> <span class="st">"lectic.yaml"</span> <span class="op">})</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>                 <span class="kw">or</span> <span class="va">vim</span><span class="op">.</span><span class="va">fn</span><span class="op">.</span>getcwd<span class="op">(),</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="va">single_file_support</span> <span class="op">=</span> <span class="kw">true</span><span class="op">,</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">})</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span><span class="op">,</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="op">})</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li><strong>Research and Analysis</strong>: Integrate data, run analyses, and discuss the results with an LLM, all within a single, reproducible document.</li>
-<li><strong>Reflection and Self-Study</strong>: Keep a running journal of your thoughts and explorations on a topic, using an LLM as a Socratic partner.</li>
-<li><strong>Design and Engineering</strong>: Draft code, review diffs, and document your process in a way that can be committed directly into your project’s repository.</li>
+<li>Using completion
+<ul>
+<li>With nvim‑cmp (recommended), LSP completion should pop on <code>:</code>.</li>
+<li>Without a plugin, press <code>Ctrl‑x Ctrl‑o</code> in insert mode at <code>:</code>.</li>
+</ul></li>
+<li>Troubleshooting
+<ul>
+<li>Ensure <code>lectic</code> is on PATH inside Neovim.</li>
+<li>Ensure the buffer contains macros in the header or that a <code>lectic.yaml</code> is present in the working root.</li>
+<li>Completion is only offered on a single <code>:</code> (not <code>::</code> or <code>:::</code>).</li>
+</ul></li>
 </ul>
-<p>Lectic makes it easy to manage conversational context using content references, integrate with external tools (for search, computation, database access, and more), and include multiple LLMs in a single conversation to bring a variety of perspectives to bear on a problem.</p>
+<p>VS Code setup - The server is an external stdio LSP. You can connect to it from a VS Code extension. The repository includes <code>extra/lectic.vscode</code> for a ready‑made extension. - Minimal client snippet (TypeScript) for an extension:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode ts code-with-copy"><code class="sourceCode typescript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> <span class="op">*</span> <span class="im">as</span> vscode <span class="im">from</span> <span class="st">'vscode'</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { LanguageClient<span class="op">,</span> TransportKind } <span class="im">from</span> <span class="st">'vscode-languageclient/node'</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> client<span class="op">:</span> LanguageClient</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="im">export</span> <span class="kw">function</span> <span class="fu">activate</span>(context<span class="op">:</span> vscode<span class="op">.</span><span class="at">ExtensionContext</span>) {</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> serverOptions <span class="op">=</span> {</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    command<span class="op">:</span> <span class="st">'lectic'</span><span class="op">,</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    args<span class="op">:</span> [<span class="st">'lsp'</span>]<span class="op">,</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    options<span class="op">:</span> { stdio<span class="op">:</span> <span class="st">'pipe'</span> } <span class="co">// stdio only</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">const</span> clientOptions <span class="op">=</span> {</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    documentSelector<span class="op">:</span> [ { scheme<span class="op">:</span> <span class="st">'file'</span><span class="op">,</span> language<span class="op">:</span> <span class="st">'markdown'</span> }<span class="op">,</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>                        { scheme<span class="op">:</span> <span class="st">'file'</span><span class="op">,</span> pattern<span class="op">:</span> <span class="st">'**/*.lec'</span> } ]<span class="op">,</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  client <span class="op">=</span> <span class="kw">new</span> <span class="fu">LanguageClient</span>(</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">'lectic'</span><span class="op">,</span> <span class="st">'Lectic LSP'</span><span class="op">,</span> serverOptions <span class="im">as</span> <span class="dt">any</span><span class="op">,</span> clientOptions</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  context<span class="op">.</span><span class="at">subscriptions</span><span class="op">.</span><span class="fu">push</span>(client<span class="op">.</span><span class="fu">start</span>())</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Notes - The server does not run diagnostics or hovers. - Completion previews are static; the server does not expand macros or read files referenced by <code>file:</code>.</p>
 
 
-</section>
-</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
