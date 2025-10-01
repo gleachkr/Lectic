@@ -13,6 +13,7 @@
     "remark": "^15.0.1",
     "remark-directive": "^4.0.0",
     "sql-parser-cst": "^0.33.1",
+    "vscode-languageserver": "^9.0.1",
     "yaml": "^2.7.0"
   },
   "version": "0.0.0 - beta6 - 2025-09-19"

@@ -51,6 +51,8 @@ website:
             href: ./reference/01_cli.qmd
           - text: Configuration
             href: ./reference/02_configuration.qmd
+          - text: LSP Server (Experimental)
+            href: ./reference/03_lsp.qmd
 format:
   html:
     theme:

@@ -8,6 +8,7 @@ import { version } from "../package.json"
 import { lecticConfigDir, lecticEnv } from "./utils/xdg";
 import { UserMessage } from "./types/message"
 import { Hook } from "./types/hook"
+import { startLsp } from "./lsp/server"
 
 function validateOptions(opts : OptionValues) {
     if (opts["header"]) {
@@ -170,7 +171,11 @@ program
 .option('-I, --Include <yaml>',  'Include extra header information' )
 .option('-l, --log <logfile>',  'Log debugging information')
 .option('-v, --version',  'Print version information')
+.action(async () => { await main() })
+
+program
+.command('lsp')
+.description('Start Lectic LSP server (macro completion on ":")')
+.action(async () => { await startLsp() })
 
 program.parse()
-
-main()

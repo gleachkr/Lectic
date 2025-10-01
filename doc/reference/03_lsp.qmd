@@ -1,0 +1,114 @@
+---
+title: LSP Server (Experimental)
+---
+
+Lectic includes a small Language Server Protocol (LSP) server that
+provides completion for directives and macros. It is stdio only.
+
+Overview
+- Command: `lectic lsp`
+- Transport: stdio (no `--node-ipc` or `--socket`)
+- Feature: `textDocument/completion`
+- Trigger: a single colon `:`
+- Insertions
+  - Directives use snippets and place the cursor inside brackets (or at
+    the end for reset):
+    `:cmd[${0:command}]`, `:ask[${0:Interlocutor}]`,
+    `:aside[${0:Interlocutor}]`, `:reset[]$0`.
+  - Macros insert exactly `:macro[NAME]`.
+- Matching: case‑insensitive; typed prefix after `:` is respected
+- Fences: no suggestions inside `::` or `:::` runs
+
+Where completions come from
+- Directives: built‑in suggestions for `:cmd`, `:ask`, `:aside`, and
+  `:reset`.
+- Macros: merged from the same places and precedence as the CLI (higher
+  wins):
+  1) System config: `${LECTIC_CONFIG}/lectic.yaml`
+  2) Workspace config: `lectic.yaml` in the document directory
+  3) The document’s YAML header
+- De‑duplication is case‑insensitive on name. Higher‑precedence entry
+  wins.
+- The server shows a simple preview in the completion item.
+
+Behavior examples
+- Type `:` → suggestions for directives and all known macros.
+- Type `:su` → suggestions filtered to names starting with `su`.
+- Select a macro suggestion → `:macro[name]` replaces from the `:`
+  through the typed prefix.
+- Select a directive suggestion → a snippet is inserted with the cursor
+  inside the brackets.
+- Type `::` or `:::` → no suggestions (reserved for directive fences).
+
+Neovim setup (vim.lsp.start)
+- Minimal startup for the current buffer:
+
+```lua
+local client_id = vim.lsp.start({
+  name = "lectic",
+  cmd = { "lectic", "lsp" },
+  root_dir = vim.fs.root(0, { ".git", "lectic.yaml" })
+             or vim.fn.getcwd(),
+  single_file_support = true,
+})
+```
+
+- Auto‑start for `.lec` (and optionally markdown) files:
+
+```lua
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "lectic", "markdown.lectic", "lectic.markdown" },
+  callback = function(args)
+    vim.lsp.start({
+      name = "lectic",
+      cmd = { "lectic", "lsp" },
+      root_dir = vim.fs.root(args.buf, { ".git", "lectic.yaml" })
+                 or vim.fn.getcwd(),
+      single_file_support = true,
+    })
+  end,
+})
+```
+
+- Using completion
+  - With nvim‑cmp (recommended), LSP completion should pop on `:`.
+  - Without a plugin, press `Ctrl‑x Ctrl‑o` in insert mode at `:`.
+
+- Troubleshooting
+  - Ensure `lectic` is on PATH inside Neovim.
+  - Ensure the buffer contains macros in the header or that a
+    `lectic.yaml` is present in the working root.
+  - Completion is only offered on a single `:` (not `::` or `:::`).
+
+VS Code setup
+- The server is an external stdio LSP. You can connect to it from a
+  VS Code extension. The repository includes `extra/lectic.vscode` for a
+  ready‑made extension.
+- Minimal client snippet (TypeScript) for an extension:
+
+```ts
+import * as vscode from 'vscode'
+import { LanguageClient, TransportKind } from 'vscode-languageclient/node'
+
+let client: LanguageClient
+export function activate(context: vscode.ExtensionContext) {
+  const serverOptions = {
+    command: 'lectic',
+    args: ['lsp'],
+    options: { stdio: 'pipe' } // stdio only
+  }
+  const clientOptions = {
+    documentSelector: [ { scheme: 'file', language: 'markdown' },
+                        { scheme: 'file', pattern: '**/*.lec' } ],
+  }
+  client = new LanguageClient(
+    'lectic', 'Lectic LSP', serverOptions as any, clientOptions
+  )
+  context.subscriptions.push(client.start())
+}
+```
+
+Notes
+- The server does not run diagnostics or hovers.
+- Completion previews are static; the server does not expand macros or
+  read files referenced by `file:`.
