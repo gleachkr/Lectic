@@ -63,16 +63,19 @@ hails. What is the logical course of action?
 This situation requires careful analysis. I will consult my science officer.
 
 <tool-call with="communicator">
-  <arguments>
-    <content>Alien vessel, unknown origin, unresponsive. Propose logical
-    course of action.</content>
-  </arguments>
-  <results>
-    <result type="text">Insufficient data. Recommend passive scans to gather
-    information on their technological capabilities before initiating
-    further contact. Avoid any action that could be perceived as
-    hostile.</result>
-  </results>
+<arguments>
+<content>
+┆Alien vessel, unknown origin, unresponsive. Propose logical course of action.
+</content>
+</arguments>
+<results>
+<result type="text">
+┆Insufficient data. Recommend passive scans to gather
+┆information on their technological capabilities before initiating
+┆further contact. Avoid any action that could be perceived as
+┆hostile.
+</result>
+</results>
 </tool-call>
 
 A logical approach. We will proceed with passive scans.

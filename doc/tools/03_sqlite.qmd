@@ -64,32 +64,33 @@ Who are the top 5 artists by number of tracks?
 I will query the database to find out.
 
 <tool-call with="chinook">
-  <arguments>
-    <query>
-SELECT
-  ar.Name,
-  COUNT(t.TrackId) AS TrackCount
-FROM Artists ar
-JOIN Albums al ON ar.ArtistId = al.ArtistId
-JOIN Tracks t ON al.AlbumId = t.AlbumId
-GROUP BY ar.Name
-ORDER BY TrackCount DESC
-LIMIT 5;
-    </query>
-  </arguments>
-  <results>
-    <result type="text">- Name: Iron Maiden
-  TrackCount: 213
-- Name: Led Zeppelin
-  TrackCount: 114
-- Name: Metallica
-  TrackCount: 112
-- Name: U2
-  TrackCount: 110
-- Name: Deep Purple
-  TrackCount: 92
+<arguments>
+<query>
+┆SELECT
+┆ar.Name,
+┆COUNT(t.TrackId) AS TrackCount
+┆FROM Artists ar
+┆JOIN Albums al ON ar.ArtistId = al.ArtistId
+┆JOIN Tracks t ON al.AlbumId = t.AlbumId
+┆GROUP BY ar.Name
+┆ORDER BY TrackCount DESC
+┆LIMIT 5;
+</query>
+</arguments>
+<results>
+<result type="text">
+┆- Name: Iron Maiden
+┆TrackCount: 213
+┆- Name: Led Zeppelin
+┆TrackCount: 114
+┆- Name: Metallica
+┆TrackCount: 112
+┆- Name: U2
+┆TrackCount: 110
+┆- Name: Deep Purple
+┆TrackCount: 92
 </result>
-  </results>
+</results>
 </tool-call>
 
 Based on the data, the top artists by track count are Iron Maiden, Led

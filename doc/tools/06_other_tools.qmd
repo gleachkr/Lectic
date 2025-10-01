@@ -30,15 +30,21 @@ tools:
 What's the best city in the world?
 
 :::Assistant
+
 <tool-call with="scratchpad">
-  <arguments>
-    <thought>"Best" is subjective. The user could mean best for travel, for
-    food, for work, etc. I need to ask for clarification.</thought>
-  </arguments>
-  <results>
-    <result type="text">thought complete.</result>
-  </results>
+<arguments>
+<thought>
+┆"Best" is subjective. The user could mean best for travel, for
+┆food, for work, etc. I need to ask for clarification.
+</thought>
+</arguments>
+<results>
+<result type="text">
+┆thought complete.
+</result>
+</results>
 </tool-call>
+
 That depends on what you're looking for! Are you interested in the best city
 for tourism, career opportunities, or something else?
 :::
@@ -68,25 +74,30 @@ tools:
 Generate a simple tic-tac-toe game in HTML and serve it to me.
 
 :::Assistant
+
 <tool-call with="web_server">
-  <arguments>
-    <pageHtml>
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Tic-Tac-Toe</title>
-  ... (rest of the HTML/JS/CSS) ...
-</head>
-<body>
-  ...
-</body>
-</html>
-    </pageHtml>
-  </arguments>
-  <results>
-    <result type="text">page is now available</result>
-  </results>
+<arguments>
+<pageHtml>
+┆<!DOCTYPE html>
+┆<html>
+┆<head>
+┆<title>Tic-Tac-Toe</title>
+┆... (rest of the HTML/JS/CSS) ...
+┆</head>
+┆<body>
+┆...
+┆</body>
+┆</html>
+</pageHtml>
+</arguments>
+<results>
+<result type="text">
+┆page is now available
+</result>
+</results>
 </tool-call>
+
+
 I have generated the game for you. It should be opening in your browser at
 http://localhost:8080.
 :::

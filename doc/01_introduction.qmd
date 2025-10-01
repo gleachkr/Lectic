@@ -1,3 +1,7 @@
+---
+aliases:
+    - /index.html
+---
 # Introduction to Lectic
 
 Lectic is a conversational LLM client designed for users who are most

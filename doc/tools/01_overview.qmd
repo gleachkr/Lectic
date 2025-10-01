@@ -63,15 +63,15 @@ call and records the result.
 I will call the date tool first.
 
 <tool-call with="get_date">
-  <arguments>
-    <arguments>
-      [ ]
-    </arguments>
-  </arguments>
-  <results>
-    <result type="text"><stdout>Fri Mar 15 14:35:18 PDT 2024\n</stdout></result>
-    <result type="text"><exitCode>0</exitCode></result>
-  </results>
+<arguments><arguments>[ ]</arguments></arguments>
+<results>
+<result type="text">
+┆ <│stdout>Fri Mar 15 14:35:18 PDT 2024\n<│/stdout>
+</result>
+<result type="text">
+┆ <│exitCode>0<│/exitCode>
+</result>
+</results>
 </tool-call>
 
 Today's date is March 15th, 2024.

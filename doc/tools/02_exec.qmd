@@ -135,13 +135,20 @@ If the LLM provides `{ NAME: "Ada", DAY: "Friday" }` Lectic will fill in the res
 
 ```
 <tool-call with="greeter">
-  <arguments>
-    <NAME>"Ada"</NAME>
-    <DAY>"Friday"</DAY>
-  </arguments>
-  <results>
-    <result type="text">Hello, Ada! Today is Friday.\n</result>
-  </results>
+<arguments>
+<NAME>
+┆Ada
+</NAME>
+<DAY>
+┆Friday
+</DAY>
+</arguments>
+<results>
+<result type="text">
+┆Hello, Ada! Today is Friday.
+┆
+</result>
+</results>
 </tool-call>
 ```
 
