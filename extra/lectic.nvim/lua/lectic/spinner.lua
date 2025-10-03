@@ -7,7 +7,7 @@ vim.api.nvim_set_hl(0, 'LecticSpinner', {
 
 function M.create_spinner(ns_id)
     local buf = vim.api.nvim_get_current_buf()
-    local steps = vim.g.lectic_spinner_steps or { " ▌"," ▀"," ▐"," ▄"}
+    local steps = vim.g.lectic_spinner_steps or { "▌","▀","▐","▄"}
     local cur_step = 1
     local timer = vim.uv.new_timer()
     local enclosed_line
