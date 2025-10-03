@@ -1,37 +1,14 @@
-import { join, dirname } from "path"
-import { getYaml } from "../parsing/parse"
-import { lecticConfigDir } from "../utils/xdg"
-import { LecticHeader } from "../types/lectic"
-import { Macro } from "../types/macro"
-
-function getDirFromUri(uri: string): string {
-  try {
-    const u = new URL(uri)
-    return dirname(u.pathname)
-  } catch {
-    return dirname(uri)
-  }
-}
+import { mergedHeaderSpecForDoc } from "../parsing/parse"
+import { Macro, type MacroSpec } from "../types/macro"
 
 export async function buildMacroIndex(
   docText: string,
-  docUri: string
+  docDir: string | undefined
 ): Promise<Macro[]> {
-  const rawYaml = getYaml(docText) ?? ""
-  const docDir = getDirFromUri(docUri)
-
-  const systemPath = join(lecticConfigDir(), "lectic.yaml")
-  const workspacePath = join(docDir, "lectic.yaml")
-
-  const [systemYaml, workspaceYaml] = await Promise.all([
-    Bun.file(systemPath).text().catch(_ => null),
-    Bun.file(workspacePath).text().catch(_ => null)
-  ])
-
   try {
-    return LecticHeader.mergeInterlocutorSpecs([
-      systemYaml, workspaceYaml, rawYaml
-    ]).macros
+    const spec = await mergedHeaderSpecForDoc(docText, docDir)
+    const macros: MacroSpec[] = (spec?.macros ?? []) as MacroSpec[]
+    return macros.map(m => new Macro(m))
   } catch {
     return []
   }

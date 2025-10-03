@@ -43,8 +43,7 @@ macros:
         // File header
         const header = `---\nmacros:\n  - name: C\n    expansion: hdr-C\n  - name: D\n    expansion: hdr-D\n---\nBody`;
 
-        const uri = join(workspaceDir, "doc.lec")
-        const macros = await buildMacroIndex(header, uri)
+        const macros = await buildMacroIndex(header, workspaceDir)
 
         const map = new Map(macros.map(m => [m.name, m.expansion]))
         expect(map.get("A")).toBe("ws-A") // workspace overrides system
@@ -81,8 +80,7 @@ macros:
     expansion: ws
 `)
         const header = `---\n---\nBody`;
-        const uri = join(workspaceDir, "doc.lec")
-        const macros = await buildMacroIndex(header, uri)
+        const macros = await buildMacroIndex(header, workspaceDir)
         const lower = new Map(macros.map(m => [m.name.toLowerCase(), m]))
         expect(lower.get("summarize")?.expansion).toBe("ws")
       } finally {
