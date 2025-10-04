@@ -2,6 +2,7 @@ import { tmpdir } from "os"
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "fs"
 import { join } from "path"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
+import { mergedHeaderSpecForDoc } from "../parsing/parse"
 import { describe, test, expect } from "bun:test"
 
 async function withTempDir<T>(
@@ -43,7 +44,8 @@ macros:
         // File header
         const header = `---\nmacros:\n  - name: C\n    expansion: hdr-C\n  - name: D\n    expansion: hdr-D\n---\nBody`;
 
-        const macros = await buildMacroIndex(header, workspaceDir)
+        const spec = await mergedHeaderSpecForDoc(header, workspaceDir)
+        const macros = buildMacroIndex(spec as any)
 
         const map = new Map(macros.map(m => [m.name, m.expansion]))
         expect(map.get("A")).toBe("ws-A") // workspace overrides system
@@ -80,7 +82,8 @@ macros:
     expansion: ws
 `)
         const header = `---\n---\nBody`;
-        const macros = await buildMacroIndex(header, workspaceDir)
+        const spec = await mergedHeaderSpecForDoc(header, workspaceDir)
+        const macros = buildMacroIndex(spec as any)
         const lower = new Map(macros.map(m => [m.name.toLowerCase(), m]))
         expect(lower.get("summarize")?.expansion).toBe("ws")
       } finally {

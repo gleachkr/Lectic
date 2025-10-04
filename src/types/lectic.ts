@@ -28,7 +28,7 @@ type ManylecticHeaderSpec = {
     hooks?: HookSpec[]
 }
 
-type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
+export type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
 
 export class LecticHeader {
     interlocutor : Interlocutor

@@ -1,13 +1,9 @@
-import { mergedHeaderSpecForDoc } from "../parsing/parse"
 import { Macro, type MacroSpec } from "../types/macro"
+import type { LecticHeaderSpec } from "../types/lectic"
 
-export async function buildMacroIndex(
-  docText: string,
-  docDir: string | undefined
-): Promise<Macro[]> {
+export function buildMacroIndex(spec : LecticHeaderSpec): Macro[] {
   try {
-    const spec = await mergedHeaderSpecForDoc(docText, docDir)
-    const macros: MacroSpec[] = (spec?.macros ?? []) as MacroSpec[]
+    const macros: MacroSpec[] = spec?.macros ?? []
     return macros.map(m => new Macro(m))
   } catch {
     return []

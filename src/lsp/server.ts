@@ -14,6 +14,8 @@ import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { buildInterlocutorIndex } from "./interlocutorIndex"
 import { buildDiagnostics } from "./diagnostics"
 import { dirname } from "path"
+import { isLecticHeaderSpec } from "../types/lectic"
+import { mergedHeaderSpecForDoc } from "../parsing/parse"
 
 type Doc = { uri: string, text: string }
 
@@ -192,8 +194,12 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     if (ctx.insideBrackets && (ctx.key === "ask" || ctx.key === "aside" || ctx.key === "macro")) {
       const lowerInner = ctx.innerPrefix.toLowerCase()
 
+      const spec = await mergedHeaderSpecForDoc(doc.text, docDir)
+
+      if (!isLecticHeaderSpec(spec)) return items
+
       if (ctx.key === "ask" || ctx.key === "aside") {
-        const interNames = await buildInterlocutorIndex(doc.text, docDir)
+        const interNames = buildInterlocutorIndex(spec)
         for (const n of interNames) {
           if (!n.toLowerCase().startsWith(lowerInner)) continue
           const start = ctx.innerStart ?? pos.character
@@ -213,7 +219,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
           })
         }
       } else if (ctx.key === "macro") {
-        const macros = await buildMacroIndex(doc.text, docDir)
+        const macros = buildMacroIndex(spec)
         for (const m of macros) {
           if (!m.name.toLowerCase().startsWith(lowerInner)) continue
           const start = ctx.innerStart ?? pos.character

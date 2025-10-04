@@ -52,7 +52,7 @@ export function bodyToMessages(raw : string, header : LecticHeader) : Message[] 
 export async function parseLecticHeaderSpec(
     raw: string,
     includes: (string | null)[]
-): Promise<any> {
+): Promise<unknown> {
     const rawYaml = getYaml(raw) ?? ""
     try {
         return LecticHeader.mergeInterlocutorSpecs([...includes, rawYaml])
@@ -64,7 +64,7 @@ export async function parseLecticHeaderSpec(
 export async function mergedHeaderSpecForDoc(
     docText: string,
     docPath: string | undefined
-): Promise<any> {
+): Promise<unknown> {
     const systemConfig = join(lecticConfigDir(), "lectic.yaml")
     const systemYaml = await Bun.file(systemConfig).text().catch(_ => null)
     if (docPath !== undefined) {
