@@ -151,6 +151,15 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
         
 }
 
+export function isLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
+    try {
+        validateLecticHeaderSpec(raw)
+        return true
+    } catch {
+        return false
+    }
+}
+
 export type LecticBody = {
     messages : Message[];
 }

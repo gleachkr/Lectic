@@ -12,6 +12,7 @@ import type { MessageReader, MessageWriter } from "vscode-jsonrpc"
 import { StreamMessageReader, StreamMessageWriter } from "vscode-jsonrpc/node"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { buildInterlocutorIndex } from "./interlocutorIndex"
+import { buildDiagnostics } from "./diagnostics"
 import { dirname } from "path"
 
 type Doc = { uri: string, text: string }
@@ -86,14 +87,23 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     }
   })
 
-  connection.onDidOpenTextDocument((ev: DidOpenTextDocumentParams) => {
+  connection.onDidOpenTextDocument(async (ev: DidOpenTextDocumentParams) => {
     docs.set(ev.textDocument.uri, {
       uri: ev.textDocument.uri,
       text: ev.textDocument.text
     })
+    // Publish diagnostics on open
+    try {
+      const uri = new URL(ev.textDocument.uri)
+      const docDir = uri.protocol === "file:" ? dirname(uri.pathname) : undefined
+      const diagnostics = await buildDiagnostics(ev.textDocument.text, docDir)
+      connection.sendDiagnostics({ uri: ev.textDocument.uri, diagnostics })
+    } catch {
+      // ignore
+    }
   })
 
-  connection.onDidChangeTextDocument((ev: DidChangeTextDocumentParams) => {
+  connection.onDidChangeTextDocument(async (ev: DidChangeTextDocumentParams) => {
     const uri = ev.textDocument.uri
     const changes = ev.contentChanges
     const last = changes[changes.length - 1]
@@ -103,6 +113,16 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
       docs.set(uri, { uri, text: last.text })
     } else {
       cur.text = last.text
+    }
+    // Publish diagnostics on change (debounce could be added later)
+    try {
+      const u = new URL(uri)
+      const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
+      const text = docs.get(uri)?.text ?? last.text
+      const diagnostics = await buildDiagnostics(text, docDir)
+      connection.sendDiagnostics({ uri, diagnostics })
+    } catch {
+      // ignore
     }
   })
 
