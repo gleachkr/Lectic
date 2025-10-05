@@ -1,7 +1,8 @@
 import type { Position as LspPosition, Range as LspRange } from "vscode-languageserver"
 import { Position as LspPos, Range as LspRan } from "vscode-languageserver/node"
 import { getBody } from "../parsing/parse"
-import { parseDirectives, nodeContentRaw } from "../parsing/markdown"
+import { parseDirectives, nodeRaw } from "../parsing/markdown"
+import { offsetToPosition, positionToOffset } from "./positions"
 
 // Helpers shared across LSP modules
 export function findSingleColonStart(lineText: string, ch: number): number | null {
@@ -26,13 +27,50 @@ export function computeReplaceRange(
 }
 
 
+/**
+ * DirectiveContext describes the directive (e.g. :ask[...]) that
+ * contains the current cursor position, along with precise ranges
+ * and convenient precomputed text slices.
+ */
 export type DirectiveContext = {
+  /**
+   * Normalized directive key (lowercase), e.g. "ask", "aside",
+   * "macro", "cmd", "reset". Empty string when unknown.
+   */
   key: string
+  /**
+   * True when the cursor is between the directive's brackets, i.e.
+   * inside the [...]. Used to enable bracket‑aware completion.
+   */
   insideBrackets: boolean
+  /**
+   * Full text inside the brackets at the time of the query. This is
+   * exclusive of the [ and ].
+   */
   innerText: string
+  /**
+   * The portion of innerText that lies before the cursor. This is
+   * useful for prefix filtering without recomputing offsets.
+   */
+  innerPrefix: string
+  /**
+   * LSP position of the first character inside the brackets (just
+   * after '[').
+   */
   innerStart: LspPosition
+  /**
+   * LSP position of the last character inside the brackets (just
+   * before ']').
+   */
   innerEnd: LspPosition
+  /**
+   * LSP position of the directive start (spans the entire node,
+   * including the leading ':' and name).
+   */
   nodeStart: LspPosition
+  /**
+   * LSP position of the directive end (end of the node).
+   */
   nodeEnd: LspPosition
 }
 
@@ -45,47 +83,52 @@ export function directiveAtPosition(
   const body = getBody(docText)
   const bodyDirectives = parseDirectives(body)
 
-  // Compute header end line by subtracting body length from full text
+  // Map body offsets to absolute document offsets
   const prefixLen = docText.length - body.length
-  const headerPrefix = docText.slice(0, prefixLen)
-  const headerEndLine = headerPrefix.split(/\r?\n/).length - 1
-
-  const abs = (line: number, col: number): LspPosition =>
-    LspPos.create(headerEndLine + (line - 1), col - 1)
+  const posAbsOff = positionToOffset(docText, pos)
 
   // Consider the directive whose range contains the cursor position.
   for (const d of bodyDirectives) {
     const s = d.position?.start
     const e = d.position?.end
-    if (!s || !e) continue
-    const nodeStart = abs(s.line, s.column)
-    const nodeEnd = abs(e.line, e.column)
+    if (!s || !e || s.offset == null || e.offset == null) continue
 
-    const within =
-      (pos.line > nodeStart.line || (pos.line === nodeStart.line && pos.character >= nodeStart.character)) &&
-      (pos.line < nodeEnd.line || (pos.line === nodeEnd.line && pos.character <= nodeEnd.character))
+    const absStartOff = prefixLen + s.offset
+    const absEndOff = prefixLen + e.offset
+
+    const within = posAbsOff >= absStartOff && posAbsOff <= absEndOff
     if (!within) continue
 
     const key = d.name ? String(d.name).toLowerCase() : ""
 
-    // Compute inner bracket content range using children positions.
-    const firstChild = d.children?.[0]?.position?.start
-    const lastChild = d.children?.[d.children.length - 1]?.position?.end
-    const hasChildren = !!(firstChild && lastChild)
-    const innerStart = hasChildren ? abs(firstChild.line, firstChild.column) : nodeStart
-    const innerEnd = hasChildren ? abs(lastChild.line, lastChild.column) : nodeStart
+    // Prefer computing inner range by locating the brackets in the raw text.
+    // This works even when the directive has empty content (no children).
+    const raw = nodeRaw(d, body)
+    const leftIdx = raw.indexOf("[")
+    const rightIdx = raw.lastIndexOf("]")
 
-    const insideBrackets = hasChildren && (
-      (pos.line > innerStart.line || (pos.line === innerStart.line && pos.character >= innerStart.character)) &&
-      (pos.line < innerEnd.line || (pos.line === innerEnd.line && pos.character <= innerEnd.character))
-    )
+    const innerStartOff = s.offset + leftIdx + 1
+    const innerEndOff = s.offset + rightIdx
+    const absInnerStartOff = prefixLen + innerStartOff
+    const absInnerEndOff = prefixLen + innerEndOff
 
-    const innerText = hasChildren ? nodeContentRaw(d, body) : ""
+    const innerStart = offsetToPosition(docText, absInnerStartOff)
+    const innerEnd = offsetToPosition(docText, absInnerEndOff)
+
+    const insideBrackets = posAbsOff >= absInnerStartOff && posAbsOff <= absInnerEndOff
+
+    const nodeStart = offsetToPosition(docText, absStartOff)
+    const nodeEnd = offsetToPosition(docText, absEndOff)
+
+    const innerText = docText.slice(absInnerStartOff, absInnerEndOff)
+    const typedLen = Math.max(0, Math.min(innerText.length, posAbsOff - absInnerStartOff))
+    const innerPrefix = innerText.slice(0, typedLen)
 
     return {
       key,
       insideBrackets,
       innerText,
+      innerPrefix,
       innerStart,
       innerEnd,
       nodeStart,

@@ -63,13 +63,7 @@ export async function computeCompletions(
     const spec = await mergedHeaderSpecForDoc(docText, docDir)
     if (!isLecticHeaderSpec(spec)) return items
 
-    const innerText = docText.slice(
-      // We only need the prefix typed within the bracket up to the cursor
-      // The bracket range is in absolute document positions already
-      // Ranges are half-open in practice; using text slice is safe
-      docText.split(/\r?\n/).slice(0, dctx.innerStart.line).join("\n").length + (dctx.innerStart.line>0?1:0) + dctx.innerStart.character,
-      docText.split(/\r?\n/).slice(0, pos.line).join("\n").length + (pos.line>0?1:0) + pos.character
-    ).toLowerCase()
+    const innerText = dctx.innerPrefix.toLowerCase()
 
     if (dctx.key === "ask" || dctx.key === "aside") {
       const interNames = buildInterlocutorIndex(spec)
@@ -116,13 +110,17 @@ export async function computeCompletions(
         range: computeReplaceRange(pos.line, colonStart, pos.character),
         newText: d.insert
       }
+      const triggerSuggest = (d.key === "ask" || d.key === "aside" || d.key === "macro")
+        ? { title: "trigger suggest", command: "editor.action.triggerSuggest" }
+        : undefined
       items.push({
         label: d.label,
-        kind: CompletionItemKind.Keyword,
+        kind: CompletionItemKind.Snippet,
         detail: d.detail,
         documentation: d.documentation,
         insertTextFormat: InsertTextFormat.Snippet,
-        textEdit
+        textEdit,
+        command: triggerSuggest as any
       })
     }
   }
