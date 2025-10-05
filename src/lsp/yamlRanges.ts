@@ -1,20 +1,7 @@
-import type { Range, Position } from "vscode-languageserver"
-import { Range as LspRange, Position as LspPosition } from "vscode-languageserver/node"
+import type { Range } from "vscode-languageserver"
+import { Range as LspRange } from "vscode-languageserver/node"
 import * as YAML from "yaml"
-
-function offsetToPosition(text: string, offset: number): Position {
-  let line = 0
-  let col = 0
-  for (let i = 0; i < offset && i < text.length; i++) {
-    const ch = text.charCodeAt(i)
-    if (ch === 10 /* \n */) { line++; col = 0 }
-    else if (ch === 13 /* \r */) {
-      if (i + 1 < text.length && text.charCodeAt(i + 1) === 10) i++
-      line++; col = 0
-    } else col++
-  }
-  return LspPosition.create(line, col)
-}
+import { offsetToPosition } from "./positions"
 
 function findHeaderMatch(text: string): RegExpExecArray | null {
   const re = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m

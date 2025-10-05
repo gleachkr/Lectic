@@ -1,0 +1,131 @@
+import type { CompletionItem, CompletionParams, TextEdit } from "vscode-languageserver"
+import { CompletionItemKind, InsertTextFormat, Range as RangeNS } from "vscode-languageserver/node"
+import { buildMacroIndex, previewMacro } from "./macroIndex"
+import { buildInterlocutorIndex } from "./interlocutorIndex"
+import { directiveAtPosition, findSingleColonStart, computeReplaceRange } from "./directives"
+import { isLecticHeaderSpec } from "../types/lectic"
+import { mergedHeaderSpecForDoc } from "../parsing/parse"
+
+export async function computeCompletions(
+  _uri: string,
+  docText: string,
+  pos: CompletionParams["position"],
+  docDir: string | undefined
+): Promise<CompletionItem[] | null> {
+  const lineText = docText.split(/\r?\n/)[pos.line] ?? ""
+  const colonStart = findSingleColonStart(lineText, pos.character)
+
+  // Static directive suggestions
+  type Dir = { key: string, label: string, insert: string, detail: string, documentation: string }
+  const directives: Dir[] = [
+    {
+      key: "cmd",
+      label: "cmd",
+      insert: ":cmd[${0:command}]",
+      detail: ":cmd — run a shell command and insert stdout",
+      documentation: "Execute a shell command using the Bun shell and inline its stdout into the message."
+    },
+    {
+      key: "reset",
+      label: "reset",
+      insert: ":reset[]$0",
+      detail: ":reset — clear prior conversation context for this turn",
+      documentation: "Reset the context window so this turn starts fresh."
+    },
+    {
+      key: "ask",
+      label: "ask",
+      insert: ":ask[$0]",
+      detail: ":ask — switch interlocutor for subsequent turns",
+      documentation: "Switch the active interlocutor permanently."
+    },
+    {
+      key: "aside",
+      label: "aside",
+      insert: ":aside[$0]",
+      detail: ":aside — address one interlocutor for a single turn",
+      documentation: "Temporarily switch interlocutor for this turn only."
+    },
+    {
+      key: "macro",
+      label: "macro",
+      insert: ":macro[$0]",
+      detail: ":macro — expand a named macro",
+      documentation: "Insert a macro expansion by name."
+    }
+  ]
+
+  const items: CompletionItem[] = []
+
+  // mdast-aware: inside :ask[...]/:aside[...]/:macro[...] brackets
+  const dctx = directiveAtPosition(docText, pos)
+  if (dctx && dctx.insideBrackets && (dctx.key === "ask" || dctx.key === "aside" || dctx.key === "macro")) {
+    const spec = await mergedHeaderSpecForDoc(docText, docDir)
+    if (!isLecticHeaderSpec(spec)) return items
+
+    const innerText = docText.slice(
+      // We only need the prefix typed within the bracket up to the cursor
+      // The bracket range is in absolute document positions already
+      // Ranges are half-open in practice; using text slice is safe
+      docText.split(/\r?\n/).slice(0, dctx.innerStart.line).join("\n").length + (dctx.innerStart.line>0?1:0) + dctx.innerStart.character,
+      docText.split(/\r?\n/).slice(0, pos.line).join("\n").length + (pos.line>0?1:0) + pos.character
+    ).toLowerCase()
+
+    if (dctx.key === "ask" || dctx.key === "aside") {
+      const interNames = buildInterlocutorIndex(spec)
+      for (const n of interNames) {
+        if (!n.toLowerCase().startsWith(innerText)) continue
+        const textEdit: TextEdit = {
+          range: RangeNS.create(dctx.innerStart, pos),
+          newText: n
+        }
+        items.push({
+          label: n,
+          kind: CompletionItemKind.Value,
+          detail: "interlocutor",
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit
+        })
+      }
+    } else if (dctx.key === "macro") {
+      const macros = buildMacroIndex(spec)
+      for (const m of macros) {
+        if (!m.name.toLowerCase().startsWith(innerText)) continue
+        const textEdit: TextEdit = {
+          range: RangeNS.create(dctx.innerStart, pos),
+          newText: m.name
+        }
+        items.push({
+          label: m.name,
+          kind: CompletionItemKind.Variable,
+          detail: previewMacro(m).detail,
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit
+        })
+      }
+    }
+    return items
+  }
+
+  // Not inside brackets: suggest directive keywords
+  if (colonStart === null) return null
+  const prefix = lineText.slice(colonStart + 1, pos.character).toLowerCase()
+  for (const d of directives) {
+    if (d.key.startsWith(prefix)) {
+      const textEdit: TextEdit = {
+        range: computeReplaceRange(pos.line, colonStart, pos.character),
+        newText: d.insert
+      }
+      items.push({
+        label: d.label,
+        kind: CompletionItemKind.Keyword,
+        detail: d.detail,
+        documentation: d.documentation,
+        insertTextFormat: InsertTextFormat.Snippet,
+        textEdit
+      })
+    }
+  }
+
+  return items
+}

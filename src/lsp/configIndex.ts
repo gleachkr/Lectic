@@ -2,8 +2,9 @@ import { join } from "path"
 import { pathToFileURL } from "url"
 import { lecticConfigDir } from "../utils/xdg"
 import * as YAML from "yaml"
-import type { Range, Position, Location } from "vscode-languageserver"
-import { Range as LspRange, Position as LspPosition } from "vscode-languageserver/node"
+import type { Range, Location } from "vscode-languageserver"
+import { Range as LspRange } from "vscode-languageserver/node"
+import { offsetToPosition } from "./positions"
 
 // Types for safe, narrow shapes
 export type InterlocutorNameEntry = { name: string, range: Range }
@@ -20,17 +21,6 @@ export type DefinitionIndex = {
   macros: Map<string, { uri: string, range: Range }>,
 }
 
-function offsetToPosition(text: string, offset: number): Position {
-  let line = 0
-  let col = 0
-  for (let i = 0; i < offset && i < text.length; i++) {
-    const ch = text.charCodeAt(i)
-    if (ch === 10) { line++; col = 0 }
-    else if (ch === 13) { if (i + 1 < text.length && text.charCodeAt(i+1)===10) i++; line++; col=0 }
-    else col++
-  }
-  return LspPosition.create(line, col)
-}
 
 // Basic YAML map item access without any
 function mapGetPair(map: any, key: string): { key: any, value: any } | undefined {

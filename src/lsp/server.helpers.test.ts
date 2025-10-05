@@ -1,4 +1,4 @@
-import { computeReplaceRange, findSingleColonStart } from "./server"
+import { computeReplaceRange, findSingleColonStart } from "./directives"
 import { describe, test, expect } from "bun:test"
 
 describe("server helpers", () => {

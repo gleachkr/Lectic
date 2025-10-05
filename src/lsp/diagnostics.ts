@@ -1,7 +1,6 @@
 import type {
   Diagnostic,
   Range as LspRangeT,
-  Position as LspPositionT,
 } from "vscode-languageserver"
 import {
   DiagnosticSeverity,
@@ -13,6 +12,7 @@ import { parseDirectives, nodeContentRaw } from "../parsing/markdown"
 import { buildHeaderRangeIndex, type HeaderRangeIndex } from "./yamlRanges"
 import { validateHeaderShape } from "./headerValidate"
 import * as YAML from "yaml"
+import { offsetToPosition } from "./positions"
 
 // Narrow header structures for diagnostics. These are minimal shapes
 // we actually use in LSP; runtime uses richer types elsewhere.
@@ -27,20 +27,7 @@ export type HeaderLike = {
   macros?: MacroLike[]
 }
 
-// Helper: convert byte offset to LSP position
-function offsetToPosition(text: string, offset: number): LspPositionT {
-  let line = 0
-  let col = 0
-  for (let i = 0; i < offset && i < text.length; i++) {
-    const ch = text.charCodeAt(i)
-    if (ch === 10 /* \n */) { line++; col = 0 }
-    else if (ch === 13 /* \r */) {
-      if (i + 1 < text.length && text.charCodeAt(i + 1) === 10) i++
-      line++; col = 0
-    } else col++
-  }
-  return LspPosition.create(line, col)
-}
+// Helper re-exported from positions.ts is imported above
 
 // Detect YAML header range in the document
 function findHeaderRange(text: string): LspRangeT | null {
