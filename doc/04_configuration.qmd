@@ -55,7 +55,10 @@ specific rules:
 - **Arrays (Lists)**: Merged based on the `name` attribute of their
   elements. If two objects in an array share the same `name`, they are
   merged. Otherwise, the elements are simply combined. This is especially
-  useful for managing lists of tools and interlocutors.
+  useful for managing lists of tools and interlocutors. When duplicate
+  named items appear within a single file, later entries override earlier
+  ones. The LSP warns on duplicate names in the document header to help
+  catch mistakes.
 - **Other Values**: For simple values (strings, numbers) or if the types
   don't match, the value from the highest-precedence source is used without
   any merging.

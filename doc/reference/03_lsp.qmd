@@ -8,7 +8,7 @@ provides completion for directives and macros. It is stdio only.
 Overview
 - Command: `lectic lsp`
 - Transport: stdio (no `--node-ipc` or `--socket`)
-- Feature: `textDocument/completion`
+- Features: `textDocument/completion`, diagnostics
 - Trigger: a single colon `:`
 - Insertions
   - Directives use snippets and place the cursor inside brackets (or at
@@ -116,7 +116,14 @@ export function activate(context: vscode.ExtensionContext) {
 }
 ```
 
+Diagnostics
+- The server publishes diagnostics on open/change.
+- Duplicate names in the document header are warned with precise ranges.
+  Later entries win at runtime; the warning helps catch mistakes.
+- Duplicates originating only from included configs may be reported with
+  a coarse header-range warning.
+
 Notes
-- The server does not run diagnostics or hovers.
+- The server does not run hovers.
 - Completion previews are static; the server does not expand macros or
   read files referenced by `file:`.
