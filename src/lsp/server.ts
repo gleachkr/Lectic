@@ -2,7 +2,7 @@ import type {
   InitializeParams, InitializeResult,
   DidOpenTextDocumentParams, DidChangeTextDocumentParams,
   DidCloseTextDocumentParams, CompletionParams,
-  CompletionItem, TextEdit, Range
+  CompletionItem, TextEdit, Range, DefinitionParams, Location
 } from "vscode-languageserver"
 import {
   createConnection, ProposedFeatures, TextDocumentSyncKind,
@@ -84,7 +84,8 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
         textDocumentSync: TextDocumentSyncKind.Full,
         completionProvider: {
           triggerCharacters: [":", "["]
-        }
+        },
+        definitionProvider: true
       }
     }
   })
@@ -130,6 +131,14 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
 
   connection.onDidCloseTextDocument((ev: DidCloseTextDocumentParams) => {
     docs.delete(ev.textDocument.uri)
+  })
+
+  connection.onDefinition(async (params: DefinitionParams): Promise<Location[] | null> => {
+    const doc = docs.get(params.textDocument.uri)
+    if (!doc) return null
+    const { resolveDefinition } = await import('./definitions')
+    const locs = await resolveDefinition(params.textDocument.uri, doc.text, params.position)
+    return locs
   })
 
   connection.onCompletion(async (params: CompletionParams) => {

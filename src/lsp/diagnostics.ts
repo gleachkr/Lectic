@@ -13,7 +13,6 @@ import { parseDirectives, nodeContentRaw } from "../parsing/markdown"
 import { buildHeaderRangeIndex, type HeaderRangeIndex } from "./yamlRanges"
 import { validateHeaderShape } from "./headerValidate"
 import * as YAML from "yaml"
-import type { TextDirective } from "mdast-util-directive"
 
 // Narrow header structures for diagnostics. These are minimal shapes
 // we actually use in LSP; runtime uses richer types elsewhere.
