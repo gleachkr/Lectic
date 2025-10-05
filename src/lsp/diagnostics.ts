@@ -18,6 +18,7 @@ import { offsetToPosition } from "./positions"
 // we actually use in LSP; runtime uses richer types elsewhere.
 export type InterlocutorLike = {
   name?: string
+  prompt?: string
   tools?: unknown[]
 }
 export type MacroLike = { name?: string }
@@ -62,6 +63,8 @@ function sanitizeInterlocutorLike(v: unknown): InterlocutorLike | undefined {
   const out: InterlocutorLike = {}
   const name = obj["name"]
   if (typeof name === "string") out.name = name
+  const prompt = obj["prompt"]
+  if (typeof prompt === "string") out.prompt= prompt
   const tools = obj["tools"]
   if (Array.isArray(tools)) out.tools = tools as unknown[]
   return out
@@ -199,25 +202,6 @@ function collectAllInterlocutors(spec: HeaderLike): InterlocutorLike[] {
   return list
 }
 
-function emitMergedDuplicateWarning(
-  names: string[],
-  alreadyEmittedLocally: boolean,
-  label: "interlocutor" | "macro",
-  headerRange: LspRangeT
-): Diagnostic[] {
-  if (alreadyEmittedLocally) return []
-  const map = new Map<string, number>()
-  for (const n of names) map.set(n, (map.get(n) ?? 0) + 1)
-  const dups = [...map.entries()].filter(([, c]) => c > 1)
-  if (dups.length === 0) return []
-  const details = dups.map(([k]) => k).join(", ")
-  return [{
-    range: headerRange,
-    severity: DiagnosticSeverity.Warning,
-    source: "lectic",
-    message: `Duplicate ${label} names: ${details}`
-  }]
-}
 
 function emitUnknownAgentTargetErrors(
   spec: HeaderLike,
@@ -317,16 +301,46 @@ export async function buildDiagnostics(
   const localInterDupDiags = emitLocalDuplicateWarnings(headerInterNames, "interlocutor")
   const localMacroDupDiags = emitLocalDuplicateWarnings(headerMacroNames, "macro")
   diags.push(...localInterDupDiags, ...localMacroDupDiags)
-  const headerHadInterDups = localInterDupDiags.length > 0
-  const headerHadMacroDups = localMacroDupDiags.length > 0
 
-  // 2) Targeted field diagnostics from local YAML
+  // 2) Targeted field diagnostics from local YAML, filtered by merged spec
   const localSpec = parseLocalHeader(docText)
+  const mergedSpec = await loadMergedHeader(docText, docDir)
+
   const issues = validateHeaderShape(localSpec)
+    .filter(issue => {
+      // Suppress missing-prompt errors when the effective merged spec
+      // provides a prompt from lower-precedence config.
+      if (issue.code !== "interlocutor.prompt.missing") return true
+      const p = issue.path
+      if (p[0] === "interlocutor") {
+        const mergedPrompt = mergedSpec?.interlocutor?.prompt
+        return !(typeof mergedPrompt === "string")
+      }
+      if (p.length >= 3 && p[0] === "interlocutors" && typeof p[1] === "number") {
+        const idx = p[1]
+        const localArray = isObjectRecord(localSpec) ? localSpec["interlocutors"] : undefined
+        const localName = Array.isArray(localArray) && 
+                          isObjectRecord(localArray[idx]) && 
+                          typeof localArray[idx]["name"] === "string" 
+                              ? (localArray[idx] as any)["name"] as string
+                              : undefined
+        const mergedList = mergedSpec?.interlocutors
+        if (typeof localName === "string") {
+          if (Array.isArray(mergedList)) {
+            const merged = mergedList.find(it => typeof it?.name === "string" && it.name === localName)
+            if (merged && typeof (merged as any).prompt === "string") return false
+          }
+          const mi = mergedSpec?.interlocutor
+          if (mi && typeof mi.name === "string" && mi.name === localName && typeof mi.prompt === "string") {
+            return false
+          }
+        }
+      }
+      return true
+    })
   diags.push(...mapHeaderIssues(issues, headerIndex, headerRange))
 
   // 3) Coarse missing-interlocutor check on merged spec
-  const mergedSpec = await loadMergedHeader(docText, docDir)
   if (!hasAnyInterlocutor(mergedSpec)) {
     const msg = "YAML Header is missing something. " +
       "One or more interlocutors need to be specified. " +
@@ -344,34 +358,8 @@ export async function buildDiagnostics(
     return diags
   }
 
-  // 4) Duplicate names across merged spec (coarse, single header diag)
-  const mergedNames: string[] = []
-  if (typeof mergedSpec.interlocutor?.name === "string") {
-    mergedNames.push(mergedSpec.interlocutor.name)
-  }
-  if (Array.isArray(mergedSpec.interlocutors)) {
-    for (const it of mergedSpec.interlocutors) {
-      if (typeof it?.name === "string") mergedNames.push(it.name)
-    }
-  }
-  diags.push(
-    ...emitMergedDuplicateWarning(
-      mergedNames, headerHadInterDups, "interlocutor", headerRange
-    )
-  )
-  if (Array.isArray(mergedSpec.macros)) {
-    const mergedMacroNames: string[] = []
-    for (const m of mergedSpec.macros) {
-      if (typeof m?.name === "string") mergedMacroNames.push(m.name)
-    }
-    diags.push(
-      ...emitMergedDuplicateWarning(
-        mergedMacroNames, headerHadMacroDups, "macro", headerRange
-      )
-    )
-  }
 
-  // 5) Unknown agent targets (precise ranges where possible)
+  // 4) Unknown agent targets (precise ranges where possible)
   const knownNames = collectInterlocutorNames(mergedSpec)
   diags.push(
     ...emitUnknownAgentTargetErrors(

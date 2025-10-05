@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test"
 import { buildDiagnostics } from "./diagnostics"
 import { tmpdir } from "os"
-import { mkdtempSync, rmSync } from "fs"
+import { mkdtempSync, rmSync, writeFileSync } from "fs"
 import { join } from "path"
 
 function withIsolatedSystemConfig<T>(run: (dir: string) => Promise<T> | T): Promise<T> | T {
@@ -98,6 +98,55 @@ describe("diagnostics", () => {
       const ls = lines(text)
       const idx = ls.findIndex(l => l.includes("agent: Other"))
       expect(agent.some(d => d.range.start.line === idx)).toBeTrue()
+    })
+  })
+
+  test("suppresses missing prompt when provided by workspace config", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const ws = mkdtempSync(join(tmpdir(), "lectic-lsp-ws-"))
+      try {
+        // Workspace config provides the prompt for Bram
+        writeFileSync(
+          join(ws, "lectic.yaml"),
+          `interlocutors:\n  - name: Bram\n    prompt: from workspace\n`
+        )
+        const text = `---\ninterlocutor:\n  name: Bram\n---\nBody\n`
+        const diags = await buildDiagnostics(text, ws)
+        expect(hasMessage(diags, "needs a prompt")).toBeFalse()
+        expect(hasMessage(diags, "YAML Header is missing")).toBeFalse()
+      } finally {
+        rmSync(ws, { recursive: true, force: true })
+      }
+    })
+  })
+
+  test("does not warn duplicate interlocutor when duplicate is only from includes", async () => {
+    await withIsolatedSystemConfig(async (sysDir) => {
+      // System config defines Bram; local header also defines Bram once.
+      writeFileSync(
+        join(sysDir, "lectic.yaml"),
+        `interlocutors:\n  - name: Bram\n    prompt: from system\n`
+      )
+      const text = `---\ninterlocutor:\n  name: Bram\n---\nBody\n`
+      const diags = await buildDiagnostics(text, undefined)
+      expect(hasMessage(diags, "Duplicate interlocutor")).toBeFalse()
+    })
+  })
+
+  test("suppresses missing prompt for interlocutors[i] when provided by workspace config", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const ws = mkdtempSync(join(tmpdir(), "lectic-lsp-ws-"))
+      try {
+        writeFileSync(
+          join(ws, "lectic.yaml"),
+          `interlocutors:\n  - name: Zoe\n    prompt: from workspace\n`
+        )
+        const text = `---\ninterlocutors:\n  - name: Zoe\n---\nBody\n`
+        const diags = await buildDiagnostics(text, ws)
+        expect(hasMessage(diags, "needs a prompt")).toBeFalse()
+      } finally {
+        rmSync(ws, { recursive: true, force: true })
+      }
     })
   })
 })
