@@ -264,4 +264,55 @@ describe("LSP integration", () => {
     expect(result === null || result.length === 0).toBeTrue()
     client.dispose()
   })
+
+  test("document symbols provide header and body outline", async () => {
+    const c2s = new PassThrough()
+    const s2c = new PassThrough()
+
+    startLspWithStreams(
+      new StreamMessageReader(c2s),
+      new StreamMessageWriter(s2c)
+    )
+
+    const client = createMessageConnection(
+      new StreamMessageReader(s2c),
+      new StreamMessageWriter(c2s)
+    )
+    client.listen()
+
+    await collect(client.sendRequest("initialize", {
+      processId: null, clientInfo: { name: "test" }, rootUri: null,
+      capabilities: {}
+    }))
+
+    const text = `---\ninterlocutors:\n  - name: Oggle\n    prompt: hi\nmacros:\n  - name: summarize\n    expansion: exec:echo\n---\nText\n\n:::Oggle\nhi\n:::\n`;
+    const path = "/tmp/test-doc.lec"
+    const uri = `file://${path}`
+    client.sendNotification("textDocument/didOpen", {
+      textDocument: { uri, languageId: "markdown", version: 1, text }
+    })
+
+    const result: any = await collect(client.sendRequest(
+      "textDocument/documentSymbol",
+      { textDocument: { uri } }
+    ))
+
+    // Expect DocumentSymbol[]
+    expect(Array.isArray(result)).toBeTrue()
+    const names: string[] = []
+    const walk = (xs: any[]) => xs.forEach(s => {
+      names.push(String(s.name))
+      if (Array.isArray(s.children)) walk(s.children)
+    })
+    walk(result)
+    expect(names.includes("Header")).toBeTrue()
+    expect(names.includes("Interlocutors")).toBeTrue()
+    expect(names.includes("Macros")).toBeTrue()
+    expect(names.includes("Oggle")).toBeTrue()
+    expect(names.includes("summarize")).toBeTrue()
+    expect(names.includes("Body")).toBeTrue()
+    expect(names.some(n => n.startsWith("Assistant:"))).toBeTrue()
+
+    client.dispose()
+  })
 })

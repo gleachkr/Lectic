@@ -8,7 +8,8 @@ provides completion for directives and macros. It is stdio only.
 Overview
 - Command: `lectic lsp`
 - Transport: stdio (no `--node-ipc` or `--socket`)
-- Features: `textDocument/completion`, diagnostics
+- Features: `textDocument/completion`, diagnostics,
+  document symbols (outline)
 - Trigger: a single colon `:`
 - Insertions
   - Directives use snippets and place the cursor inside brackets (or at
@@ -122,6 +123,13 @@ Diagnostics
   Later entries win at runtime; the warning helps catch mistakes.
 - Duplicates originating only from included configs may be reported with
   a coarse header-range warning.
+
+Document symbols (outline)
+- The outline shows a "Header" section with "Interlocutors" and
+  "Macros" (local definitions only), and a "Body" section with user
+  chunks and assistant blocks (e.g., "Assistant: Name").
+- Included items from workspace/system configs do not appear in the
+  current document’s symbols.
 
 Notes
 - The server does not run hovers.

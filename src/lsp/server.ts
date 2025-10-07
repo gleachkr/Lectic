@@ -2,7 +2,8 @@ import type {
   InitializeParams, InitializeResult,
   DidOpenTextDocumentParams, DidChangeTextDocumentParams,
   DidCloseTextDocumentParams, CompletionParams,
-  DefinitionParams, Location
+  DefinitionParams, Location,
+  DocumentSymbolParams,
 } from "vscode-languageserver"
 import {
   createConnection, ProposedFeatures, TextDocumentSyncKind
@@ -12,6 +13,7 @@ import { StreamMessageReader, StreamMessageWriter } from "vscode-jsonrpc/node"
 import { buildDiagnostics } from "./diagnostics"
 import { dirname } from "path"
 import { computeCompletions } from "./completions"
+import { buildDocumentSymbols } from "./symbols"
 
 type Doc = { uri: string, text: string }
 
@@ -27,7 +29,8 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
         completionProvider: {
           triggerCharacters: [":", "["]
         },
-        definitionProvider: true
+        definitionProvider: true,
+        documentSymbolProvider: true,
       }
     }
   })
@@ -96,6 +99,12 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
       params.position,
       docDir
     )
+  })
+
+  connection.onDocumentSymbol(async (params: DocumentSymbolParams) => {
+    const doc = docs.get(params.textDocument.uri)
+    if (!doc) return []
+    return buildDocumentSymbols(doc.text)
   })
 }
 
