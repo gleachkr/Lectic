@@ -356,7 +356,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>When combining settings from multiple configuration files, Lectic follows specific rules:</p>
 <ul>
 <li><strong>Objects (Mappings)</strong>: Merged recursively. If a key exists in multiple sources, the value from the source with higher precedence wins.</li>
-<li><strong>Arrays (Lists)</strong>: Merged based on the <code>name</code> attribute of their elements. If two objects in an array share the same <code>name</code>, they are merged. Otherwise, the elements are simply combined. This is especially useful for managing lists of tools and interlocutors.</li>
+<li><strong>Arrays (Lists)</strong>: Merged based on the <code>name</code> attribute of their elements. If two objects in an array share the same <code>name</code>, they are merged. Otherwise, the elements are simply combined. This is especially useful for managing lists of tools and interlocutors. When duplicate named items appear within a single file, later entries override earlier ones. The LSP warns on duplicate names in the document header to help catch mistakes.</li>
 <li><strong>Other Values</strong>: For simple values (strings, numbers) or if the types don’t match, the value from the highest-precedence source is used without any merging.</li>
 </ul>
 <section id="example" class="level3">
