@@ -1,6 +1,7 @@
 // Non-throwing validators that mirror runtime checks and return
 // structured issues with YAML-like paths for precise diagnostics.
 import { isLLMProvider } from "../types/provider"
+import { Messages } from "../constants/messages"
 
 export type Issue = {
   code: string
@@ -23,8 +24,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if (!("name" in raw) || typeof raw.name !== "string") {
       issues.push({
         code: "interlocutor.name.missing",
-        message:
-          "An interlocutor is missing a name. The name needs to be a string.",
+        message: Messages.interlocutor.nameMissing(),
         path: [...pathBase, "name"],
         severity: "error"
       })
@@ -35,8 +35,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if (!("prompt" in raw) || typeof raw.prompt !== "string") {
       issues.push({
         code: "interlocutor.prompt.missing",
-        message:
-          `Interlocutor ${nameVal} needs a prompt. The prompt needs to be a string.`,
+        message: Messages.interlocutor.promptMissing(nameVal),
         path: [...pathBase, "prompt"],
         severity: "error"
       })
@@ -46,7 +45,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if ("model" in raw && typeof raw.model !== "string") {
       issues.push({
         code: "interlocutor.model.type",
-        message: `The model type for ${nameVal} needs to be a string`,
+        message: Messages.interlocutor.modelType(nameVal),
         path: [...pathBase, "model"],
         severity: "error"
       })
@@ -56,7 +55,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if ("provider" in raw && !isLLMProvider(raw.provider)) {
       issues.push({
         code: "interlocutor.provider.enum",
-        message: `The provider for ${nameVal} wasn't recognized.`,
+        message: Messages.interlocutor.providerEnum(nameVal),
         path: [...pathBase, "provider"],
         severity: "error"
       })
@@ -66,8 +65,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if ("max_tokens" in raw && typeof raw.max_tokens !== "number") {
       issues.push({
         code: "interlocutor.max_tokens.type",
-        message:
-          `The max_tokens for ${nameVal} wasn't well-formed, it needs to be a number.`,
+        message: Messages.interlocutor.maxTokensType(nameVal),
         path: [...pathBase, "max_tokens"],
         severity: "error"
       })
@@ -77,8 +75,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if ("max_tool_use" in raw && typeof raw.max_tool_use !== "number") {
       issues.push({
         code: "interlocutor.max_tool_use.type",
-        message:
-          `The max_tool_use for ${nameVal} wasn't well-formed, it needs to be a number.`,
+        message: Messages.interlocutor.maxToolUseType(nameVal),
         path: [...pathBase, "max_tool_use"],
         severity: "error"
       })
@@ -88,8 +85,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if ("reminder" in raw && typeof raw.reminder !== "string") {
       issues.push({
         code: "interlocutor.reminder.type",
-        message:
-          `The reminder for ${nameVal} wasn't well-formed, it needs to be a string.`,
+        message: Messages.interlocutor.reminderType(nameVal),
         path: [...pathBase, "reminder"],
         severity: "error"
       })
@@ -99,8 +95,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     if ("nocache" in raw && typeof raw.nocache !== "boolean") {
       issues.push({
         code: "interlocutor.nocache.type",
-        message:
-          `The nocache option for ${nameVal} wasn't well-formed, it needs to be a boolean.`,
+        message: Messages.interlocutor.nocacheType(nameVal),
         path: [...pathBase, "nocache"],
         severity: "error"
       })
@@ -111,16 +106,14 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       if (typeof raw.temperature !== "number") {
         issues.push({
           code: "interlocutor.temperature.type",
-          message:
-            `The temperature for ${nameVal} wasn't well-formed, it needs to be a number.`,
+          message: Messages.interlocutor.temperatureType(nameVal),
           path: [...pathBase, "temperature"],
           severity: "error"
         })
       } else if (raw.temperature > 1 || raw.temperature < 0) {
         issues.push({
           code: "interlocutor.temperature.range",
-          message:
-            `The temperature for ${nameVal} wasn't well-formed, it needs to between 1 and 0.`,
+          message: Messages.interlocutor.temperatureRange(nameVal),
           path: [...pathBase, "temperature"],
           severity: "error"
         })
@@ -132,15 +125,14 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       if (!(typeof raw.tools === "object" && Array.isArray(raw.tools))) {
         issues.push({
           code: "interlocutor.tools.type",
-          message: `The tools for ${nameVal} need to be given in an array.`,
+          message: Messages.interlocutor.toolsType(nameVal),
           path: [...pathBase, "tools"],
           severity: "error"
         })
       } else if (!(raw.tools.every((t: any) => typeof t === "object"))) {
         issues.push({
           code: "interlocutor.tools.items",
-          message:
-            `One or more tools for ${nameVal} weren't properly specified`,
+          message: Messages.interlocutor.toolsItems(nameVal),
           path: [...pathBase, "tools"],
           severity: "error"
         })
@@ -164,7 +156,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       if (!("name" in m) || typeof m.name !== "string") {
         issues.push({
           code: "macro.name.missing",
-          message: `Macro needs to be given with a "name" field.`,
+          message: Messages.macro.nameMissing(),
           path: ["macros", i, "name"],
           severity: "error"
         })
@@ -172,7 +164,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       if (!("expansion" in m) || typeof m.expansion !== "string") {
         issues.push({
           code: "macro.expansion.missing",
-          message: `Macro needs to be given with an "expansion" field.`,
+          message: Messages.macro.expansionMissing(),
           path: ["macros", i, "expansion"],
           severity: "error"
         })
@@ -187,15 +179,14 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       if (!("on" in h)) {
         issues.push({
           code: "hook.on.missing",
-          message: `Hook needs to be given with an "on" field.`,
+          message: Messages.hook.onMissing(),
           path: ["hooks", i, "on"],
           severity: "error"
         })
       } else if (typeof h.on !== "string" && !Array.isArray(h.on)) {
         issues.push({
           code: "hook.on.type",
-          message:
-            `The "on" field of a hook must be a string or array of strings.`,
+          message: Messages.hook.onType(),
           path: ["hooks", i, "on"],
           severity: "error"
         })
@@ -207,7 +198,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
         if (!ok) {
           issues.push({
             code: "hook.on.value",
-            message: `Hook "on" needs to be one of ${allowed.join(", ")}.`,
+            message: Messages.hook.onValue(allowed),
             path: ["hooks", i, "on"],
             severity: "error"
           })
@@ -216,7 +207,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       if (!("do" in h) || typeof h.do !== "string") {
         issues.push({
           code: "hook.do.missing",
-          message: `Hook needs to be given with a "do" field.`,
+          message: Messages.hook.doMissing(),
           path: ["hooks", i, "do"],
           severity: "error"
         })

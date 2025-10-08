@@ -1,6 +1,7 @@
 import { execScript, execCmd } from "../utils/exec";
 import { expandEnv} from "../utils/replace";
 import EventEmitter from 'events'
+import { Messages } from "../constants/messages"
 
 const hookTypes = [
     "user_message",
@@ -21,22 +22,22 @@ export type HookSpec = {
 
 export function validateHookSpec (raw : unknown) : raw is HookSpec {
     if (typeof raw !== "object") {
-        throw Error(`Hook needs to be given with at least "on" and "do" fields. Got ${raw} instead.`)
+        throw Error(Messages.hook.baseNeedsOnDo(raw))
     }
     if (raw === null) {
-        throw Error("Something went wrong, got null for hook")
+        throw Error(Messages.hook.baseNull())
     }
     if (!("on" in raw)) {
-        throw Error(`Hook needs to be given with an "on" field.`)
+        throw Error(Messages.hook.onMissing())
     }
     if (typeof raw.on !== "string" && !Array.isArray(raw.on)) {
-        throw Error(`The "on" field of a hook must be a string or array of strings.`)
+        throw Error(Messages.hook.onType())
     }
     if (!("do" in raw) || typeof raw.do !== "string") {
-        throw Error(`Hook needs to be given with a "do" field.`)
+        throw Error(Messages.hook.doMissing())
     }
     if (!(typeof raw.on === "string" ? hookTypes.includes(raw.on) : raw.on.forEach(on => hookTypes.includes(on)))) {
-        throw Error(`Hook "on" needs to be one of ${hookTypes.join(", ")}.`)
+        throw Error(Messages.hook.onValue(hookTypes))
     }
     return true
 }

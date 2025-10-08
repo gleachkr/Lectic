@@ -1,4 +1,5 @@
 import { loadFrom } from "../utils/loader"
+import { Messages } from "../constants/messages"
 
 export type MacroSpec = {
     name: string
@@ -7,16 +8,16 @@ export type MacroSpec = {
 
 export function validateMacroSpec (raw : unknown) : raw is MacroSpec {
     if (typeof raw !== "object") {
-        throw Error(`Macro needs to be given with at least "name" and "expansion" fields. Got ${raw} instead.`)
+        throw Error(Messages.macro.baseNeedsNameExpansion(raw))
     }
     if (raw === null) {
-        throw Error("Something went wrong, got null for macro")
+        throw Error(Messages.macro.baseNull())
     }
     if (!("name" in raw) || (typeof raw.name !== "string")) {
-        throw Error(`Macro needs to be given with a "name" field.`)
+        throw Error(Messages.macro.nameMissing())
     }
     if (!("expansion" in raw) || (typeof raw.expansion !== "string")) {
-        throw Error(`Macro needs to be given with an "expansion" field.`)
+        throw Error(Messages.macro.expansionMissing())
     }
     return true
 }
