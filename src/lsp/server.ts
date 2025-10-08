@@ -3,7 +3,7 @@ import type {
   DidOpenTextDocumentParams, DidChangeTextDocumentParams,
   DidCloseTextDocumentParams, CompletionParams,
   DefinitionParams, Location,
-  DocumentSymbolParams,
+  DocumentSymbolParams, FoldingRangeParams,
 } from "vscode-languageserver"
 import {
   createConnection, ProposedFeatures, TextDocumentSyncKind
@@ -14,6 +14,8 @@ import { buildDiagnostics } from "./diagnostics"
 import { dirname } from "path"
 import { computeCompletions } from "./completions"
 import { buildDocumentSymbols } from "./symbols"
+
+import { buildFoldingRanges } from "./folding"
 
 type Doc = { uri: string, text: string }
 
@@ -31,6 +33,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
         },
         definitionProvider: true,
         documentSymbolProvider: true,
+        foldingRangeProvider: true,
       }
     }
   })
@@ -105,6 +108,14 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return []
     return buildDocumentSymbols(doc.text)
+  })
+
+  connection.onFoldingRanges(async (params: FoldingRangeParams) => {
+    const doc = docs.get(params.textDocument.uri)
+    if (!doc) return []
+    const u = new URL(params.textDocument.uri)
+    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
+    return await buildFoldingRanges(doc.text, docDir)
   })
 }
 

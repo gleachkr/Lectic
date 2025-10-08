@@ -9,7 +9,7 @@ Overview
 - Command: `lectic lsp`
 - Transport: stdio (no `--node-ipc` or `--socket`)
 - Features: `textDocument/completion`, diagnostics,
-  document symbols (outline)
+  document symbols (outline), folding ranges
 - Trigger: a single colon `:`
 - Insertions
   - Directives use snippets and place the cursor inside brackets (or at
@@ -130,6 +130,21 @@ Document symbols (outline)
   chunks and assistant blocks (e.g., "Assistant: Name").
 - Included items from workspace/system configs do not appear in the
   current document’s symbols.
+
+Folding
+- The LSP provides folding ranges for tool‑call blocks only. A block
+  must be a serialized `<tool-call ...> ... </tool-call>` that appears
+  as a direct child of an interlocutor container directive (`:::Name`).
+- The folded range includes both the opening and closing tags. The
+  entire block is concealed when folded.
+- Fold ranges are not produced inside fenced code blocks. Markdown
+  fences are skipped, so literal `<tool-call>` text inside a fence does
+  not fold.
+- Editing or completions inside tool‑call XML are not provided.
+- Client behavior:
+  - Neovim: set `foldexpr=vim.lsp.foldexpr()` to use LSP folding.
+  - VS Code: the bundled extension defers folding to the LSP and does
+    not register its own folding provider.
 
 Notes
 - The server does not run hovers.

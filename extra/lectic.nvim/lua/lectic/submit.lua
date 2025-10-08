@@ -1,7 +1,6 @@
 local M = {}
 
 local spinner = require('lectic.spinner')
-local fold = require('lectic.fold')
 local process
 
 local ns_id = vim.api.nvim_create_namespace('lectic_highlight')
@@ -53,8 +52,6 @@ function M.submit_lectic()
                 id = extmark_id,
                 strict = false
             })
-
-            last_fold = fold.redo_folds(last_fold, vim.api.nvim_buf_line_count(buf))
 
             the_spinner:goto(vim.api.nvim_buf_line_count(buf) - 1)
             vim.api.nvim_set_option_value("modifiable", false, { buf = buf })

@@ -4,13 +4,17 @@
  * which are called by VS Code when the extension is loaded and unloaded.
  */
 import * as vscode from 'vscode';
+import { LanguageClient } from 'vscode-languageclient/node';
 
 // Import the command functions from our commands file
 import { submitLectic, explainSelection } from './commands';
 // Import the decoration logic (now includes resetDecorationType)
 import { initializeDecorations, updateDecorations, resetDecorationType } from './decorationProvider';
-// Import the folding provider
-import { LecticFoldingProvider } from './foldingProvider';
+// LSP now provides folding; built-in folding provider removed.
+// If needed as a fallback, re-introduce a minimal provider
+// and gate it behind a setting.
+
+let client: LanguageClient | undefined;
 
 // This method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
@@ -21,17 +25,24 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.commands.registerCommand('lectic.submit', submitLectic));
     context.subscriptions.push(vscode.commands.registerCommand('lectic.explainSelection', explainSelection));
 
-
-    // === Register Folding Provider ===
-    const lecticDocumentSelector: vscode.DocumentSelector = [
-        { language: 'markdown', scheme: 'file', pattern: '**/*.{lec,lectic}' }
-    ];
-    context.subscriptions.push(
-        vscode.languages.registerFoldingRangeProvider(
-            lecticDocumentSelector,
-            new LecticFoldingProvider()
-        )
-    );
+    // === Start Lectic LSP client ===
+    const serverOptions = {
+        command: 'lectic',
+        args: ['lsp'],
+        options: { } // stdio is default for Executable
+    };
+    const clientOptions = {
+        documentSelector: [
+            { scheme: 'file', language: 'markdown' },
+            { scheme: 'file', pattern: '**/*.lec' },
+            { scheme: 'file', pattern: '**/*.lectic' },
+        ],
+        synchronize: {
+            configurationSection: 'lectic'
+        }
+    };
+    client = new LanguageClient('lectic', 'Lectic LSP', serverOptions as any, clientOptions);
+    context.subscriptions.push(client.start());
 
     // === Initialize Decorations ===
     initializeDecorations(context); // Creates the initial decoration type
@@ -85,6 +96,9 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() {
     console.log('Lectic VS Code extension deactivated.');
+    if (client) {
+        client.stop();
+    }
     // The decoration type added to context.subscriptions on activate will be disposed automatically.
 }
 // --- End file: /home/graham/Projects/lectic/extra/lectic.vscode/src/extension.ts ---
