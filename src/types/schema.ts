@@ -33,6 +33,10 @@ type ArraySchema = {
     items: JSONSchema
 }
 
+type NullSchema = {
+    type: "null"
+}
+
 type ObjectSchema = {
     type: "object",
     description: string
@@ -46,8 +50,9 @@ export type JSONSchema = StringSchema
                 | BooleanSchema 
                 | ArraySchema
                 | ObjectSchema
+                | NullSchema
 
-export function serialize(arg: any, schema: JSONSchema): string {
+export function serialize(arg: unknown, schema: JSONSchema): string {
     switch (schema.type) {
         case "string":
             if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
@@ -61,6 +66,12 @@ export function serialize(arg: any, schema: JSONSchema): string {
             }
             return arg.toString();
 
+        case "null":
+            if (arg !== null) {
+                throw new Error(`Invalid null value: ${arg}`);
+            }
+            return "";
+
         case "number":
             if (typeof arg !== "number" || 
                 (schema.enum && !schema.enum.includes(arg)) || 
@@ -71,7 +82,7 @@ export function serialize(arg: any, schema: JSONSchema): string {
             return arg.toString();
 
         case "integer":
-            if (!Number.isInteger(arg) || 
+            if (!(typeof arg === "number" && Number.isInteger(arg)) || 
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
@@ -86,14 +97,14 @@ export function serialize(arg: any, schema: JSONSchema): string {
             return `<array>${arg.map(item => `<item>${serialize(item, schema.items)}</item>`).join('')}</array>`;
 
         case "object":
-            if (typeof arg !== "object" || Array.isArray(arg)) {
+            if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
                 throw new Error(`Invalid object value: ${arg}`);
             }
             const properties = schema.properties;
             return `<object>${Object.keys(properties)
                     .map(key => {
                         if (!(key in arg)) return ""
-                        return `<${key}>${serialize(arg[key], properties[key])}</${key}>`;
+                        return `<${key}>${serialize((arg as { [key] : unknown })[key], properties[key])}</${key}>`;
                     }).join('')}</object>`;
 
         default:
@@ -101,7 +112,7 @@ export function serialize(arg: any, schema: JSONSchema): string {
     }
 }
 
-export function validateAgainstSchema(arg: any, schema: JSONSchema) : boolean {
+export function validateAgainstSchema(arg: unknown , schema: JSONSchema) : boolean {
     switch (schema.type) {
         case "string":
             if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
@@ -115,6 +126,12 @@ export function validateAgainstSchema(arg: any, schema: JSONSchema) : boolean {
             }
             return true;
 
+        case "null":
+            if (arg !== null) {
+                throw new Error(`Invalid null value: ${arg}`);
+            }
+            return true;
+
         case "number":
             if (typeof arg !== "number" || 
                 (schema.enum && !schema.enum.includes(arg)) || 
@@ -125,7 +142,7 @@ export function validateAgainstSchema(arg: any, schema: JSONSchema) : boolean {
             return true;
 
         case "integer":
-            if (!Number.isInteger(arg) || 
+            if (!(typeof arg === "number" && Number.isInteger(arg)) || 
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
@@ -139,8 +156,9 @@ export function validateAgainstSchema(arg: any, schema: JSONSchema) : boolean {
             }
             return arg.every(item => validateAgainstSchema(item, schema.items));
 
+
         case "object":
-            if (typeof arg !== "object" || Array.isArray(arg)) {
+            if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
                 throw new Error(`Invalid object value: ${arg}`);
             }
             const properties = schema.properties;
@@ -152,7 +170,7 @@ export function validateAgainstSchema(arg: any, schema: JSONSchema) : boolean {
             }
             return Object.keys(arg).every(key => {
                         if (!(key in properties)) return true
-                        return validateAgainstSchema(arg[key], properties[key]);
+                        return validateAgainstSchema((arg as { [key] : unknown })[key], properties[key]);
                     });
         default:
             throw new Error("Unknown schema type");
@@ -170,6 +188,11 @@ export function deserialize(xml: string, schema: JSONSchema): any {
             }
             return unescaped;
         }
+
+        case "null":
+            xml = xml.trim();
+            if (xml === "") return null;
+            throw new Error("Invalid serialized null");
 
         case "boolean":
             xml = xml.trim();

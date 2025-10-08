@@ -1,5 +1,5 @@
 import type { JSONSchema } from './schema';
-import { serialize, deserialize } from './schema';
+import { serialize, deserialize, validateAgainstSchema } from './schema';
 import { expect, it, describe } from "bun:test"
 
 describe('serialize function', () => {
@@ -7,6 +7,53 @@ describe('serialize function', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
         expect(serialize('hello', schema)).toBe('\n┆hello\n');
     });
+
+describe('null schema', () => {
+    it('serializes and deserializes top-level null', () => {
+        const schema: JSONSchema = { type: "null" } as const
+        const xml = serialize(null, schema)
+        expect(xml).toBe('')
+        expect(deserialize(xml, schema)).toBe(null)
+    })
+
+    it('round-trips null in an object property', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "obj with null",
+            properties: {
+                x: { type: "null" } as const
+            }
+        }
+        const value = { x: null }
+        const xml = serialize(value, schema)
+        const back = deserialize(xml, schema)
+        expect(back).toEqual(value)
+    })
+
+    it('round-trips an array of nulls', () => {
+        const schema: JSONSchema = {
+            type: "array",
+            description: "array of nulls",
+            items: { type: "null" } as const
+        }
+        const value = [null, null]
+        const xml = serialize(value, schema)
+        const back = deserialize(xml, schema)
+        expect(back).toEqual(value)
+    })
+
+    it('object schema rejects null (serialize and validate)', () => {
+        const objSchema: JSONSchema = {
+            type: "object",
+            description: "empty object",
+            properties: {}
+        }
+        expect(() => validateAgainstSchema(null, objSchema))
+            .toThrow("Invalid object value")
+        expect(() => serialize(null, objSchema))
+            .toThrow("Invalid object value")
+    })
+})
 
     it('should throw error for invalid string', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
