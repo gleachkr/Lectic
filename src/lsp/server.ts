@@ -85,8 +85,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return null
     const { resolveDefinition } = await import('./definitions')
-    const locs = await resolveDefinition(params.textDocument.uri, doc.text, params.position)
-    return locs
+    return await resolveDefinition(params.textDocument.uri, doc.text, params.position)
   })
 
   connection.onCompletion(async (params: CompletionParams) => {
@@ -113,9 +112,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
   connection.onFoldingRanges(async (params: FoldingRangeParams) => {
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return []
-    const u = new URL(params.textDocument.uri)
-    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
-    return await buildFoldingRanges(doc.text, docDir)
+    return await buildFoldingRanges(doc.text)
   })
 }
 

@@ -3,33 +3,17 @@ import { FoldingRange as LspFR, FoldingRangeKind } from "vscode-languageserver/n
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
 import { nodeContentRaw, parseBlocks } from "../parsing/markdown"
-import { mergedHeaderSpecForDoc } from "../parsing/parse"
-import { buildInterlocutorIndex } from "./interlocutorIndex"
 import { isSerializedCall } from "../types/tool"
 
-export async function buildFoldingRanges(
-  docText: string,
-  docDir?: string
-): Promise<LspFoldingRange[]> {
+export async function buildFoldingRanges(docText: string): Promise<LspFoldingRange[]> {
   // Build allowable assistant names to ensure calls are inside an
   // interlocutor container directive.
-  let namesLower = new Set<string>()
-  try {
-    const spec = await mergedHeaderSpecForDoc(docText, docDir)
-    const names = buildInterlocutorIndex(spec as any)
-    namesLower = new Set(names.map(n => n.toLowerCase()))
-  } catch {
-    // If header merge fails, leave set empty; no folds emitted.
-    namesLower = new Set<string>()
-  }
 
-  const ast: any = remark().use(remarkDirective).parse(docText)
+  const ast = remark().use(remarkDirective).parse(docText)
   const out: LspFoldingRange[] = []
 
   for (const node of ast.children ?? []) {
     if (node.type !== 'containerDirective') continue
-    const name: string = String(node.name || '')
-    if (!namesLower.has(name.toLowerCase())) continue
 
     if (!Array.isArray(node.children) || node.children.length === 0) continue
 

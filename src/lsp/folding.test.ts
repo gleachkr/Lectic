@@ -7,24 +7,24 @@ function toPairs(ranges: any[]): Array<[number, number]> {
 
 describe("folding ranges (tool-call)", () => {
   test("simple tool-call folds including closing tag line", async () => {
-    const text = `---\n---\nBefore\n<tool-call with=\"x\">\n<arguments>\n</arguments>\n<results>\n</results>\n</tool-call>\nAfter\n`
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with=\"x\">\n<arguments>\n</arguments>\n<results>\n</results>\n</tool-call>\n:::\nAfter\n`
     const ranges = await buildFoldingRanges(text)
-    // open at line 3 (0-based: 0,1 header; 2 Before)
-    // lines: 0 ---;1 ---;2 Before;3 <tool-call>;...;8 </tool-call>;9 After
-    expect(toPairs(ranges)).toEqual([[3, 8]])
+    // open at line 5
+    // lines: 0 ---;1 interlocutor:;2   name;3 ---;4 :::Assistant;5 <tool-call>;...;10 </tool-call>;11 :::;12 After
+    expect(toPairs(ranges)).toEqual([[5, 10]])
   })
 
-  test("indented opening should not fold", async () => {
-    const text = `---\n---\n  <tool-call with=\"x\">\n</tool-call>\n`
+  test("indented opening still folds", async () => {
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n  <tool-call with=\"x\">\n</tool-call>\n:::\n`
     const ranges = await buildFoldingRanges(text)
-    expect(ranges.length).toBe(0)
+    expect(toPairs(ranges)).toEqual([[5, 6]])
   })
 
   test("closing can be indented; still folds", async () => {
-    const text = `---\n---\n<tool-call with=\"x\">\n</results>\n  </tool-call>\n`
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with=\"x\">\n</results>\n  </tool-call>\n:::\n`
     const ranges = await buildFoldingRanges(text)
-    // open at 2, close at 4
-    expect(toPairs(ranges)).toEqual([[2, 4]])
+    // open at 5, close at 7
+    expect(toPairs(ranges)).toEqual([[5, 7]])
   })
 
   test("ignore fenced code containing tool-call text", async () => {
@@ -44,7 +44,7 @@ describe("folding ranges (tool-call)", () => {
   })
 
   test("one-line tool-call should not fold", async () => {
-    const text = `---\n---\n<tool-call with=\"x\"></tool-call>\n`
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with=\"x\"></tool-call>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges.length).toBe(0)
   })
