@@ -9,7 +9,8 @@ Overview
 - Command: `lectic lsp`
 - Transport: stdio (no `--node-ipc` or `--socket`)
 - Features: `textDocument/completion`, diagnostics,
-  document symbols (outline), folding ranges
+  document symbols (outline), folding ranges,
+  go to definition
 - Trigger: a single colon `:`
 - Insertions
   - Directives use snippets and place the cursor inside brackets (or at
@@ -47,6 +48,11 @@ Behavior examples
 - Type `:ask[` or `:aside[` → invoke completion to see interlocutor
   names; selecting a name replaces only the text inside the `[`...`]`.
 - Type `::` or `:::` → no suggestions (reserved for directive fences).
+- Place the cursor inside `:macro[name]` or `:ask[Name]` and invoke
+  “Go to Definition” to jump to the YAML name in the document header.
+  If not present locally, the LSP will jump to the name in the nearest
+  config (`lectic.yaml` in the document directory, then the system
+  config).
 
 Neovim setup (vim.lsp.start)
 - Minimal startup for the current buffer:
@@ -136,10 +142,8 @@ Folding
   must be a serialized `<tool-call ...> ... </tool-call>` that appears
   as a direct child of an interlocutor container directive (`:::Name`).
 - The folded range includes both the opening and closing tags. The
-  entire block is concealed when folded.
-- Fold ranges are not produced inside fenced code blocks. Markdown
-  fences are skipped, so literal `<tool-call>` text inside a fence does
-  not fold.
+  entire block is concealed when folded. The opening tag may be
+  indented; fenced code blocks are always ignored.
 - Editing or completions inside tool‑call XML are not provided.
 - Client behavior:
   - Neovim: set `foldexpr=vim.lsp.foldexpr()` to use LSP folding.
