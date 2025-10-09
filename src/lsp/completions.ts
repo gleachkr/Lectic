@@ -1,7 +1,7 @@
 import type { CompletionItem, CompletionParams, TextEdit } from "vscode-languageserver"
 import { CompletionItemKind, InsertTextFormat, Range as RangeNS } from "vscode-languageserver/node"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
-import { buildInterlocutorIndex } from "./interlocutorIndex"
+import { buildInterlocutorIndex, previewInterlocutor } from "./interlocutorIndex"
 import { directiveAtPosition, findSingleColonStart, computeReplaceRange } from "./directives"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { mergedHeaderSpecForDoc } from "../parsing/parse"
@@ -68,15 +68,16 @@ export async function computeCompletions(
     if (dctx.key === "ask" || dctx.key === "aside") {
       const interNames = buildInterlocutorIndex(spec)
       for (const n of interNames) {
-        if (!n.toLowerCase().startsWith(innerText)) continue
+        if (!n.name.toLowerCase().startsWith(innerText)) continue
         const textEdit: TextEdit = {
           range: RangeNS.create(dctx.innerStart, pos),
-          newText: n
+          newText: n.name
         }
         items.push({
-          label: n,
+          label: n.name,
           kind: CompletionItemKind.Value,
-          detail: "interlocutor",
+          detail: previewInterlocutor(n).detail,
+          documentation: previewInterlocutor(n).documentation,
           insertTextFormat: InsertTextFormat.PlainText,
           textEdit
         })
@@ -93,6 +94,7 @@ export async function computeCompletions(
           label: m.name,
           kind: CompletionItemKind.Variable,
           detail: previewMacro(m).detail,
+          documentation: previewMacro(m).documentation,
           insertTextFormat: InsertTextFormat.PlainText,
           textEdit
         })
