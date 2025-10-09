@@ -34,6 +34,7 @@ function googleParameter(param: JSONSchema ) : Schema | undefined {
         case "string" : return { type: Type.STRING }
         case "number" : return { type: Type.NUMBER }
         case "integer" : return { type: Type.INTEGER }
+        case "null" : return { type: Type.NULL }
         case "boolean" : return { type: Type.BOOLEAN }
         case "array" : return { 
             type: Type.ARRAY,
@@ -129,7 +130,7 @@ function googleParameters(params: Record<string, JSONSchema>) : Record<string, S
     const rslt : Record<string, Schema> = {}
     for (const key of Object.keys(params)) {
         const param = googleParameter(params[key])
-        if (!param) throw Error("Google parameter coercion failed")
+        if (!param) throw Error(`Google parameter coercion failed for parameter ${JSON.stringify(params[key])}`)
         rslt[key] = param
     }
     return rslt
