@@ -17,7 +17,7 @@ import { initializeDecorations, updateDecorations, resetDecorationType } from '.
 let client: LanguageClient | undefined;
 
 // This method is called when your extension is activated
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
     console.log('Lectic VS Code extension is now active!');
 
@@ -42,7 +42,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
     };
     client = new LanguageClient('lectic', 'Lectic LSP', serverOptions as any, clientOptions);
-    context.subscriptions.push(client.start());
+    await client.start();
+    // Ensure the client stops when the extension is disposed
+    context.subscriptions.push(new vscode.Disposable(() => {
+        if (client) {
+            void client.stop();
+        }
+    }));
 
     // === Initialize Decorations ===
     initializeDecorations(context); // Creates the initial decoration type
