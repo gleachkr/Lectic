@@ -207,7 +207,7 @@ async function emitLinkDiagnostics(
     const trimmed = url.trim()
     if (trimmed.startsWith('file://')) {
       const rest = trimmed.slice('file://'.length)
-      const expanded = expandEnv(rest)
+      const expanded = expandEnv(rest, docDir ? { PWD : docDir } : {})
       if (!expanded.startsWith('/')) {
         out.push({
           range,

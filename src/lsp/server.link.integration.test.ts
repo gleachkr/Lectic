@@ -89,8 +89,6 @@ describe("LSP link integrations", () => {
 
   test("hover with file://$PWD expands and previews", async () => {
     const root = mkdtempSync(join(tmpdir(), "lectic-link-"))
-    const stashed_pwd = process.env["PWD"]
-    process.env["PWD"] = root
     try {
       writeFileSync(join(root, "env.txt"), "ENV")
 
@@ -123,7 +121,6 @@ describe("LSP link integrations", () => {
       client.dispose()
     } finally {
       rmSync(root, { recursive: true, force: true })
-      process.env["PWD"] = stashed_pwd
     }
   })
 

@@ -25,7 +25,7 @@ export function normalizeUrl(
     if (scheme === 'file') {
       // Expand env vars inside the file:// path before interpreting
       const rest = base.slice('file://'.length)
-      const expanded = expandEnv(rest)
+      const expanded = expandEnv(rest, docDir ? { PWD : docDir } : {} )
       if (expanded.startsWith('/')) {
         return { fsPath: expanded, display: expanded, fragment, kind: 'file' }
       }
@@ -41,8 +41,7 @@ export function normalizeUrl(
     return { fsPath: '', display: base, fragment, kind: 'remote' }
   }
 
-  // No scheme: treat as a file system path after env expansion
-  const expanded = expandEnv(base)
+  const expanded = expandEnv(base, docDir ? { PWD : docDir } : {} )
   const fsPath = expanded.startsWith('/')
     ? expanded
     : (docDir ? pathResolve(docDir, expanded) : expanded)
@@ -65,14 +64,17 @@ export function hasGlobChars(p: string): boolean {
 
 export async function globHasMatches(
   pattern: string,
-  cwd: string
+  cwd: string | undefined
 ): Promise<boolean> {
   try {
     // Prefer scanning relative to cwd when provided
     if (cwd) {
       const glob = new Bun.Glob(pattern)
       for await (const _ of glob.scan({ cwd })) return true
-    } 
+    } else {
+      const glob = new Bun.Glob(pattern)
+      for await (const _ of glob.scan()) return true
+    }
     // If absolute, try scanning from root as a fallback
     if (pattern.startsWith('/')) {
       const glob = new Bun.Glob(pattern.slice(1))
