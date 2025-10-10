@@ -3,15 +3,16 @@ title: LSP Server (Experimental)
 ---
 
 Lectic includes a small Language Server Protocol (LSP) server that
-provides completion for directives and macros. It is stdio only.
+provides completion for directives, macros, and link destinations, plus
+hovers. It is stdio only.
 
 Overview
 - Command: `lectic lsp`
 - Transport: stdio (no `--node-ipc` or `--socket`)
-- Features: `textDocument/completion`, diagnostics,
-  document symbols (outline), folding ranges,
+- Features: `textDocument/completion`, `textDocument/hover`,
+  diagnostics, document symbols (outline), folding ranges,
   go to definition
-- Trigger: a single colon `:`
+- Triggers: `:`, `[` in directive brackets, and `(` in link destinations
 - Insertions
   - Directives use snippets and place the cursor inside brackets (or at
     the end for reset):
@@ -23,12 +24,14 @@ Overview
 - Matching: case‑insensitive; typed prefix after `:` or inside `[` is
   respected.
 - Fences: no suggestions inside `::` or `:::` runs
-- Triggers: `:` and `[` (the server filters so only `:ask[`/`:aside[`/
-  `:macro[` actually produce bracket completions)
+- Trigger filtering: only `:ask[`/`:aside[`/`:macro[` produce bracket
+  completions; only link destinations receive `(` completions
 
 Where completions come from
 - Directives: built‑in suggestions for `:cmd`, `:ask`, `:aside`,
   `:macro`, and `:reset`.
+- Link destinations: local filesystem paths and folders (folders insert a
+  trailing `/`), and environment variable stubs like `$LECTIC_DATA`.
 - Macros: merged from the same places and precedence as the CLI (higher
   wins):
   1) System config: `${LECTIC_CONFIG}/lectic.yaml`
@@ -88,6 +91,8 @@ vim.api.nvim_create_autocmd("FileType", {
   - With nvim‑cmp (recommended), LSP completion should pop on `:`.
   - Inside brackets, invoke completion manually (`Ctrl‑x Ctrl‑o`) if your
     setup is not configured to trigger automatically.
+  - Inside a link destination, completion lists matching entries in the
+    referenced directory. Directories get a trailing `/`.
 
 - Troubleshooting
   - Ensure `lectic` is on PATH inside Neovim.
@@ -150,7 +155,11 @@ Folding
   - VS Code: the bundled extension defers folding to the LSP and does
     not register its own folding provider.
 
+Hovers
+- Hover over a directive (e.g., `:ask[...]`) to see a short description.
+- Hover over a link destination to see the normalized absolute path and
+  whether it exists on disk.
+
 Notes
-- The server does not run hovers.
 - Completion previews are static; the server does not expand macros or
   read files referenced by `file:`.

@@ -8,11 +8,14 @@ import {
   Position as LspPosition,
 } from "vscode-languageserver/node"
 import { mergedHeaderSpecForDoc, getBody, getYaml } from "../parsing/parse"
-import { parseDirectives, nodeContentRaw } from "../parsing/markdown"
+import { parseDirectives, nodeContentRaw, parseReferences, nodeRaw } from "../parsing/markdown"
 import { buildHeaderRangeIndex, type HeaderRangeIndex } from "./yamlRanges"
 import { validateHeaderShape } from "./headerValidate"
 import * as YAML from "yaml"
 import { offsetToPosition } from "./positions"
+import { findUrlRangeInNodeRaw } from "./linkTargets"
+import { expandEnv } from "../utils/replace"
+import { normalizeUrl, hasGlobChars, globHasMatches, pathExists } from "./pathUtils"
 
 // Narrow header structures for diagnostics. These are minimal shapes
 // we actually use in LSP; runtime uses richer types elsewhere.
@@ -168,6 +171,79 @@ function emitLocalDuplicateWarnings(
     }
   }
   return diags
+}
+
+async function emitLinkDiagnostics(
+  docText: string,
+  docDir: string | undefined
+): Promise<Diagnostic[]> {
+  const out: Diagnostic[] = []
+  const refs = parseReferences(docText)
+  for (const node of refs) {
+    const s = node.position?.start
+    const e = node.position?.end
+    if (!s || !e || s.offset == null || e.offset == null) continue
+
+    const raw = nodeRaw(node, docText)
+    const dest = node.url as string | undefined
+    if (typeof dest !== 'string') continue
+
+    const urlRange = findUrlRangeInNodeRaw(raw, s.offset, dest)
+    if (!urlRange) continue
+    const [innerStartOff, innerEndOff] = urlRange
+
+    const url = docText.slice(innerStartOff, innerEndOff)
+    const norm = normalizeUrl(url, docDir)
+
+    // Only check local file paths
+    if (norm.kind === 'remote') continue
+
+    const range = LspRange.create(
+      offsetToPosition(docText, innerStartOff),
+      offsetToPosition(docText, innerEndOff)
+    )
+
+    // Special case: file:// URL must be absolute after env expansion
+    const trimmed = url.trim()
+    if (trimmed.startsWith('file://')) {
+      const rest = trimmed.slice('file://'.length)
+      const expanded = expandEnv(rest)
+      if (!expanded.startsWith('/')) {
+        out.push({
+          range,
+          severity: DiagnosticSeverity.Warning,
+          source: "lectic",
+          message: "Relative paths are not allowed in file:// URLs. " +
+            "Use an absolute path like file://$PWD/... or file:///..."
+        })
+        continue
+      }
+    }
+
+    if (hasGlobChars(norm.fsPath)) {
+      const matches = await globHasMatches(norm.fsPath, docDir)
+      if (!matches) {
+        out.push({
+          range,
+          severity: DiagnosticSeverity.Warning,
+          source: "lectic",
+          message: `Glob pattern matched no files: ${norm.fsPath}`
+        })
+      }
+      continue
+    }
+
+    const exists = await pathExists(norm.fsPath)
+    if (!exists) {
+      out.push({
+        range,
+        severity: DiagnosticSeverity.Warning,
+        source: "lectic",
+        message: `Path does not exist: ${norm.fsPath}`
+      })
+    }
+  }
+  return out
 }
 
 function hasAnyInterlocutor(merged: HeaderLike): boolean {
@@ -372,6 +448,11 @@ export async function buildDiagnostics(
     ...emitUnknownDirectiveWarnings(
       docText, headerEndLine, headerRange, knownNames
     )
+  )
+
+  // 7) Link diagnostics: missing local file and empty glob
+  diags.push(
+    ...await emitLinkDiagnostics(docText, docDir)
   )
 
   return diags

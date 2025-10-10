@@ -149,4 +149,13 @@ describe("diagnostics", () => {
       }
     })
   })
+
+  test("warns on relative file:// URL paths", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n---\nSee [x](file://./alpha.txt)\n`
+      const diags = await buildDiagnostics(text, undefined)
+      expect(hasMessage(diags, "Relative paths are not allowed in file:// URLs"))
+        .toBeTrue()
+    })
+  })
 })

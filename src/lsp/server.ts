@@ -31,6 +31,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
         completionProvider: {
           triggerCharacters: [":", "["]
         },
+        hoverProvider: true,
         definitionProvider: true,
         documentSymbolProvider: true,
         foldingRangeProvider: true,
@@ -107,6 +108,15 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return []
     return buildDocumentSymbols(doc.text)
+  })
+
+  connection.onHover(async (params: any) => {
+    const doc = docs.get(params.textDocument.uri)
+    if (!doc) return null
+    const u = new URL(params.textDocument.uri)
+    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
+    const { computeHover } = await import('./hovers')
+    return await computeHover(doc.text, params.position, docDir)
   })
 
   connection.onFoldingRanges(async (params: FoldingRangeParams) => {
