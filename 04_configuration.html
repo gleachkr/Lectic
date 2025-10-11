@@ -336,7 +336,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ol type="1">
 <li><p><strong>System Config Directory</strong>: Lectic first looks for a configuration file at <code>lectic/lectic.yaml</code> within your system’s standard config location (e.g., <code>~/.config/lectic/lectic.yaml</code> on Linux). This is the ideal place for your global, user-level defaults.</p></li>
 <li><p><strong>Working Directory</strong>: Next, it looks for a <code>lectic.yaml</code> file in the current working directory. This is useful for project-level configuration that you might commit to a git repository.</p></li>
-<li><p><strong><code>--Include</code> (<code>-I</code>) Flag</strong>: You can specify an arbitrary YAML file to include using the <code>--Include</code> or <code>-I</code> command-line flag. This is handy for temporary or experimental settings. <code>bash     lectic -I project_settings.yaml -f my_convo.lec</code></p></li>
 <li><p><strong>Lectic File Header</strong>: The YAML frontmatter within your <code>.lec</code> file is the final and highest-precedence source of configuration.</p></li>
 </ol>
 </section>
