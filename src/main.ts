@@ -1,11 +1,12 @@
 import { createWriteStream } from "fs"
-import { join } from "path"
+import { join, dirname } from "path"
 import { program, type OptionValues } from 'commander'
 import { parseLectic, getYaml } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
 import { version } from "../package.json"
 import { lecticConfigDir, lecticEnv } from "./utils/xdg";
+import { readWorkspaceConfig } from "./utils/workspace";
 import { UserMessage } from "./types/message"
 import { Hook } from "./types/hook"
 import { startLsp } from "./lsp/server"
@@ -53,7 +54,8 @@ async function getLecticString(opts : OptionValues) : Promise<string> {
 }
 
 async function getIncludes() : Promise<(string | null)[]> {
-        const workspaceConfig = await Bun.file('./lectic.yaml').text().catch(_ => null)
+        const startDir = lecticEnv["LECTIC_FILE"] ? dirname(lecticEnv["LECTIC_FILE"]) : process.cwd()
+        const workspaceConfig = await readWorkspaceConfig(startDir)
         const systemConfig = await Bun.file(join(lecticConfigDir(), 'lectic.yaml')).text().catch(_ => null)
         return [systemConfig, workspaceConfig]
 }

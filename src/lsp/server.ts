@@ -4,6 +4,7 @@ import type {
   DidCloseTextDocumentParams, CompletionParams,
   DefinitionParams, Location,
   DocumentSymbolParams, FoldingRangeParams,
+  WorkspaceSymbolParams, CodeActionParams
 } from "vscode-languageserver"
 import {
   createConnection, ProposedFeatures, TextDocumentSyncKind
@@ -14,8 +15,9 @@ import { buildDiagnostics } from "./diagnostics"
 import { dirname } from "path"
 import { computeCompletions } from "./completions"
 import { buildDocumentSymbols } from "./symbols"
-
 import { buildFoldingRanges } from "./folding"
+import { buildWorkspaceSymbols } from "./workspaceSymbols"
+import { computeCodeActions } from "./codeActions"
 
 type Doc = { uri: string, text: string }
 
@@ -45,9 +47,25 @@ function scheduleDiagnostics(
   diagTimers.set(uriStr, timer)
 }
 
+let workspaceRoots: string[] = []
+
+function extractWorkspaceRoots(params: InitializeParams): string[] {
+    const roots: string[] = []
+    if (Array.isArray(params.workspaceFolders)) {
+        for (const wf of params.workspaceFolders) {
+            try {
+                const u = new URL(wf.uri)
+                if (u.protocol === 'file:') roots.push(dirname(u.pathname))
+            } catch { /* ignore */ }
+        }
+    }
+    return roots
+}
+
 export function registerLspHandlers(connection: ReturnType<typeof createConnection>) {
-  connection.onInitialize((_params: InitializeParams)
+  connection.onInitialize((params: InitializeParams)
     : InitializeResult => {
+    workspaceRoots = extractWorkspaceRoots(params)
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Full,
@@ -58,6 +76,8 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
         definitionProvider: true,
         documentSymbolProvider: true,
         foldingRangeProvider: true,
+        workspaceSymbolProvider: true,
+        codeActionProvider: true,
       }
     }
   })
@@ -131,6 +151,19 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return []
     return await buildFoldingRanges(doc.text)
+  })
+
+  connection.onWorkspaceSymbol(async (_params: WorkspaceSymbolParams) => {
+    return await buildWorkspaceSymbols(workspaceRoots)
+  })
+
+  connection.onCodeAction(async (params: CodeActionParams) => {
+    const doc = docs.get(params.textDocument.uri)
+    if (!doc) return []
+    const u = new URL(params.textDocument.uri)
+    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
+    const res = await computeCodeActions(params.textDocument.uri, doc.text, params, docDir)
+    return res ?? []
   })
 }
 

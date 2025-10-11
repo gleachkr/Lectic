@@ -6,6 +6,7 @@ import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
 import { lecticConfigDir } from "../utils/xdg"
+import { readWorkspaceConfig } from "../utils/workspace"
 import { join } from "path"
 
 export function getYaml(raw:string) : string | null {
@@ -68,8 +69,7 @@ export async function mergedHeaderSpecForDoc(
     const systemConfig = join(lecticConfigDir(), "lectic.yaml")
     const systemYaml = await Bun.file(systemConfig).text().catch(_ => null)
     if (docPath !== undefined) {
-        const workspaceConfig = join(docPath, "lectic.yaml")
-        const workspaceYaml = await Bun.file(workspaceConfig).text().catch(_ => null)
+        const workspaceYaml = await readWorkspaceConfig(docPath)
         return parseLecticHeaderSpec(docText, [systemYaml, workspaceYaml])
     }
     return parseLecticHeaderSpec(docText, [systemYaml])
