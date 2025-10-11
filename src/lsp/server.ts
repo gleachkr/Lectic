@@ -20,7 +20,30 @@ import { buildFoldingRanges } from "./folding"
 type Doc = { uri: string, text: string }
 
 const docs = new Map<string, Doc>()
+const diagTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
+function scheduleDiagnostics(
+  connection: ReturnType<typeof createConnection>,
+  uriStr: string,
+  debounce_ms : number
+) {
+  const prev = diagTimers.get(uriStr)
+  if (prev) clearTimeout(prev)
+  const timer = setTimeout(async () => {
+    try {
+      const u = new URL(uriStr)
+      const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
+      const text = docs.get(uriStr)?.text ?? ""
+      const diagnostics = await buildDiagnostics(text, docDir)
+      connection.sendDiagnostics({ uri: uriStr, diagnostics })
+    } catch {
+      // ignore
+    } finally {
+      diagTimers.delete(uriStr)
+    }
+  }, debounce_ms)
+  diagTimers.set(uriStr, timer)
+}
 
 export function registerLspHandlers(connection: ReturnType<typeof createConnection>) {
   connection.onInitialize((_params: InitializeParams)
@@ -44,15 +67,8 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
       uri: ev.textDocument.uri,
       text: ev.textDocument.text
     })
-    // Publish diagnostics on open
-    try {
-      const uri = new URL(ev.textDocument.uri)
-      const docDir = uri.protocol === "file:" ? dirname(uri.pathname) : undefined
-      const diagnostics = await buildDiagnostics(ev.textDocument.text, docDir)
-      connection.sendDiagnostics({ uri: ev.textDocument.uri, diagnostics })
-    } catch {
-      // ignore
-    }
+    // Publish diagnostics on open (zero debounce so initial state is visible)
+    scheduleDiagnostics(connection, ev.textDocument.uri, 0)
   })
 
   connection.onDidChangeTextDocument(async (ev: DidChangeTextDocumentParams) => {
@@ -66,16 +82,8 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     } else {
       cur.text = last.text
     }
-    // Publish diagnostics on change (debounce could be added later)
-    try {
-      const u = new URL(uri)
-      const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
-      const text = docs.get(uri)?.text ?? last.text
-      const diagnostics = await buildDiagnostics(text, docDir)
-      connection.sendDiagnostics({ uri, diagnostics })
-    } catch {
-      // ignore
-    }
+    // Debounced diagnostics to reduce churn during streaming
+    scheduleDiagnostics(connection, uri, 120)
   })
 
   connection.onDidCloseTextDocument((ev: DidCloseTextDocumentParams) => {

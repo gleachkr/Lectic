@@ -333,13 +333,13 @@ function emitUnknownDirectiveWarnings(
   try {
     const body = getBody(docText)
     const directives = parseDirectives(body)
-    const knownLower = new Set(knownNames.map(n => n.toLowerCase()))
+    const known = new Set(knownNames)
     for (const d of directives) {
-      const name = (d.name ?? "").toLowerCase()
+      const name = (d.name ?? "")
       if (name !== "ask" && name !== "aside") continue
       const text = nodeContentRaw(d, body).trim()
       if (!text) continue
-      if (knownLower.has(text.toLowerCase())) continue
+      if (known.has(text)) continue
       const s = d.position?.start
       const e = d.position?.end
       const range = (s && e)
