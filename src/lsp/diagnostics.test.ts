@@ -89,6 +89,20 @@ describe("diagnostics", () => {
     })
   })
 
+  test("ignores unknown :ask inside assistant block", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const text = `---\ninterlocutors:\n  - name: Known\n    prompt: p\n---\n
+User says something.
+
+:::Known
+Here is an inline :ask[Ghost] that should not be diagnosed.
+:::
+`
+      const diags = await buildDiagnostics(text, undefined)
+      expect(hasMessage(diags, "Unknown interlocutor in :ask")).toBeFalse()
+    })
+  })
+
   test("flags unknown agent target with precise range", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutors:\n  - name: Main\n    prompt: p\n    tools:\n      - agent: Other\n---\nBody\n`

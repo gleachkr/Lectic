@@ -1,5 +1,5 @@
 import { remark } from "remark"
-import { visit } from "unist-util-visit"
+import { visit, SKIP } from "unist-util-visit"
 import remarkDirective from "remark-directive"
 import type { RootContent, Parent, Link, Image } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
@@ -21,37 +21,33 @@ export function nodeContentRaw(node : Parent, raw : string) : string {
     }
 }
 
-function extractType<T extends string>(
-    node : RootContent,
-    type : T
-) : (RootContent & { type : T })[] {
-    const matches : (RootContent & { type : T })[] = []
-    if ("children" in node) {
-        matches.push(...(node.children).flatMap(c => extractType(c, type)))
-    }
-    if (node.type == type) {
-        matches.push(node as RootContent & { type : T })
-    }
-    return matches
-}
-
+// Collect link/image nodes that are in user chunks only (i.e., not inside
+// any containerDirective such as interlocutor blocks).
 export function parseReferences(raw: string) : (Link | Image)[] {
-    const ast = remark().parse(raw)
-    const links : Link[] = []
-    const images : Image[] = []
-    for (const node of ast.children) {
-        links.push(...extractType(node, "link"))
-        images.push(...extractType(node, "image"))
-    }
-    return [...links, ...images]
+    // Enable remark-directive so containerDirective nodes are recognized.
+    const ast = remark().use(remarkDirective).parse(raw)
+    const out: (Link | Image)[] = []
+
+    visit(ast, node => {
+        const t = node?.type
+        if (t === 'containerDirective') return SKIP
+        if (t === 'link' || t === 'image') out.push(node)
+    })
+
+    return out
 }
 
+// Collect textDirective nodes in user chunks only (skip assistant blocks).
 export function parseDirectives(raw: string) : TextDirective[] {
     const ast = remark().use(remarkDirective).parse(raw)
     const directives : TextDirective[] = []
-    for (const node of ast.children) {
-        directives.push(...extractType(node, "textDirective"))
-    }
+
+    visit(ast, node => {
+        const t = node?.type
+        if (t === 'containerDirective') return SKIP
+        if (t === 'textDirective') directives.push(node)
+    })
+
     return directives
 }
 

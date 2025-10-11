@@ -120,6 +120,22 @@ describe("parseDirectives and helpers", () => {
     const contents = nodes.map((n) => nodeContentRaw(n as any, input));
     expect(contents).toEqual(["first", "second item"]);
   });
+
+  it("ignores directives inside assistant container directives", () => {
+    const input = [
+      "Normal :ask[Zed] here.",
+      "",
+      ":::Assistant",
+      "Inside assistant :ask[Ghost] should be ignored.",
+      ":::",
+    ].join("\n");
+    const nodes: TextDirective[] = parseDirectives(input);
+    const names = nodes.map((n) => n.name);
+    // Only the top-level :ask should be present
+    expect(names).toEqual(["ask"]);
+    const contents = nodes.map((n) => nodeContentRaw(n as any, input));
+    expect(contents).toEqual(["Zed"]);
+  });
 });
 
 describe("parseReferences", () => {
@@ -132,5 +148,18 @@ describe("parseReferences", () => {
     const urls = refs.map((r: any) => r.url);
     expect(urls).toContain("https://example.com");
     expect(urls).toContain("/img.png");
+  });
+
+  it("ignores links inside assistant container directives", () => {
+    const input = [
+      "Top [A](./a.txt) link.",
+      "",
+      ":::Assistant",
+      "Ignore [B](./b.txt) and image ![x](./x.png) here.",
+      ":::",
+    ].join("\n");
+    const refs = parseReferences(input);
+    const urls = refs.map((r: any) => r.url);
+    expect(urls).toEqual(["./a.txt"]);
   });
 });
