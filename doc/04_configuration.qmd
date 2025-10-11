@@ -19,14 +19,7 @@ always having the final say.
     current working directory. This is useful for project-level
     configuration that you might commit to a git repository.
 
-3.  **`--Include` (`-I`) Flag**: You can specify an arbitrary YAML file to
-    include using the `--Include` or `-I` command-line flag. This is handy
-    for temporary or experimental settings.
-    ```bash
-    lectic -I project_settings.yaml -f my_convo.lec
-    ```
-
-4.  **Lectic File Header**: The YAML frontmatter within your `.lec` file is
+3.  **Lectic File Header**: The YAML frontmatter within your `.lec` file is
     the final and highest-precedence source of configuration.
 
 ## Overriding Default Directories

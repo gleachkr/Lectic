@@ -52,17 +52,10 @@ async function getLecticString(opts : OptionValues) : Promise<string> {
     }
 }
 
-async function getIncludes(opts: OptionValues) : Promise<(string | null)[]> {
-        const includes = []
-        if (opts["Include"]) {
-            includes.push(await Bun.file(opts["Include"])
-                    .text().catch(_ => null))
-        }
-        includes.push(await Bun.file('./lectic.yaml')
-                .text().catch(_ => null))
-        includes.push(await Bun.file(join(lecticConfigDir(), 'lectic.yaml'))
-                .text().catch(_ => null))
-        return includes
+async function getIncludes() : Promise<(string | null)[]> {
+        const workspaceConfig = await Bun.file('./lectic.yaml').text().catch(_ => null)
+        const systemConfig = await Bun.file(join(lecticConfigDir(), 'lectic.yaml')).text().catch(_ => null)
+        return [systemConfig, workspaceConfig]
 }
 
 async function main() {
@@ -89,7 +82,7 @@ async function main() {
 
     try {
 
-        const includes = await getIncludes(opts)
+        const includes = await getIncludes()
 
         const lectic = await parseLectic(lecticString, includes)
 
@@ -168,7 +161,6 @@ program
 .option('-f, --file <lectic>',  'Lectic to read from')
 .option('-q, --quiet', 'Don’t print response')
 .option('-i, --inplace <lectic>',  'Lectic to read from and update in place' )
-.option('-I, --Include <yaml>',  'Include extra header information' )
 .option('-l, --log <logfile>',  'Log debugging information')
 .option('-v, --version',  'Print version information')
 .action(async () => { await main() })

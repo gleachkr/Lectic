@@ -36,11 +36,6 @@ lectic [FLAGS] [OPTIONS]
   overwrite the file to contain only the header (effectively resetting the
   conversation).
 
-- `-I`, `--Include <PATH>`
-  Include an additional YAML file whose contents are merged into the active
-  configuration. Higher precedence than system and working‑directory config,
-  lower than the `.lec` header.
-
 - `-l`, `--log <PATH>`
   Write detailed debug logs to the given file.
 
