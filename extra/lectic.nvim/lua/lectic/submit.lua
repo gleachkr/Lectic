@@ -24,7 +24,6 @@ function M.submit_lectic()
         vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""})
     end
     local total_lines = vim.api.nvim_buf_line_count(buf)
-    local last_fold = total_lines
     local buffer_content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local extmark_id = nil
 
