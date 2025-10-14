@@ -5,11 +5,7 @@ import remarkDirective from "remark-directive"
 import { nodeRaw } from "../parsing/markdown"
 import { isSerializedCall } from "../types/tool"
 
-export async function buildFoldingRanges(docText: string): Promise<LspFoldingRange[]> {
-  // Build allowable assistant names to ensure calls are inside an
-  // interlocutor container directive.
-
-  const ast = remark().use(remarkDirective).parse(docText)
+export function buildFoldingRangesFromAst(ast: any, docText: string): LspFoldingRange[] {
   const out: LspFoldingRange[] = []
 
   for (const node of ast.children ?? []) {
@@ -32,4 +28,9 @@ export async function buildFoldingRanges(docText: string): Promise<LspFoldingRan
   }
 
   return out
+}
+
+export async function buildFoldingRanges(docText: string): Promise<LspFoldingRange[]> {
+  const ast = remark().use(remarkDirective).parse(docText)
+  return buildFoldingRangesFromAst(ast, docText)
 }
