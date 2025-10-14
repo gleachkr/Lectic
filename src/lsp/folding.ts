@@ -14,6 +14,7 @@ export function buildFoldingRangesFromAst(ast: any, docText: string): LspFolding
     if (!Array.isArray(node.children) || node.children.length === 0) continue
 
     for (const b of node.children) {
+      if (b.type !== "html") continue
       const pos = b.position
       if (!pos?.start || !pos?.end) continue
       const raw = nodeRaw(b, docText)

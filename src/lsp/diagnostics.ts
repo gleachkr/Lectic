@@ -7,7 +7,7 @@ import {
   Range as LspRange,
   Position as LspPosition,
 } from "vscode-languageserver/node"
-import { mergedHeaderSpecForDoc, getBody, getYaml } from "../parsing/parse"
+import { mergedHeaderSpecForDoc, getYaml } from "../parsing/parse"
 import { parseDirectives, nodeContentRaw, parseReferences, nodeRaw } from "../parsing/markdown"
 import { buildHeaderRangeIndex, type HeaderRangeIndex } from "./yamlRanges"
 import { validateHeaderShape } from "./headerValidate"
@@ -325,27 +325,25 @@ function emitUnknownAgentTargetErrors(
 
 function emitUnknownDirectiveWarnings(
   docText: string,
-  headerEndLine: number,
   headerRange: LspRangeT,
   knownNames: string[]
 ): Diagnostic[] {
   const diags: Diagnostic[] = []
   try {
-    const body = getBody(docText)
-    const directives = parseDirectives(body)
+    const directives = parseDirectives(docText)
     const known = new Set(knownNames)
     for (const d of directives) {
       const name = (d.name ?? "")
       if (name !== "ask" && name !== "aside") continue
-      const text = nodeContentRaw(d, body).trim()
+      const text = nodeContentRaw(d, docText).trim()
       if (!text) continue
       if (known.has(text)) continue
       const s = d.position?.start
       const e = d.position?.end
       const range = (s && e)
         ? LspRange.create(
-            LspPosition.create(headerEndLine + (s.line - 1), s.column - 1),
-            LspPosition.create(headerEndLine + (e.line - 1), e.column - 1)
+            LspPosition.create(s.line - 1, s.column - 1),
+            LspPosition.create(e.line - 1, e.column - 1)
           )
         : headerRange
       diags.push({
@@ -368,7 +366,6 @@ export async function buildDiagnostics(
   const diags: Diagnostic[] = []
   const headerRange = findHeaderRange(docText) ??
     LspRange.create(LspPosition.create(0, 0), LspPosition.create(0, 0))
-  const headerEndLine = headerRange.end.line
   const headerIndex = buildHeaderRangeIndex(docText)
 
   // 1) Local duplicate warnings (precise ranges)
@@ -404,7 +401,7 @@ export async function buildDiagnostics(
         if (typeof localName === "string") {
           if (Array.isArray(mergedList)) {
             const merged = mergedList.find(it => typeof it?.name === "string" && it.name === localName)
-            if (merged && typeof (merged as any).prompt === "string") return false
+            if (merged && merged.prompt === "string") return false
           }
           const mi = mergedSpec?.interlocutor
           if (mi && typeof mi.name === "string" && mi.name === localName && typeof mi.prompt === "string") {
@@ -446,7 +443,7 @@ export async function buildDiagnostics(
   // 6) Unknown :ask and :aside references in the body
   diags.push(
     ...emitUnknownDirectiveWarnings(
-      docText, headerEndLine, headerRange, knownNames
+      docText, headerRange, knownNames
     )
   )
 
