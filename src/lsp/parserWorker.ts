@@ -41,7 +41,7 @@ self.addEventListener("message", async (ev: MessageEvent<WorkerMessage>) => {
 
     // 2) Diagnostics second
     try {
-      const diagnostics = await buildDiagnostics(msg.text, msg.docDir)
+      const diagnostics = await buildDiagnostics(ast, msg.text, msg.docDir)
       const diagMsg: DiagnosticsResult = {
         type: "diagnostics",
         uri: msg.uri,

@@ -3,6 +3,8 @@ import { buildDiagnostics } from "./diagnostics"
 import { tmpdir } from "os"
 import { mkdtempSync, rmSync, writeFileSync } from "fs"
 import { join } from "path"
+import { remark } from "remark"
+import remarkDirective from "remark-directive"
 
 function withIsolatedSystemConfig<T>(run: (dir: string) => Promise<T> | T): Promise<T> | T {
   const prev = process.env["LECTIC_CONFIG"]
@@ -29,7 +31,8 @@ describe("diagnostics", () => {
   test("flags YAML/shape errors when header is invalid", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\n# missing interlocutor(s)\nmacros:\n  - name: x\n    expansion: y\n---\nBody\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       expect(diags.length > 0).toBeTrue()
       expect(hasMessage(diags, "YAML Header is missing")).toBeTrue()
     })
@@ -38,7 +41,8 @@ describe("diagnostics", () => {
   test("flags duplicate interlocutor names (case-sensitive)", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutors:\n  - name: A\n    prompt: p\n  - name: A\n    prompt: q\n---\nBody\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       const dups = diagsFor(diags, "Duplicate interlocutor name")
       expect(dups.length).toBe(2)
       const ls = lines(text)
@@ -53,7 +57,8 @@ describe("diagnostics", () => {
   test("flags duplicate interlocutor names when identical entries", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutors:\n  - name: Baba\n    prompt: Today\n  - name: Baba\n    prompt: Today\n---\nBody\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       const dups = diagsFor(diags, "Duplicate interlocutor name")
       expect(dups.length).toBe(2)
       const ls = lines(text)
@@ -68,7 +73,8 @@ describe("diagnostics", () => {
   test("flags duplicate macro names when identical entries", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\nmacros:\n  - name: x\n    expansion: a\n  - name: x\n    expansion: b\n---\nBody\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       const dups = diagsFor(diags, "Duplicate macro name")
       expect(dups.length).toBe(2)
       const ls = lines(text)
@@ -83,7 +89,8 @@ describe("diagnostics", () => {
   test("flags unknown :ask and :aside names in body", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutors:\n  - name: Known\n    prompt: p\n---\nBody\n:ask[Unknown]\n:aside[Nope]\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       expect(hasMessage(diags, "Unknown interlocutor in :ask")).toBeTrue()
       expect(hasMessage(diags, "Unknown interlocutor in :aside")).toBeTrue()
     })
@@ -98,7 +105,8 @@ User says something.
 Here is an inline :ask[Ghost] that should not be diagnosed.
 :::
 `
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       expect(hasMessage(diags, "Unknown interlocutor in :ask")).toBeFalse()
     })
   })
@@ -106,7 +114,8 @@ Here is an inline :ask[Ghost] that should not be diagnosed.
   test("flags unknown agent target with precise range", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutors:\n  - name: Main\n    prompt: p\n    tools:\n      - agent: Other\n---\nBody\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       const agent = diagsFor(diags, "Agent tool references unknown interlocutor")
       expect(agent.length >= 1).toBeTrue()
       const ls = lines(text)
@@ -125,7 +134,8 @@ Here is an inline :ask[Ghost] that should not be diagnosed.
           `interlocutors:\n  - name: Bram\n    prompt: from workspace\n`
         )
         const text = `---\ninterlocutor:\n  name: Bram\n---\nBody\n`
-        const diags = await buildDiagnostics(text, ws)
+        const ast = remark().use(remarkDirective).parse(text)
+        const diags = await buildDiagnostics(ast, text, ws)
         expect(hasMessage(diags, "needs a prompt")).toBeFalse()
         expect(hasMessage(diags, "YAML Header is missing")).toBeFalse()
       } finally {
@@ -142,7 +152,8 @@ Here is an inline :ask[Ghost] that should not be diagnosed.
         `interlocutors:\n  - name: Bram\n    prompt: from system\n`
       )
       const text = `---\ninterlocutor:\n  name: Bram\n---\nBody\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       expect(hasMessage(diags, "Duplicate interlocutor")).toBeFalse()
     })
   })
@@ -156,7 +167,8 @@ Here is an inline :ask[Ghost] that should not be diagnosed.
           `interlocutors:\n  - name: Zoe\n    prompt: from workspace\n`
         )
         const text = `---\ninterlocutors:\n  - name: Zoe\n---\nBody\n`
-        const diags = await buildDiagnostics(text, ws)
+        const ast = remark().use(remarkDirective).parse(text)
+        const diags = await buildDiagnostics(ast, text, ws)
         expect(hasMessage(diags, "needs a prompt")).toBeFalse()
       } finally {
         rmSync(ws, { recursive: true, force: true })
@@ -167,7 +179,8 @@ Here is an inline :ask[Ghost] that should not be diagnosed.
   test("warns on relative file:// URL paths", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n---\nSee [x](file://./alpha.txt)\n`
-      const diags = await buildDiagnostics(text, undefined)
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
       expect(hasMessage(diags, "Relative paths are not allowed in file:// URLs"))
         .toBeTrue()
     })

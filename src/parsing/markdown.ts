@@ -1,7 +1,7 @@
 import { remark } from "remark"
 import { visit, SKIP } from "unist-util-visit"
 import remarkDirective from "remark-directive"
-import type { RootContent, Parent, Link, Image } from "mdast"
+import type { Root, RootContent, Parent, Link, Image } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 
 export function nodeRaw(node : RootContent, raw : string) : string {
@@ -26,28 +26,34 @@ export function nodeContentRaw(node : Parent, raw : string) : string {
 export function parseReferences(raw: string) : (Link | Image)[] {
     // Enable remark-directive so containerDirective nodes are recognized.
     const ast = remark().use(remarkDirective).parse(raw)
-    const out: (Link | Image)[] = []
+    return referencesFromAst(ast)
+}
 
+// Collect link/image nodes from an existing AST (user chunks only)
+export function referencesFromAst(ast: Root): (Link | Image)[] {
+    const out: (Link | Image)[] = []
     visit(ast, node => {
         const t = node?.type
         if (t === 'containerDirective') return SKIP
         if (t === 'link' || t === 'image') out.push(node)
     })
-
     return out
 }
 
 // Collect textDirective nodes in user chunks only (skip assistant blocks).
 export function parseDirectives(raw: string) : TextDirective[] {
     const ast = remark().use(remarkDirective).parse(raw)
-    const directives : TextDirective[] = []
+    return directivesFromAst(ast)
+}
 
-    visit(ast, node => {
+// Collect textDirective nodes from an existing AST (user chunks only)
+export function directivesFromAst(ast: Root): TextDirective[] {
+    const directives : TextDirective[] = []
+    visit(ast as any, node => {
         const t = node?.type
         if (t === 'containerDirective') return SKIP
         if (t === 'textDirective') directives.push(node)
     })
-
     return directives
 }
 

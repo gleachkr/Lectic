@@ -8,7 +8,7 @@ import {
   Position as LspPosition,
 } from "vscode-languageserver/node"
 import { mergedHeaderSpecForDoc, getYaml } from "../parsing/parse"
-import { parseDirectives, nodeContentRaw, parseReferences, nodeRaw } from "../parsing/markdown"
+import { directivesFromAst, nodeContentRaw, referencesFromAst, nodeRaw } from "../parsing/markdown"
 import { buildHeaderRangeIndex, type HeaderRangeIndex } from "./yamlRanges"
 import { validateHeaderShape } from "./headerValidate"
 import * as YAML from "yaml"
@@ -16,6 +16,7 @@ import { offsetToPosition } from "./positions"
 import { findUrlRangeInNodeRaw } from "./linkTargets"
 import { expandEnv } from "../utils/replace"
 import { normalizeUrl, hasGlobChars, globHasMatches, pathExists } from "./pathUtils"
+import type { Root } from "mdast"
 
 // Narrow header structures for diagnostics. These are minimal shapes
 // we actually use in LSP; runtime uses richer types elsewhere.
@@ -174,11 +175,12 @@ function emitLocalDuplicateWarnings(
 }
 
 async function emitLinkDiagnostics(
+  ast: Root,
   docText: string,
   docDir: string | undefined
 ): Promise<Diagnostic[]> {
   const out: Diagnostic[] = []
-  const refs = parseReferences(docText)
+  const refs = referencesFromAst(ast)
   for (const node of refs) {
     const s = node.position?.start
     const e = node.position?.end
@@ -324,13 +326,14 @@ function emitUnknownAgentTargetErrors(
 }
 
 function emitUnknownDirectiveWarnings(
+  ast: Root,
   docText: string,
   headerRange: LspRangeT,
   knownNames: string[]
 ): Diagnostic[] {
   const diags: Diagnostic[] = []
   try {
-    const directives = parseDirectives(docText)
+    const directives = directivesFromAst(ast)
     const known = new Set(knownNames)
     for (const d of directives) {
       const name = (d.name ?? "")
@@ -360,8 +363,9 @@ function emitUnknownDirectiveWarnings(
 }
 
 export async function buildDiagnostics(
+  ast: Root,
   docText: string,
-  docDir: string | undefined
+  docDir?: string
 ): Promise<Diagnostic[]> {
   const diags: Diagnostic[] = []
   const headerRange = findHeaderRange(docText) ??
@@ -395,13 +399,13 @@ export async function buildDiagnostics(
         const localName = Array.isArray(localArray) && 
                           isObjectRecord(localArray[idx]) && 
                           typeof localArray[idx]["name"] === "string" 
-                              ? (localArray[idx] as any)["name"] as string
+                              ? localArray[idx]["name"]
                               : undefined
         const mergedList = mergedSpec?.interlocutors
         if (typeof localName === "string") {
           if (Array.isArray(mergedList)) {
             const merged = mergedList.find(it => typeof it?.name === "string" && it.name === localName)
-            if (merged && merged.prompt === "string") return false
+            if (merged && typeof merged.prompt === "string") return false
           }
           const mi = mergedSpec?.interlocutor
           if (mi && typeof mi.name === "string" && mi.name === localName && typeof mi.prompt === "string") {
@@ -443,13 +447,13 @@ export async function buildDiagnostics(
   // 6) Unknown :ask and :aside references in the body
   diags.push(
     ...emitUnknownDirectiveWarnings(
-      docText, headerRange, knownNames
+      ast, docText, headerRange, knownNames
     )
   )
 
   // 7) Link diagnostics: missing local file and empty glob
   diags.push(
-    ...await emitLinkDiagnostics(docText, docDir)
+    ...await emitLinkDiagnostics(ast, docText, docDir)
   )
 
   return diags

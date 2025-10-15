@@ -1,5 +1,7 @@
 import { describe, test, expect } from "bun:test"
 import { buildDiagnostics } from "./diagnostics"
+import { remark } from "remark"
+import remarkDirective from "remark-directive"
 
 function lines(text: string): string[] { return text.split(/\r?\n/) }
 function findDiag(diags: any[], substr: string) {
@@ -9,7 +11,8 @@ function findDiag(diags: any[], substr: string) {
 describe("header field diagnostics", () => {
   test("missing prompt points to interlocutor mapping when absent", async () => {
     const text = `---\ninterlocutor:\n  name: A\n# no prompt\n---\nBody\n`
-    const diags = await buildDiagnostics(text, undefined)
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
     const d = findDiag(diags, "needs a prompt")
     expect(d).toBeDefined()
     const ls = lines(text)
@@ -20,7 +23,8 @@ describe("header field diagnostics", () => {
 
   test("tools wrong type points to tools value", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  tools: nope\n---\nBody\n`
-    const diags = await buildDiagnostics(text, undefined)
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
     const d = findDiag(diags, "tools for A need to be given in an array")
     expect(d).toBeDefined()
     const ls = lines(text)
@@ -30,7 +34,8 @@ describe("header field diagnostics", () => {
 
   test("max_tokens wrong type points to its scalar value in list entry", async () => {
     const text = `---\ninterlocutors:\n  - name: Baba\n    prompt: p\n    max_tokens: "abc"\n---\nBody\n`
-    const diags = await buildDiagnostics(text, undefined)
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
     const d = findDiag(diags, "max_tokens for Baba wasn't well-formed")
     expect(d).toBeDefined()
     const ls = lines(text)
