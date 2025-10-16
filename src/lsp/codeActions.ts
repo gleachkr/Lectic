@@ -71,6 +71,34 @@ function collectInterlocutorNames(spec: unknown): string[] {
   return []
 }
 
+function inferDefaultProviderFromEnv(): string | null {
+  const env = typeof process !== 'undefined' ? process.env : undefined
+  if (!env) return null
+  if (env["ANTHROPIC_API_KEY"]) return "anthropic"
+  if (env["GEMINI_API_KEY"]) return "gemini"
+  if (env["OPENAI_API_KEY"]) return "openai"
+  if (env["OPENROUTER_API_KEY"]) return "openrouter"
+  return null
+}
+
+function headerFenceMatch(raw: string): RegExpExecArray | null {
+  const re = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/
+  return re.exec(raw)
+}
+
+function buildMinimalHeader(provider: string | null): string {
+  const lines: string[] = []
+  lines.push('---')
+  lines.push('interlocutor:')
+  lines.push('  name: Assistant')
+  lines.push('  prompt: You are a helpful assistant.')
+  if (provider) {
+    lines.push(`  provider: ${provider}`)
+  }
+  lines.push('---')
+  return lines.join('\n') + '\n\n'
+}
+
 export async function computeCodeActions(
   uri: string,
   docText: string,
@@ -79,6 +107,38 @@ export async function computeCodeActions(
 ): Promise<CodeAction[] | null> {
   const out: CodeAction[] = []
   const posOff = positionToOffset(docText, params.range.start)
+
+  // 0) Insert minimal header when missing or empty
+  try {
+    const match = headerFenceMatch(docText)
+    const provider = inferDefaultProviderFromEnv()
+    if (!match) {
+      // No header present → insert at top
+      const header = buildMinimalHeader(provider)
+      out.push(codeAction(
+        LspCodeActionKind.QuickFix,
+        'Insert Lectic header',
+        [{ range: LspRange.create(offsetToPosition(docText, 0), offsetToPosition(docText, 0)), newText: header }],
+        uri
+      ))
+    } else {
+      const content = match[1] ?? ''
+      if (content.trim().length === 0) {
+        // Replace empty header block (including fences)
+        const start = match.index
+        const end = match.index + match[0].length
+        const header = buildMinimalHeader(provider)
+        out.push(codeAction(
+          LspCodeActionKind.QuickFix,
+          'Replace empty header with minimal Lectic header',
+          [{ range: LspRange.create(offsetToPosition(docText, start), offsetToPosition(docText, end)), newText: header }],
+          uri
+        ))
+      }
+    }
+  } catch {
+    // ignore
+  }
 
   // 1) Link quick fixes
   const link = findLinkAtPosition(docText, posOff)

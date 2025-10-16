@@ -101,13 +101,13 @@ class DocumentAnalyzer {
       }
     })
 
-    this.worker.addEventListener('error', () => {
+    this.worker.addEventListener('error', e => {
       if (this.rejecter) {
         const rej = this.rejecter
         this.resolver = null
         this.rejecter = null
         this.inflight = null
-        rej(new Error('worker error'))
+        rej(new Error(`worker error: ${e.message}`))
       }
       // Keep the worker; avoid terminate loops that can trigger segfaults.
       // A fresh request will continue to use the same worker instance.

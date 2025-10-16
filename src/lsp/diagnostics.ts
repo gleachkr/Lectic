@@ -187,10 +187,8 @@ async function emitLinkDiagnostics(
     if (!s || !e || s.offset == null || e.offset == null) continue
 
     const raw = nodeRaw(node, docText)
-    const dest = node.url as string | undefined
-    if (typeof dest !== 'string') continue
 
-    const urlRange = findUrlRangeInNodeRaw(raw, s.offset, dest)
+    const urlRange = findUrlRangeInNodeRaw(raw, s.offset, node.url)
     if (!urlRange) continue
     const [innerStartOff, innerEndOff] = urlRange
 

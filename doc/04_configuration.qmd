@@ -80,7 +80,10 @@ interlocutor:
         - agent: opus
 ```
 
-If you run `lectic -I project.yaml ...`, the `haiku` interlocutor will be
-configured with the `claude-3-haiku` model, and it will have access to a
-`bash` tool and an `agent` tool that can call `opus`. You could then switch
-interlocutors to `opus` within the conversation if needed.
+If you place this project config at `./lectic.yaml` in your working
+directory, Lectic will merge it with your system defaults and the
+document header using the precedence above. The `haiku` interlocutor
+will be configured with the `claude-3-haiku` model, and it will have
+access to a `bash` tool and an `agent` tool that can call `opus`.
+You can switch to `opus` within the conversation if needed, using an 
+[`:ask[]` directive](./context_management/02_conversation_control.qmd).

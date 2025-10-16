@@ -73,7 +73,3 @@ lectic [FLAGS] [OPTIONS]
   echo "This is a new message." | lectic -i conversation.lec
   ```
 
-- Use a project‑specific config file:
-  ```bash
-  lectic -I project.yaml -i conversation.lec
-  ```
