@@ -49,10 +49,8 @@ class DocumentAnalyzer {
 
   private ensureWorker() {
     if (this.worker) return
-    // Bun quirk: use full relative path and type: 'module'
-    this.worker = new Worker('./src/lsp/parserWorker.ts', {
-      type: 'module'
-    })
+    // Bun quirk: path needs to be relative to the src root
+    this.worker = new Worker('./lsp/parserWorker.ts')
 
     this.worker.addEventListener('message', (ev: MessageEvent<FoldResult | DiagnosticsResult>) => {
       const m = ev.data
