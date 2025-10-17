@@ -3,7 +3,8 @@ import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml
 type StringSchema = {
     type: "string",
     description: string
-    enum? : string[] 
+    enum? : string[]
+    contentMediaType?: string
 }
 
 type BooleanSchema = {
@@ -94,7 +95,14 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
             if (!Array.isArray(arg)) {
                 throw new Error(`Invalid array value: ${arg}`);
             }
-            return `<array>${arg.map(item => `<item>${serialize(item, schema.items)}</item>`).join('')}</array>`;
+            // If items is a string schema with a contentMediaType, surface it
+            // on the <item> tag so editor tooling can pick it up from the
+            // serialized tool-call.
+            const itemAttr = (schema.items as any)?.type === "string"
+                && (schema.items as any)?.contentMediaType
+                ? ` contentMediaType="${(schema.items as any).contentMediaType}"`
+                : ""
+            return `<array>${arg.map(item => `<item${itemAttr}>${serialize(item, schema.items)}</item>`).join('')}</array>`;
 
         case "object":
             if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
@@ -104,7 +112,11 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
             return `<object>${Object.keys(properties)
                     .map(key => {
                         if (!(key in arg)) return ""
-                        return `<${key}>${serialize((arg as { [key] : unknown })[key], properties[key])}</${key}>`;
+                        const keySchema = properties[key]
+                        const attr = keySchema?.type === "string" && keySchema?.contentMediaType
+                            ? ` contentMediaType="${keySchema.contentMediaType}"`
+                            : ""
+                        return `<${key}${attr}>${serialize((arg as { [key] : unknown })[key], properties[key])}</${key}>`;
                     }).join('')}</object>`;
 
         default:
@@ -240,8 +252,9 @@ export function deserialize(xml: string, schema: JSONSchema): any {
             const obj: any = {};
             let elements = extractElements(inner)
             for (const element of elements) {
-                const keyRegex = new RegExp(`^<(.*?)>`);
-                const keyMatch = keyRegex.exec(element)
+                // Extract only the tag name, ignoring any attributes.
+                const keyNameRegex = /^<([a-zA-Z][a-zA-Z0-9_]*)\b/;
+                const keyMatch = keyNameRegex.exec(element)
                 if (keyMatch === null) {
                     //should be unreachable
                     throw new Error(`Malformed object key: "${element}" on ${xml}`);

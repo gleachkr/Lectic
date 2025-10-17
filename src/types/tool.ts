@@ -74,7 +74,11 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
     if (tool) {
         for (const key in tool.parameters) {
             if (key in args) {
-                values.push(`<${key}>${serialize(args[key], tool.parameters[key])}</${key}>`)
+                const s = tool.parameters[key]
+                const attr = s?.type === "string" && s?.contentMediaType
+                    ? ` contentMediaType="${s.contentMediaType}` + `"`
+                    : ""
+                values.push(`<${key}${attr}>${serialize(args[key], tool.parameters[key])}</${key}>`)
             } else if (tool.required?.includes(key)) {
                 throw new Error(`missing required parameter: ${key}`)
             }

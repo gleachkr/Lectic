@@ -6,7 +6,6 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import type { JSONSchema } from "../types/schema"
 import { serializeCall, ToolCallResults,  type ToolCallResult } from "../types/tool"
 import { systemPrompt, pdfFragment, emitAssistantMessageEvent } from './common.ts'
 
@@ -20,11 +19,9 @@ function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[
         // probably be safely scrubbed
         //
         // c.f. https://json-schema.org/understanding-json-schema/reference/annotations
-        const cleanParameters : Record<string, JSONSchema> = {}
         for (const key in tool.parameters) {
-            cleanParameters[key] = tool.parameters[key]
-            if ("default" in cleanParameters[key]) {
-                delete cleanParameters[key].default
+            if ("default" in tool.parameters[key]) {
+                delete tool.parameters[key].default
             }
         }
         tools.push({

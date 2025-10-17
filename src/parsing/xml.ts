@@ -1,10 +1,11 @@
 export function unwrap(xml: string, tag: string): string {
-    const openTag = `<${tag}>`;
+    const openTagPattern = new RegExp(`^<${tag}\\b[^>]*>`)
     const closeTag = `</${tag}>`;
-    if (!xml.startsWith(openTag) || !xml.endsWith(closeTag)) {
+    const openMatch = openTagPattern.exec(xml)
+    if (!openMatch || !xml.endsWith(closeTag)) {
         throw new Error(`Invalid serialized ${tag}: ${xml}`);
     }
-    return xml.substring(openTag.length, xml.length - closeTag.length);
+    return xml.substring(openMatch[0].length, xml.length - closeTag.length);
 }
 
 export function extractElements(xml: string): string[] {

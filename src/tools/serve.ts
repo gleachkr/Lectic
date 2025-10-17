@@ -38,6 +38,7 @@ export class ServeTool extends Tool {
         pageHtml: {
             type : "string",
             description : "the complete HTML of the page that you wish to present to the user",
+            contentMediaType: "text/html",
         }
     } as const
 

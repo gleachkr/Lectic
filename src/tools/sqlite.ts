@@ -88,6 +88,7 @@ export class SQLiteTool extends Tool {
         query: {
             type : "string",
             description : "the SQL query to be executed",
+            contentMediaType: "text/sql",
         }
     } as const
 
