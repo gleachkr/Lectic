@@ -143,13 +143,11 @@ async function main() {
             await Logger.write(`::: Error\n\n`)
             headerPrinted = true
         }
-        if (error instanceof Error) {
-            await Logger.write(`<error>\n${error.message}\n</error>`)
-            Hook.events.emit("error", { ERROR_MESSAGE: error.message })
-        } else {
-            await Logger.write(`<error>\n${JSON.stringify(error)}\n</error>`)
-            Hook.events.emit("error", { ERROR_MESSAGE: JSON.stringify(error) })
-        }
+
+        const ERROR_MESSAGE = error instanceof Error ? error.message : JSON.stringify(error)
+        await Logger.write(`<error>\n${ERROR_MESSAGE}\n</error>`)
+        Hook.events.emit("error", { ERROR_MESSAGE })
+
         if (!program.opts()["Short"]) await Logger.write(`\n\n:::`)
         process.exit(1)
     }
@@ -169,7 +167,7 @@ program
 
 program
 .command('lsp')
-.description('Start Lectic LSP server (macro completion on ":")')
+.description('Start Lectic LSP server')
 .action(async () => { await startLsp() })
 
 program.parse()
