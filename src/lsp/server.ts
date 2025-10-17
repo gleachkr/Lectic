@@ -16,6 +16,8 @@ import { computeCompletions } from "./completions"
 import { buildDocumentSymbols } from "./symbols"
 import { buildWorkspaceSymbols } from "./workspaceSymbols"
 import { computeCodeActions } from "./codeActions"
+import { resolveDefinition } from "./definitions"
+import { computeHover } from "./hovers"
 import type {
   AnalyzeRequest,
   FoldResult,
@@ -23,7 +25,8 @@ import type {
   BundleResult,
   AnalysisBundle,
 } from "./analysisTypes"
-import type { FoldingRange } from "vscode-languageserver"
+import type { FoldingRange, HoverParams } from "vscode-languageserver"
+import { extractWorkspaceRoots } from "./serverHelpers"
 
 // Minimal document record (track text and client-provided version)
 type Doc = { uri: string, text: string, version: number }
@@ -174,7 +177,7 @@ class DocumentAnalyzer {
     this.worker!.postMessage(req)
   }
 
-  async getFolding(): Promise<import('vscode-languageserver').FoldingRange[]> {
+  async getFolding(): Promise<FoldingRange[]> {
     // Serve cached stable folding if available and current
     if (this.cachedFolding && this.cachedFolding.version === this.currentVersion) {
       return this.cachedFolding.folding
@@ -211,17 +214,27 @@ const analyzers = new Map<string, DocumentAnalyzer>()
 
 let workspaceRoots: string[] = []
 
-function extractWorkspaceRoots(params: InitializeParams): string[] {
-  const roots: string[] = []
-  if (Array.isArray(params.workspaceFolders)) {
-    for (const wf of params.workspaceFolders) {
-      try {
-        const u = new URL(wf.uri)
-        if (u.protocol === 'file:') roots.push(dirname(u.pathname))
-      } catch { /* ignore */ }
-    }
+function docDirOf(uri: string): string | undefined {
+  try {
+    const u = new URL(uri)
+    return u.protocol === 'file:' ? dirname(u.pathname) : undefined
+  } catch {
+    return undefined
   }
-  return roots
+}
+
+async function analyzeNow(
+  uri: string,
+  text: string,
+  version: number,
+  connection: ReturnType<typeof createConnection>
+) {
+  let analyzer = analyzers.get(uri)
+  if (!analyzer) {
+    analyzer = new DocumentAnalyzer(uri, connection)
+    analyzers.set(uri, analyzer)
+  }
+  await analyzer.requestAnalyze(text, version, docDirOf(uri))
 }
 
 export function registerLspHandlers(connection: ReturnType<typeof createConnection>) {
@@ -251,15 +264,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const rec: Doc = { uri, text, version }
     docs.set(uri, rec)
 
-    const u = new URL(uri)
-    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
-
-    let analyzer = analyzers.get(uri)
-    if (!analyzer) {
-      analyzer = new DocumentAnalyzer(uri, connection)
-      analyzers.set(uri, analyzer)
-    }
-    await analyzer.requestAnalyze(text, version, docDir)
+    await analyzeNow(uri, text, version, connection)
   })
 
   connection.onDidChangeTextDocument(async (ev: DidChangeTextDocumentParams) => {
@@ -278,14 +283,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
       cur.version = nextVersion
     }
 
-    const u = new URL(uri)
-    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
-    let analyzer = analyzers.get(uri)
-    if (!analyzer) {
-      analyzer = new DocumentAnalyzer(uri, connection)
-      analyzers.set(uri, analyzer)
-    }
-    await analyzer.requestAnalyze(last.text, nextVersion, docDir)
+    await analyzeNow(uri, last.text, nextVersion, connection)
   })
 
   connection.onDidCloseTextDocument((ev: DidCloseTextDocumentParams) => {
@@ -303,16 +301,13 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
   connection.onDefinition(async (params: DefinitionParams): Promise<Location[] | null> => {
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return null
-    const { resolveDefinition } = await import('./definitions')
     return await resolveDefinition(params.textDocument.uri, doc.text, params.position)
   })
 
   connection.onCompletion(async (params: CompletionParams) => {
-    const uri = new URL(params.textDocument.uri)
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return null
 
-    const docDir = uri.protocol === "file:" ? dirname(uri.pathname) : undefined
     const analyzer = analyzers.get(params.textDocument.uri)
     if (!analyzer) return null
     const bundle = await analyzer.getBundle()
@@ -320,7 +315,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
       params.textDocument.uri,
       doc.text,
       params.position,
-      docDir,
+      docDirOf(params.textDocument.uri),
       bundle
     )
   })
@@ -334,16 +329,18 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     return buildDocumentSymbols(doc.text, bundle)
   })
 
-  connection.onHover(async (params: any) => {
+  connection.onHover(async (params: HoverParams) => {
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return null
-    const u = new URL(params.textDocument.uri)
-    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
     const analyzer = analyzers.get(params.textDocument.uri)
     if (!analyzer) return null
     const bundle = await analyzer.getBundle()
-    const { computeHover } = await import('./hovers')
-    return await computeHover(doc.text, params.position, docDir, bundle)
+    return await computeHover(
+      doc.text,
+      params.position,
+      docDirOf(params.textDocument.uri),
+      bundle
+    )
   })
 
   connection.onFoldingRanges(async (params: FoldingRangeParams) => {
