@@ -17,7 +17,7 @@ describe("backend model listing", () => {
   test("Anthropic models.list supports async iteration", async () => {
     const orig = AnthropicBackend.client
     try {
-      ;(AnthropicBackend as any).client = {
+      (AnthropicBackend as any).client = {
         models: {
           list: async () => asyncIterableFrom([ { id: "claude-3-haiku-20240307" }, { id: "claude-3-5-sonnet" } ])
         }
@@ -32,9 +32,17 @@ describe("backend model listing", () => {
   test("Gemini models.list supports async iteration", async () => {
     const orig = GeminiBackend.client
     try {
-      ;(GeminiBackend as any).client = {
+      (GeminiBackend as any).client = {
         models: {
-          list: async () => asyncIterableFrom([ { name: "gemini-2.5-flash" }, { name: "gemini-1.5-pro" } ])
+          list: async () => asyncIterableFrom([ 
+              { 
+                  name: "gemini-2.5-flash",
+                  supportedActions: ["generateContent"]
+
+              }, { 
+                  name: "gemini-1.5-pro",
+                  supportedActions: ["generateContent"]
+              } ])
         }
       }
       const ids = await GeminiBackend.listModels()
