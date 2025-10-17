@@ -3,8 +3,8 @@ title: LSP Server (Experimental)
 ---
 
 Lectic includes a small Language Server Protocol (LSP) server that
-provides completion for directives, macros, and link destinations, plus
-hovers. It is stdio only.
+provides completion for directives and macros, plus hovers. It is stdio
+only.
 
 Overview
 - Command: `lectic lsp`
@@ -165,6 +165,16 @@ Diagnostics
   - file:// URLs must be absolute (use file://$PWD/... or file:///...)
 - Diagnostics are published on open and debounced during edits to reduce
   churn while streaming.
+
+Architecture
+- The LSP parses markdown in a background worker. For each (uri,version),
+  the worker builds a compact “analysis bundle” and posts results in
+  order: folding ranges → bundle → diagnostics.
+- The server caches the bundle and waits for the current one before
+  answering completions, hovers, symbols, and code actions. Folding
+  already waits and remains first for UX.
+- No feature re‑parses markdown on the main thread. Unit tests build a
+  minimal bundle fixture instead of using ad‑hoc string scans.
 
 Notes
 - Completion previews are static; the server does not expand macros or

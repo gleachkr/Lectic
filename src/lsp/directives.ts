@@ -3,6 +3,7 @@ import { Position as LspPos, Range as LspRan } from "vscode-languageserver/node"
 import { getBody } from "../parsing/parse"
 import { parseDirectives, nodeRaw } from "../parsing/markdown"
 import { offsetToPosition, positionToOffset } from "./positions"
+import type { AnalysisBundle } from "./analysisTypes"
 
 // Helpers shared across LSP modules
 export function findSingleColonStart(lineText: string, ch: number): number | null {
@@ -136,5 +137,35 @@ export function directiveAtPosition(
     }
   }
 
+  return null
+}
+
+export function directiveAtPositionFromBundle(
+  docText: string,
+  pos: LspPosition,
+  bundle: AnalysisBundle
+): DirectiveContext | null {
+  const absPos = positionToOffset(docText, pos)
+  for (const d of bundle.directives) {
+    if (absPos < d.absStart || absPos > d.absEnd) continue
+    const innerStart = offsetToPosition(docText, d.innerStart)
+    const innerEnd = offsetToPosition(docText, d.innerEnd)
+    const nodeStart = offsetToPosition(docText, d.absStart)
+    const nodeEnd = offsetToPosition(docText, d.absEnd)
+    const innerText = docText.slice(d.innerStart, d.innerEnd)
+    const typedLen = Math.max(0, Math.min(innerText.length, absPos - d.innerStart))
+    const innerPrefix = innerText.slice(0, typedLen)
+    const insideBrackets = absPos >= d.innerStart && absPos <= d.innerEnd
+    return {
+      key: d.key,
+      insideBrackets,
+      innerText,
+      innerPrefix,
+      innerStart,
+      innerEnd,
+      nodeStart,
+      nodeEnd,
+    }
+  }
   return null
 }

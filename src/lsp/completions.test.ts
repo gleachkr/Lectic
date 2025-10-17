@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import { computeCompletions } from "./completions"
+import { buildTestBundle } from "./testHelpers"
 
 function hasLabel(items: any[], label: string): boolean {
   return items.some(it => it?.label === label)
@@ -12,7 +13,8 @@ describe("completions (unit)", () => {
       "file:///doc.lec",
       text,
       { line: 2, character: 1 } as any,
-      undefined
+      undefined,
+      buildTestBundle(text)
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     expect(hasLabel(arr, "cmd")).toBeTrue()
@@ -27,7 +29,8 @@ describe("completions (unit)", () => {
       "file:///doc.lec",
       text,
       { line, character: char } as any,
-      undefined
+      undefined,
+      buildTestBundle(text)
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     const labels = new Set(arr.map((x: any) => x.label))
@@ -43,7 +46,8 @@ describe("completions (unit)", () => {
       "file:///doc.lec",
       text,
       { line, character: char } as any,
-      undefined
+      undefined,
+      buildTestBundle(text)
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     const labels = new Set(arr.map((x: any) => x.label))
@@ -60,7 +64,8 @@ describe("completions (unit)", () => {
       "file:///doc.lec",
       text,
       { line, character: colOpen } as any,
-      undefined
+      undefined,
+      buildTestBundle(text)
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     const labels = new Set(arr.map((x: any) => x.label))
@@ -77,7 +82,8 @@ describe("completions (unit)", () => {
       "file:///doc.lec",
       text,
       { line, character: colOpen } as any,
-      undefined
+      undefined,
+      buildTestBundle(text)
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     const labels = new Set(arr.map((x: any) => x.label))

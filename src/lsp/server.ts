@@ -16,13 +16,20 @@ import { computeCompletions } from "./completions"
 import { buildDocumentSymbols } from "./symbols"
 import { buildWorkspaceSymbols } from "./workspaceSymbols"
 import { computeCodeActions } from "./codeActions"
-import type { AnalyzeRequest, FoldResult, DiagnosticsResult } from "./analysisTypes"
+import type {
+  AnalyzeRequest,
+  FoldResult,
+  DiagnosticsResult,
+  BundleResult,
+  AnalysisBundle,
+} from "./analysisTypes"
 import type { FoldingRange } from "vscode-languageserver"
 
 // Minimal document record (track text and client-provided version)
 type Doc = { uri: string, text: string, version: number }
 
 type FoldWaiter = (v: FoldingRange[]) => void
+type BundleWaiter = (b: AnalysisBundle) => void
 
 const docs = new Map<string, Doc>()
 
@@ -32,6 +39,9 @@ function isFoldResult(m: unknown): m is FoldResult {
 function isDiagnosticsResult(m: unknown): m is DiagnosticsResult {
   return !!m && typeof (m as any).type === 'string' && (m as any).type === 'diagnostics'
 }
+function isBundleResult(m: unknown): m is BundleResult {
+  return !!m && typeof (m as any).type === 'string' && (m as any).type === 'bundle'
+}
 
 // Coordinator per document. It owns a worker and the last results.
 class DocumentAnalyzer {
@@ -40,9 +50,11 @@ class DocumentAnalyzer {
   private resolver: (() => void) | null = null
   private rejecter: ((e: unknown) => void) | null = null
   private cachedFolding: FoldResult | null = null
+  private cachedBundle: BundleResult | null = null
   private currentVersion = 0
   private pending: AnalyzeRequest | null = null
   private foldingWaiters: FoldWaiter[] = []
+  private bundleWaiters: BundleWaiter[] = []
 
   constructor(private uri: string,
               private connection: ReturnType<typeof createConnection>) {}
@@ -56,9 +68,23 @@ class DocumentAnalyzer {
         : new URL('./parserWorker.ts', import.meta.url).href
     this.worker = new Worker(workerUrl)
 
-    this.worker.addEventListener('message', (ev: MessageEvent<FoldResult | DiagnosticsResult>) => {
+    this.worker.addEventListener('message', (ev: MessageEvent<FoldResult | DiagnosticsResult | BundleResult>) => {
       const m = ev.data
       if (!m || m.uri !== this.uri) return
+
+      // Bundle arrives early; cache only when stable
+      if (isBundleResult(m)) {
+        if (m.version === this.currentVersion) {
+          if (!this.pending) {
+            this.cachedBundle = m
+            const b = this.cachedBundle.bundle
+            const waiters = this.bundleWaiters
+            this.bundleWaiters = []
+            for (const w of waiters) w(b)
+          }
+        }
+        return
+      }
 
       // Folding result arrives first
       if (isFoldResult(m)) {
@@ -123,8 +149,6 @@ class DocumentAnalyzer {
     this.worker = null
   }
 
-
-
   async requestAnalyze(text: string, version: number, docDir?: string) {
     this.currentVersion = version
     this.ensureWorker()
@@ -137,6 +161,7 @@ class DocumentAnalyzer {
     }
     // Clear cached folding on any new edit
     this.cachedFolding = null
+    this.cachedBundle = null
     if (this.inflight) {
       // Latest-only: remember only the most recent pending request
       this.pending = req
@@ -160,6 +185,15 @@ class DocumentAnalyzer {
     })
   }
 
+  async getBundle(): Promise<AnalysisBundle> {
+    if (this.cachedBundle && this.cachedBundle.version === this.currentVersion) {
+      return this.cachedBundle.bundle
+    }
+    return await new Promise((resolve) => {
+      this.bundleWaiters.push(resolve)
+    })
+  }
+
   dispose() {
     this.disposeWorker()
     this.inflight = null
@@ -167,7 +201,9 @@ class DocumentAnalyzer {
     this.rejecter = null
     this.pending = null
     this.cachedFolding = null
+    this.cachedBundle = null
     this.foldingWaiters = []
+    this.bundleWaiters = []
   }
 }
 
@@ -277,19 +313,25 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     if (!doc) return null
 
     const docDir = uri.protocol === "file:" ? dirname(uri.pathname) : undefined
-
+    const analyzer = analyzers.get(params.textDocument.uri)
+    if (!analyzer) return null
+    const bundle = await analyzer.getBundle()
     return await computeCompletions(
       params.textDocument.uri,
       doc.text,
       params.position,
-      docDir
+      docDir,
+      bundle
     )
   })
 
   connection.onDocumentSymbol(async (params: DocumentSymbolParams) => {
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return []
-    return buildDocumentSymbols(doc.text)
+    const analyzer = analyzers.get(params.textDocument.uri)
+    if (!analyzer) return []
+    const bundle = await analyzer.getBundle()
+    return buildDocumentSymbols(doc.text, bundle)
   })
 
   connection.onHover(async (params: any) => {
@@ -297,8 +339,11 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     if (!doc) return null
     const u = new URL(params.textDocument.uri)
     const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
+    const analyzer = analyzers.get(params.textDocument.uri)
+    if (!analyzer) return null
+    const bundle = await analyzer.getBundle()
     const { computeHover } = await import('./hovers')
-    return await computeHover(doc.text, params.position, docDir)
+    return await computeHover(doc.text, params.position, docDir, bundle)
   })
 
   connection.onFoldingRanges(async (params: FoldingRangeParams) => {
@@ -317,7 +362,10 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     if (!doc) return []
     const u = new URL(params.textDocument.uri)
     const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
-    const res = await computeCodeActions(params.textDocument.uri, doc.text, params, docDir)
+    const analyzer = analyzers.get(params.textDocument.uri)
+    if (!analyzer) return []
+    const bundle = await analyzer.getBundle()
+    const res = await computeCodeActions(params.textDocument.uri, doc.text, params, docDir, bundle)
     return res ?? []
   })
 }

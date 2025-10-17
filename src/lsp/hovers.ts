@@ -1,22 +1,23 @@
 import type { Hover, Position } from "vscode-languageserver"
 import { MarkupKind, Range as LspRange } from "vscode-languageserver/node"
-import { directiveAtPosition } from "./directives"
-import { parseReferences, nodeRaw } from "../parsing/markdown"
-import { findUrlRangeInNodeRaw } from "./linkTargets"
-import { positionToOffset, offsetToPosition } from "./positions"
+import { directiveAtPositionFromBundle } from "./directives"
+import { linkTargetAtPositionFromBundle } from "./linkTargets"
+import { offsetToPosition } from "./positions"
 import { mergedHeaderSpecForDoc } from "../parsing/parse"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { buildMacroIndex } from "./macroIndex"
 import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./pathUtils"
 import { stat } from "fs/promises"
+import type { AnalysisBundle } from "./analysisTypes"
 
 export async function computeHover(
   docText: string,
   pos: Position,
-  docDir: string | undefined
+  docDir: string | undefined,
+  bundle: AnalysisBundle
 ): Promise<Hover | null> {
   // 1) Directive hover (and macro name hover)
-  const dctx = directiveAtPosition(docText, pos)
+  const dctx = directiveAtPositionFromBundle(docText, pos, bundle)
   if (dctx && dctx.key) {
     // Macro name hover inside brackets shows expansion preview
     if (dctx.key === "macro" && dctx.insideBrackets) {
@@ -54,7 +55,7 @@ export async function computeHover(
   }
 
   // 2) Link hover: small preview for local text files
-  const hrefHover = await linkHover(docText, pos, docDir)
+  const hrefHover = await linkHover(docText, pos, docDir, bundle)
   if (hrefHover) return hrefHover
 
   return null
@@ -90,110 +91,99 @@ function directiveInfo(key: string): { key: string, title: string, body: string 
 async function linkHover(
   docText: string,
   pos: Position,
-  docDir: string | undefined
+  docDir: string | undefined,
+  bundle: AnalysisBundle
 ): Promise<Hover | null> {
-  const refs = parseReferences(docText)
-  const absPos = positionToOffset(docText, pos)
+  const hit = linkTargetAtPositionFromBundle(docText, pos, bundle)
+  if (hit) {
+    return await linkPreview(docText, hit.startOff, hit.endOff, docDir)
+  }
+  return null
+}
 
-  for (const node of refs) {
-    const s = node.position?.start
-    const e = node.position?.end
-    if (!s || !e || s.offset == null || e.offset == null) continue
+async function linkPreview(docText: string, startOff: number, endOff: number, docDir: string | undefined): Promise<Hover | null> {
+  const url = docText.slice(startOff, endOff)
+  const norm = normalizeUrl(url, docDir)
+  const range = LspRange.create(offsetToPosition(docText, startOff), offsetToPosition(docText, endOff))
+  return await linkPreviewWith(norm, range, docDir)
+}
 
-    const raw = nodeRaw(node, docText)
-    const dest = node.url as string | undefined
-    if (typeof dest !== 'string') continue
+async function linkPreviewWith(norm: ReturnType<typeof normalizeUrl>, range: any, docDir: string | undefined): Promise<Hover | null> {
+  const parts: string[] = []
+  parts.push(`Path: ${code(norm.display)}`)
 
-    const urlRange = findUrlRangeInNodeRaw(raw, s.offset, dest)
-    if (!urlRange) continue
-    const [innerStartOff, innerEndOff] = urlRange
-
-    if (absPos < innerStartOff || absPos > innerEndOff) continue
-
-    const url = docText.slice(innerStartOff, innerEndOff)
-    const norm = normalizeUrl(url, docDir)
-
-    const range = LspRange.create(
-      offsetToPosition(docText, innerStartOff),
-      offsetToPosition(docText, innerEndOff)
-    )
-    const parts: string[] = []
-    parts.push(`Path: ${code(norm.display)}`)
-
-    if (norm.kind === 'remote') {
-      parts.push("No preview: remote URL")
-      return {
-        contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
-        range
-      }
-    }
-
-    // Glob hover: list a truncated set of matches
-    if (hasGlobChars(norm.fsPath)) {
-      const { matches, truncated, total } = await listGlobMatches(norm.fsPath, docDir, 20)
-      if (matches.length === 0) {
-        parts.push("No preview: no matches for glob")
-      } else {
-        const list = matches.map(m => `- ${m}`).join("\n")
-        const header = truncated ? `Matches (${total} matches, truncated):` : "Matches:"
-        parts.push(`${header}\n\n${list}`)
-      }
-      return {
-        contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
-        range
-      }
-    }
-
-    const exists = await pathExists(norm.fsPath)
-    if (!exists) {
-      parts.push("No preview: file not found")
-      return {
-        contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
-        range
-      }
-    }
-
-    try {
-      const st = await stat(norm.fsPath)
-      if (st.isDirectory()) {
-        parts.push("No preview: directory")
-        return {
-          contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
-          range
-        }
-      }
-    } catch {
-      // ignore stat errors; fall through to preview logic
-    }
-
-    const preview = await readHeadPreview(norm.fsPath)
-    if (preview == null) {
-      parts.push("No preview: non-text or unreadable")
-      return {
-        contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
-        range
-      }
-    }
-    if (preview.length === 0) {
-      parts.push("No preview: empty file")
-      return {
-        contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
-        range
-      }
-    }
-
-    const fenced = codeFence(preview)
-    parts.push(fenced)
-
+  if (norm.kind === 'remote') {
+    parts.push("No preview: remote URL")
     return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: parts.join("\n\n")
-      },
+      contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
       range
     }
   }
-  return null
+
+  // Glob hover: list a truncated set of matches
+  if (hasGlobChars(norm.fsPath)) {
+    const { matches, truncated, total } = await listGlobMatches(norm.fsPath, docDir, 20)
+    if (matches.length === 0) {
+      parts.push("No preview: no matches for glob")
+    } else {
+      const list = matches.map(m => `- ${m}`).join("\n")
+      const header = truncated ? `Matches (${total} matches, truncated):` : "Matches:"
+      parts.push(`${header}\n\n${list}`)
+    }
+    return {
+      contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
+      range
+    }
+  }
+
+  const exists = await pathExists(norm.fsPath)
+  if (!exists) {
+    parts.push("No preview: file not found")
+    return {
+      contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
+      range
+    }
+  }
+
+  try {
+    const st = await stat(norm.fsPath)
+    if (st.isDirectory()) {
+      parts.push("No preview: directory")
+      return {
+        contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
+        range
+      }
+    }
+  } catch {
+    // ignore stat errors; fall through to preview logic
+  }
+
+  const preview = await readHeadPreview(norm.fsPath)
+  if (preview == null) {
+    parts.push("No preview: non-text or unreadable")
+    return {
+      contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
+      range
+    }
+  }
+  if (preview.length === 0) {
+    parts.push("No preview: empty file")
+    return {
+      contents: { kind: MarkupKind.Markdown, value: parts.join("\n\n") },
+      range
+    }
+  }
+
+  const fenced = codeFence(preview)
+  parts.push(fenced)
+
+  return {
+    contents: {
+      kind: MarkupKind.Markdown,
+      value: parts.join("\n\n")
+    },
+    range
+  }
 }
 
 function code(s: string) { return "`" + s.replace(/`/g, "\u200b`") + "`" }

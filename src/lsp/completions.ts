@@ -2,15 +2,17 @@ import type { CompletionItem, CompletionParams, TextEdit } from "vscode-language
 import { CompletionItemKind, InsertTextFormat, Range as RangeNS } from "vscode-languageserver/node"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { buildInterlocutorIndex, previewInterlocutor } from "./interlocutorIndex"
-import { directiveAtPosition, findSingleColonStart, computeReplaceRange } from "./directives"
+import { directiveAtPositionFromBundle, findSingleColonStart, computeReplaceRange } from "./directives"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { mergedHeaderSpecForDoc } from "../parsing/parse"
+import type { AnalysisBundle } from "./analysisTypes"
 
 export async function computeCompletions(
   _uri: string,
   docText: string,
   pos: CompletionParams["position"],
-  docDir: string | undefined
+  docDir: string | undefined,
+  bundle?: AnalysisBundle
 ): Promise<CompletionItem[] | null> {
   const lineText = docText.split(/\r?\n/)[pos.line] ?? ""
   const colonStart = findSingleColonStart(lineText, pos.character)
@@ -18,7 +20,7 @@ export async function computeCompletions(
   const items: CompletionItem[] = []
 
   // 1) Inside :ask[...]/:aside[...]/:macro[...]
-  const dctx = directiveAtPosition(docText, pos)
+  const dctx = bundle ? directiveAtPositionFromBundle(docText, pos, bundle) : null
   if (dctx && dctx.insideBrackets && (dctx.key === "ask" || dctx.key === "aside" || dctx.key === "macro")) {
     const spec = await mergedHeaderSpecForDoc(docText, docDir)
     if (!isLecticHeaderSpec(spec)) return items
@@ -105,7 +107,7 @@ export async function computeCompletions(
       documentation: d.documentation,
       insertTextFormat: InsertTextFormat.Snippet,
       textEdit,
-      command: triggerSuggest as any
+      command: triggerSuggest
     })
   }
 

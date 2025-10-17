@@ -1,6 +1,6 @@
 import type { Position } from "vscode-languageserver"
-import { parseReferences, nodeRaw } from "../parsing/markdown"
 import { positionToOffset } from "./positions"
+import type { AnalysisBundle } from "./analysisTypes"
 
 export function findUrlRangeInNodeRaw(
   raw: string,
@@ -31,28 +31,16 @@ export function findUrlRangeInNodeRaw(
   return [start, start + endIdx]
 }
 
-export function linkTargetAtPosition(
+export function linkTargetAtPositionFromBundle(
   docText: string,
-  pos: Position
+  pos: Position,
+  bundle: AnalysisBundle
 ): { url: string, startOff: number, endOff: number } | null {
-  const refs = parseReferences(docText)
   const absPos = positionToOffset(docText, pos)
-
-  for (const node of refs) {
-    const s = node.position?.start
-    const e = node.position?.end
-    if (!s || !e || s.offset == null || e.offset == null) continue
-
-    const dest = node.url
-
-    const raw = nodeRaw(node, docText)
-    const rng = findUrlRangeInNodeRaw(raw, s.offset, dest)
-    if (!rng) continue
-    const [startOff, endOff] = rng
-
-    if (absPos < startOff || absPos > endOff) continue
-
-    return { url: dest, startOff, endOff }
+  for (const L of bundle.links) {
+    if (absPos < L.urlStart || absPos > L.urlEnd) continue
+    const url = docText.slice(L.urlStart, L.urlEnd)
+    return { url, startOff: L.urlStart, endOff: L.urlEnd }
   }
   return null
 }

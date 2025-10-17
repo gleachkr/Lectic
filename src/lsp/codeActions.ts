@@ -1,20 +1,21 @@
 import type { CodeAction, CodeActionKind, CodeActionParams, Range, TextEdit } from "vscode-languageserver"
 import { CodeActionKind as LspCodeActionKind, Range as LspRange } from "vscode-languageserver/node"
-import { linkTargetAtPosition } from "./linkTargets"
-import { directiveAtPosition } from "./directives"
+import { linkTargetAtPositionFromBundle } from "./linkTargets"
+import { directiveAtPositionFromBundle } from "./directives"
 import { positionToOffset, offsetToPosition } from "./positions"
 import { mergedHeaderSpecForDoc } from "../parsing/parse"
 import { expandEnv } from "../utils/replace"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { buildInterlocutorIndex } from "./interlocutorIndex"
+import type { AnalysisBundle } from "./analysisTypes"
 
 function codeAction(kind: CodeActionKind, title: string, edits: TextEdit[], uri: string): CodeAction {
   return { title, kind, edit: { changes: { [uri]: edits } } }
 }
 
-function findLinkAtPosition(docText: string, posOff: number): { range: Range, text: string } | null {
+function findLinkAtPosition(docText: string, posOff: number, bundle: AnalysisBundle): { range: Range, text: string } | null {
   const pos = offsetToPosition(docText, posOff)
-  const hit = linkTargetAtPosition(docText, pos)
+  const hit = linkTargetAtPositionFromBundle(docText, pos, bundle)
   if (!hit) return null
   return {
     range: LspRange.create(
@@ -103,7 +104,8 @@ export async function computeCodeActions(
   uri: string,
   docText: string,
   params: CodeActionParams,
-  docDir: string | undefined
+  docDir: string | undefined,
+  bundle: AnalysisBundle
 ): Promise<CodeAction[] | null> {
   const out: CodeAction[] = []
   const posOff = positionToOffset(docText, params.range.start)
@@ -141,7 +143,7 @@ export async function computeCodeActions(
   }
 
   // 1) Link quick fixes
-  const link = findLinkAtPosition(docText, posOff)
+  const link = findLinkAtPosition(docText, posOff, bundle)
   if (link) {
     const fixed = toFixFileUrl(link.text, docDir)
     if (fixed) {
@@ -166,7 +168,7 @@ export async function computeCodeActions(
 
   // 2) Unknown :ask/:aside closest‑match replacement
   try {
-    const dctx = directiveAtPosition(docText, params.range.start)
+    const dctx = directiveAtPositionFromBundle(docText, params.range.start, bundle)
     if (dctx && dctx.insideBrackets && (dctx.key === 'ask' || dctx.key === 'aside')) {
       const current = dctx.innerText.trim()
       if (current.length > 0) {

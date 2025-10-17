@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import { buildDocumentSymbols } from "./symbols"
+import { buildTestBundle } from "./testHelpers"
 
 function namesOf(ds: any[]): string[] {
   const out: string[] = []
@@ -13,7 +14,7 @@ function namesOf(ds: any[]): string[] {
 describe("document symbols (unit)", () => {
   test("header groups and body blocks", () => {
     const text = `---\ninterlocutors:\n  - name: Oggle\n    prompt: hi\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\nSome user text.\n\n:::Oggle\nHello.\n:::\n\nMore user text.\n\n:::Oggle\nBye.\n:::\n`
-    const symbols = buildDocumentSymbols(text)
+    const symbols = buildDocumentSymbols(text, buildTestBundle(text))
     const allNames = namesOf(symbols)
 
     // Top-level groups

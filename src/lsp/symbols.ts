@@ -2,8 +2,8 @@ import type { DocumentSymbol, Range } from "vscode-languageserver"
 import { Range as LspRange, SymbolKind as LspSymbolKind } from "vscode-languageserver/node"
 import { buildHeaderRangeIndex } from "./yamlRanges"
 import { getBody } from "../parsing/parse"
-import { parseBlocks } from "../parsing/markdown"
 import { offsetToPosition, positionToOffset } from "./positions"
+import type { AnalysisBundle } from "./analysisTypes"
 
 function rangeContains(a: Range, b: Range): boolean {
   const aStart = a.start
@@ -64,7 +64,7 @@ function trimBlankSpan(text: string, fromOff: number, toOff: number): [number, n
   return [s, e]
 }
 
-export function buildDocumentSymbols(docText: string): DocumentSymbol[] {
+export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): DocumentSymbol[] {
   const out: DocumentSymbol[] = []
 
   // Header groups from YAML ranges
@@ -124,26 +124,17 @@ export function buildDocumentSymbols(docText: string): DocumentSymbol[] {
   // Body groups (assistant containers and user chunks)
   const body = getBody(docText)
   const bodyStartOff = docText.length - body.length
-  const blocks = parseBlocks(body)
   type Seg = { name: string, start: number, end: number }
   const assistants: Seg[] = []
 
-  for (const node of blocks as any[]) {
-    if (node.type === "containerDirective" && typeof node.name === "string") {
-      const s = node.position?.start?.offset
-      const e = node.position?.end?.offset
-      if (typeof s === "number" && typeof e === "number") {
-        assistants.push({ name: String(node.name), start: bodyStartOff + s, end: bodyStartOff + e })
-      }
-    }
+  for (const b of bundle.blocks) {
+    if (b.kind === 'assistant') assistants.push({ name: b.name ?? 'Assistant', start: b.absStart, end: b.absEnd })
   }
 
-  // Sort by start just in case
   assistants.sort((a, b) => a.start - b.start)
 
   const bodyChildren: DocumentSymbol[] = []
 
-  // Interleave user chunks and assistant blocks in document order
   let cursor = hdr ? positionToOffset(docText, hdr.headerFullRange.end) : 0
   if (cursor < bodyStartOff) cursor = bodyStartOff
 
