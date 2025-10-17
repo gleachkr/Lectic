@@ -8,4 +8,8 @@ export type Backend = {
 
     provider : LLMProvider,
 
+    // List available model identifiers for this backend/provider.
+    // Implementations should use the provider SDK (no direct fetch).
+    // May return an empty list when unsupported (e.g., Bedrock for now).
+    listModels(): Promise<string[]>,
 }

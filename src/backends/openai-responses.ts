@@ -299,6 +299,17 @@ export class OpenAIResponsesBackend implements Backend {
         this.url = opt.url
     }
 
+    async listModels(): Promise<string[]> {
+        try {
+            const ids: string[] = []
+            const page = await this.client.models.list()
+            for await (const m of page) ids.push(m.id)
+            return ids
+        } catch (_e) {
+            return []
+        }
+    }
+
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
         const messages : OpenAI.Responses.ResponseInput = []
@@ -309,7 +320,7 @@ export class OpenAIResponsesBackend implements Backend {
 
         Logger.debug("openai - messages", messages)
 
-        lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
+        lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? "gpt-5"
 
         let stream = this.client.responses.stream({
             instructions: systemPrompt(lectic),

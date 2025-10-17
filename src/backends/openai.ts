@@ -294,6 +294,17 @@ export class OpenAIBackend implements Backend {
         this.url = opt.url
     }
 
+    async listModels(): Promise<string[]> {
+        try {
+            const ids: string[] = []
+            const page = await this.client.models.list()
+            for await (const m of page) ids.push(m.id)
+            return ids
+        } catch (_e) {
+            return []
+        }
+    }
+
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
         const messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
@@ -331,6 +342,7 @@ export class OpenAIBackend implements Backend {
         if (msg.tool_calls) {
             yield* handleToolUse(msg, messages, lectic, this.client);
         } 
+
     }
 
     get client() { 

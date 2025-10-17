@@ -1,4 +1,4 @@
-import type { Content, Part, Schema, ContentListUnion, Candidate } from '@google/genai'
+import type { Content, Part, Schema, ContentListUnion, Candidate, Model, Pager } from '@google/genai'
 import type * as Gemini from '@google/genai' 
 import { GoogleGenAI, Type, GenerateContentResponse } from '@google/genai'
 import type { Message } from "../types/message"
@@ -389,6 +389,21 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
 
 export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
+    async listModels(): Promise<string[]> {
+      try {
+        const pager: Pager<Model> = await this.client.models.list()
+        const ids: string[] = []
+        for await (const m of pager) {
+            if (m.name && m.supportedActions?.includes("generateContent")) {
+                ids.push(m.name.match(/models\/(.*)/)?.[1] || m.name)
+            }
+        }
+        return ids
+      } catch (_e) {
+        return []
+      }
+    },
+
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
       const messages : Content[] = []
@@ -413,6 +428,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       } else {
           Logger.debug("gemini - reply", { accumulatedResponse })
       }
+
     },
 
     provider : LLMProvider.Gemini,

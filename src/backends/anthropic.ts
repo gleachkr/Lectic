@@ -323,6 +323,17 @@ async function* handleToolUse(
 
 export const AnthropicBackend : Backend & { client : Anthropic } = {
 
+    async listModels(): Promise<string[]> {
+        try {
+            const page = await this.client.models.list()
+            const ids: string[] = []
+            for await (const m of page) ids.push(m.id)
+            return ids
+        } catch (_e) {
+            return []
+        }
+    },
+
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
         const messages : Anthropic.Messages.MessageParam[] = []
@@ -372,6 +383,12 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
 }
 
 export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } = {
+
+    async listModels(): Promise<string[]> {
+        // Bedrock model enumeration via Anthropic SDK is not supported
+        // here. Return an empty list for now.
+        return []
+    },
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
