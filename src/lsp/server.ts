@@ -49,8 +49,12 @@ class DocumentAnalyzer {
 
   private ensureWorker() {
     if (this.worker) return
-    // Bun quirk: path needs to be relative to the src root
-    this.worker = new Worker('./lsp/parserWorker.ts')
+    // Resolve worker URL relative to this module; check if we're in production
+    // to work around inconsistency with bun worker path resolution
+    const workerUrl = process.env.NODE_ENV === "production" 
+        ? "./lsp/parserWorker.ts"
+        : new URL('./parserWorker.ts', import.meta.url).href
+    this.worker = new Worker(workerUrl)
 
     this.worker.addEventListener('message', (ev: MessageEvent<FoldResult | DiagnosticsResult>) => {
       const m = ev.data

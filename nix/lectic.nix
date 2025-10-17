@@ -12,7 +12,9 @@ stdenv.mkDerivation {
   buildPhase = ''
   runHook preBuild
 
-  bun build src/main.ts src/lsp/parserWorker.ts --compile --minify --sourcemap --outfile lectic
+  bun build src/main.ts src/lsp/parserWorker.ts \
+    --define process.env.NODE_ENV="'production'" \
+    --compile --minify --sourcemap --outfile lectic
 
   runHook postBuild
   '';

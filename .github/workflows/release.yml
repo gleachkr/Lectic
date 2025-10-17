@@ -68,8 +68,12 @@ jobs:
         run: bun install
 
       - name: Build application
-        run: bun build --compile --outfile "lectic-$TAG_NAME-macos-$ARCH.bin" src/main.ts
-
+        run: >
+          bun build 
+          --compile 
+          --outfile "lectic-$TAG_NAME-macos-$ARCH.bin" 
+          --define process.env.NODE_ENV="'production'" 
+          src/main.ts src/lsp/parserWorker.ts
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
