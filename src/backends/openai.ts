@@ -6,8 +6,8 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { serializeCall, ToolCallResults,  type ToolCallResult } from "../types/tool"
-import { systemPrompt, pdfFragment, emitAssistantMessageEvent } from './common.ts'
+import { serializeCall, ToolCallResults } from "../types/tool"
+import { systemPrompt, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
 
 
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
@@ -68,43 +68,28 @@ async function *handleToolUse(
             content: message.content
         })
 
-        const tool_calls : Promise<OpenAI.ChatCompletionToolMessageParam & 
-            { content: ToolCallResult[] }>[] = message.tool_calls
-            .map(async call => {
-                const tool_call_id = call.id
-                const role = "tool" as const
-                if (recur > max_tool_use) {
-                    return {
-                        role, tool_call_id,
-                        content: ToolCallResults(
-                            "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>")
-                    }
-                } else if (call.type === "function" && call.function.name in registry) {
-                    return registry[call.function.name].call(JSON.parse(call.function.arguments))
-                        .then(content => ({
-                            role, tool_call_id, content
-                            
-                        })).catch((error : unknown) => ({
-                            role, tool_call_id,
-                            content: error instanceof Error
-                                ? ToolCallResults(`<error>An error occurred: ${error.message}</error>`)
-                                : ToolCallResults(`<error>An error of unknown type occured during a call to: ${call.function.name}</error>`)
-                        }))
-                } else {
-                    return { role, tool_call_id,
-                        content: call.type === "function" 
-                            ? ToolCallResults(`<error>Unrecognized tool name ${call.function.name}</error>`)
-                            : ToolCallResults(`<error>Unrecognized tool. non-function custom tools are not currently supported.</error>`)
-                    }
-                }
+        const entries = (message.tool_calls ?? [])
+            .filter(call => call.type === "function")
+            .map(call => {
+                let args: unknown
+                try { args = JSON.parse(call.function.arguments) } catch { args = undefined }
+                return { id: call.id, name: call.function.name, args }
             })
-
-        // run tool calls in parallel
-        const tool_call_results = await Promise.all(tool_calls)
+        const realizedFunction = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
+        const realizedUnsupported = (message.tool_calls ?? [])
+            .filter(call => call.type !== "function")
+            .map(call => ({
+                name: call.type,
+                args: {},
+                id: call.id,
+                isError: true,
+                results: ToolCallResults("<error>Unrecognized tool. non-function custom tools are not currently supported.</error>")
+            }))
+        const realized = [ ...realizedFunction, ...realizedUnsupported ]
 
         for (const call of message.tool_calls) {
-            const result = tool_call_results.find(result => result.tool_call_id === call.id)
-            if (result && call.type === "function") {
+            const realizedCall = realized.find(c => c.id === call.id)
+            if (realizedCall && call.type === "function") {
                 const theTool = call.function.name in registry 
                     ? registry[call.function.name] 
                     : null
@@ -112,10 +97,16 @@ async function *handleToolUse(
                     name: call.function.name,
                     args: JSON.parse(call.function.arguments), 
                     id: call.id,
-                    results: result.content
+                    isError: realizedCall.isError,
+                    results: realizedCall.results
                 })
                 yield "\n\n"
-                messages.push(result)
+                // also push provider tool result message so the model can continue
+                messages.push({
+                    role: "tool",
+                    tool_call_id: call.id,
+                    content: realizedCall.results.map(r => ({ type: "text" as const, text: r.toBlock().text }))
+                })
             }
         }
 
@@ -220,7 +211,7 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
             })
 
             for (const call of interaction.calls) {
-                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.results})
+                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.results.map(r => ({ type: "text" as const, text: r.toBlock().text }))})
             }
         }
         return results

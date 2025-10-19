@@ -134,6 +134,6 @@ export class SQLiteTool extends Tool {
             }
         })
         processStatements(parsed.statements)
-        return ToolCallResults(rslts)
+        return ToolCallResults(rslts, "text/yaml")
     }
 }

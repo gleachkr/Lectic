@@ -1,6 +1,9 @@
 import { PDFDocument } from 'pdf-lib';
 import type { Lectic } from "../types/lectic"
 import { Hook } from "../types/hook"
+import type { Tool } from "../types/tool"
+import type { ToolCall } from "../types/tool"
+import { ToolCallResults } from "../types/tool"
 
 export function wrapText({text, name} : { text : string, name: string}) {
     return `<speaker name="${name}">${text}</speaker>`
@@ -72,4 +75,50 @@ export function emitAssistantMessageEvent(text : string | undefined | null, name
             LECTIC_INTERLOCUTOR: name
         })
     }
+}
+
+export type ToolRegistry = Record<string, Tool>
+
+function isRecord(x: unknown): x is Record<string, any> {
+    return typeof x === 'object' && x !== null && !Array.isArray(x)
+}
+
+export type ToolCallEntry = { id?: string, name: string, args: unknown }
+
+export async function resolveToolCalls(
+    entries: ToolCallEntry[],
+    registry: ToolRegistry,
+    opt?: { limitExceeded?: boolean }
+): Promise<ToolCall[]> {
+    const limitMsg = "Tool usage limit exceeded, no further tool calls will be allowed"
+    const invalidArgsMsg = "The tool input isn't the right type. Tool inputs need to be returned as objects."
+    const results: ToolCall[] = []
+    for (const e of entries) {
+        const id = e.id
+        const name = e.name
+        if (opt?.limitExceeded) {
+            const args = isRecord(e.args) ? e.args : {}
+            results.push({ name, args, id, isError: true, results: ToolCallResults(limitMsg) })
+            continue
+        }
+        if (!isRecord(e.args)) {
+            results.push({ name, args: {}, id, isError: true, results: ToolCallResults(invalidArgsMsg) })
+            continue
+        }
+        if (name in registry) {
+            try {
+                const args = e.args
+                const r = await registry[name].call(args)
+                results.push({ name, args, id, isError: false, results: r })
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : `An error of unknown type occurred during a call to ${name}`
+                const args = e.args
+                results.push({ name, args, id, isError: true, results: ToolCallResults(msg) })
+            }
+        } else {
+            const args = e.args
+            results.push({ name, args, id, isError: true, results: ToolCallResults(`Unrecognized tool name: ${name}`) })
+        }
+    }
+    return results
 }

@@ -215,7 +215,7 @@ export class MCPTool extends Tool {
         let results = []
         for (const block of content) {
             if (isTextContent(block)) {
-                results.push({ type: "text" as const, text: block.text })
+                results.push(...ToolCallResults(block.text))
             } else {
                 throw Error(`MCP only supports text responses right now. Got ${JSON.stringify(content)}`)
             }

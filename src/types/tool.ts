@@ -2,11 +2,47 @@ import { unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xm
 import { serialize, deserialize, validateAgainstSchema } from "./schema.ts"
 import type { JSONSchema } from "./schema.ts"
 
-export type ToolCallResult = ToolCallResultText
+export class ToolCallResult {
+    mimetype: string
+    content: string
+    constructor(content: string, mimetype?: string ) {
+        this.mimetype = mimetype ?? "text/plain"
+        this.content = content
+    }
 
-export type ToolCallResultText = {
-    type : "text",
-    text : string
+    get type(): "text" { return "text" }
+    get text(): string { return this.content }
+
+    // Serialize this result to a <result> XML element
+    toXml(): string {
+        if (/^(text|application)\//.test(this.mimetype)) {
+            return `<result type="${this.mimetype}">${escapeTags(this.content)}</result>`
+        }
+        throw Error(`Unrecognized result mimetype: ${this.mimetype}`)
+    }
+
+    toBlock(): { type: "text", text: string, toString: () => string } { 
+        const text = this.content
+        return { type: "text" as const, text, toString: () => text }
+    }
+
+    // Build a result from a <result> XML element
+    static fromXml(xml: string): ToolCallResult {
+        const match = resultRegex.exec(xml.trim())
+        if (!match) throw Error(`Couldn't deserialize ${xml} as tool call result`)
+        const [, mimetype, content] = match
+        if (/^(text|application)\//.test(mimetype)) {
+            return new ToolCallResult(unescapeTags(content), mimetype)
+        }
+        throw Error(`Unrecognized mimetype ${mimetype} in tool call result deserialization`)
+    }
+
+    // Convenience: build one or many results from string(s)
+    static fromStrings(s: string | string[], mimetype?: string): ToolCallResult[] {
+        mimetype = mimetype ?? "text/plain"
+        const mk = (content: string) => new ToolCallResult(content, mimetype)
+        return typeof s === "string" ? [mk(s)] : s.map(mk)
+    }
 }
 
 export abstract class Tool {
@@ -41,33 +77,12 @@ export type ToolCall = {
     isError? : boolean
 }
 
-export function ToolCallResults(s : string | string[]) : ToolCallResult[] {
-    if (typeof s === "string") {
-        return [{ type: "text", text: s}]
-    } else {
-        return s.map(text => ({ type: "text", text}))
-    }
+// Backwards-compatible helper; prefer ToolCallResult.fromStrings
+export function ToolCallResults(s : string | string[], mimetype? : string) : ToolCallResult[] {
+    return ToolCallResult.fromStrings(s, mimetype)
 }
 
 const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
-
-function serializeResult(result : ToolCallResult) : string {
-    if (result.type === "text") {
-        return `<result type="text">${escapeTags(result.text)}</result>`
-    } else {
-        throw Error(`Unreachable code: unrecognized result type: ${result.type}`)
-    }
-}
-
-function deserializeResult(xml : string) : ToolCallResult  {
-    const match = resultRegex.exec(xml.trim())
-    if (!match) throw Error(`Couldn't deserialize ${xml} as tool call result`)
-    const [,type,content] = match
-    if (type === "text") {
-        return { type, text: unescapeTags(content) } 
-    }
-    throw Error(`Unrecognized type in tool call result deserialization`)
-}
 
 export function serializeCall(tool: Tool | null, {name, args, results, id, isError} : ToolCall) : string {
     let values = [] 
@@ -90,7 +105,7 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
 
     return `<tool-call with="${name}"${idstring}${errorstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
-        `<results>${results.map(serializeResult).join("\n")}</results>\n` +
+        `<results>${results.map(r => r.toXml()).join("\n")}</results>\n` +
     `</tool-call>`
 }
 
@@ -119,7 +134,7 @@ export function deserializeCall(tool: Tool | null, serialized : string)
     const resultsArray = extractElements(unwrap(results, "results"))
 
     const isError = isErrorStr === "true" ? true : isErrorStr === "false" ? false : undefined
-    return { name, args, results : resultsArray.map(deserializeResult), id, isError }
+    return { name, args, results : resultsArray.map(ToolCallResult.fromXml), id, isError }
 }
 
 export function getSerializedCallName(call : string) : string | null {
@@ -131,4 +146,3 @@ export function isSerializedCall(call : string) : boolean {
     const result = toolCallRegex.test(call.trim())
     return result
 }
-

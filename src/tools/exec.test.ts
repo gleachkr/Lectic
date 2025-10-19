@@ -1,9 +1,10 @@
 import { describe, it, expect } from "bun:test";
 import { ExecTool } from "./exec";
+import { ToolCallResult } from "../types/tool";
 import * as fs from "fs";
 
-function texts(results: { type: "text"; text: string }[]) {
-  return results.map((r) => r.text);
+function texts(results: ToolCallResult[]) {
+  return results.map((r) => r.toBlock());
 }
 
 describe("ExecTool (async)", () => {

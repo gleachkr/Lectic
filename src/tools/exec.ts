@@ -200,7 +200,7 @@ export class ExecTool extends Tool {
             if (collected.stdout.length > 0) results.push(`<stdout>${collected.stdout}</stdout>`)
             if (collected.stderr.length > 0) results.push(`<stderr>${collected.stderr}</stderr>`)
             if (code !== 0) results.push(`<exitCode>${code}</exitCode>`)
-            return ToolCallResults(results)
+            return ToolCallResults(results, "application/xml")
         } catch (e) {
             if (e instanceof TimeoutError) {
                 // Surface stdout/stderr along with a timeout error indicator.

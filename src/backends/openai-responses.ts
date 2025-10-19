@@ -6,8 +6,8 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { serializeCall, ToolCallResults } from "../types/tool"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent } from './common.ts'
+import { serializeCall } from "../types/tool"
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const tools : OpenAI.Responses.Tool[] = []
@@ -73,66 +73,43 @@ async function *handleToolUse(
             return
         }
 
-
-        const tool_calls : Promise<OpenAI.Responses.ResponseInputItem.FunctionCallOutput>[] = message.output
-            .filter(output => output.type == "function_call")
-            .map(async output => {
-                if ("parsed_arguments" in output) {
-                    // junk data, possibly left over from streaming.
-                    //
-                    // Prevents the API from working properly
-                    delete output.parsed_arguments
-                }
-                const call_id = output.call_id
-                const type = "function_call_output" as const
-                if (recur > max_tool_use) {
-                    return {
-                        type, call_id,
-                        output: JSON.stringify(ToolCallResults(
-                            "<error>Tool usage limit exceeded, no further tool calls will be allowed</error>"))
-                    }
-                } else if (output.name in registry) {
-                     // TODO error handling
-                    return registry[output.name].call(JSON.parse(output.arguments))
-                        .then(result => ({
-                            type, call_id,
-                            output: JSON.stringify(result)
-                        }))
-                        .catch((error : unknown) => ({
-                                type, call_id,
-                                output: error instanceof Error 
-                                    ? JSON.stringify(ToolCallResults(
-                                        `<error>An error occurred: ${error.message}</error>`))
-                                    : JSON.stringify(ToolCallResults(
-                                        `<error>An error of unknown type occurred during a call to ${output.name}</error>`))
-                        }))
-                } else {
-                    return {
-                        type, call_id,
-                        output: JSON.stringify(ToolCallResults(`<error>Unrecognized tool name ${output.name}</error>`))
-                    }
-                }
-            })
-
-        // run tool calls in parallel
-        const tool_call_results = await Promise.all(tool_calls)
-
+        // Clean streaming leftovers that break the API
         for (const output of message.output) {
+            if (output.type === "function_call" && 'parsed_arguments' in output) {
+                delete output.parsed_arguments
+            }
+        }
 
-            messages.push(output)
+        // Resolve calls to ToolCall[]
+        const entries = message.output
+            .filter((o) => o.type === 'function_call')
+            .map((o: any) => {
+                let args: unknown
+                try { args = JSON.parse(o.arguments) } catch { args = undefined }
+                return { id: o.call_id, name: o.name, args }
+            })
+        const realized = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
 
-            if (output.type === "function_call") {
-                const result = tool_call_results.find(result => result.call_id === output.call_id)
-                if (result) {
-                    const theTool = output.name in registry ? registry[output.name] : null
+        // Emit transcript and build provider outputs
+        for (const o of message.output) {
+            messages.push(o)
+            if (o.type === 'function_call') {
+                const call = realized.find(c => c.id === o.call_id && c.name === o.name)
+                if (call) {
+                    const theTool = o.name in registry ? registry[o.name] : null
                     yield serializeCall(theTool, {
-                        name: output.name,
-                        args: JSON.parse(output.arguments), 
-                        id: output.call_id,
-                        results: JSON.parse(result.output)
+                        name: o.name,
+                        args: call.args,
+                        id: o.call_id,
+                        isError: call.isError,
+                        results: call.results
                     })
                     yield "\n\n"
-                    messages.push(result)
+                    messages.push({
+                        type: 'function_call_output',
+                        call_id: o.call_id,
+                        output: JSON.stringify(call.results)
+                    })
                 }
             }
         }

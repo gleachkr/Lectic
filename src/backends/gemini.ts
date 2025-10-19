@@ -4,13 +4,13 @@ import { GoogleGenAI, Type, GenerateContentResponse } from '@google/genai'
 import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import type { JSONSchema } from "../types/schema"
-import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
+import { serializeCall, type ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
 
 // Extract concatenated assistant text from a Gemini response.
 export function geminiAssistantText(
@@ -177,58 +177,34 @@ async function *handleToolUse(
             parts: response.candidates?.[0].content?.parts
         })
 
-        const results : Promise<FunctionResponse>[] = calls.map(async call => {
-            const name = call.name ?? "Name is required, should never occur"
-            call.id = call.id ?? Bun.randomUUIDv7()
-            const id = call.id
-            if (recur > max_tool_use) {
-                return {
-                    functionResponse: { name, id,
-                        response: { 
-                            error: ToolCallResults(
-                                "Tool usage limit exceeded, no further tool calls will be allowed"
-                        )}}}
-            } else if (call.name && call.name in registry) {
-                return registry[call.name].call(call.args)
-                    .then(results => ({
-                        functionResponse: { name, id,
-                            response: { output: results }
-                    }})).catch((error : unknown) => ({
-                        functionResponse: { name, id,
-                            response: { error: error instanceof Error
-                                ? ToolCallResults(error.message)
-                                : ToolCallResults(`An error of unknown type occurred during a call to ${name}`),
-                            }
-                    }}))
-            } else {
-                return {
-                    functionResponse: { name, id,
-                        response: { error: ToolCallResults(`Unrecognized tool name: ${name}`),
-                    }}
-                }
+        // Normalize missing id
+        for (const call of calls) call.id = call.id ?? Bun.randomUUIDv7()
+
+        // Resolve via shared helper
+        const entries = calls.map(call => ({ id: call.id, name: call.name ?? "", args: call.args }))
+        const realized = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
+
+        // Convert to provider FunctionResponse parts
+        const parts: FunctionResponse[] = realized.map(call => ({
+            functionResponse: {
+                id: call.id ?? "",
+                name: call.name,
+                response: call.isError
+                    ? { error: call.results }
+                    : { output: call.results }
             }
-
-        })
-
-        // run tool calls in parallel
-        const parts = await Promise.all(results)
+        }))
 
         // yield results
-        for (const part of parts) {
-            const call = calls.find(call => call.id === part.functionResponse.id)
-            const name = part.functionResponse.name
-            if (call && call.args instanceof Object) {
-                 const theTool = name in registry ? registry[name] : null
-                 yield serializeCall(theTool, {
-                     name: name,
-                     args: call.args, 
-                     id: call.id,
-                     isError : "error" in part.functionResponse.response,
-                     results : part.functionResponse.response.output 
-                         ?? part.functionResponse.response.error 
-                         ?? [] // to make the typechecker happy
-                 }) + "\n\n"
-            }
+        for (const call of realized) {
+            const theTool = call.name in registry ? registry[call.name] : null
+            yield serializeCall(theTool, {
+                name: call.name,
+                args: call.args,
+                id: call.id,
+                isError: call.isError,
+                results: call.results
+            }) + "\n\n"
         }
 
         messages.push({ role: "user", parts })

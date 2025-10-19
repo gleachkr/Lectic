@@ -2,13 +2,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { AnthropicBedrock } from '@anthropic-ai/bedrock-sdk';
 import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
+import { serializeCall } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent } from "./common.ts"
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from "./common.ts"
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
 // server tool use blocks begin (to preserve formatting semantics).
@@ -117,7 +117,7 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
                     userParts.push({
                         type : "tool_result",
                         tool_use_id : call_id,
-                        content: [ ...call.results ],
+                        content: call.results.map(r => ({ type: "text" as const, text: r.toBlock().text })),
                         is_error: call.isError,
                     })
                 }
@@ -237,58 +237,29 @@ async function* handleToolUse(
         })
 
         const tool_uses = message.content.filter(block => block.type == "tool_use")
-        const results: Promise<Anthropic.Messages.ToolResultBlockParam & {content: ToolCallResult[]} >[] = 
-            tool_uses.map(async block => {
-                const type = "tool_result" as const
-                const tool_use_id = block.id
-                const is_error = true
-                if (recur > max_tool_use) {
-                    return {
-                        type, tool_use_id, is_error,
-                        content: ToolCallResults("Tool usage limit exceeded, no further tool calls will be allowed"),
-                    }
-                } else if (!(block.input instanceof Object)) {
-                    return {
-                        type, tool_use_id, is_error,
-                        content: ToolCallResults("The tool input isn't the right type. Tool inputs need to be returned as objects."),
-                    }
-                } else if (block.name in registry) {
-                    return registry[block.name].call(block.input)
-                        .then(results => ({
-                            type, tool_use_id,
-                            content: results,
-                            is_error: false,
-                        })).catch((error : unknown) => ({
-                            type, tool_use_id, is_error,
-                            content: error instanceof Error 
-                                ? ToolCallResults(error.message)
-                                : ToolCallResults(`An error of unknown type occurred during a call to ${block.name}`),
-                        }))
-                } else {
-                    return {
-                        type, tool_use_id, is_error,
-                        content: ToolCallResults(`Unrecognized tool name: ${block.name}`),
-                    }
-                }
-            })
+        const entries = tool_uses.map(block => ({ id: block.id, name: block.name, args: block.input }))
+        const realized = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
 
-        // run tool calls in parallel
-        const content = await Promise.all(results)
+        // convert to anthropic blocks for the API
+        const content: Anthropic.Messages.ToolResultBlockParam[] = realized.map(call => ({
+            type: "tool_result" as const,
+            tool_use_id: call.id ?? "",
+            is_error: call.isError,
+            content: call.results.map(r => ({ type: "text" as const, text: r.toBlock().text }))
+        }))
 
-        // yield results
-        for (const result of content) {
-            if (result.content) {
-                const block = tool_uses.find(block => block.id === result.tool_use_id)
-                if (block && block.input instanceof Object) {
-                     const theTool = block.name in registry ? registry[block.name] : null
-                     yield serializeCall(theTool, {
-                         name: block.name,
-                         args: block.input, 
-                         id: block.id,
-                         isError : result.is_error,
-                         results : result.content
-                     }) + "\n\n"
-                }
+        // yield results to the transcript, preserving mimetypes
+        for (const block of tool_uses) {
+            const call = realized.find(c => c.id === block.id)
+            if (call && block.input instanceof Object) {
+                const theTool = block.name in registry ? registry[block.name] : null
+                yield serializeCall(theTool, {
+                    name: block.name,
+                    args: block.input,
+                    id: block.id,
+                    isError: call.isError,
+                    results: call.results
+                }) + "\n\n"
             }
         }
 
@@ -406,7 +377,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
 
         let stream = this.client.messages.stream({
             system: systemPrompt(lectic),
-            messages: messages,
+            messages,
             model,
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 2048,
