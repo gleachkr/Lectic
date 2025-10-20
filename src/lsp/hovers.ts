@@ -2,13 +2,14 @@ import type { Hover, Position } from "vscode-languageserver"
 import { MarkupKind, Range as LspRange } from "vscode-languageserver/node"
 import { directiveAtPositionFromBundle } from "./directives"
 import { linkTargetAtPositionFromBundle } from "./linkTargets"
-import { offsetToPosition } from "./positions"
+import { offsetToPosition, positionToOffset } from "./positions"
 import { mergedHeaderSpecForDoc } from "../parsing/parse"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { buildMacroIndex } from "./macroIndex"
 import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./pathUtils"
 import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
+import { unescapeTags, extractElements, unwrap } from "../parsing/xml" 
 
 export async function computeHover(
   docText: string,
@@ -54,7 +55,12 @@ export async function computeHover(
     }
   }
 
-  // 2) Link hover: small preview for local text files
+  // 2) Tool-call block hover: anywhere inside the call shows inputs
+  //    and results (previews derived from serialized content only)
+  const toolHover = toolBlockHover(docText, pos, bundle)
+  if (toolHover) return toolHover
+
+  // 3) Link hover: small preview for local text files
   const hrefHover = await linkHover(docText, pos, docDir, bundle)
   if (hrefHover) return hrefHover
 
@@ -192,6 +198,147 @@ function codeFence(s: string): string {
   // Avoid breaking the fence if the content contains ```
   const safe = s.replace(/```/g, "``\u200b`")
   return "```\n" + safe + "\n```"
+}
+
+function codeFenceLang(s: string, lang: string | null | undefined): string {
+  const safe = s.replace(/```/g, "``\u200b`")
+  const header = lang && lang.length > 0 ? "```" + lang : "```"
+  return header + "\n" + safe + "\n```"
+}
+
+function langFor(mediaType?: string | null): string | null {
+  if (!mediaType) return null
+  const mt = mediaType.toLowerCase()
+  // Treat +json as json regardless of preceding subtype (e.g. ld+json)
+  if (/(?:^|\+)json$/.test(mt) || mt.includes("+json")) return "json"
+  // Shell-like exceptions
+  if (mt.includes("shell") || /(?:^|\/)x-sh$/.test(mt) || /(?:^|\/)sh$/.test(mt)) return "sh"
+  // Generic application/* or text/* → subtype
+  const m = /^(application|text)\/(.+)$/.exec(mt)
+  if (m && m[2]) {
+    const sub = m[2]
+    // Common cleanups: strip vendor prefixes like x-
+    const cleaned = sub.replace(/^x-/, "")
+    return cleaned
+  }
+  return null
+}
+
+function isDisplayableMedia(mediaType?: string | null): boolean {
+  if (!mediaType) return true
+  const mt = mediaType.toLowerCase()
+  return mt.startsWith("text/") || mt.startsWith("application/")
+}
+
+function prettyBodyFor(mediaType: string | undefined, raw: string): { body: string, lang: string | null } {
+  // Goal: never show the serialized line markers (┆) or <│ escapes in
+  // previews. Always show syntactically valid text for the declared
+  // media type.
+  let lang = langFor(mediaType)
+  // Try JSON pretty print when media type suggests JSON.
+  if (mediaType && mediaType.toLowerCase().includes("json")) {
+    try {
+      const unesc = unescapeTags(raw)
+      const parsed = JSON.parse(unesc)
+      const pretty = JSON.stringify(parsed, null, 2)
+      return { body: pretty, lang: "json" }
+    } catch {
+      // Fall through to generic unescape below.
+    }
+  }
+  // Generic path: unescape serialized text to remove ┆ and <│ so the
+  // content matches the underlying media syntax.
+  const body = unescapeTags(raw)
+  return { body, lang }
+}
+
+function elementsUnder(serialized: string, parentTag: string): string[] {
+  const open = `<${parentTag}>`
+  const close = `</${parentTag}>`
+  const start = serialized.indexOf(open)
+  const end = start >= 0 ? serialized.indexOf(close, start + open.length) : -1
+  if (start < 0 || end <= start) return []
+  const inner = serialized.slice(start + open.length, end)
+  return extractElements(inner)
+}
+
+function parseTag(el: string): { name: string, attrs: string } | null {
+  const m = /^<([a-zA-Z][a-zA-Z0-9_-]*)\b([^>]*)>/.exec(el)
+  if (!m) return null
+  return { name: m[1], attrs: m[2] ?? "" }
+}
+
+function getAttr(attrs: string, key: string): string | undefined {
+  const r = new RegExp(`${key}\\s*=\\s*"([^"]+)"`)
+  const m = r.exec(attrs)
+  return m ? m[1] : undefined
+}
+
+function parseToolCallForHover(serialized: string): {
+  args: { name: string, mediaType?: string, text: string }[],
+  results: { mediaType?: string, text: string }[],
+} {
+  const args: { name: string, mediaType?: string, text: string }[] = []
+  const results: { mediaType?: string, text: string }[] = []
+
+  for (const el of elementsUnder(serialized, "arguments")) {
+    const t = parseTag(el)
+    if (!t) continue
+    const name = t.name
+    const mediaType = getAttr(t.attrs, "contentMediaType")
+    const text = unwrap(el, name)
+    args.push({ name, mediaType, text })
+  }
+
+  for (const el of elementsUnder(serialized, "results")) {
+    const t = parseTag(el)
+    if (!t || t.name !== 'result') continue
+    const mediaType = getAttr(t.attrs, "type")
+    const text = unwrap(el, "result")
+    results.push({ mediaType, text })
+  }
+
+  return { args, results }
+}
+
+function toolBlockHover(
+  docText: string,
+  pos: Position,
+  bundle: AnalysisBundle
+): Hover | null {
+  const absPos = positionToOffset(docText, pos)
+  const blocks = bundle.toolCallBlocks ?? []
+  for (const b of blocks) {
+    if (absPos < b.absStart || absPos > b.absEnd) continue
+
+    const serialized = docText.slice(b.absStart, b.absEnd)
+    const parsed = parseToolCallForHover(serialized)
+
+    const parts: string[] = []
+
+    const args = parsed.args.filter(a => isDisplayableMedia(a.mediaType))
+    for (const a of args) {
+      const header = a.mediaType ? `${a.name} (${a.mediaType})` : a.name
+      const { body, lang } = prettyBodyFor(a.mediaType, a.text)
+      parts.push(`${code(header)}\n\n${codeFenceLang(body, lang)}`)
+    }
+
+    parts.push("---")
+
+    const results = parsed.results.filter(r => isDisplayableMedia(r.mediaType))
+    for (const r of results) {
+      const header = r.mediaType ? `result (${r.mediaType})` : `result`
+      const { body, lang } = prettyBodyFor(r.mediaType, r.text)
+      parts.push(`${code(header)}\n\n${codeFenceLang(body, lang)}`)
+    }
+
+    const value = parts.join("\n\n")
+    return {
+      contents: { kind: MarkupKind.Markdown, value },
+      range: LspRange.create(offsetToPosition(docText, b.absStart), offsetToPosition(docText, b.absEnd))
+    }
+  }
+  return null
 }
 
 async function listGlobMatches(

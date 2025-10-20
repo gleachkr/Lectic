@@ -23,6 +23,12 @@ export type BlockSpan = {
   name?: string
 }
 
+
+export type ToolCallBlockSpan = {
+  absStart: number
+  absEnd: number
+}
+
 export type AnalysisBundle = {
   uri: string
   version: number
@@ -30,6 +36,7 @@ export type AnalysisBundle = {
   directives: DirectiveSpan[]
   links: LinkSpan[]
   blocks: BlockSpan[]
+  toolCallBlocks: ToolCallBlockSpan[]
 }
 
 export type AnalyzeRequest = {

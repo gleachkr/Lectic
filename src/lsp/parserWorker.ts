@@ -6,6 +6,7 @@ import { buildFoldingRangesFromAst } from "./folding"
 import { getBody } from "../parsing/parse"
 import { directivesFromAst, referencesFromAst, nodeRaw, parseBlocks } from "../parsing/markdown"
 import { findUrlRangeInNodeRaw } from "./linkTargets"
+import { isSerializedCall } from "../types/tool"
 import type {
   FoldResult,
   DiagnosticsResult,
@@ -15,6 +16,7 @@ import type {
   DirectiveSpan,
   LinkSpan,
   BlockSpan,
+  ToolCallBlockSpan,
 } from "./analysisTypes"
 
 // Bun's Worker uses the web worker API. We listen for messages and
@@ -24,13 +26,14 @@ function buildBundleFromAst(ast: any, docText: string, uri: string, version: num
   const directives: DirectiveSpan[] = []
   const links: LinkSpan[] = []
   const blocks: BlockSpan[] = []
+  const toolCallBlocks: ToolCallBlockSpan[] = []
 
   // Compute header offset using body extraction
   const body = getBody(docText)
   const headerOffset = docText.length - body.length
 
   // User-chunk directives (skip assistant containers)
-  for (const d of directivesFromAst(ast) as any[]) {
+  for (const d of directivesFromAst(ast)) {
     const s = d.position?.start?.offset
     const e = d.position?.end?.offset
     if (typeof s !== 'number' || typeof e !== 'number') continue
@@ -50,7 +53,7 @@ function buildBundleFromAst(ast: any, docText: string, uri: string, version: num
   }
 
   // Links/images in user chunks
-  for (const n of referencesFromAst(ast) as any[]) {
+  for (const n of referencesFromAst(ast)) {
     const s = n.position?.start?.offset
     const e = n.position?.end?.offset
     if (typeof s !== 'number' || typeof e !== 'number') continue
@@ -64,12 +67,28 @@ function buildBundleFromAst(ast: any, docText: string, uri: string, version: num
   // Assistant containers and user spans interleaved; bound to body only
   type Asst = { name: string, s: number, e: number }
   const assistants: Asst[] = []
-  for (const node of (parseBlocks(body) as any[])) {
+  for (const node of parseBlocks(body)) {
     if (node.type === 'containerDirective' && typeof node.name === 'string') {
       const s = node.position?.start?.offset
       const e = node.position?.end?.offset
       if (typeof s === 'number' && typeof e === 'number') {
-        assistants.push({ name: String(node.name), s: headerOffset + s, e: headerOffset + e })
+        const absS = headerOffset + s
+        const absE = headerOffset + e
+        assistants.push({ name: String(node.name), s: absS, e: absE })
+        // Inspect child HTML blocks for serialized tool-calls and
+        // record spans for arguments and results
+        if (Array.isArray(node.children)) {
+          for (const b of node.children) {
+            if (b?.type !== 'html') continue
+            const pos = b.position
+            if (!pos?.start?.offset || !pos?.end?.offset) continue
+            const raw = nodeRaw(b, body)
+            if (!isSerializedCall(raw)) continue
+            const htmlAbsStart = headerOffset + pos.start.offset
+            const htmlAbsEnd = headerOffset + pos.end.offset
+            toolCallBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
+          }
+        }
       }
     }
   }
@@ -85,7 +104,7 @@ function buildBundleFromAst(ast: any, docText: string, uri: string, version: num
   }
   if (cursor < docText.length) blocks.push({ kind: 'user', absStart: cursor, absEnd: docText.length })
 
-  return { uri, version, headerOffset, directives, links, blocks }
+  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks }
 }
 
 self.addEventListener("message", async (ev: MessageEvent<WorkerMessage>) => {

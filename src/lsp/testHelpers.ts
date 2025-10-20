@@ -3,13 +3,14 @@ import remarkDirective from "remark-directive"
 import { getBody } from "../parsing/parse"
 import { directivesFromAst, referencesFromAst, nodeRaw, parseBlocks } from "../parsing/markdown"
 import { findUrlRangeInNodeRaw } from "./linkTargets"
-import type { AnalysisBundle, DirectiveSpan, LinkSpan, BlockSpan } from "./analysisTypes"
+import type { AnalysisBundle, DirectiveSpan, LinkSpan, BlockSpan, ToolCallBlockSpan } from "./analysisTypes"
 
 export function buildTestBundle(docText: string, uri = "file:///doc.lec", version = 1): AnalysisBundle {
   const ast = remark().use(remarkDirective).parse(docText) as any
   const directives: DirectiveSpan[] = []
   const links: LinkSpan[] = []
   const blocks: BlockSpan[] = []
+  const toolCallBlocks: ToolCallBlockSpan[] = []
 
   const body = getBody(docText)
   const headerOffset = docText.length - body.length
@@ -67,5 +68,5 @@ export function buildTestBundle(docText: string, uri = "file:///doc.lec", versio
   }
   if (cursor < docText.length) blocks.push({ kind: 'user', absStart: cursor, absEnd: docText.length })
 
-  return { uri, version, headerOffset, directives, links, blocks }
+  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks }
 }

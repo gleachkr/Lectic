@@ -153,6 +153,12 @@ Folding
 
 Hovers
 - Hover over a directive (e.g., `:ask[...]`) to see a short description.
+- Hover anywhere inside a serialized `<tool-call>` block to preview all
+  argument and result contents. The server chooses a syntax highlighter
+  from the `contentMediaType` attribute on argument tags (for example,
+  `application/sql`) and from the `type` on `<result>`. JSON is
+  pretty‑printed. No files are read; the preview is derived from the
+  serialized content.
 - Hover over a link destination to see the normalized absolute path. For
   local text files, a small preview of the file head is shown. For
   remote URLs, directories, missing files, non‑text files, or empty

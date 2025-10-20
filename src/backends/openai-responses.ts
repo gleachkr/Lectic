@@ -82,8 +82,8 @@ async function *handleToolUse(
 
         // Resolve calls to ToolCall[]
         const entries = message.output
-            .filter((o) => o.type === 'function_call')
-            .map((o: any) => {
+            .filter(o => o.type === 'function_call')
+            .map(o => {
                 let args: unknown
                 try { args = JSON.parse(o.arguments) } catch { args = undefined }
                 return { id: o.call_id, name: o.name, args }
