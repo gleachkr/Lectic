@@ -119,8 +119,7 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
                         return `<${key}${attr}>${serialize((arg as { [key] : unknown })[key], properties[key])}</${key}>`;
                     }).join('')}</object>`;
 
-        default:
-            throw new Error("Unknown schema type");
+        default: throw new Error(`Unknown schema type: ${(schema as any).type}`);
     }
 }
 
@@ -271,6 +270,6 @@ export function deserialize(xml: string, schema: JSONSchema): any {
             return obj;
         }
 
-        default: throw new Error("Unknown schema type");
+        default: throw new Error(`Unknown schema type: ${(schema as any).type}`);
     }
 }
