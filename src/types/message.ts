@@ -116,8 +116,6 @@ export class AssistantMessage {
             }
         };
 
-        // BUG: a tool call will not necessarily be a single markdown block, because the
-        // result might contain blank lines, which end an HTML block.
         for (const block of blocks) {
             const blockRaw = nodeRaw(block, this.content)
             if (isSerializedCall(blockRaw)) {
