@@ -320,7 +320,7 @@ function toolBlockHover(
     for (const a of args) {
       const header = a.mediaType ? `${a.name} (${a.mediaType})` : a.name
       const { body, lang } = prettyBodyFor(a.mediaType, a.text)
-      parts.push(`${code(header)}\n\n${codeFenceLang(body, lang)}`)
+      parts.push(`## ${header}\n\n${codeFenceLang(body, lang)}`)
     }
 
     parts.push("---")
@@ -329,7 +329,7 @@ function toolBlockHover(
     for (const r of results) {
       const header = r.mediaType ? `result (${r.mediaType})` : `result`
       const { body, lang } = prettyBodyFor(r.mediaType, r.text)
-      parts.push(`${code(header)}\n\n${codeFenceLang(body, lang)}`)
+      parts.push(`## ${header}\n\n${codeFenceLang(body, lang)}`)
     }
 
     const value = parts.join("\n\n")
