@@ -10,6 +10,7 @@ import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./pathU
 import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
 import { unescapeTags, extractElements, unwrap } from "../parsing/xml" 
+import { deserializeInlineAttachment } from "../types/inlineAttachment"
 
 export async function computeHover(
   docText: string,
@@ -59,6 +60,10 @@ export async function computeHover(
   //    and results (previews derived from serialized content only)
   const toolHover = toolBlockHover(docText, pos, bundle)
   if (toolHover) return toolHover
+
+  // 2.5) Inline attachment hover: show command and content
+  const attachHover = inlineAttachmentHover(docText, pos, bundle)
+  if (attachHover) return attachHover
 
   // 3) Link hover: small preview for local text files
   const hrefHover = await linkHover(docText, pos, docDir, bundle)
@@ -230,15 +235,13 @@ function isDisplayableMedia(mediaType?: string | null): boolean {
   return mt.startsWith("text/") || mt.startsWith("application/")
 }
 
-function prettyBodyFor(mediaType: string | undefined, raw: string): { body: string, lang: string | null } {
-  // Goal: never show the serialized line markers (┆) or <│ escapes in
-  // previews. Always show syntactically valid text for the declared
-  // media type.
+function prettyBodyFor(raw: string, mediaType? : string, escape : boolean = true): { body: string, lang: string | null } {
+  // raw here is serialized text with line markers and <│ escapes.
+  // We must unescape before pretty printing.
   let lang = langFor(mediaType)
-  // Try JSON pretty print when media type suggests JSON.
   if (mediaType && mediaType.toLowerCase().includes("json")) {
     try {
-      const unesc = unescapeTags(raw)
+      const unesc = escape ? unescapeTags(raw) : raw
       const parsed = JSON.parse(unesc)
       const pretty = JSON.stringify(parsed, null, 2)
       return { body: pretty, lang: "json" }
@@ -246,9 +249,7 @@ function prettyBodyFor(mediaType: string | undefined, raw: string): { body: stri
       // Fall through to generic unescape below.
     }
   }
-  // Generic path: unescape serialized text to remove ┆ and <│ so the
-  // content matches the underlying media syntax.
-  const body = unescapeTags(raw)
+  const body = escape ? unescapeTags(raw) : raw
   return { body, lang }
 }
 
@@ -319,7 +320,7 @@ function toolBlockHover(
     const args = parsed.args.filter(a => isDisplayableMedia(a.mediaType))
     for (const a of args) {
       const header = a.mediaType ? `${a.name} (${a.mediaType})` : a.name
-      const { body, lang } = prettyBodyFor(a.mediaType, a.text)
+      const { body, lang } = prettyBodyFor(a.text, a.mediaType)
       parts.push(`## ${header}\n\n${codeFenceLang(body, lang)}`)
     }
 
@@ -328,7 +329,7 @@ function toolBlockHover(
     const results = parsed.results.filter(r => isDisplayableMedia(r.mediaType))
     for (const r of results) {
       const header = r.mediaType ? `result (${r.mediaType})` : `result`
-      const { body, lang } = prettyBodyFor(r.mediaType, r.text)
+      const { body, lang } = prettyBodyFor(r.text, r.mediaType)
       parts.push(`## ${header}\n\n${codeFenceLang(body, lang)}`)
     }
 
@@ -336,6 +337,43 @@ function toolBlockHover(
     return {
       contents: { kind: MarkupKind.Markdown, value },
       range: LspRange.create(offsetToPosition(docText, b.absStart), offsetToPosition(docText, b.absEnd))
+    }
+  }
+  return null
+}
+
+function inlineAttachmentHover(
+  docText: string,
+  pos: Position,
+  bundle: AnalysisBundle
+): Hover | null {
+  const absPos = positionToOffset(docText, pos)
+  const blocks = bundle.inlineAttachmentBlocks ?? []
+  for (const b of blocks) {
+    if (absPos < b.absStart || absPos > b.absEnd) continue
+    const serialized = docText.slice(b.absStart, b.absEnd)
+    try {
+      const att = deserializeInlineAttachment(serialized)
+      const header = att.mimetype ? `content (${att.mimetype})` : `content`
+      const parts: string[] = []
+      parts.push(`## command\n\n${codeFence(att.command)}`)
+      parts.push(`---`)
+      if (isDisplayableMedia(att.mimetype)) {
+        const { body, lang } = prettyBodyFor(att.content, att.mimetype, false )
+        parts.push(`## ${header}\n\n${codeFenceLang(body, lang)}`)
+      } else {
+        parts.push(`## ${header}\n\n(not previewable)`)        
+      }
+      const value = parts.join("\n\n")
+      return {
+        contents: { kind: MarkupKind.Markdown, value },
+        range: LspRange.create(
+          offsetToPosition(docText, b.absStart),
+          offsetToPosition(docText, b.absEnd)
+        )
+      }
+    } catch {
+      // not a valid inline attachment; ignore
     }
   }
   return null

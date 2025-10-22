@@ -8,6 +8,7 @@ import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { serializeCall } from "../types/tool"
 import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
+import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const tools : OpenAI.Responses.Tool[] = []
@@ -72,6 +73,7 @@ async function *handleToolUse(
             yield "<error>Runaway tool use!</error>"
             return
         }
+
 
         // Clean streaming leftovers that break the API
         for (const output of message.output) {
@@ -181,10 +183,21 @@ async function partToContent(part : MessageAttachmentPart)
     }
 }
 
-async function handleMessage(msg : Message, lectic : Lectic) : Promise<OpenAI.Responses.ResponseInput> {
+async function handleMessage(
+    msg : Message,
+    lectic : Lectic,
+    opt?: { cmdAttachments?: InlineAttachment[] }
+) : Promise<OpenAI.Responses.ResponseInput> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : OpenAI.Responses.ResponseInput = []
-        for (const interaction of msg.containedInteractions()) {
+        const { attachments, interactions } = msg.parseAssistantContent()
+        if (attachments.length > 0) {
+            results.push({
+                role: "user",
+                content: attachments.map((a: InlineAttachment) => ({ type: "input_text" as const, text: a.content }))
+            })
+        }
+        for (const interaction of interactions) {
             if (interaction.text) {
                 results.push({
                     role: "assistant",
@@ -227,7 +240,6 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<OpenAI.Re
             parts.push(... await link.getParts())
         }
     }
-    const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
     const content : OpenAI.Responses.ResponseInputMessageContentList = [{
         type: "input_text",
@@ -246,13 +258,19 @@ async function handleMessage(msg : Message, lectic : Lectic) : Promise<OpenAI.Re
         }
     }
 
-    for (const command of commands) {
-        const result = await command.execute()
-        if (result) {
-            content.push({
-                type: "input_text",
-                text: result,
-            })
+    if (opt?.cmdAttachments !== undefined) {
+        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+        for (const command of commands) {
+            const result = await command.execute()
+            if (result) {
+                content.push({ type: "input_text", text: result })
+                opt.cmdAttachments.push({ 
+                    kind: "cmd", 
+                    command: command.command, 
+                    content: result, 
+                    mimetype: "text/plain" 
+                })
+            }
         }
     }
 
@@ -288,8 +306,19 @@ export class OpenAIResponsesBackend implements Backend {
 
         const messages : OpenAI.Responses.ResponseInput = []
 
-        for (const msg of lectic.body.messages) {
-            messages.push(...await handleMessage(msg, lectic))
+        // Execute :cmd only if the last message is a user message
+        const lastIdx = lectic.body.messages.length - 1
+        const lastIsUser = lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
+
+        const cmdAttachments: InlineAttachment[] = []
+
+        for (let i = 0; i < lectic.body.messages.length; i++) {
+            const m = lectic.body.messages[i]
+            if (m.role === "user" && lastIsUser && i === lastIdx) {
+                messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
+            } else {
+                messages.push(...await handleMessage(m, lectic))
+            }
         }
 
         Logger.debug("openai - messages", messages)
@@ -309,6 +338,11 @@ export class OpenAIResponsesBackend implements Backend {
             tools: getTools(lectic)
         });
 
+        // Emit cached inline attachments at the top of the assistant block
+        if (cmdAttachments.length > 0) {
+            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+            yield preface
+        }
 
         let assistant = ""
         for await (const event of stream) {

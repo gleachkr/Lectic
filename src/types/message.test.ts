@@ -4,6 +4,7 @@ import { serializeCall, ToolCallResults } from './tool';
 import type { Interlocutor } from "./interlocutor"
 import type { Tool } from './tool';
 import { expect, it, describe } from "bun:test";
+import { serializeInlineAttachment } from "./inlineAttachment";
 
 describe('UserMessage', () => {
     describe('containedLinks', () => {
@@ -201,6 +202,20 @@ describe('UserMessage', () => {
 });
 
 describe('AssistantMessage', () => {
+    it('extracts leading inline attachments via single pass', async () => {
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
+        const a1 = serializeInlineAttachment({ kind: 'cmd', command: 'x', content: 'C1' })
+        const a2 = serializeInlineAttachment({ kind: 'cmd', command: 'y', content: 'C2' })
+        const content = `${a1}\n\n${a2}\n\nThen text.`
+        const msg = new AssistantMessage({ content, interlocutor: fake })
+        const { attachments, interactions } = msg.parseAssistantContent()
+        expect(attachments.length).toBe(2)
+        expect(attachments[0].command).toBe('x')
+        expect(attachments[1].command).toBe('y')
+        const combined = interactions.map(i => i.text).join("\n")
+        expect(combined.includes('Then text.')).toBe(true)
+    })
+
     it('should extract a tool call', async () => {
         const tool: Tool = {
             name: 'booleanTool',
@@ -224,7 +239,7 @@ describe('AssistantMessage', () => {
 
         const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
 
-        expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
+        expect(msg.parseAssistantContent().interactions.map(i => i.calls.length)).toEqual([ 1, 0 ]);
     })
 
     it('should extract a tool call whose results contain line breaks', async () => {
@@ -250,7 +265,7 @@ describe('AssistantMessage', () => {
 
         const msg = new AssistantMessage({content, interlocutor: fakeInterlocutor})
 
-        expect(msg.containedInteractions().map(i => i.calls.length)).toEqual([ 1, 0 ]);
+        expect(msg.parseAssistantContent().interactions.map(i => i.calls.length)).toEqual([ 1, 0 ]);
     })
 
     it('groups consecutive tool calls into a single interaction', async () => {
@@ -268,7 +283,7 @@ describe('AssistantMessage', () => {
         const content = `prelude\n\n${s1}\n\n${s2}\n\ntrail`;
         const fake: Interlocutor = { name: 'A', prompt: '', registry: { echo: tool } } as any;
         const msg = new AssistantMessage({ content, interlocutor: fake });
-        const interactions = msg.containedInteractions();
+        const interactions = msg.parseAssistantContent().interactions;
         expect(interactions.length).toBe(2);
         expect(interactions[0].calls.length).toBe(2);
         expect(interactions[1].calls.length).toBe(0);
@@ -288,7 +303,7 @@ describe('AssistantMessage', () => {
         const content = `${s}\n\nthen some text`;
         const fake: Interlocutor = { name: 'A', prompt: '', registry: { noop: tool } } as any;
         const msg = new AssistantMessage({ content, interlocutor: fake });
-        const interactions = msg.containedInteractions();
+        const interactions = msg.parseAssistantContent().interactions;
         expect(interactions.length).toBe(2);
         expect(interactions[0].text).toBe("");
         expect(interactions[0].calls.length).toBe(1);
@@ -300,7 +315,7 @@ describe('AssistantMessage', () => {
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
         const content = 'just text\n\nmore text';
         const msg = new AssistantMessage({ content, interlocutor: fake });
-        const interactions = msg.containedInteractions();
+        const interactions = msg.parseAssistantContent().interactions;
         expect(interactions.length).toBe(1);
         expect(interactions[0].calls.length).toBe(0);
         expect(interactions[0].text).toContain('just text');
@@ -324,7 +339,7 @@ describe('AssistantMessage', () => {
         const s = serializeCall(tool, call);
         const fake: Interlocutor = { name: 'A', prompt: '', registry: { sum: tool } } as any;
         const msg = new AssistantMessage({ content: s, interlocutor: fake });
-        const interactions = msg.containedInteractions();
+        const interactions = msg.parseAssistantContent().interactions;
         expect(interactions.length).toBe(1);
         expect(interactions[0].calls.length).toBe(1);
         const parsed = interactions[0].calls[0];
@@ -343,7 +358,7 @@ describe('AssistantMessage', () => {
         const s = serializeCall(tool, { name: 'echo', args: { s: 'hi' }, results: ToolCallResults('ok')});
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any; // echo missing
         const msg = new AssistantMessage({ content: `before\n\n${s}\n\nafter`, interlocutor: fake });
-        const interactions = msg.containedInteractions();
+        const interactions = msg.parseAssistantContent().interactions;
         expect(interactions.length).toBe(2);
         expect(interactions[0].calls.length).toBe(1);
         expect(interactions[0].calls[0].name).toBe('echo');

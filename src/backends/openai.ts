@@ -6,8 +6,9 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { serializeCall, ToolCallResults } from "../types/tool"
+import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
 import { systemPrompt, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
+import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
@@ -180,10 +181,20 @@ async function partToContent(part : MessageAttachmentPart)
     }
 }
 
-async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
+async function handleMessage(
+    msg : Message,
+    opt?: { cmdAttachments?: InlineAttachment[] }
+) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
     if (msg.role === "assistant") { 
         const results : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
-        for (const interaction of msg.containedInteractions()) {
+        const { attachments, interactions } = msg.parseAssistantContent()
+        if (attachments.length > 0) {
+            results.push({
+                role: "user",
+                content: attachments.map((a: InlineAttachment) => ({ type: "text" as const, text: a.content }))
+            })
+        }
+        for (const interaction of interactions) {
             const modelParts : OpenAI.Chat.Completions.ChatCompletionContentPartText[] = []
             const toolCalls : OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = []
             if (interaction.text.length > 0) {
@@ -211,7 +222,7 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
             })
 
             for (const call of interaction.calls) {
-                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.results.map(r => ({ type: "text" as const, text: r.toBlock().text }))})
+                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))})
             }
         }
         return results
@@ -224,7 +235,6 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
             parts.push(... await link.getParts())
         }
     }
-    const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
     const content : OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{
         type: "text" as "text",
@@ -244,13 +254,19 @@ async function handleMessage(msg : Message) : Promise<OpenAI.Chat.Completions.Ch
         }
     }
 
-    for (const command of commands) {
-        const result = await command.execute()
-        if (result) {
-            content.push({
-                type: "text",
-                text: result,
-            })
+    if (opt?.cmdAttachments !== undefined) {
+        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+        for (const command of commands) {
+            const result = await command.execute()
+            if (result) {
+                content.push({ type: "text", text: result })
+                opt.cmdAttachments.push({ 
+                    kind: "cmd", 
+                    command: command.command, 
+                    content: result, 
+                    mimetype: "text/plain" 
+                })
+            }
         }
     }
 
@@ -297,8 +313,19 @@ export class OpenAIBackend implements Backend {
 
         const messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
 
-        for (const msg of lectic.body.messages) {
-            messages.push(...await handleMessage(msg))
+        // Execute :cmd only if the last message is a user message
+        const lastIdx = lectic.body.messages.length - 1
+        const lastIsUser = lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
+
+        const cmdAttachments: InlineAttachment[] = []
+
+        for (let i = 0; i < lectic.body.messages.length; i++) {
+            const m = lectic.body.messages[i]
+            if (m.role === "user" && lastIsUser && i === lastIdx) {
+                messages.push(...await handleMessage(m, { cmdAttachments }))
+            } else {
+                messages.push(...await handleMessage(m))
+            }
         }
 
         Logger.debug("openai - messages", messages)
@@ -314,6 +341,11 @@ export class OpenAIBackend implements Backend {
             tools: getTools(lectic)
         });
 
+        // Emit cached inline attachments at the top of the assistant block
+        if (cmdAttachments.length > 0) {
+            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+            yield preface
+        }
 
         let assistant = ""
         for await (const event of stream) {

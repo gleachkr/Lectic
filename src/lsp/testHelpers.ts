@@ -68,5 +68,5 @@ export function buildTestBundle(docText: string, uri = "file:///doc.lec", versio
   }
   if (cursor < docText.length) blocks.push({ kind: 'user', absStart: cursor, absEnd: docText.length })
 
-  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks }
+  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks, inlineAttachmentBlocks: [] }
 }

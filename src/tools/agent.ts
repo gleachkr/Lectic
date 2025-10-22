@@ -71,8 +71,11 @@ export class AgentTool extends Tool {
                 content: await result.string,
                 interlocutor: this.agent
             })
-            const sanitizedText = assistantMessage.containedInteractions().map(interaction => {
-                const callstring = interaction.calls.map(call => `<toolcall name=${call.name}/>`).join("\n\n")
+            const interactions = assistantMessage.parseAssistantContent().interactions
+            const sanitizedText = interactions.map((interaction) => {
+                const callstring = interaction.calls
+                    .map((call) => `<toolcall name=${call.name}/>`)
+                    .join("\n\n")
                 return `${interaction.text}\n\n${callstring}`
             }).join('\n')
             return ToolCallResults(sanitizedText)

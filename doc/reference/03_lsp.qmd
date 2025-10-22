@@ -139,13 +139,15 @@ Document symbols (outline)
   current document’s symbols.
 
 Folding
-- The LSP provides folding ranges for tool‑call blocks only. A block
-  must be a serialized `<tool-call ...> ... </tool-call>` that appears
-  as a direct child of an interlocutor container directive (`:::Name`).
+- The LSP provides folding ranges for tool‑call and inline‑attachment
+  blocks. A block must be a serialized
+  `<tool-call ...> ... </tool-call>` or
+  `<inline-attachment ...> ... </inline-attachment>` that appears as a
+  direct child of an interlocutor container directive (`:::Name`).
 - The folded range includes both the opening and closing tags. The
   entire block is concealed when folded. The opening tag may be
   indented; fenced code blocks are always ignored.
-- Editing or completions inside tool‑call XML are not provided.
+- Editing or completions inside these XML blocks are not provided.
 - Client behavior:
   - Neovim: set `foldexpr=vim.lsp.foldexpr()` to use LSP folding.
   - VS Code: the bundled extension defers folding to the LSP and does
@@ -158,6 +160,11 @@ Hovers
   from the `contentMediaType` attribute on argument tags (for example,
   `application/sql`) and from the `type` on `<result>`. JSON is
   pretty‑printed. No files are read; the preview is derived from the
+  serialized content.
+- Hover anywhere inside a serialized `<inline-attachment>` block to see
+  the command and a preview of the content. The preview language is
+  chosen from the content’s `type` attribute when present (JSON is
+  pretty‑printed). No files are read; the preview is derived from the
   serialized content.
 - Hover over a link destination to see the normalized absolute path. For
   local text files, a small preview of the file head is shown. For

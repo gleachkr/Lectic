@@ -4,6 +4,7 @@ import { remark } from "remark"
 import remarkDirective from "remark-directive"
 import { nodeRaw } from "../parsing/markdown"
 import { isSerializedCall } from "../types/tool"
+import { isSerializedInlineAttachment } from "../types/inlineAttachment"
 
 export function buildFoldingRangesFromAst(ast: any, docText: string): LspFoldingRange[] {
   const out: LspFoldingRange[] = []
@@ -18,7 +19,7 @@ export function buildFoldingRangesFromAst(ast: any, docText: string): LspFolding
       const pos = b.position
       if (!pos?.start || !pos?.end) continue
       const raw = nodeRaw(b, docText)
-      if (!isSerializedCall(raw)) continue
+      if (!isSerializedCall(raw) && !isSerializedInlineAttachment(raw)) continue
 
       const startLine =  Math.max(0, (pos.start.line ?? 1) - 1)
       const endLine =  Math.max(0, (pos.end.line ?? 1) - 1)

@@ -59,6 +59,15 @@ Some content.
 
 Markdown code fences inside assistant blocks can also use three backticks.
 
+Inline attachments at the top
+- Lectic may insert one or more inline attachment blocks at the very
+  start of an assistant block. These are XML chunks beginning with
+  `<inline-attachment ...>`. They are used to cache computed content
+  from directives like `:cmd[...]`.
+- When sending a request to the provider, these attachments are treated
+  as if they were a user message that immediately precedes the
+  assistant’s round.
+
 ### Example
 
 Here is a complete, simple conversation file showing all the parts together:

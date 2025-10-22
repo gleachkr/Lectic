@@ -4,6 +4,7 @@ import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
 import type { Interlocutor } from "./interlocutor"
 import { deserializeCall, getSerializedCallName, isSerializedCall, Tool } from "./tool"
+import { deserializeInlineAttachment, isSerializedInlineAttachment, type InlineAttachment } from "./inlineAttachment"
 
 export type MessageLink = {
     text : string
@@ -40,18 +41,17 @@ export class UserMessage {
     }
 
     containedDirectives() : MessageDirective[] {
-        return parseDirectives(this.content).map(directive => {
-            return {
+        return parseDirectives(this.content).map(directive => ({
             text: nodeContentRaw(directive, this.content),
             name: directive.name,
             attributes: directive.attributes ? { ...directive.attributes } : {}
-        }})
+        }))
     }
 
     async expandMacros(macros : Macro[]) {
         if (macros.length === 0) return
 
-        const expansionMap : { [macroName : string] : string }= {}
+        const expansionMap : { [macroName : string] : string } = {}
 
         // We run the expansions in parallel
         await Promise.all(
@@ -96,35 +96,51 @@ export class AssistantMessage {
         this.tools = interlocutor.registry ?? {}
     }
 
-    containedInteractions() : MessageInteraction[] {
-        const blocks = parseBlocks(this.content)
+    // Parse out leading inline attachments and subsequent interactions
+    // in a single mdast pass. This avoids string slicing and keeps
+    // positions consistent if we later allow mixing content.
+    parseAssistantContent(): { attachments: InlineAttachment[], interactions: MessageInteraction[] } {
+        const raw = this.content
+        const blocks = parseBlocks(raw)
+
+        const attachments: InlineAttachment[] = []
+        let i = 0
+        while (i < blocks.length) {
+            const blockRaw = nodeRaw(blocks[i], raw)
+            if (isSerializedInlineAttachment(blockRaw)) {
+                attachments.push(deserializeInlineAttachment(blockRaw))
+                i++
+                continue
+            }
+            // stop on first non-attachment block
+            break
+        }
+
         let curText : RootContent[] = []
         let curCalls : ToolCall[] = []
         const interactions : MessageInteraction[] = []
 
         const flush = () => {
             if (curText.length > 0 || curCalls.length > 0) {
-                let text = "";
+                let text = ""
                 if (curText.length > 0) {
-                    const content_start = curText[0].position?.start.offset;
-                    const content_end = curText[curText.length - 1].position?.end.offset;
-                    text = this.content.slice(content_start, content_end);
+                    const content_start = curText[0].position?.start.offset
+                    const content_end = curText[curText.length - 1].position?.end.offset
+                    text = raw.slice(content_start, content_end)
                 }
-                interactions.push({ text, calls: curCalls });
-                curText = [];
-                curCalls = [];
+                interactions.push({ text, calls: curCalls })
+                curText = []
+                curCalls = []
             }
-        };
+        }
 
         for (const block of blocks) {
-            const blockRaw = nodeRaw(block, this.content)
+            const blockRaw = nodeRaw(block, raw)
             if (isSerializedCall(blockRaw)) {
                 const name = getSerializedCallName(blockRaw)
                 if (!name) throw Error("Parse error for tool call: couldn't parse name")
-
                 const call = deserializeCall(this.tools[name] ?? null, blockRaw)
                 if (call === null) throw Error("Parse error for tool call: couldn't deserialize call")
-
                 curCalls.push(call)
             } else {
                 if (curCalls.length !== 0) flush()
@@ -134,8 +150,9 @@ export class AssistantMessage {
 
         flush()
 
-        return interactions
+        return { attachments, interactions }
     }
+
 
 }
 

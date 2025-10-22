@@ -49,3 +49,18 @@ describe("folding ranges (tool-call)", () => {
     expect(ranges.length).toBe(0)
   })
 })
+
+describe("folding ranges (inline-attachment)", () => {
+  test("simple inline-attachment folds including closing tag line", async () => {
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind=\"cmd\">\n<command>x</command>\n<content type=\"text/plain\">\n┆hi\n</content>\n</inline-attachment>\n:::\nAfter\n`
+    const ranges = await buildFoldingRanges(text)
+    // open at line 5, close at 10
+    expect(toPairs(ranges)).toEqual([[5, 10]])
+  })
+
+  test("one-line inline-attachment should not fold", async () => {
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind=\"cmd\"></inline-attachment>\n:::\n`
+    const ranges = await buildFoldingRanges(text)
+    expect(ranges.length).toBe(0)
+  })
+})

@@ -9,6 +9,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from "./common.ts"
+import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
 // server tool use blocks begin (to preserve formatting semantics).
@@ -90,10 +91,21 @@ function updateCache(messages : Anthropic.Messages.MessageParam[]) {
     }
 }
 
-async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.Messages.MessageParam[]> {
+async function handleMessage(
+    msg : Message,
+    lectic: Lectic,
+    opt?: { cmdAttachments?: InlineAttachment[] }
+) : Promise<Anthropic.Messages.MessageParam[]> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : Anthropic.Messages.MessageParam[] = []
-        for (const interaction of msg.containedInteractions()) {
+        const { attachments, interactions } = msg.parseAssistantContent()
+        if (attachments.length > 0) {
+            results.push({ 
+                role: "user", 
+                content: attachments.map(a => ({ type: "text" as const, text: a.content })) 
+            })
+        }
+        for (const interaction of interactions) {
             const modelParts : Anthropic.Messages.ContentBlockParam[] = []
             const userParts : Anthropic.Messages.ContentBlockParam[] = []
             if (interaction.text.length > 0) {
@@ -149,7 +161,6 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
                 parts.push(... await link.getParts())
             }
         }
-        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
         const content : Anthropic.Messages.ContentBlockParam[] = [{
             type: "text" as "text",
@@ -168,13 +179,19 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Anthropic.
             }
         }
 
-        for (const command of commands) {
-            const result = await command.execute()
-            if (result) {
-                content.push({
-                    type: "text",
-                    text: result,
-                })
+        if (opt?.cmdAttachments !== undefined) {
+            const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+            for (const command of commands) {
+                const result = await command.execute()
+                if (result) {
+                    content.push({ type: "text", text: result })
+                    opt.cmdAttachments.push({ 
+                        kind: "cmd", 
+                        command: command.command, 
+                        content: result, 
+                        mimetype: "text/plain" 
+                    })
+                }
             }
         }
 
@@ -309,8 +326,15 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
 
         const messages : Anthropic.Messages.MessageParam[] = []
 
-        for (const msg of lectic.body.messages) {
-            messages.push(...await handleMessage(msg, lectic))
+        const cmdAttachments : InlineAttachment[] = []
+
+        for (let i = 0; i < lectic.body.messages.length; i++) {
+            const m = lectic.body.messages[i]
+            if (m.role === "user" && i === lectic.body.messages.length - 1) {
+                messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
+            } else {
+                messages.push(...await handleMessage(m, lectic))
+            }
         }
 
         if (!lectic.header.interlocutor.nocache) updateCache(messages)
@@ -327,6 +351,12 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
             max_tokens: lectic.header.interlocutor.max_tokens || 2048,
             tools: getTools(lectic)
         });
+
+        // Emit cached inline attachments at the top of the assistant block
+        if (cmdAttachments.length > 0) {
+            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+            yield preface
+        }
 
         let assistant = ""
         for await (const text of anthropicTextChunks(stream)) {
@@ -365,8 +395,15 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
 
         const messages : Anthropic.Messages.MessageParam[] = []
 
-        for (const msg of lectic.body.messages) {
-            messages.push(...await handleMessage(msg, lectic))
+        const cmdAttachments : InlineAttachment[] = []
+
+        for (let i = 0; i < lectic.body.messages.length; i++) {
+            const m = lectic.body.messages[i]
+            if (m.role === "user" && i === lectic.body.messages.length - 1) {
+                messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
+            } else {
+                messages.push(...await handleMessage(m, lectic))
+            }
         }
 
         if (!lectic.header.interlocutor.nocache) updateCache(messages)
@@ -383,6 +420,12 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
             max_tokens: lectic.header.interlocutor.max_tokens || 2048,
             tools: getTools(lectic)
         });
+
+        // Emit cached inline attachments at the top of the assistant block
+        if (cmdAttachments.length > 0) {
+            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+            yield preface
+        }
 
         let assistant = ""
         for await (const text of anthropicTextChunks(stream)) {

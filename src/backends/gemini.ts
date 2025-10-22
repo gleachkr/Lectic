@@ -11,6 +11,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
+import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Extract concatenated assistant text from a Gemini response.
 export function geminiAssistantText(
@@ -283,10 +284,18 @@ async function partToContent(part : MessageAttachmentPart)
     }
 }
 
-async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]> {
+async function handleMessage(
+    msg : Message,
+    lectic: Lectic,
+    opt?: { cmdAttachments?: InlineAttachment[] }
+) : Promise<Content[]> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) {
         const results : Content[] = []
-        for (const interaction of msg.containedInteractions()) {
+        const { attachments, interactions } = msg.parseAssistantContent()
+        if (attachments.length > 0) {
+            results.push({ role: "user", parts: attachments.map(a => ({ text: a.content })) })
+        }
+        for (const interaction of interactions) {
             const modelParts : Part[] = []
             const userParts : Part[] = []
             if (interaction.text.length > 0) {
@@ -331,7 +340,6 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
                 parts.push(... await link.getParts())
             }
         }
-        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
 
         if (msg.content.length == 0) { msg.content = "…" }
 
@@ -350,12 +358,19 @@ async function handleMessage(msg : Message, lectic: Lectic) : Promise<Content[]>
             }
         }
 
-        for (const command of commands) {
-            const result = await command.execute()
-            if (result) {
-                content.push({
-                    text: result,
-                })
+        if (opt?.cmdAttachments !== undefined) {
+            const commands = msg.containedDirectives().map(d => new MessageCommand(d))
+            for (const command of commands) {
+                const result = await command.execute()
+                if (result) {
+                    content.push({ text: result })
+                    opt.cmdAttachments.push({ 
+                        kind: "cmd", 
+                        command: command.command, 
+                        content: result, 
+                        mimetype: "text/plain" 
+                    })
+                }
             }
         }
 
@@ -384,8 +399,19 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       const messages : Content[] = []
 
-      for (const msg of lectic.body.messages) {
-          messages.push(...await handleMessage(msg, lectic))
+      // Execute :cmd only if the last message is a user message
+      const lastIdx = lectic.body.messages.length - 1
+      const lastIsUser = lastIdx >= 0 && lectic.body.messages[lastIdx].role === 'user'
+
+      const cmdAttachments: InlineAttachment[] = []
+
+      for (let i = 0; i < lectic.body.messages.length; i++) {
+          const m = lectic.body.messages[i]
+          if (m.role === "user" && lastIsUser && i === lastIdx) {
+              messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
+          } else {
+              messages.push(...await handleMessage(m, lectic))
+          }
       }
 
       Logger.debug("gemini - messages", messages)
@@ -393,6 +419,12 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       const result = await getResult(lectic, this.client, messages)
 
       const accumulatedResponse = initResponse()
+
+      // Emit cached inline attachments at the top of the assistant block
+      if (cmdAttachments.length > 0) {
+          const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+          yield preface
+      }
 
       yield* accumulateStream(result, accumulatedResponse)
 

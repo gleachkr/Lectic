@@ -7,6 +7,7 @@ import { getBody } from "../parsing/parse"
 import { directivesFromAst, referencesFromAst, nodeRaw, parseBlocks } from "../parsing/markdown"
 import { findUrlRangeInNodeRaw } from "./linkTargets"
 import { isSerializedCall } from "../types/tool"
+import { isSerializedInlineAttachment } from "../types/inlineAttachment"
 import type {
   FoldResult,
   DiagnosticsResult,
@@ -17,6 +18,7 @@ import type {
   LinkSpan,
   BlockSpan,
   ToolCallBlockSpan,
+  InlineAttachmentBlockSpan,
 } from "./analysisTypes"
 
 // Bun's Worker uses the web worker API. We listen for messages and
@@ -27,6 +29,7 @@ function buildBundleFromAst(ast: any, docText: string, uri: string, version: num
   const links: LinkSpan[] = []
   const blocks: BlockSpan[] = []
   const toolCallBlocks: ToolCallBlockSpan[] = []
+  const inlineAttachmentBlocks: InlineAttachmentBlockSpan[] = []
 
   // Compute header offset using body extraction
   const body = getBody(docText)
@@ -76,17 +79,20 @@ function buildBundleFromAst(ast: any, docText: string, uri: string, version: num
         const absE = headerOffset + e
         assistants.push({ name: String(node.name), s: absS, e: absE })
         // Inspect child HTML blocks for serialized tool-calls and
-        // record spans for arguments and results
+        // inline attachments, and record spans for hover/folding
         if (Array.isArray(node.children)) {
           for (const b of node.children) {
             if (b?.type !== 'html') continue
             const pos = b.position
             if (!pos?.start?.offset || !pos?.end?.offset) continue
             const raw = nodeRaw(b, body)
-            if (!isSerializedCall(raw)) continue
             const htmlAbsStart = headerOffset + pos.start.offset
             const htmlAbsEnd = headerOffset + pos.end.offset
-            toolCallBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
+            if (isSerializedCall(raw)) {
+              toolCallBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
+            } else if (isSerializedInlineAttachment(raw)) {
+              inlineAttachmentBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
+            }
           }
         }
       }
@@ -104,7 +110,7 @@ function buildBundleFromAst(ast: any, docText: string, uri: string, version: num
   }
   if (cursor < docText.length) blocks.push({ kind: 'user', absStart: cursor, absEnd: docText.length })
 
-  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks }
+  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks, inlineAttachmentBlocks }
 }
 
 self.addEventListener("message", async (ev: MessageEvent<WorkerMessage>) => {

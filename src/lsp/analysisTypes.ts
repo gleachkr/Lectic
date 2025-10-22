@@ -23,8 +23,12 @@ export type BlockSpan = {
   name?: string
 }
 
-
 export type ToolCallBlockSpan = {
+  absStart: number
+  absEnd: number
+}
+
+export type InlineAttachmentBlockSpan = {
   absStart: number
   absEnd: number
 }
@@ -37,6 +41,7 @@ export type AnalysisBundle = {
   links: LinkSpan[]
   blocks: BlockSpan[]
   toolCallBlocks: ToolCallBlockSpan[]
+  inlineAttachmentBlocks: InlineAttachmentBlockSpan[]
 }
 
 export type AnalyzeRequest = {
