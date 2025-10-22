@@ -21,6 +21,7 @@ export class AgentTool extends Tool {
 
     name: string
     agent: Interlocutor
+    interlocutors: Interlocutor[]
     description: string
     raw_output: boolean
     static count : number = 0
@@ -31,6 +32,7 @@ export class AgentTool extends Tool {
         const agent = interlocutors.find(i => i.name === spec.agent)
         if (agent === undefined) throw Error(`There's no interlocutor named ${spec.agent}`)
         this.agent = agent
+        this.interlocutors = interlocutors
         this.raw_output = spec.raw_output ?? false
         this.description = 
             `Use the tool to send a request to the LLM ${spec.agent}. ` +
@@ -55,12 +57,12 @@ export class AgentTool extends Tool {
     async call({ content }: { content: string }) : Promise<ToolCallResult[]> {
         this.validateArguments({ content });
         const lectic = new Lectic({
-            // the agent we pass in is already initialized, so there's no need
-            // to initialize the header, or pass in other interlocutors for
-            // recursive agent calls.
-            header: new LecticHeader({interlocutor: this.agent}),
+            header: new LecticHeader({interlocutor: this.agent, interlocutors: this.interlocutors}),
             body: { messages: [new UserMessage({ content })] },
         })
+
+        await lectic.header.initialize()
+
         const backend = getBackend(this.agent)
         const result = Logger.fromStream(backend.evaluate(lectic))
         for await (const _ of result.chunks) { }
@@ -78,7 +80,7 @@ export class AgentTool extends Tool {
                     .join("\n\n")
                 return `${interaction.text}\n\n${callstring}`
             }).join('\n')
-            return ToolCallResults(sanitizedText)
+            return ToolCallResults(sanitizedText, "text/markdown")
         }
     }
 }

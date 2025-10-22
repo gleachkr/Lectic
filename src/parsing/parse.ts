@@ -98,8 +98,6 @@ export async function parseLectic(raw: string, include : (string | null)[]) : Pr
 
     const header = new LecticHeader(headerSpec)
 
-    await header.initialize()
-
     const messages = bodyToMessages(rawBody, header)
 
     return new Lectic({ header, body : { messages }})

@@ -78,52 +78,55 @@ export class LecticHeader {
     }
 
     async initialize() {
-        for (const interlocutor of this.interlocutors) {
-            interlocutor.prompt = await loadFrom(interlocutor.prompt)
 
-            interlocutor.registry = {}
+        if (this.interlocutor.registry) return
 
-            if (interlocutor.tools) {
-                for (const spec of interlocutor.tools) {
-                    // TODO it'd be nice to just have the tools save their
-                    // registration boilerplate on to Tool as each class is defined
-                    const register = (tool : Tool) => {
-                        if (interlocutor.registry === undefined) return
-                        if (tool.name in interlocutor.registry) {
-                            throw Error(`the name ${tool.name} is being used twice. Each tool needs a unique name`)
-                        } else {
-                            interlocutor.registry[tool.name] = tool 
-                        }
-                    }
-                    if (isExecToolSpec(spec)) {
-                        // don't mutate spec, it's confusing elsewhere if the
-                        // tool spece starts to not match the YAML, for example
-                        // if the YAML uses &* references
-                        const loadedSpec = { ...spec }
-                        loadedSpec.usage = await loadFrom(spec.usage)
-                        register(new ExecTool(loadedSpec, interlocutor.name))
-                    } else if (isSQLiteToolSpec(spec)) {
-                        spec.details = await loadFrom(spec.details)
-                        register(new SQLiteTool(spec))
-                    } else if (isThinkToolSpec(spec)) {
-                        register(new ThinkTool(spec))
-                    } else if (isServeToolSpec(spec)) {
-                        register(new ServeTool(spec))
-                    } else if (isAgentToolSpec(spec)) {
-                        const loadedSpec = { ...spec }
-                        loadedSpec.usage = await loadFrom(spec.usage)
-                        register(new AgentTool(loadedSpec, this.interlocutors))
-                    } else if (isMCPSpec(spec)) {
-                        (await MCPTool.fromSpec(spec)).map(register)
-                    } else if (isNativeTool(spec)) {
-                       // do nothing 
+        this.interlocutor.prompt = await loadFrom(this.interlocutor.prompt)
+
+        this.interlocutor.registry = {}
+
+        if (this.interlocutor.tools) {
+            for (const spec of this.interlocutor.tools) {
+                // TODO it'd be nice to just have the tools save their
+                // registration boilerplate on to Tool as each class is defined
+                const register = (tool : Tool) => {
+                    if (this.interlocutor.registry === undefined) return
+                    if (tool.name in this.interlocutor.registry) {
+                        throw Error(`the name ${tool.name} is being used twice. Each tool needs a unique name`)
                     } else {
-                        throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized. ` +
-                                    `Check the tool section of your YAML header.`)
+                        this.interlocutor.registry[tool.name] = tool 
                     }
+                }
+                if (isExecToolSpec(spec)) {
+                    // don't mutate spec, it's confusing elsewhere if the
+                    // tool spec starts to not match the YAML, for example
+                    // if the YAML uses &* references
+                    const loadedSpec = { ...spec }
+                    loadedSpec.usage = await loadFrom(spec.usage)
+                    register(new ExecTool(loadedSpec, this.interlocutor.name))
+                } else if (isSQLiteToolSpec(spec)) {
+                    const loadedSpec = { ...spec }
+                    loadedSpec.details = await loadFrom(spec.details)
+                    register(new SQLiteTool(loadedSpec))
+                } else if (isThinkToolSpec(spec)) {
+                    register(new ThinkTool(spec))
+                } else if (isServeToolSpec(spec)) {
+                    register(new ServeTool(spec))
+                } else if (isAgentToolSpec(spec)) {
+                    const loadedSpec = { ...spec }
+                    loadedSpec.usage = await loadFrom(spec.usage)
+                    register(new AgentTool(loadedSpec, this.interlocutors))
+                } else if (isMCPSpec(spec)) {
+                    (await MCPTool.fromSpec(spec)).map(register)
+                } else if (isNativeTool(spec)) {
+                   // do nothing 
+                } else {
+                    throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized. ` +
+                                `Check the tool section of your YAML header.`)
                 }
             }
         }
+
     }
 }
 

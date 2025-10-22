@@ -117,6 +117,9 @@ async function main() {
             // we handle directives, which may update header fields
             lectic.handleDirectives()
 
+            // we initialize, starting MCP servers for the active interlocutor
+            await lectic.header.initialize()
+
             const backend = getBackend(lectic.header.interlocutor)
 
             if (!program.opts()["Short"]) {
