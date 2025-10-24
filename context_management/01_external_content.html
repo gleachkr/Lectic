@@ -317,10 +317,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#uri-schemes" id="toc-uri-schemes" class="nav-link" data-scroll-target="#uri-schemes">URI Schemes</a></li>
   <li><a href="#advanced-uri-features" id="toc-advanced-uri-features" class="nav-link" data-scroll-target="#advanced-uri-features">Advanced URI Features</a></li>
   </ul></li>
-  <li><a href="#command-output-via-cmd-directive" id="toc-command-output-via-cmd-directive" class="nav-link" data-scroll-target="#command-output-via-cmd-directive">Command Output via <code>:cmd</code> Directive</a>
-  <ul class="collapse">
-  <li><a href="#use-cases" id="toc-use-cases" class="nav-link" data-scroll-target="#use-cases">Use Cases</a></li>
-  </ul></li>
+  <li><a href="#command-output-via-cmd-directive" id="toc-command-output-via-cmd-directive" class="nav-link" data-scroll-target="#command-output-via-cmd-directive">Command Output via <code>:cmd</code> Directive</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -395,20 +392,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="command-output-via-cmd-directive" class="level2">
 <h2 class="anchored" data-anchor-id="command-output-via-cmd-directive">Command Output via <code>:cmd</code> Directive</h2>
-<p>For dynamic content, you can use the <code>:cmd[...]</code> directive to execute a shell command and insert its standard output directly into your message.</p>
-<p>Lectic executes the command using the fast and modern <a href="https://bun.sh/docs/runtime/shell">Bun shell</a>.</p>
-<section id="use-cases" class="level3">
-<h3 class="anchored" data-anchor-id="use-cases">Use Cases</h3>
-<p>This is a powerful way to provide the LLM with real-time information.</p>
-<ul>
-<li><p><strong>System Information</strong>: <code>What can you tell me about my system? :cmd[uname -a]</code></p></li>
-<li><p><strong>Project State</strong>: <code>Please write a commit message for these changes: :cmd[git diff --staged]</code></p></li>
-<li><p><strong>Data Analysis</strong>: <code>Based on this data, what's the average? :cmd[cat data.csv | awk '...']</code></p></li>
-</ul>
-<p>The output of the command is seamlessly included in the user message that is sent to the LLM.</p>
+<p>Use <code>:cmd[...]</code> to execute a shell command and capture its stdout and stderr. Lectic runs the command with the Bun shell. The result is returns as an inline attachment that appears at the very top of the next assistant block.</p>
+<p>How it works - When you run lectic, any <code>:cmd[...]</code> found in the last user message is executed, and ther result is forwared to the LLM. - The result is also inserted as an inline attachment chunk at the beginning of the generated assistant block. It looks like an XML block beginning with <code>&lt;inline-attachment ...&gt;</code>. It includes the command and its content (stdout, or an error wrapper that includes stdout and stderr). - During provider serialization, this attachment is treated as if it were a user message that immediately precedes the assistant’s round. This keeps provider caches stable and avoids recomputing earlier commands. - Older <code>:cmd[...]</code> directives are not re-executed. Their cached attachments remain part of the transcript and are reused across runs.</p>
+<p>Use cases - System information: <code>What can you tell me about my system? :cmd[uname -a]</code> - Project state: <code>Write a commit message: :cmd[git diff --staged]</code> - Data analysis: <code>Compute the average: :cmd[cat data.csv | awk '...']</code></p>
+<p>Notes - Output is wrapped in XML. On success, stdout is included. On failure, an <code>&lt;error&gt;</code> wrapper includes both stdout and stderr. - Commands are executed directly (with Bun’s <code>$</code>), in the current working directory. Standard Lectic environment variables like <code>LECTIC_FILE</code> are available.</p>
 
 
-</section>
 </section>
 </section>
 
