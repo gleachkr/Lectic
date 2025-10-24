@@ -90,13 +90,13 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
         for (const key in tool.parameters) {
             if (key in args) {
                 const s = tool.parameters[key]
-                const attr = s?.type === "string" && s?.contentMediaType
+                const attr = 'type' in s && s.type === "string" && s.contentMediaType
                     ? ` contentMediaType="${s.contentMediaType}` + `"`
                     : ""
                 values.push(`<${key}${attr}>${serialize(args[key], tool.parameters[key])}</${key}>`)
-            } else if (tool.required?.includes(key)) {
-                throw new Error(`missing required parameter: ${key}`)
             }
+            // missing required parameters are caught by schema validation and the error is passed to the LLM.
+            // so we still serialize in that case, to let processing continue
         }
     }
 

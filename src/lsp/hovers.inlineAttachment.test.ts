@@ -3,7 +3,7 @@ import type { AnalysisBundle } from "./analysisTypes"
 import { computeHover } from "./hovers"
 import { offsetToPosition } from "./positions"
 
-function mkBundleForSpan(text: string, start: number, end: number): AnalysisBundle {
+function mkBundleForSpan(start: number, end: number): AnalysisBundle {
   return {
     uri: "file:///doc.lec",
     version: 1,
@@ -25,7 +25,7 @@ describe("hover: inline attachment", () => {
     expect(s).toBeGreaterThanOrEqual(0)
     expect(e).toBeGreaterThan(s)
 
-    const bundle = mkBundleForSpan(doc, s, e)
+    const bundle = mkBundleForSpan(s, e)
     const pos = offsetToPosition(doc, s + 10)
     const hover = await computeHover(doc, pos, undefined, bundle)
     expect(hover).not.toBeNull()
@@ -41,7 +41,7 @@ describe("hover: inline attachment", () => {
 
     const s = doc.indexOf("<inline-attachment")
     const e = doc.indexOf("</inline-attachment>") + "</inline-attachment>".length
-    const bundle = mkBundleForSpan(doc, s, e)
+    const bundle = mkBundleForSpan(s, e)
     const pos = offsetToPosition(doc, s + 5)
     const hover = await computeHover(doc, pos, undefined, bundle)
     expect(hover).not.toBeNull()

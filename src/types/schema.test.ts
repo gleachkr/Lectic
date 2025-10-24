@@ -231,6 +231,64 @@ describe('deserialize function', () => {
     });
 });
 
+describe('anyOf support', () => {
+    it('validates/serializes string or integer union', () => {
+        const schema: JSONSchema = {
+            anyOf: [
+                { type: 'string', description: 'a string' },
+                { type: 'integer', description: 'an int' }
+            ]
+        } as const
+        expect(serialize('x', schema)).toBe('\n┆x\n')
+        expect(serialize(7, schema)).toBe('7')
+        expect(() => serialize(true, schema)).toThrow('anyOf')
+
+        expect(deserialize('\n┆hey\n', schema)).toBe('hey')
+        expect(deserialize('42', schema)).toBe(42)
+        expect(() => deserialize('true', schema)).toThrow('anyOf')
+    })
+
+    it('works nested inside object properties', () => {
+        const schema: JSONSchema = {
+            type: 'object',
+            description: 'obj',
+            properties: {
+                val: {
+                    anyOf: [
+                        { type: 'array', description: 'arr', items: { type: 'string', description: 's' } },
+                        { type: 'object', description: 'o', properties: { n: { type: 'number', description: 'n' } } }
+                    ]
+                }
+            }
+        }
+
+        const xml1 = serialize({ val: ['a', 'b'] }, schema)
+        const back1 = deserialize(xml1, schema)
+        expect(back1).toEqual({ val: ['a', 'b'] })
+
+        const xml2 = serialize({ val: { n: 1.5 } }, schema)
+        const back2 = deserialize(xml2, schema)
+        expect(back2).toEqual({ val: { n: 1.5 } })
+    })
+
+    it('handles anyOf for array items', () => {
+        const schema: JSONSchema = {
+            type: 'array',
+            description: 'mixed',
+            items: {
+                anyOf: [
+                    { type: 'string', description: 's' },
+                    { type: 'integer', description: 'i' }
+                ]
+            }
+        }
+        const value = ['a', 1, 'b', 2]
+        const xml = serialize(value, schema)
+        const back = deserialize(xml, schema)
+        expect(back).toEqual(value)
+    })
+})
+
 describe('Round-trip serialization/deserialization tests', () => {
     it('should handle complex objects with nested arrays and objects', () => {
         const schema: JSONSchema = {

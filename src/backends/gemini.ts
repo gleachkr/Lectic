@@ -1,9 +1,8 @@
-import type { Content, Part, Schema, ContentListUnion, Candidate, Model, Pager } from '@google/genai'
+import type { Content, Part, ContentListUnion, Candidate, Model, Pager } from '@google/genai'
 import type * as Gemini from '@google/genai' 
-import { GoogleGenAI, Type, GenerateContentResponse } from '@google/genai'
+import { GoogleGenAI, GenerateContentResponse } from '@google/genai'
 import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import type { JSONSchema } from "../types/schema"
 import { serializeCall, type ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
@@ -18,7 +17,7 @@ export function geminiAssistantText(
     response: GenerateContentResponse
 ) : string {
     const parts = response.candidates?.[0]?.content?.parts || []
-    return parts.map(p => (p as any).text || "").join("")
+    return parts.map(p => p.text || "").join("")
 }
 
 type FunctionResponse = Part & { 
@@ -28,24 +27,6 @@ type FunctionResponse = Part & {
         response: {output: ToolCallResult[], error?: ToolCallResult[] } | 
                   {error : ToolCallResult[], output?: ToolCallResult[]} 
     } 
-}
-
-function googleParameter(param: JSONSchema ) : Schema | undefined {
-    switch (param.type) {
-        case "string" : return { type: Type.STRING }
-        case "number" : return { type: Type.NUMBER }
-        case "integer" : return { type: Type.INTEGER }
-        case "null" : return { type: Type.NULL }
-        case "boolean" : return { type: Type.BOOLEAN }
-        case "array" : return { 
-            type: Type.ARRAY,
-            items: googleParameter(param.items) ?? { type: Type.STRING }
-        }
-        case "object" : return { 
-            type: Type.OBJECT,
-            properties: googleParameters(param.properties)
-        }
-    }
 }
 
 function consolidateText(response : GenerateContentResponse) {
@@ -127,27 +108,23 @@ async function* accumulateStream(
       consolidateText(accumulator)
 }
 
-function googleParameters(params: Record<string, JSONSchema>) : Record<string, Schema> {
-    const rslt : Record<string, Schema> = {}
-    for (const key of Object.keys(params)) {
-        const param = googleParameter(params[key])
-        if (!param) throw Error(`Google parameter coercion failed for parameter ${JSON.stringify(params[key])}`)
-        rslt[key] = param
-    }
-    return rslt
-}
-
 function getTools(lectic : Lectic) : Gemini.FunctionDeclaration[] {
     const tools : Gemini.FunctionDeclaration[] = []
     for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
-        tools.push( {
-            name : tool.name,
-            description : tool.description,
-            parameters: {
-                "type" : Type.OBJECT,
-                "properties" : googleParameters(tool.parameters),
-                "required" : tool.required ?? [],
-            }
+        const properties = tool.parameters
+        const required = tool.required ?? []
+        const propertyOrdering = Object.keys(properties)
+        const parametersJsonSchema = {
+            type: "object",
+            properties,
+            required,
+            additionalProperties: false,
+            propertyOrdering,
+        } as const
+        tools.push({
+            name: tool.name,
+            description: tool.description,
+            parametersJsonSchema,
         })
     }
     return tools

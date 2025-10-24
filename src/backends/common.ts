@@ -111,7 +111,9 @@ export async function resolveToolCalls(
                 const r = await registry[name].call(args)
                 results.push({ name, args, id, isError: false, results: r })
             } catch (error) {
-                const msg = error instanceof Error ? error.message : `An error of unknown type occurred during a call to ${name}`
+                const msg = error instanceof Error 
+                    ? error.message 
+                    : `An error of unknown type occurred during a call to ${name}`
                 const args = e.args
                 results.push({ name, args, id, isError: true, results: ToolCallResults(msg) })
             }
