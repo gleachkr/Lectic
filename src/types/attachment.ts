@@ -38,8 +38,8 @@ export class MessageAttachment {
     URI : string
 
     constructor(link : MessageLink) {
+        this.URI = expandEnv(link.URI)
         try {
-            this.URI = expandEnv(link.URI)
             const url = new URL(this.URI)
             this.fragmentParams = new URLSearchParams(url.hash.slice(1))
             switch(url.protocol) {
@@ -62,8 +62,7 @@ export class MessageAttachment {
                 }
             }
         } catch {
-            this.file = Bun.file(link.URI)
-            this.URI = link.URI
+            this.file = Bun.file(this.URI)
         }
         this.title = link.text
     }
