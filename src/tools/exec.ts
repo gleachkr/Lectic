@@ -38,6 +38,27 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         )
 }
 
+/**
+ * Clean up terminal control sequences from command output.
+ * When a program writes progress indicators, it uses \r to overwrite lines.
+ * This function processes each line and keeps only the final overwritten state.
+ * 
+ * Example: "Loading... 10%\rLoading... 50%\rDone!" becomes "Done!"
+ * 
+ * Note: \r\n (Windows line endings) are handled correctly by normalizing first.
+ */
+function stripCarriageReturnOverwrites(s: string): string {
+    // First, normalize \r\n to \n to avoid treating line endings as overwrites
+    // and split on \n
+    return s.replace(/\r\n/g, '\n').split('\n').map(line => {
+        // For each line, keep only the text after the last \r
+        const lastCR = line.lastIndexOf('\r')
+        // Keep everything after the last carriage return
+        if (lastCR >= 0) return line.slice(lastCR + 1)
+        return line
+    }).join('\n')
+}
+
 async function spawnScript(
     script : string,
     args : string[],
@@ -189,7 +210,12 @@ export class ExecTool extends Tool {
         const rslt = Promise.all([
             readStream(proc.stdout, s => collected.stdout += s),
             readStream(proc.stderr, s => collected.stderr += s),
-        ]).then(() => proc.exited)
+        ]).then(() => proc.exited).then((code) => {
+            // Clean up progress indicators after collection is complete
+            collected.stdout = stripCarriageReturnOverwrites(collected.stdout)
+            collected.stderr = stripCarriageReturnOverwrites(collected.stderr)
+            return code
+        })
 
         try {
             const code = await (this.timeoutSeconds && this.timeoutSeconds > 0
