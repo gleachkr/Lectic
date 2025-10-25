@@ -4,7 +4,8 @@ import type {
   DidCloseTextDocumentParams, CompletionParams,
   DefinitionParams, Location,
   DocumentSymbolParams, FoldingRangeParams,
-  WorkspaceSymbolParams, CodeActionParams
+  WorkspaceSymbolParams, CodeActionParams,
+  SemanticTokensParams, SemanticTokensRangeParams,
 } from "vscode-languageserver"
 import {
   createConnection, ProposedFeatures, TextDocumentSyncKind
@@ -27,6 +28,7 @@ import type {
 } from "./analysisTypes"
 import type { FoldingRange, HoverParams } from "vscode-languageserver"
 import { extractWorkspaceRoots } from "./serverHelpers"
+import { buildSemanticTokens, semanticTokenLegend } from "./semanticTokens"
 
 // Minimal document record (track text and client-provided version)
 type Doc = { uri: string, text: string, version: number }
@@ -253,6 +255,11 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
         foldingRangeProvider: true,
         workspaceSymbolProvider: true,
         codeActionProvider: true,
+        semanticTokensProvider: {
+          legend: semanticTokenLegend,
+          full: true,
+          range: true,
+        },
       }
     }
   })
@@ -364,6 +371,25 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const bundle = await analyzer.getBundle()
     const res = await computeCodeActions(params.textDocument.uri, doc.text, params, docDir, bundle)
     return res ?? []
+  })
+
+  // Semantic tokens (full and range)
+  connection.languages.semanticTokens.on(async (params: SemanticTokensParams) => {
+    const doc = docs.get(params.textDocument.uri)
+    if (!doc) return { data: [] }
+    const analyzer = analyzers.get(params.textDocument.uri)
+    if (!analyzer) return { data: [] }
+    const bundle = await analyzer.getBundle()
+    return buildSemanticTokens(doc.text, bundle)
+  })
+
+  connection.languages.semanticTokens.onRange(async (params: SemanticTokensRangeParams) => {
+    const doc = docs.get(params.textDocument.uri)
+    if (!doc) return { data: [] }
+    const analyzer = analyzers.get(params.textDocument.uri)
+    if (!analyzer) return { data: [] }
+    const bundle = await analyzer.getBundle()
+    return buildSemanticTokens(doc.text, bundle, params.range)
   })
 }
 
