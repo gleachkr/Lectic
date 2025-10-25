@@ -1,5 +1,5 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
-import type { JSONSchema } from "../types/schema"
+import type { JSONSchema, ObjectSchema } from "../types/schema"
 import { lecticEnv } from "../utils/xdg";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
@@ -59,7 +59,7 @@ type MCPToolSpec = {
     description?: string
     confirm?: string
     sandbox?: string
-    schema: JSONSchema & { type: "object" }
+    schema: ObjectSchema
     client: Client
 }
 
@@ -301,7 +301,7 @@ export class MCPTool extends Tool {
                 server_tool_name: tool.name,
                 description: tool.description,
                 // ↓ We cast here. The MCP docs seem to guarantee these are schemata
-                schema: tool.inputSchema as JSONSchema & { type: "object" },
+                schema: tool.inputSchema as ObjectSchema,
                 client: client, // the tools share a single client
                 confirm: spec.confirm,
                 sandbox: "sandbox" in spec ? spec.sandbox : undefined

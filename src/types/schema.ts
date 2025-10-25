@@ -38,7 +38,7 @@ type NullSchema = {
     type: "null"
 }
 
-type ObjectSchema = {
+export type ObjectSchema = {
     type: "object",
     description: string
     required?: string[]
