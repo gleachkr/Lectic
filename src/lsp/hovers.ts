@@ -257,8 +257,13 @@ function elementsUnder(serialized: string, parentTag: string): string[] {
   const open = `<${parentTag}>`
   const close = `</${parentTag}>`
   const start = serialized.indexOf(open)
-  const end = start >= 0 ? serialized.indexOf(close, start + open.length) : -1
-  if (start < 0 || end <= start) return []
+  if (start < 0) return []
+  // Assuming well‑formed serialized XML produced by Lectic, there is a
+  // single outer <parentTag> ... </parentTag> wrapper. Using the first
+  // opening and the last closing reliably slices the wrapper even when
+  // nested <parentTag> blocks exist inside.
+  const end = serialized.lastIndexOf(close)
+  if (end < 0 || end <= start) return []
   const inner = serialized.slice(start + open.length, end)
   return extractElements(inner)
 }
