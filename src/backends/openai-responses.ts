@@ -7,7 +7,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { serializeCall } from "../types/tool"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls, collectAttachmentPartsFromCalls } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
@@ -55,6 +55,7 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     return tools
 }
 
+
 async function *handleToolUse(
     message : OpenAI.Responses.Response, 
     messages : OpenAI.Responses.ResponseInput, 
@@ -92,28 +93,40 @@ async function *handleToolUse(
             })
         const realized = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
 
-        // Emit transcript and build provider outputs
+        // Echo prior assistant output
         for (const o of message.output) {
             messages.push(o)
-            if (o.type === 'function_call') {
-                const call = realized.find(c => c.id === o.call_id && c.name === o.name)
-                if (call) {
-                    const theTool = o.name in registry ? registry[o.name] : null
-                    yield serializeCall(theTool, {
-                        name: o.name,
-                        args: call.args,
-                        id: o.call_id,
-                        isError: call.isError,
-                        results: call.results
-                    })
-                    yield "\n\n"
-                    messages.push({
-                        type: 'function_call_output',
-                        call_id: o.call_id,
-                        output: JSON.stringify(call.results)
-                    })
-                }
-            }
+        }
+
+        // Emit transcript entries for realized tool calls
+        for (const call of realized) {
+            const theTool = call.name in registry ? registry[call.name] : null
+            yield serializeCall(theTool, {
+                name: call.name,
+                args: call.args,
+                id: call.id,
+                isError: call.isError,
+                results: call.results
+            })
+            yield "\n\n"
+        }
+
+        // Attach any non-text results via a user message with attachments
+        const attachParts = await collectAttachmentPartsFromCalls(
+            realized,
+            partToContent,
+        )
+        if (attachParts.length > 0) {
+            messages.push({ role: 'user', content: attachParts })
+        }
+
+        // Provide outputs for each call
+        for (const call of realized) {
+            messages.push({
+                type: 'function_call_output',
+                call_id: call.id ?? "undefined",
+                output: JSON.stringify(call.results),
+            })
         }
 
         Logger.debug("openai - messages (tool)", messages)
@@ -204,17 +217,34 @@ async function handleMessage(
                     content: interaction.text
                 })
             } 
-            for (const call of interaction.calls) {
-                const call_id = call.id ?? Bun.randomUUIDv7()
+            const callsWithIds = interaction.calls.map(call => ({
+                id: call.id ?? Bun.randomUUIDv7(),
+                call,
+            }))
+
+            for (const { id, call } of callsWithIds) {
                 results.push({
                     type: "function_call",
-                    call_id,
+                    call_id: id,
                     name: call.name,
                     arguments: JSON.stringify(call.args)
                 })
+            }
+
+            if (interaction.calls.length > 0) {
+                const attachParts = await collectAttachmentPartsFromCalls(
+                    interaction.calls,
+                    partToContent,
+                )
+                if (attachParts.length > 0) {
+                    results.push({ role: 'user', content: attachParts })
+                }
+            }
+
+            for (const { id, call } of callsWithIds) {
                 results.push({
                     type: "function_call_output",
-                    call_id,
+                    call_id: id,
                     output: JSON.stringify(call.results)
                 })
             }
@@ -340,8 +370,7 @@ export class OpenAIResponsesBackend implements Backend {
 
         // Emit cached inline attachments at the top of the assistant block
         if (cmdAttachments.length > 0) {
-            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
-            yield preface
+            yield cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
         }
 
         let assistant = ""

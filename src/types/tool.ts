@@ -14,11 +14,10 @@ export class ToolCallResult {
     get text(): string { return this.content }
 
     // Serialize this result to a <result> XML element
+    // For non-text/application types, we serialize the content as a
+    // literal URI string. Retrieval is handled later by providers.
     toXml(): string {
-        if (/^(text|application)\//.test(this.mimetype)) {
-            return `<result type="${this.mimetype}">${escapeTags(this.content)}</result>`
-        }
-        throw Error(`Unrecognized result mimetype: ${this.mimetype}`)
+        return `<result type="${this.mimetype}">${escapeTags(this.content)}</result>`
     }
 
     toBlock(): { type: "text", text: string, toString: () => string } { 
@@ -31,10 +30,7 @@ export class ToolCallResult {
         const match = resultRegex.exec(xml.trim())
         if (!match) throw Error(`Couldn't deserialize ${xml} as tool call result`)
         const [, mimetype, content] = match
-        if (/^(text|application)\//.test(mimetype)) {
-            return new ToolCallResult(unescapeTags(content), mimetype)
-        }
-        throw Error(`Unrecognized mimetype ${mimetype} in tool call result deserialization`)
+        return new ToolCallResult(unescapeTags(content), mimetype)
     }
 
     // Convenience: build one or many results from string(s)

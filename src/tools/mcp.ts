@@ -56,6 +56,7 @@ type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamable
 type MCPToolSpec = {
     name: string // a namespaced-by-server name for the tool
     server_tool_name: string // the original name of the tool, known to the server
+    server_name: string // the configured MCP server name (scheme prefix)
     description?: string
     confirm?: string
     sandbox?: string
@@ -110,9 +111,38 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
     return raw !== null && 
         typeof raw === "object" &&
-        "type" in raw && raw.type === "text" &&
-        "text" in raw && typeof raw.text === "string"
+        "type" in raw && (raw as any).type === "text" &&
+        "text" in raw && typeof (raw as any).text === "string"
+}
 
+function isResourceLinkContent(raw: unknown): raw is {
+    type: "resource_link",
+    uri: string,
+    mimeType?: string,
+    name?: string,
+    description?: string,
+} {
+    return raw !== null &&
+        typeof raw === "object" &&
+        "type" in raw && (raw as any).type === "resource_link" &&
+        "uri" in raw && typeof (raw as any).uri === "string"
+}
+
+function isResourceContent(raw: unknown): raw is {
+    type: "resource",
+    resource: {
+        uri: string,
+        mimeType?: string,
+        text?: string,
+        blob?: string,
+    }
+} {
+    return raw !== null &&
+        typeof raw === "object" &&
+        "type" in raw && (raw as any).type === "resource" &&
+        "resource" in raw && typeof (raw as any).resource === "object" &&
+        (raw as any).resource !== null &&
+        "uri" in (raw as any).resource && typeof (raw as any).resource.uri === "string"
 }
 
 class MCPListResources extends Tool {
@@ -161,6 +191,7 @@ class MCPListResources extends Tool {
 export class MCPTool extends Tool {
     name: string
     server_tool_name: string
+    server_name: string
     description: string
     parameters: { [_ : string] : JSONSchema }
     required?: string[]
@@ -171,11 +202,12 @@ export class MCPTool extends Tool {
     static clientByHash : Record<string, Client> = {}
     static clientByName : Record<string, Client> = {}
 
-    constructor({name, server_tool_name, description, schema, confirm, client}: MCPToolSpec) {
+    constructor({name, server_tool_name, server_name, description, schema, confirm, client}: MCPToolSpec) {
         super()
         this.client = client
         this.name = name
         this.server_tool_name = server_tool_name
+        this.server_name = server_name
         this.confirm = confirm ? expandEnv(confirm) : confirm
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
@@ -190,6 +222,11 @@ export class MCPTool extends Tool {
             this.required = schema.required
         }
     };
+
+    private qualifyResourceUri(uri: string): string {
+        if (uri.startsWith(`${this.server_name}+`)) return uri
+        return `${this.server_name}+${uri}`
+    }
 
     async call(args : Record<string, unknown>) : Promise<ToolCallResult[]> {
 
@@ -216,8 +253,16 @@ export class MCPTool extends Tool {
         for (const block of content) {
             if (isTextContent(block)) {
                 results.push(...ToolCallResults(block.text))
+            } else if (isResourceLinkContent(block)) {
+                const mt = block.mimeType || "application/octet-stream"
+                const uri = this.qualifyResourceUri(block.uri)
+                results.push(...ToolCallResults(uri, mt))
+            } else if (isResourceContent(block)) {
+                const uri = this.qualifyResourceUri(block.resource.uri)
+                const mt = block.resource.mimeType || "application/octet-stream"
+                results.push(...ToolCallResults(uri, mt))
             } else {
-                throw Error(`MCP only supports text responses right now. Got ${JSON.stringify(content)}`)
+                throw Error(`MCP only supports text and resource link responses right now. Got ${JSON.stringify(content)}`)
             }
         }
         return results
@@ -299,6 +344,7 @@ export class MCPTool extends Tool {
             return new MCPTool({
                 name: `${prefix}_${tool.name}`,
                 server_tool_name: tool.name,
+                server_name: prefix,
                 description: tool.description,
                 // ↓ We cast here. The MCP docs seem to guarantee these are schemata
                 schema: tool.inputSchema as ObjectSchema,

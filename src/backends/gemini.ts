@@ -9,7 +9,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls, collectAttachmentPartsFromCalls } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Extract concatenated assistant text from a Gemini response.
@@ -130,6 +130,7 @@ function getTools(lectic : Lectic) : Gemini.FunctionDeclaration[] {
     return tools
 }
 
+
 async function *handleToolUse(
     response : GenerateContentResponse, 
     messages : Content[], 
@@ -173,6 +174,12 @@ async function *handleToolUse(
             }
         }))
 
+        // Attach any non-text results by merging into the same user message
+        const userParts: Part[] = [
+            ...parts,
+            ...await collectAttachmentPartsFromCalls(realized, partToContent)
+        ]
+
         // yield results
         for (const call of realized) {
             const theTool = call.name in registry ? registry[call.name] : null
@@ -185,7 +192,7 @@ async function *handleToolUse(
             }) + "\n\n"
         }
 
-        messages.push({ role: "user", parts })
+        messages.push({ role: "user", parts: userParts })
 
         Logger.debug("gemini - messages (tool)", messages)
 
@@ -292,14 +299,18 @@ async function handleMessage(
 
             if (interaction.calls.length > 0) {
                 for (const call of interaction.calls) {
+                    const resp = call.isError
+                        ? { error: call.results }
+                        : { output: call.results }
                     userParts.push({
                         functionResponse: {
                             name: call.name,
                             id: call.id,
-                            response: { output: call.results }
+                            response: resp
                         }
                     })
                 }
+                userParts.push(...await collectAttachmentPartsFromCalls(interaction.calls, partToContent))
                 results.push({role : "user", parts: userParts})
             }
         }

@@ -4,6 +4,8 @@ import { Hook } from "../types/hook"
 import type { Tool } from "../types/tool"
 import type { ToolCall } from "../types/tool"
 import { ToolCallResults } from "../types/tool"
+import type { MessageLink } from "../types/message"
+import { MessageAttachment, type MessageAttachmentPart } from "../types/attachment"
 
 export function wrapText({text, name} : { text : string, name: string}) {
     return `<speaker name="${name}">${text}</speaker>`
@@ -123,4 +125,54 @@ export async function resolveToolCalls(
         }
     }
     return results
+}
+
+// Decide whether a mimetype should be treated as an attachment (binary-ish)
+// rather than inline text. We special-case PDF.
+export function isAttachmentMime(mt: string | null | undefined): boolean {
+    if (!mt) return false
+    if (mt.startsWith("image/")) return true
+    if (mt.startsWith("audio/")) return true
+    if (mt.startsWith("video/")) return true
+    if (mt === "application/pdf") return true
+    return false
+}
+
+
+// Build MessageLink objects (title + URI) for non-text results.
+export function buildNonTextResultMessageLinks(calls: ToolCall[]): MessageLink[] {
+    const out: MessageLink[] = []
+    for (const call of calls) {
+        for (const r of call.results) {
+            if (isAttachmentMime(r.mimetype)) {
+                const uri = r.content.trim()
+                if (uri.length > 0) {
+                    out.push({ text: `${call.name} (${r.mimetype})`, URI: uri })
+                }
+            }
+        }
+    }
+    return out
+}
+
+// Generic helper: from ToolCall[] collect provider-specific content parts
+// for non-text results by reading the linked MessageAttachments and
+// converting their parts with the provided mapper.
+export async function collectAttachmentPartsFromCalls<T>(
+    calls: ToolCall[],
+    mapper: (part: MessageAttachmentPart) => Promise<T | null>,
+): Promise<T[]> {
+    const links = buildNonTextResultMessageLinks(calls)
+    const out: T[] = []
+    const atts = links.map(link => new MessageAttachment(link))
+    for (const att of atts) {
+        if (await att.exists()) {
+            const parts = await att.getParts()
+            for (const p of parts) {
+                const blk = await mapper(p)
+                if (blk) out.push(blk)
+            }
+        }
+    }
+    return out
 }

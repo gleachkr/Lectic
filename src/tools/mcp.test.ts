@@ -120,6 +120,7 @@ describe("Confirm sees namespaced tool name; server sees original name", () => {
     const tool = new MCPTool({
       name: "ns:search",
       server_tool_name: "search",
+      server_name: "ns",
       description: "",
       schema: { type: "object", properties: {} } as any,
       client: fakeClient,

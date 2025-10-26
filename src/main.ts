@@ -1,3 +1,10 @@
+//monkey patch fetch to avoid timeout with some thinking models, codex
+const originalFetch = globalThis.fetch
+globalThis.fetch = Object.assign(
+    function (req : string | URL | Request, opt? : RequestInit) { 
+        return originalFetch(req, opt ? { ...opt, timeout: false} as any : { timeout : false }) 
+    }, originalFetch)
+
 import { createWriteStream } from "fs"
 import { join, dirname } from "path"
 import { program, type OptionValues } from 'commander'

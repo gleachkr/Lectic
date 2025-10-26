@@ -52,11 +52,12 @@ export class MessageAttachment {
                     this.response = Bun.fetch(url); break
                 }
                 default : {
-                    const mcp_match = /^([^+]+)\+/.exec(url.protocol)
-                    if (mcp_match && mcp_match[1] in MCPTool.clientByName) {
-                        MCPTool.clientByName[mcp_match[1]]
-                        this.resource = MCPTool.clientByName[mcp_match[1]].readResource({
-                            uri: this.URI.slice(mcp_match[1].length+1)
+                    // Support MCP URI form: server+type://...
+                    const plusMatch = /^([^+]+)\+/.exec(url.protocol)
+                    if (plusMatch && plusMatch[1] in MCPTool.clientByName) {
+                        const server = plusMatch[1]
+                        this.resource = MCPTool.clientByName[server].readResource({
+                            uri: this.URI.slice(server.length + 1)
                         })
                     }
                 }

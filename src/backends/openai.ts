@@ -7,7 +7,7 @@ import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
 import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
-import { systemPrompt, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from './common.ts'
+import { systemPrompt, pdfFragment, emitAssistantMessageEvent, resolveToolCalls, collectAttachmentPartsFromCalls } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 
@@ -43,6 +43,7 @@ function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[
     }
     return tools
 }
+
 
 async function *handleToolUse(
     message : OpenAI.Chat.ChatCompletionMessage, 
@@ -102,7 +103,21 @@ async function *handleToolUse(
                     results: realizedCall.results
                 })
                 yield "\n\n"
-                // also push provider tool result message so the model can continue
+            }
+        }
+
+        // Attach any non-text results via a user message with attachments
+        {
+            const parts = await collectAttachmentPartsFromCalls(realized, partToContent)
+            if (parts.length > 0) {
+                messages.push({ role: 'user', content: parts })
+            }
+        }
+
+        // also push provider tool result messages so the model can continue
+        for (const call of message.tool_calls) {
+            const realizedCall = realized.find(c => c.id === call.id)
+            if (realizedCall && call.type === "function") {
                 messages.push({
                     role: "tool",
                     tool_call_id: call.id,
@@ -220,6 +235,13 @@ async function handleMessage(
                 content: modelParts, 
                 tool_calls: toolCalls.length > 0 ? toolCalls : undefined
             })
+
+            if (interaction.calls.length > 0) {
+                const attach = await collectAttachmentPartsFromCalls(interaction.calls, partToContent)
+                if (attach.length > 0) {
+                    results.push({ role: 'user', content: attach })
+                }
+            }
 
             for (const call of interaction.calls) {
                 results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))})

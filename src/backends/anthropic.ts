@@ -8,7 +8,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import { MessageCommand } from "../types/directive.ts"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls } from "./common.ts"
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls, collectAttachmentPartsFromCalls } from "./common.ts"
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
@@ -91,6 +91,7 @@ function updateCache(messages : Anthropic.Messages.MessageParam[]) {
     }
 }
 
+
 async function handleMessage(
     msg : Message,
     lectic: Lectic,
@@ -133,6 +134,12 @@ async function handleMessage(
                         is_error: call.isError,
                     })
                 }
+
+                // Merge attachments after tool_result blocks in the same
+                // user message so Anthropic accepts the ordering.
+                userParts.push(
+                    ...await collectAttachmentPartsFromCalls(interaction.calls, partToContent)
+                )
             }
 
             results.push({ role: "assistant", content: modelParts })
@@ -258,7 +265,7 @@ async function* handleToolUse(
         const realized = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
 
         // convert to anthropic blocks for the API
-        const content: Anthropic.Messages.ToolResultBlockParam[] = realized.map(call => ({
+        const content: Anthropic.Messages.ContentBlockParam[] = realized.map(call => ({
             type: "tool_result" as const,
             tool_use_id: call.id ?? "",
             is_error: call.isError,
@@ -279,6 +286,11 @@ async function* handleToolUse(
                 }) + "\n\n"
             }
         }
+
+        // Merge attachments into the same user message that holds the
+        // tool_result blocks to satisfy Anthropic's ordering rule.
+        const attach = await collectAttachmentPartsFromCalls(realized, partToContent)
+        content.push(...attach)
 
         messages.push({ role: "user", content })
 
