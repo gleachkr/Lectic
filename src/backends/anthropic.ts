@@ -3,12 +3,14 @@ import { AnthropicBedrock } from '@anthropic-ai/bedrock-sdk';
 import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { serializeCall } from "../types/tool"
+import type { ToolCall, ToolCallResult } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
-import { MessageCommand } from "../types/directive.ts"
+import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls, collectAttachmentPartsFromCalls } from "./common.ts"
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
+    resolveToolCalls, collectAttachmentPartsFromCalls,
+    gatherMessageAttachmentParts, computeCmdAttachments } from "./common.ts"
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
@@ -161,13 +163,7 @@ async function handleMessage(
         }]
     } else {
 
-        const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
-        const parts : MessageAttachmentPart[] = []
-        for await (const link of links) {
-            if (await link.exists()) {
-                parts.push(... await link.getParts())
-            }
-        }
+        const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
 
         const content : Anthropic.Messages.ContentBlockParam[] = [{
             type: "text" as "text",
@@ -187,19 +183,9 @@ async function handleMessage(
         }
 
         if (opt?.cmdAttachments !== undefined) {
-            const commands = msg.containedDirectives().map(d => new MessageCommand(d))
-            for (const command of commands) {
-                const result = await command.execute()
-                if (result) {
-                    content.push({ type: "text", text: result })
-                    opt.cmdAttachments.push({ 
-                        kind: "cmd", 
-                        command: command.command, 
-                        content: result, 
-                        mimetype: "text/plain" 
-                    })
-                }
-            }
+            const { textBlocks, inline } = await computeCmdAttachments(msg)
+            for (const t of textBlocks) content.push({ type: "text", text: t })
+            opt.cmdAttachments.push(...inline)
         }
 
         return [{ role : msg.role, content }]
@@ -262,19 +248,19 @@ async function* handleToolUse(
 
         const tool_uses = message.content.filter(block => block.type == "tool_use")
         const entries = tool_uses.map(block => ({ id: block.id, name: block.name, args: block.input }))
-        const realized = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
+        const realized: ToolCall[] = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
 
         // convert to anthropic blocks for the API
-        const content: Anthropic.Messages.ContentBlockParam[] = realized.map(call => ({
+        const content: Anthropic.Messages.ContentBlockParam[] = realized.map((call: ToolCall) => ({
             type: "tool_result" as const,
             tool_use_id: call.id ?? "",
             is_error: call.isError,
-            content: call.results.map(r => ({ type: "text" as const, text: r.toBlock().text }))
+            content: call.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))
         }))
 
         // yield results to the transcript, preserving mimetypes
         for (const block of tool_uses) {
-            const call = realized.find(c => c.id === block.id)
+            const call = realized.find((c: ToolCall) => c.id === block.id)
             if (call && block.input instanceof Object) {
                 const theTool = block.name in registry ? registry[block.name] : null
                 yield serializeCall(theTool, {

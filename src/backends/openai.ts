@@ -3,11 +3,12 @@ import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
-import { MessageCommand } from "../types/directive.ts"
+import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
-import { systemPrompt, pdfFragment, emitAssistantMessageEvent, resolveToolCalls, collectAttachmentPartsFromCalls } from './common.ts'
+import { systemPrompt, pdfFragment, emitAssistantMessageEvent,
+    resolveToolCalls, collectAttachmentPartsFromCalls,
+    gatherMessageAttachmentParts, computeCmdAttachments } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 
@@ -121,7 +122,7 @@ async function *handleToolUse(
                 messages.push({
                     role: "tool",
                     tool_call_id: call.id,
-                    content: realizedCall.results.map(r => ({ type: "text" as const, text: r.toBlock().text }))
+                    content: realizedCall.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))
                 })
             }
         }
@@ -244,19 +245,16 @@ async function handleMessage(
             }
 
             for (const call of interaction.calls) {
-                results.push({role : "tool", tool_call_id : call.id ?? "undefined", content: call.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))})
+                results.push({
+                    role : "tool",
+                    tool_call_id : call.id ?? "undefined",
+                    content: call.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))})
             }
         }
         return results
     }
 
-    const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
-    const parts : MessageAttachmentPart[] = []
-    for await (const link of links) {
-        if (await link.exists()) {
-            parts.push(... await link.getParts())
-        }
-    }
+    const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
 
     const content : OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{
         type: "text" as "text",
@@ -277,19 +275,9 @@ async function handleMessage(
     }
 
     if (opt?.cmdAttachments !== undefined) {
-        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
-        for (const command of commands) {
-            const result = await command.execute()
-            if (result) {
-                content.push({ type: "text", text: result })
-                opt.cmdAttachments.push({ 
-                    kind: "cmd", 
-                    command: command.command, 
-                    content: result, 
-                    mimetype: "text/plain" 
-                })
-            }
-        }
+        const { textBlocks, inline } = await computeCmdAttachments(msg)
+        for (const t of textBlocks) content.push({ type: "text", text: t })
+        opt.cmdAttachments.push(...inline)
     }
 
     return [{ role : msg.role, content }]

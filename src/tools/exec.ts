@@ -1,9 +1,9 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { lecticEnv } from "../utils/xdg";
-import * as fs from "fs";
 import { withTimeout, TimeoutError } from "../utils/timeout";
 import { readStream } from "../utils/stream";
 import { expandEnv } from "../utils/replace";
+import { parseCommandToArgv, writeTempShebangScriptAsync } from "../utils/execHelpers";
 import type { JSONSchema } from "../types/schema.ts"
 
 export type ExecToolSpec = {
@@ -77,18 +77,11 @@ async function spawnScript(
     sandbox: string | undefined,
     env: Record<string, string>
 ) {
-    if (script.slice(0,2) !== "#!") {
-        throw Error("expected shebang in first line of executable script")
-    }
-    const shebangArgs = script.slice(2).split('\n')[0].trim().split(' ')
-    const tmpName = `./.lectic_script-${Bun.randomUUIDv7()}`
-    const cleanup = () => fs.existsSync(tmpName) && fs.unlinkSync(tmpName)
-    process.on('exit', cleanup)
-    await Bun.write(tmpName, script)
+    const { path, shebangArgs, cleanup } = await writeTempShebangScriptAsync(script)
     const proc = Bun.spawn([
         ...(sandbox ? [sandbox] : []),
         ...shebangArgs,
-        tmpName,
+        path,
         ...args
     ], {
         stdout: "pipe",
@@ -105,17 +98,8 @@ function spawnCommand(
     env: Record<string, string>
 ) {
 
-    const parts = command
-        // break into whitespace-delimited pieces, allowing for quotes
-        .match(/"[^"]*"|'[^']*'|\S+/g)
-        // remove surrounding quotes from pieces
-        ?.map(arg => (arg.startsWith('"') && arg.endsWith('"'))
-            || (arg.startsWith("'") && arg.endsWith("'"))
-            ? arg.slice(1, -1)
-            : arg
-        );
-
-    if (parts === undefined) {
+    const parts = parseCommandToArgv(command)
+    if (parts.length === 0) {
         throw Error(`Could not read command ${command}`)
     }
 
@@ -223,9 +207,9 @@ export class ExecTool extends Tool {
             readStream(proc.stdout, s => collected.stdout += s),
             readStream(proc.stderr, s => collected.stderr += s),
         ]).then(() => proc.exited).then((code) => {
-            // Clean up progress indicators after collection is complete
-            collected.stdout = stripCarriageReturnOverwrites(collected.stdout)
-            collected.stderr = stripCarriageReturnOverwrites(collected.stderr)
+            // Clean up CLI output after collection is complete
+            collected.stdout = sanitizeCliOutput(collected.stdout)
+            collected.stderr = sanitizeCliOutput(collected.stderr)
             return code
         })
 

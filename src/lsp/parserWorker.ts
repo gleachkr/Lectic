@@ -3,115 +3,12 @@ import { remark } from "remark"
 import remarkDirective from "remark-directive"
 import { buildDiagnostics } from "./diagnostics"
 import { buildFoldingRangesFromAst } from "./folding"
-import { getBody } from "../parsing/parse"
-import { directivesFromAst, referencesFromAst, nodeRaw, parseBlocks } from "../parsing/markdown"
-import { findUrlRangeInNodeRaw } from "./linkTargets"
-import { isSerializedCall } from "../types/tool"
-import { isSerializedInlineAttachment } from "../types/inlineAttachment"
-import type {
-  FoldResult,
-  DiagnosticsResult,
-  WorkerMessage,
-  BundleResult,
-  AnalysisBundle,
-  DirectiveSpan,
-  LinkSpan,
-  BlockSpan,
-  ToolCallBlockSpan,
-  InlineAttachmentBlockSpan,
-} from "./analysisTypes"
+import { buildBundleFromAst } from "./analysis"
+import type { FoldResult, DiagnosticsResult, WorkerMessage, BundleResult } from "./analysisTypes"
 
 // Bun's Worker uses the web worker API. We listen for messages and
 // post results back to the parent. We do not retain any global state.
 
-function buildBundleFromAst(ast: any, docText: string, uri: string, version: number): AnalysisBundle {
-  const directives: DirectiveSpan[] = []
-  const links: LinkSpan[] = []
-  const blocks: BlockSpan[] = []
-  const toolCallBlocks: ToolCallBlockSpan[] = []
-  const inlineAttachmentBlocks: InlineAttachmentBlockSpan[] = []
-
-  // Compute header offset using body extraction
-  const body = getBody(docText)
-  const headerOffset = docText.length - body.length
-
-  // User-chunk directives (skip assistant containers)
-  for (const d of directivesFromAst(ast)) {
-    const s = d.position?.start?.offset
-    const e = d.position?.end?.offset
-    if (typeof s !== 'number' || typeof e !== 'number') continue
-    const raw = nodeRaw(d, docText)
-    const l = raw.indexOf("[")
-    const r = raw.lastIndexOf("]")
-    if (l < 0 || r < 0 || r <= l) continue
-    const innerStart = s + l + 1
-    const innerEnd = s + r
-    directives.push({
-      key: typeof d.name === 'string' ? d.name.toLowerCase() : '',
-      absStart: s,
-      absEnd: e,
-      innerStart,
-      innerEnd,
-    })
-  }
-
-  // Links/images in user chunks
-  for (const n of referencesFromAst(ast)) {
-    const s = n.position?.start?.offset
-    const e = n.position?.end?.offset
-    if (typeof s !== 'number' || typeof e !== 'number') continue
-    const raw = nodeRaw(n, docText)
-    const rng = findUrlRangeInNodeRaw(raw, s, String(n.url ?? ''))
-    if (!rng) continue
-    const [us, ue] = rng
-    links.push({ absStart: s, absEnd: e, urlStart: us, urlEnd: ue })
-  }
-
-  // Assistant containers and user spans interleaved; bound to body only
-  type Asst = { name: string, s: number, e: number }
-  const assistants: Asst[] = []
-  for (const node of parseBlocks(body)) {
-    if (node.type === 'containerDirective' && typeof node.name === 'string') {
-      const s = node.position?.start?.offset
-      const e = node.position?.end?.offset
-      if (typeof s === 'number' && typeof e === 'number') {
-        const absS = headerOffset + s
-        const absE = headerOffset + e
-        assistants.push({ name: String(node.name), s: absS, e: absE })
-        // Inspect child HTML blocks for serialized tool-calls and
-        // inline attachments, and record spans for hover/folding
-        if (Array.isArray(node.children)) {
-          for (const b of node.children) {
-            if (b?.type !== 'html') continue
-            const pos = b.position
-            if (!pos?.start?.offset || !pos?.end?.offset) continue
-            const raw = nodeRaw(b, body)
-            const htmlAbsStart = headerOffset + pos.start.offset
-            const htmlAbsEnd = headerOffset + pos.end.offset
-            if (isSerializedCall(raw)) {
-              toolCallBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
-            } else if (isSerializedInlineAttachment(raw)) {
-              inlineAttachmentBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
-            }
-          }
-        }
-      }
-    }
-  }
-  assistants.sort((a, b) => a.s - b.s)
-
-  let cursor = headerOffset
-  for (const a of assistants) {
-    if (a.s > cursor) {
-      blocks.push({ kind: 'user', absStart: cursor, absEnd: a.s })
-    }
-    blocks.push({ kind: 'assistant', absStart: a.s, absEnd: a.e, name: a.name })
-    cursor = a.e
-  }
-  if (cursor < docText.length) blocks.push({ kind: 'user', absStart: cursor, absEnd: docText.length })
-
-  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks, inlineAttachmentBlocks }
-}
 
 self.addEventListener("message", async (ev: MessageEvent<WorkerMessage>) => {
   const msg = ev.data

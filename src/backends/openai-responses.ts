@@ -3,11 +3,12 @@ import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
-import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
-import { MessageCommand } from "../types/directive.ts"
+import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { serializeCall } from "../types/tool"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, resolveToolCalls, collectAttachmentPartsFromCalls } from './common.ts'
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
+    resolveToolCalls, collectAttachmentPartsFromCalls,
+    gatherMessageAttachmentParts, computeCmdAttachments } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
@@ -263,13 +264,7 @@ async function handleMessage(
         }]
     }
 
-    const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
-    const parts : MessageAttachmentPart[] = []
-    for await (const link of links) {
-        if (await link.exists()) {
-            parts.push(... await link.getParts())
-        }
-    }
+    const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
 
     const content : OpenAI.Responses.ResponseInputMessageContentList = [{
         type: "input_text",
@@ -289,19 +284,9 @@ async function handleMessage(
     }
 
     if (opt?.cmdAttachments !== undefined) {
-        const commands = msg.containedDirectives().map(d => new MessageCommand(d))
-        for (const command of commands) {
-            const result = await command.execute()
-            if (result) {
-                content.push({ type: "input_text", text: result })
-                opt.cmdAttachments.push({ 
-                    kind: "cmd", 
-                    command: command.command, 
-                    content: result, 
-                    mimetype: "text/plain" 
-                })
-            }
-        }
+        const { textBlocks, inline } = await computeCmdAttachments(msg)
+        for (const t of textBlocks) content.push({ type: "input_text", text: t })
+        opt.cmdAttachments.push(...inline)
     }
 
     return [{ role : msg.role, content }]

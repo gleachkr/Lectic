@@ -6,6 +6,9 @@ import type { ToolCall } from "../types/tool"
 import { ToolCallResults } from "../types/tool"
 import type { MessageLink } from "../types/message"
 import { MessageAttachment, type MessageAttachmentPart } from "../types/attachment"
+import type { UserMessage } from "../types/message"
+import { MessageCommand } from "../types/directive.ts"
+import type { InlineAttachment } from "../types/inlineAttachment"
 
 export function wrapText({text, name} : { text : string, name: string}) {
     return `<speaker name="${name}">${text}</speaker>`
@@ -138,7 +141,6 @@ export function isAttachmentMime(mt: string | null | undefined): boolean {
     return false
 }
 
-
 // Build MessageLink objects (title + URI) for non-text results.
 export function buildNonTextResultMessageLinks(calls: ToolCall[]): MessageLink[] {
     const out: MessageLink[] = []
@@ -175,4 +177,39 @@ export async function collectAttachmentPartsFromCalls<T>(
         }
     }
     return out
+}
+
+export async function gatherMessageAttachmentParts(
+  msg: UserMessage
+): Promise<MessageAttachmentPart[]> {
+  const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
+  const parts: MessageAttachmentPart[] = []
+  for await (const link of links) {
+    if (await link.exists()) {
+      parts.push(...await link.getParts())
+    }
+  }
+  return parts
+}
+
+export async function computeCmdAttachments(msg: UserMessage): Promise<{
+  textBlocks: string[]
+  inline: InlineAttachment[]
+}> {
+  const textBlocks: string[] = []
+  const inline: InlineAttachment[] = []
+  const commands = msg.containedDirectives().map((d) => new MessageCommand(d))
+  for (const command of commands) {
+    const result = await command.execute()
+    if (result) {
+      textBlocks.push(result)
+      inline.push({
+        kind: "cmd",
+        command: command.command,
+        content: result,
+        mimetype: "text/plain",
+      })
+    }
+  }
+  return { textBlocks, inline }
 }
