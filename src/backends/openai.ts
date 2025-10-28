@@ -182,7 +182,7 @@ async function partToContent(part : MessageAttachmentPart)
                 type : "file", 
                 file: {
                     filename : part.title,
-                    file_data : Buffer.from(bytes).toString("base64"),
+                    file_data: `data:${media_type};base64,${Buffer.from(bytes).toString("base64")}`
                 }
             } as const
         }
