@@ -39,24 +39,36 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
 }
 
 /**
- * Clean up terminal control sequences from command output.
- * When a program writes progress indicators, it uses \r to overwrite lines.
- * This function processes each line and keeps only the final overwritten state.
- * 
- * Example: "Loading... 10%\rLoading... 50%\rDone!" becomes "Done!"
- * 
- * Note: \r\n (Windows line endings) are handled correctly by normalizing first.
+ * Sanitize CLI output for LLM consumption.
+ * - Normalizes CRLF to LF.
+ * - Strips ANSI/escape sequences (colors, cursor moves, OSC, etc.).
+ * - Collapses carriage-return overwrites, keeping the final state
+ *   on each line.
+ *
+ * Example: "\x1b[31mLoading\x1b[0m 10%\rDone!" → "Done!"
  */
-function stripCarriageReturnOverwrites(s: string): string {
-    // First, normalize \r\n to \n to avoid treating line endings as overwrites
-    // and split on \n
-    return s.replace(/\r\n/g, '\n').split('\n').map(line => {
-        // For each line, keep only the text after the last \r
-        const lastCR = line.lastIndexOf('\r')
-        // Keep everything after the last carriage return
-        if (lastCR >= 0) return line.slice(lastCR + 1)
-        return line
-    }).join('\n')
+function sanitizeCliOutput(s: string): string {
+    // Normalize CRLF first so we can reason about lines
+    let t = s.replace(/\r\n/g, "\n")
+
+    // Strip OSC (Operating System Command) sequences like
+    // ESC ] ... BEL or ESC ] ... ESC \
+    t = t.replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, "")
+
+    // Strip CSI and other common ANSI sequences
+    // Source pattern adapted from sindresorhus/strip-ansi
+    const ansiRe = /[\u001B\u009B][[\\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PR-TZcf-nq-uy=><]/g
+    t = t.replace(ansiRe, "")
+    // Fallback: strip generic CSI (ESC[ ... final byte) sequences
+    t = t.replace(/\x1B\[[0-?]*[ -\/]*[@-~]/g, "")
+
+    // Finally, collapse carriage-return overwrites per line
+    t = t.split("\n").map((line) => {
+        const lastCR = line.lastIndexOf("\r")
+        return lastCR >= 0 ? line.slice(lastCR + 1) : line
+    }).join("\n")
+
+    return t
 }
 
 async function spawnScript(
