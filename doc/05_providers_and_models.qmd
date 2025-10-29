@@ -22,6 +22,18 @@ AWS credentials for Bedrock are not used for auto‑selection. If you want
 Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly and make
 sure your AWS environment is configured.
 
+## Discover models
+
+You can list available models for providers that have API keys configured
+by running:
+
+```bash
+lectic models
+```
+
+The command prints each detected provider followed by its models. If no
+known provider keys are set, it prints a short message and exits.
+
 ## OpenAI: two provider strings
 
 OpenAI has two modes in Lectic today.

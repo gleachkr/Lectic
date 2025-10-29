@@ -10,8 +10,8 @@ Overview
 - Command: `lectic lsp`
 - Transport: stdio (no `--node-ipc` or `--socket`)
 - Features: `textDocument/completion`, `textDocument/hover`,
-  diagnostics, document symbols (outline), folding ranges,
-  go to definition
+  diagnostics, document symbols (outline), workspace symbols,
+  folding ranges, code actions, semantic tokens, go to definition
 - Triggers: `:` and `[` inside directive brackets
 - Insertions
   - Directives use snippets and place the cursor inside brackets (or at
@@ -131,12 +131,18 @@ Diagnostics
 - Duplicates originating only from included configs may be reported with
   a coarse header-range warning.
 
+Code actions
+- When a document lacks YAML frontmatter, the server offers an “Add
+  header” action that inserts a minimal header block.
+- A variety of other simple code actions are provided.
+
 Document symbols (outline)
 - The outline shows a "Header" section with "Interlocutors" and
   "Macros" (local definitions only), and a "Body" section with user
   chunks and assistant blocks (e.g., "Assistant: Name").
 - Included items from workspace/system configs do not appear in the
   current document’s symbols.
+- Workspace symbol search is also provided in clients that support it.
 
 Folding
 - The LSP provides folding ranges for tool‑call and inline‑attachment

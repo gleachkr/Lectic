@@ -35,6 +35,9 @@ tools:
       - /home/user/research-docs/
 ```
 
+Local MCP servers are started on demand for the active interlocutor and
+managed by Lectic for the duration of the session.
+
 ### Remote MCP Servers
 
 You can also connect to running MCP servers.

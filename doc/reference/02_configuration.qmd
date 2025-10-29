@@ -76,7 +76,7 @@ For a more detailed discussion of provider and model options, see
 - `tools`: A list of tool definitions that this interlocutor can use. The
   format of each object in the list depends on the tool type. See the
   [Tools section](../tools/01_overview.qmd) for detailed configuration guides for each tool.
-`
+
 ---
 
 ## The `macro` Object
@@ -84,7 +84,9 @@ For a more detailed discussion of provider and model options, see
 - `name`: (Required) The name of the macro, used when invoking it with
   `:macro[name]`.
 - `expansion`: (Required) The content to be expanded. Can be a string, or
-  loaded via `file:` or `exec:` (see 
+  loaded via `file:` or `exec:`. See
+  [External Prompts](../context_management/03_external_prompts.qmd)
+  for details.
 
 ---
 

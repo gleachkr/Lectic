@@ -66,6 +66,10 @@ tools:
   not work unless you invoke a shell yourself.
 - Single‑line `exec` values have environment variables expanded before
   execution using the tool's `env` plus standard Lectic variables.
+- Single‑line commands are split into argv using simple shell‑like rules:
+  single '...' and double "..." quotes are supported; no globbing or
+  substitution. If you need shell features, invoke a shell explicitly, e.g.,
+  `bash -lc '...'`.
 - Multi‑line `exec` values must start with a shebang. Lectic writes the script
   to a temporary file and executes it with that interpreter.
 

@@ -10,6 +10,15 @@ result is printed or saved.
 lectic [FLAGS] [OPTIONS]
 ```
 
+## Subcommands
+
+- `lectic lsp`
+  Start the LSP server. Transport: stdio.
+
+- `lectic models`
+  List available models for providers with detected API keys. Only
+  providers with API keys in the environment are queried.
+
 ## Flags and options
 
 - `-v`, `--version`
@@ -73,3 +82,12 @@ lectic [FLAGS] [OPTIONS]
   echo "This is a new message." | lectic -i conversation.lec
   ```
 
+- List available models for detected providers:
+  ```bash
+  lectic models
+  ```
+
+- Start the LSP server (stdio transport):
+  ```bash
+  lectic lsp
+  ```

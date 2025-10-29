@@ -56,6 +56,9 @@ A few convenience rules apply:
   `file://$PWD/papers/some.pdf`).
 - Environment variables in URIs use the `$VAR` form; `${VAR}` is not
   supported. Expansion happens before any globbing.
+- Environment variable expansion also applies to bare local paths (non‑URL
+  links), such as `./$DATA_ROOT/file.txt`. Expansion happens before any
+  globbing.
 
 You can use glob patterns to include multiple files at once. This is useful
 for providing the entire source code of a project as context.
@@ -96,12 +99,12 @@ visible to the LLM.
 ## Command Output via `:cmd` Directive
 
 Use `:cmd[...]` to execute a shell command and capture its stdout and stderr.
-Lectic runs the command with the Bun shell. The result is returns as an inline
-attachment that appears at the very top of the next assistant block.
+Lectic runs the command with the Bun shell. The result is returned as an
+inline attachment that appears at the very top of the next assistant block.
 
 How it works
 - When you run lectic, any `:cmd[...]` found in the last user message is
-  executed, and ther result is forwared to the LLM.
+  executed, and the result is forwarded to the LLM.
 - The result is also inserted as an inline attachment chunk at the beginning of
   the generated assistant block. It looks like an XML block beginning with
   `<inline-attachment ...>`. It includes the command and its content (stdout,
@@ -120,6 +123,7 @@ Use cases
 Notes
 - Output is wrapped in XML. On success, stdout is included. On failure,
   an `<error>` wrapper includes both stdout and stderr.
-- Commands are executed directly (with Bun’s `$`), in the current
-  working directory. Standard Lectic environment variables like
-  `LECTIC_FILE` are available.
+- `:cmd` runs with Bun’s `$` shell in the current working directory. Standard
+  Lectic environment variables like `LECTIC_FILE` are available. By contrast,
+  single‑line `exec` tools run without a shell; invoke a shell explicitly if
+  you need shell features.
