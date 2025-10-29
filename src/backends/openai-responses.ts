@@ -8,7 +8,7 @@ import { Logger } from "../logging/logger"
 import { serializeCall } from "../types/tool"
 import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
-    gatherMessageAttachmentParts, computeCmdAttachments } from './common.ts'
+    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
@@ -126,7 +126,7 @@ async function *handleToolUse(
             messages.push({
                 type: 'function_call_output',
                 call_id: call.id ?? "undefined",
-                output: JSON.stringify(call.results),
+                output: JSON.stringify(call.results.filter(r => !isAttachmentMime(r.mimetype))),
             })
         }
 
@@ -233,21 +233,21 @@ async function handleMessage(
             }
 
             if (interaction.calls.length > 0) {
-                const attachParts = await collectAttachmentPartsFromCalls(
-                    interaction.calls,
-                    partToContent,
-                )
-                if (attachParts.length > 0) {
-                    results.push({ role: 'user', content: attachParts })
-                }
+            const attachParts = await collectAttachmentPartsFromCalls(
+            interaction.calls,
+            partToContent,
+            )
+            if (attachParts.length > 0) {
+            results.push({ role: 'user', content: attachParts })
             }
-
+            }
+            
             for (const { id, call } of callsWithIds) {
-                results.push({
-                    type: "function_call_output",
-                    call_id: id,
-                    output: JSON.stringify(call.results)
-                })
+            results.push({
+            type: "function_call_output",
+            call_id: id,
+            output: JSON.stringify(call.results.filter(r => !isAttachmentMime(r.mimetype)))
+            })
             }
         }
         return results

@@ -158,3 +158,57 @@ describe("Client reuse", () => {
     expect(hashes.length).toBe(1);
   });
 });
+
+describe("MCP media blocks → data URLs", () => {
+  it("returns data URL for inline image", async () => {
+    const fakeClient: any = {
+      callTool: async (_: any) => ({
+        content: [
+          {
+            type: "image",
+            mimeType: "image/png",
+            data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABJ4nW3QAAAABJRU5ErkJggg==",
+          },
+        ],
+      }),
+    };
+    const tool = new MCPTool({
+      name: "ns:gen_image",
+      server_tool_name: "gen_image",
+      server_name: "ns",
+      description: "",
+      schema: { type: "object", properties: {} } as any,
+      client: fakeClient,
+    });
+    const res = await tool.call({});
+    expect(res.length).toBe(1);
+    expect(res[0].mimetype).toBe("image/png");
+    expect(res[0].text.startsWith("data:image/png;base64,")).toBe(true);
+  });
+
+  it("qualifies media uri with server prefix", async () => {
+    const fakeClient: any = {
+      callTool: async (_: any) => ({
+        content: [
+          {
+            type: "audio",
+            mimeType: "audio/mpeg",
+            uri: "repo://bucket/path.mp3",
+          },
+        ],
+      }),
+    };
+    const tool = new MCPTool({
+      name: "srv:play",
+      server_tool_name: "play",
+      server_name: "srv",
+      description: "",
+      schema: { type: "object", properties: {} } as any,
+      client: fakeClient,
+    });
+    const res = await tool.call({});
+    expect(res.length).toBe(1);
+    expect(res[0].mimetype).toBe("audio/mpeg");
+    expect(res[0].text.startsWith("srv+repo://bucket/path.mp3")).toBe(true);
+  });
+});

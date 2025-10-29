@@ -10,7 +10,7 @@ import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
-    gatherMessageAttachmentParts, computeCmdAttachments } from "./common.ts"
+    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from "./common.ts"
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
@@ -132,7 +132,9 @@ async function handleMessage(
                     userParts.push({
                         type : "tool_result",
                         tool_use_id : call_id,
-                        content: call.results.map(r => ({ type: "text" as const, text: r.toBlock().text })),
+                        content: call.results
+                            .filter(r => !isAttachmentMime(r.mimetype))
+                            .map(r => ({ type: "text" as const, text: r.toBlock().text })),
                         is_error: call.isError,
                     })
                 }
@@ -255,7 +257,9 @@ async function* handleToolUse(
             type: "tool_result" as const,
             tool_use_id: call.id ?? "",
             is_error: call.isError,
-            content: call.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))
+            content: call.results
+                .filter((r: ToolCallResult) => !isAttachmentMime(r.mimetype))
+                .map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))
         }))
 
         // yield results to the transcript, preserving mimetypes

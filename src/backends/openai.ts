@@ -8,7 +8,7 @@ import { Logger } from "../logging/logger"
 import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
 import { systemPrompt, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
-    gatherMessageAttachmentParts, computeCmdAttachments } from './common.ts'
+    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 
@@ -122,7 +122,9 @@ async function *handleToolUse(
                 messages.push({
                     role: "tool",
                     tool_call_id: call.id,
-                    content: realizedCall.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))
+                    content: realizedCall.results
+                        .filter((r: ToolCallResult) => !isAttachmentMime(r.mimetype))
+                        .map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))
                 })
             }
         }
@@ -248,7 +250,9 @@ async function handleMessage(
                 results.push({
                     role : "tool",
                     tool_call_id : call.id ?? "undefined",
-                    content: call.results.map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))})
+                    content: call.results
+                        .filter((r: ToolCallResult) => !isAttachmentMime(r.mimetype))
+                        .map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))})
             }
         }
         return results

@@ -29,6 +29,25 @@ export class MessageAttachmentPart {
     }
 }
 
+function parseDataUrl(uri: string): { mime: string, bytes: Uint8Array } {
+    // data:[<mediatype>][;base64],<data>
+    const comma = uri.indexOf(",")
+    if (comma < 0) throw new Error("Malformed data URL: missing comma")
+    const header = uri.slice(5, comma) // strip "data:"
+    const dataPart = uri.slice(comma + 1)
+    const parts = header.split(";").filter((s) => s.length > 0)
+    const hasBase64 = parts.some((p) => p.toLowerCase() === "base64")
+    const mime = (parts[0] && !parts[0].includes("="))
+        ? parts[0]
+        : "text/plain"
+    if (hasBase64) {
+        return { mime, bytes: Uint8Array.fromBase64(dataPart) }
+    } else {
+        const decoded = decodeURIComponent(dataPart)
+        return { mime, bytes: new TextEncoder().encode(decoded) }
+    }
+}
+
 export class MessageAttachment {
     file : BunFile | undefined
     response : Promise<Response> | undefined
@@ -51,6 +70,10 @@ export class MessageAttachment {
                 case "s3:" : {
                     this.response = Bun.fetch(url); break
                 }
+                case "data:" : {
+                    // handled in getParts
+                    break
+                }
                 default : {
                     // Support MCP URI form: server+type://...
                     const plusMatch = /^([^+]+)\+/.exec(url.protocol)
@@ -69,6 +92,8 @@ export class MessageAttachment {
     }
 
     async exists() : Promise<boolean> {
+        // data: URIs are self-contained
+        if (this.URI.startsWith("data:")) return true
         if (this.resource) return true
         if (this.response) return true
         if (this.file?.exists()) return true
@@ -76,6 +101,22 @@ export class MessageAttachment {
     }
 
     async getParts() : Promise<MessageAttachmentPart[]> {
+        if (this.URI.startsWith("data:")) {
+            try {
+                const { mime, bytes } = parseDataUrl(this.URI)
+                const mimetype = mime.replace(/^text\/.+$/, "text/plain")
+                return [new MessageAttachmentPart({
+                    bytes,
+                    mimetype,
+                    URI: this.URI,
+                    title: this.title,
+                    fragmentParams: this.fragmentParams,
+                })]
+            } catch {
+                // fall through to empty result on parse error
+                return []
+            }
+        }
         if (this.file) {
             let mimetype = this.file.type.replace(/^text\/.+$/,"text/plain")
             const bytes = await this.file.bytes()

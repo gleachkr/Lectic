@@ -111,8 +111,8 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
     return raw !== null && 
         typeof raw === "object" &&
-        "type" in raw && (raw as any).type === "text" &&
-        "text" in raw && typeof (raw as any).text === "string"
+        "type" in raw && raw.type === "text" &&
+        "text" in raw && typeof raw.text === "string"
 }
 
 function isResourceLinkContent(raw: unknown): raw is {
@@ -124,8 +124,8 @@ function isResourceLinkContent(raw: unknown): raw is {
 } {
     return raw !== null &&
         typeof raw === "object" &&
-        "type" in raw && (raw as any).type === "resource_link" &&
-        "uri" in raw && typeof (raw as any).uri === "string"
+        "type" in raw && raw.type === "resource_link" &&
+        "uri" in raw && typeof raw.uri === "string"
 }
 
 function isResourceContent(raw: unknown): raw is {
@@ -139,10 +139,22 @@ function isResourceContent(raw: unknown): raw is {
 } {
     return raw !== null &&
         typeof raw === "object" &&
-        "type" in raw && (raw as any).type === "resource" &&
-        "resource" in raw && typeof (raw as any).resource === "object" &&
-        (raw as any).resource !== null &&
-        "uri" in (raw as any).resource && typeof (raw as any).resource.uri === "string"
+        "type" in raw && raw.type === "resource" &&
+        "resource" in raw && typeof raw.resource === "object" &&
+        raw.resource !== null &&
+        "uri" in raw.resource && typeof raw.resource.uri === "string" &&
+        ("text" in raw.resource || "block" in raw.resource)
+}
+
+function isMediaContent(raw: unknown): raw is {
+    type: "image" | "audio",
+    mimeType?: string,
+    data: string,
+} {
+    return raw !== null &&
+        typeof raw === "object" &&
+        "type" in raw && (raw.type === "image" || raw.type === "audio") &&
+        "data" in raw 
 }
 
 class MCPListResources extends Tool {
@@ -249,7 +261,7 @@ export class MCPTool extends Tool {
             throw Error(`<error>Unexpected MCP server tool call response: ${JSON.stringify(content)}</error>`)
         } 
 
-        let results = []
+        let results = [] as ToolCallResult[]
         for (const block of content) {
             if (isTextContent(block)) {
                 results.push(...ToolCallResults(block.text))
@@ -258,11 +270,19 @@ export class MCPTool extends Tool {
                 const uri = this.qualifyResourceUri(block.uri)
                 results.push(...ToolCallResults(uri, mt))
             } else if (isResourceContent(block)) {
-                const uri = this.qualifyResourceUri(block.resource.uri)
-                const mt = block.resource.mimeType || "application/octet-stream"
+                if (block.resource.text) {
+                    results.push(...ToolCallResults(block.resource.text))
+                } else {
+                    const uri = this.qualifyResourceUri(block.resource.uri)
+                    const mt = block.resource.mimeType || "application/octet-stream"
+                    results.push(...ToolCallResults(uri, mt))
+                }
+            } else if (isMediaContent(block)) {
+                const mt = block.mimeType || "application/octet-stream"
+                const uri = `data:${mt};base64,${block.data}`
                 results.push(...ToolCallResults(uri, mt))
             } else {
-                throw Error(`MCP only supports text and resource link responses right now. Got ${JSON.stringify(content)}`)
+                throw Error(`Unsupported content block type! Got ${JSON.stringify(content)}`)
             }
         }
         return results
@@ -314,7 +334,7 @@ export class MCPTool extends Tool {
             const transport = "mcp_command" in spec
                 ? new StdioClientTransport(spec.sandbox ? {
                     command: expandEnv(spec.sandbox), 
-                    args: [spec.mcp_command, ...(spec.args || []) ],
+                    args: [spec.mcp_command, ...((spec.args || []) as string[]) ],
                     env: {...getDefaultEnvironment(), ...spec.env}
                 } : { 
                     command: spec.mcp_command, 
@@ -329,7 +349,7 @@ export class MCPTool extends Tool {
 
 
             if (spec.roots) {
-                spec.roots.map(validateRoot)
+                (spec.roots as MCPRoot[]).map(validateRoot)
                 client.setRequestHandler(ListRootsRequestSchema, (_request, _extra) => {
                     return {
                         roots: spec.roots,

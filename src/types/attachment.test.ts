@@ -81,7 +81,7 @@ describe("MessageAttachment: globbing and env expansion", () => {
   });
 
   it("no double expansion on concrete file paths containing $", async () => {
-    // Use fromGlob to get concrete paths (which may include '$') and ensure
+    // Use fromGlob to get concrete paths (which may include ') and ensure
     // constructor does not try to expand again on plain paths.
     const pattern = "$ATTACH_TEST_DIR/a*.txt";
     const link = makeLink("glob", pattern);
@@ -92,5 +92,32 @@ describe("MessageAttachment: globbing and env expansion", () => {
     for (const att of attachments) {
       expect(await att.exists()).toBe(true);
     }
+  });
+});
+
+describe("MessageAttachment: data URLs", () => {
+  it("parses base64 image data URLs", async () => {
+    // minimal 1x1 transparent PNG
+    const pngBase64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQAB" +
+      "J4nW3QAAAABJRU5ErkJggg==";
+    const uri = `data:image/png;base64,${pngBase64}`;
+    const att = new MessageAttachment({ text: "img", URI: uri });
+    expect(await att.exists()).toBe(true);
+    const parts = await att.getParts();
+    expect(parts.length).toBe(1);
+    expect(parts[0].mimetype).toBe("image/png");
+    expect(parts[0].bytes.length).toBeGreaterThan(0);
+  });
+
+  it("parses non-base64 text data URLs", async () => {
+    const uri = "data:text/plain,hello%20world";
+    const att = new MessageAttachment({ text: "txt", URI: uri });
+    expect(await att.exists()).toBe(true);
+    const parts = await att.getParts();
+    expect(parts.length).toBe(1);
+    expect(parts[0].mimetype).toBe("text/plain");
+    const decoded = new TextDecoder().decode(parts[0].bytes);
+    expect(decoded).toBe("hello world");
   });
 });

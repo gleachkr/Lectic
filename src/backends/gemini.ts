@@ -10,7 +10,7 @@ import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
-    gatherMessageAttachmentParts, computeCmdAttachments } from './common.ts'
+    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Extract concatenated assistant text from a Gemini response.
@@ -170,8 +170,8 @@ async function *handleToolUse(
                 id: call.id ?? "",
                 name: call.name,
                 response: call.isError
-                    ? { error: call.results }
-                    : { output: call.results }
+                    ? { error: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
+                    : { output: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
             }
         }))
 
@@ -301,8 +301,8 @@ async function handleMessage(
             if (interaction.calls.length > 0) {
                 for (const call of interaction.calls) {
                     const resp = call.isError
-                        ? { error: call.results }
-                        : { output: call.results }
+                        ? { error: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
+                        : { output: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
                     userParts.push({
                         functionResponse: {
                             name: call.name,
