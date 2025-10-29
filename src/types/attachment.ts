@@ -131,7 +131,7 @@ export class MessageAttachment {
                 return [new MessageAttachment(link)]
             }
         } catch {
-            pattern = expandEnv(link.URI)
+            pattern = expandEnv(link.URI.replace(/^~/,"$HOME"))
         }
 
         const files = Array(...new Glob(pattern).scanSync())
