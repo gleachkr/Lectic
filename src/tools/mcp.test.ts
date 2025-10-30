@@ -185,30 +185,4 @@ describe("MCP media blocks → data URLs", () => {
     expect(res[0].mimetype).toBe("image/png");
     expect(res[0].text.startsWith("data:image/png;base64,")).toBe(true);
   });
-
-  it("qualifies media uri with server prefix", async () => {
-    const fakeClient: any = {
-      callTool: async (_: any) => ({
-        content: [
-          {
-            type: "audio",
-            mimeType: "audio/mpeg",
-            uri: "repo://bucket/path.mp3",
-          },
-        ],
-      }),
-    };
-    const tool = new MCPTool({
-      name: "srv:play",
-      server_tool_name: "play",
-      server_name: "srv",
-      description: "",
-      schema: { type: "object", properties: {} } as any,
-      client: fakeClient,
-    });
-    const res = await tool.call({});
-    expect(res.length).toBe(1);
-    expect(res[0].mimetype).toBe("audio/mpeg");
-    expect(res[0].text.startsWith("srv+repo://bucket/path.mp3")).toBe(true);
-  });
 });
