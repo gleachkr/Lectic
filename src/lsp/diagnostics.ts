@@ -7,7 +7,7 @@ import {
   Range as LspRange,
   Position as LspPosition,
 } from "vscode-languageserver/node"
-import { mergedHeaderSpecForDoc, getYaml } from "../parsing/parse"
+import { mergedHeaderSpecForDocDetailed, getYaml, type MergeIssue } from "../parsing/parse"
 import { directivesFromAst, nodeContentRaw, referencesFromAst, nodeRaw } from "../parsing/markdown"
 import { buildHeaderRangeIndex, type HeaderRangeIndex } from "./yamlRanges"
 import { validateHeaderShape } from "./headerValidate"
@@ -170,12 +170,7 @@ function parseLocalHeader(docText: string): unknown {
 }
 
 // Project-wide merged spec for semantics (includes system/workspace)
-async function loadMergedHeader(
-  docText: string, docDir: string | undefined
-): Promise<HeaderLike> {
-  const spec = await mergedHeaderSpecForDoc(docText, docDir)
-  return sanitizeHeaderLike(spec)
-}
+// Now handled inline in buildDiagnostics to also surface merge errors.
 
 // Map non-throwing header issues to LSP diagnostics with precise ranges
 function mapHeaderIssues(
@@ -430,6 +425,26 @@ function emitUnknownDirectiveWarnings(
   return diags
 }
 
+function mapMergeErrorsToDiagnostics(
+  errs: MergeIssue[],
+  headerRange: LspRangeT
+): Diagnostic[] {
+  const diags: Diagnostic[] = []
+  const label = (s: 'system'|'workspace'|'document') =>
+    s === 'document' ? 'document header' : `${s} config (lectic.yaml)`
+  for (const e of errs) {
+    const where = label(e.source)
+    const what = e.phase === 'parse' ? 'parsing' : 'merging'
+    diags.push({
+      range: headerRange,
+      severity: DiagnosticSeverity.Error,
+      source: 'lectic',
+      message: `Error ${what} ${where}: ${e.message}`,
+    })
+  }
+  return diags
+}
+
 export async function buildDiagnostics(
   ast: Root,
   docText: string,
@@ -449,7 +464,10 @@ export async function buildDiagnostics(
 
   // 2) Targeted field diagnostics from local YAML, filtered by merged spec
   const localSpec = parseLocalHeader(docText)
-  const mergedSpec = await loadMergedHeader(docText, docDir)
+  const mergeRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+  const mergedSpec = sanitizeHeaderLike(mergeRes.spec)
+  // 2a) Surface parse/merge errors from each source
+  diags.push(...mapMergeErrorsToDiagnostics(mergeRes.errors, headerRange))
 
   const issues = validateHeaderShape(localSpec)
     .filter(issue => {

@@ -3,7 +3,7 @@ import { MarkupKind, Range as LspRange } from "vscode-languageserver/node"
 import { directiveAtPositionFromBundle } from "./directives"
 import { linkTargetAtPositionFromBundle } from "./linkTargets"
 import { offsetToPosition, positionToOffset } from "./positions"
-import { mergedHeaderSpecForDoc } from "../parsing/parse"
+import { mergedHeaderSpecForDocDetailed } from "../parsing/parse"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { buildMacroIndex } from "./macroIndex"
 import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./utils/path"
@@ -25,9 +25,9 @@ export async function computeHover(
     if (dctx.key === "macro" && dctx.insideBrackets) {
       const name = dctx.innerText.trim()
       if (name.length > 0) {
-        const spec = await mergedHeaderSpecForDoc(docText, docDir)
-        if (isLecticHeaderSpec(spec)) {
-          const macros = buildMacroIndex(spec)
+        const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+        if (isLecticHeaderSpec(specRes.spec)) {
+          const macros = buildMacroIndex(specRes.spec)
           const found = macros.find(m => m.name === name)
           if (found) {
             const snippet = found.expansion

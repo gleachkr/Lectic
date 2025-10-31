@@ -74,22 +74,34 @@ export class LecticHeader {
         this.bundles = spec.bundles ?? []
     }
 
+    // Apply post-merge normalization shared by all merge pipelines.
+    // If both 'interlocutor' and an entry in 'interlocutors' share
+    // the same name, merge them so the single interlocutor includes
+    // the properties from its list counterpart.
+    static normalizeMergedSpec(raw: unknown): unknown {
+        const isObj = (v: unknown): v is Record<string, unknown> =>
+            typeof v === 'object' && v !== null
+        if (!isObj(raw)) return raw
+        const curInterlocutor = raw['interlocutor']
+        const interlocutors = raw['interlocutors']
+        if (!isObj(curInterlocutor) || !Array.isArray(interlocutors)) return raw
+        const nameVal = curInterlocutor['name']
+        if (!(typeof nameVal === 'string')) return raw
+        const otherInterlocutor = interlocutors.find((inter: unknown) => {
+            return isObj(inter) && inter['name'] === nameVal
+        })
+        if (otherInterlocutor) {
+            raw['interlocutor'] = mergeValues(otherInterlocutor, curInterlocutor)
+        }
+        return raw
+    }
+
     static mergeInterlocutorSpecs(yamls : (string | null)[]) {
 
         const raw = yamls.filter(x => x !== null)
             .map(h => YAML.parse(h))
             .reduce(mergeValues)
-        // We have some extra logic here to merge two entries if the
-        // interlocutor appears in the interlocutors list as well.
-        if (typeof raw === "object" && raw !== null &&
-            "interlocutor" in raw && typeof raw.interlocutor === "object" && raw.interlocutor !== null &&
-            "interlocutors" in raw && Array.isArray(raw.interlocutors)) {
-            const theName = "name" in raw.interlocutor ? raw.interlocutor.name : undefined
-            const maybeExists = raw.interlocutors?.find((inter : unknown) => 
-                typeof inter === "object" && inter !== null && "name" in inter && inter.name === theName)
-            if (maybeExists) raw.interlocutor = mergeValues(maybeExists, raw.interlocutor)
-        }
-        return raw
+        return LecticHeader.normalizeMergedSpec(raw)
     }
 
     setSpeaker(name : string) {

@@ -3,7 +3,7 @@ import { CodeActionKind as LspCodeActionKind, Range as LspRange } from "vscode-l
 import { linkTargetAtPositionFromBundle } from "./linkTargets"
 import { directiveAtPositionFromBundle } from "./directives"
 import { positionToOffset, offsetToPosition } from "./positions"
-import { mergedHeaderSpecForDoc } from "../parsing/parse"
+import { mergedHeaderSpecForDocDetailed } from "../parsing/parse"
 import { expandEnv } from "../utils/replace"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { buildInterlocutorIndex } from "./interlocutorIndex"
@@ -172,8 +172,8 @@ export async function computeCodeActions(
     if (dctx && dctx.insideBrackets && (dctx.key === 'ask' || dctx.key === 'aside')) {
       const current = dctx.innerText.trim()
       if (current.length > 0) {
-        const spec = await mergedHeaderSpecForDoc(docText, docDir)
-        const candidates = collectInterlocutorNames(spec)
+        const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+        const candidates = collectInterlocutorNames(specRes.spec)
         const ranked = candidates
           .map(n => ({ n, d: distance(current, n) }))
           .filter(x => x.d <= 2)

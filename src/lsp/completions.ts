@@ -4,7 +4,7 @@ import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { buildInterlocutorIndex, previewInterlocutor } from "./interlocutorIndex"
 import { directiveAtPositionFromBundle, findSingleColonStart, computeReplaceRange } from "./directives"
 import { isLecticHeaderSpec } from "../types/lectic"
-import { mergedHeaderSpecForDoc } from "../parsing/parse"
+import { mergedHeaderSpecForDocDetailed } from "../parsing/parse"
 import type { AnalysisBundle } from "./analysisTypes"
 
 export async function computeCompletions(
@@ -22,7 +22,8 @@ export async function computeCompletions(
   // 1) Inside :ask[...]/:aside[...]/:macro[...]
   const dctx = bundle ? directiveAtPositionFromBundle(docText, pos, bundle) : null
   if (dctx && dctx.insideBrackets && (dctx.key === "ask" || dctx.key === "aside" || dctx.key === "macro")) {
-    const spec = await mergedHeaderSpecForDoc(docText, docDir)
+    const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+    const spec = specRes.spec
     if (!isLecticHeaderSpec(spec)) return items
 
     const innerText = dctx.innerPrefix.toLowerCase()

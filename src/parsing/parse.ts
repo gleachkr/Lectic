@@ -8,6 +8,8 @@ import remarkDirective from "remark-directive"
 import { lecticConfigDir } from "../utils/xdg"
 import { readWorkspaceConfig } from "../utils/workspace"
 import { join } from "path"
+import * as YAML from "yaml"
+import { mergeValues } from "../utils/merge"
 
 export function getYaml(raw:string) : string | null {
     const expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/
@@ -50,29 +52,58 @@ export function bodyToMessages(raw : string, header : LecticHeader) : Message[] 
     return messages
 }
 
-export async function parseLecticHeaderSpec(
-    raw: string,
-    includes: (string | null)[]
-): Promise<unknown> {
-    const rawYaml = getYaml(raw) ?? ""
-    try {
-        return LecticHeader.mergeInterlocutorSpecs([...includes, rawYaml])
-    } catch {
-        return {}
-    }
+export type MergeIssue = {
+    source: 'system' | 'workspace' | 'document'
+    phase: 'parse' | 'merge'
+    message: string
 }
 
-export async function mergedHeaderSpecForDoc(
+export type HeaderMergeResult = {
+    spec: unknown
+    errors: MergeIssue[]
+}
+
+export async function mergedHeaderSpecForDocDetailed(
     docText: string,
     docPath: string | undefined
-): Promise<unknown> {
+): Promise<HeaderMergeResult> {
     const systemConfig = join(lecticConfigDir(), "lectic.yaml")
     const systemYaml = await Bun.file(systemConfig).text().catch(_e => null)
-    if (docPath !== undefined) {
-        const workspaceYaml = await readWorkspaceConfig(docPath)
-        return parseLecticHeaderSpec(docText, [systemYaml, workspaceYaml])
+    const headerYaml = getYaml(docText) ?? ""
+    const workspaceYaml = docPath !== undefined
+        ? await readWorkspaceConfig(docPath)
+        : null
+
+    type Src = { key: 'system'|'workspace'|'document', text: string | null }
+    const sources: Src[] = [
+        { key: 'system', text: systemYaml },
+        { key: 'workspace', text: workspaceYaml },
+        { key: 'document', text: headerYaml }
+    ]
+
+    const parsed: { key: Src['key'], obj: unknown }[] = []
+    const errors: MergeIssue[] = []
+
+    for (const s of sources) {
+        if (s.text == null) continue
+        try {
+            const obj = YAML.parse(s.text)
+            parsed.push({ key: s.key, obj })
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            errors.push({ source: s.key, phase: 'parse', message: msg })
+        }
     }
-    return parseLecticHeaderSpec(docText, [systemYaml])
+
+    let merged: unknown = {}
+    for (const p of parsed) {
+        merged = mergeValues(merged, p.obj)
+    }
+
+    // Apply shared normalization from LecticHeader
+    const spec = LecticHeader.normalizeMergedSpec(merged)
+
+    return { spec, errors }
 }
 
 export async function parseLectic(raw: string, include : (string | null)[]) : Promise<Lectic> {
@@ -83,10 +114,13 @@ export async function parseLectic(raw: string, include : (string | null)[]) : Pr
 
     try {
         headerSpec = LecticHeader.mergeInterlocutorSpecs([...include, rawYaml])
-    } catch {
-        throw new Error('could not parse YAML header, no include header provided')
+    } catch (e) {
+        if (e instanceof Error) {
+            throw new Error(`could not parse YAML header: ${e.message}.`)
+        } else {
+            throw new Error(`could not parse YAML header.`)
+        }
     }
-
 
     if (!validateLecticHeaderSpec(headerSpec)) throw Error(
          "YAML Header is missing something. " +
