@@ -10,14 +10,14 @@ function findHeaderMatch(text: string): RegExpExecArray | null {
 
 function nodeAbsRange(text: string, node: any, baseOffset: number): Range | null {
   // Prefer node.range: [start, valueEnd, end]
-  const r = (node as any)?.range
+  const r = node?.range
   if (Array.isArray(r) && typeof r[0] === 'number' && typeof r[2] === 'number') {
     const start = baseOffset + r[0]
     const end = baseOffset + r[2]
     return LspRange.create(offsetToPosition(text, start), offsetToPosition(text, end))
   }
   // Fallback to CST node offsets
-  const c = (node as any)?.cstNode as any
+  const c = node?.cstNode
   if (c && typeof c.offset === 'number' && typeof c.end === 'number') {
     const start = baseOffset + c.offset
     const end = baseOffset + c.end
@@ -30,7 +30,7 @@ function getPair(map: any, key: string): any | undefined {
   const items: any[] = (map && typeof map === 'object' && Array.isArray(map.items))
     ? map.items : []
   for (const it of items) {
-    const k = (it?.key as any)?.value
+    const k = it?.key?.value
     if (k === key) return it
   }
   return undefined
@@ -44,6 +44,7 @@ export type HeaderRangeIndex = {
   interlocutorNameRanges: Array<{ name: string, range: Range }>,
   macroNameRanges: Array<{ name: string, range: Range }>,
   agentTargetRanges: Array<{ target: string, range: Range }>,
+  bundleTargetRanges: Array<{ target: string, range: Range }>,
   fieldRanges: YamlPathRange[],
   findRangesByPath: (path: (string | number)[]) => Range[]
 }
@@ -69,9 +70,10 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   const interlocutorNameRanges: Array<{ name: string, range: Range }> = []
   const macroNameRanges: Array<{ name: string, range: Range }> = []
   const agentTargetRanges: Array<{ target: string, range: Range }> = []
+  const bundleTargetRanges: Array<{ target: string, range: Range }> = []
   const fieldRanges: YamlPathRange[] = []
 
-  const root: any = doc.contents
+  const root = doc.contents
 
   function pushField(path: (string | number)[], node: any) {
     const r = nodeAbsRange(docText, node, contentStart)
@@ -87,9 +89,9 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
 
     const namePair = getPair(single, 'name')
     const nameVal = namePair?.value
-    if (nameVal && typeof (nameVal as any).value === 'string') {
+    if (nameVal && typeof nameVal.value === 'string') {
       const r = nodeAbsRange(docText, nameVal, contentStart)
-      if (r) interlocutorNameRanges.push({ name: (nameVal as any).value, range: r })
+      if (r) interlocutorNameRanges.push({ name: nameVal.value, range: r })
       pushField(['interlocutor','name'], nameVal)
     }
     const promptPair = getPair(single, 'prompt')
@@ -116,10 +118,17 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
       pushField(['interlocutor','tools', i], t)
       const agentPair = getPair(t, 'agent')
       const aval = agentPair?.value
-      if (aval && typeof (aval as any).value === 'string') {
+      if (aval && typeof aval.value === 'string') {
         const r = nodeAbsRange(docText, aval, contentStart)
-        if (r) agentTargetRanges.push({ target: (aval as any).value, range: r })
+        if (r) agentTargetRanges.push({ target: aval.value, range: r })
         pushField(['interlocutor','tools', i, 'agent'], aval)
+      }
+      const bundlePair = getPair(t, 'bundle')
+      const bval = bundlePair?.value
+      if (bval && typeof bval.value === 'string') {
+        const r = nodeAbsRange(docText, bval, contentStart)
+        if (r) bundleTargetRanges.push({ target: bval.value, range: r })
+        pushField(['interlocutor','tools', i, 'bundle'], bval)
       }
     })
   }
@@ -133,9 +142,9 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
       pushField(['interlocutors', idx], itMap)
       const namePair = getPair(itMap, 'name')
       const val = namePair?.value
-      if (val && typeof (val as any).value === 'string') {
+      if (val && typeof val.value === 'string') {
         const r = nodeAbsRange(docText, val, contentStart)
-        if (r) interlocutorNameRanges.push({ name: (val as any).value, range: r })
+        if (r) interlocutorNameRanges.push({ name: val.value, range: r })
         pushField(['interlocutors', idx, 'name'], val)
       }
       const promptPair = getPair(itMap, 'prompt')
@@ -163,10 +172,17 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
         pushField(['interlocutors', idx, 'tools', i], tMap)
         const agentPair = getPair(tMap, 'agent')
         const aval = agentPair?.value
-        if (aval && typeof (aval as any).value === 'string') {
+        if (aval && typeof aval.value === 'string') {
           const r = nodeAbsRange(docText, aval, contentStart)
-          if (r) agentTargetRanges.push({ target: (aval as any).value, range: r })
+          if (r) agentTargetRanges.push({ target: aval.value, range: r })
           pushField(['interlocutors', idx, 'tools', i, 'agent'], aval)
+        }
+        const bundlePair = getPair(tMap, 'bundle')
+        const bval = bundlePair?.value
+        if (bval && typeof bval.value === 'string') {
+          const r = nodeAbsRange(docText, bval, contentStart)
+          if (r) bundleTargetRanges.push({ target: bval.value, range: r })
+          pushField(['interlocutors', idx, 'tools', i, 'bundle'], bval)
         }
       }
     }
@@ -181,9 +197,9 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
       pushField(['macros', i], mMap)
       const namePair = getPair(mMap, 'name')
       const val = namePair?.value
-      if (val && typeof (val as any).value === 'string') {
+      if (val && typeof val.value === 'string') {
         const r = nodeAbsRange(docText, val, contentStart)
-        if (r) macroNameRanges.push({ name: (val as any).value, range: r })
+        if (r) macroNameRanges.push({ name: val.value, range: r })
         pushField(['macros', i, 'name'], val)
       }
       const expPair = getPair(mMap, 'expansion')
@@ -214,6 +230,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     interlocutorNameRanges,
     macroNameRanges,
     agentTargetRanges,
+    bundleTargetRanges,
     fieldRanges,
     findRangesByPath
   }

@@ -172,9 +172,47 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     })
   }
 
+  // bundles
+  if (Array.isArray(root?.bundles)) {
+    root.bundles.forEach((b: any, i: number) => {
+      if (!(b && typeof b === "object")) return
+      if (!("name" in b) || typeof b.name !== "string") {
+        issues.push({
+          code: "bundle.name.missing",
+          message: Messages.bundle.nameMissing(),
+          path: ["bundles", i, "name"],
+          severity: "error"
+        })
+      }
+      const nameVal = typeof b?.name === "string" ? b.name : "<unknown>"
+      if (!("tools" in b)) {
+        issues.push({
+          code: "bundle.tools.missing",
+          message: Messages.bundle.toolsMissing(nameVal),
+          path: ["bundles", i, "tools"],
+          severity: "error"
+        })
+      } else if (!Array.isArray(b.tools)) {
+        issues.push({
+          code: "bundle.tools.type",
+          message: Messages.bundle.toolsType(nameVal),
+          path: ["bundles", i, "tools"],
+          severity: "error"
+        })
+      } else if (!b.tools.every((t: unknown) => typeof t === "object")) {
+        issues.push({
+          code: "bundle.tools.items",
+          message: Messages.bundle.toolsItems(nameVal),
+          path: ["bundles", i, "tools"],
+          severity: "error"
+        })
+      }
+    })
+  }
+
   // hooks
   if (Array.isArray(root?.hooks)) {
-    root.hooks.forEach((h: any, i: number) => {
+    root.hooks.forEach((h: unknown, i: number) => {
       if (!(h && typeof h === "object")) return
       if (!("on" in h)) {
         issues.push({
@@ -194,7 +232,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
         const allowed = ["user_message", "assistant_message", "error"]
         const ok = typeof h.on === "string"
           ? allowed.includes(h.on)
-          : (h.on as any[]).every((x) => allowed.includes(x))
+          : h.on.every((x) => allowed.includes(x))
         if (!ok) {
           issues.push({
             code: "hook.on.value",

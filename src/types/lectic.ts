@@ -5,27 +5,49 @@ import { validateInterlocutor, type Interlocutor } from "./interlocutor"
 import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
 import { validateHookSpec, Hook, type HookSpec } from "./hook"
 import { isMessage } from "./message"
-import { isExecToolSpec, ExecTool } from "../tools/exec"
-import { isSQLiteToolSpec, SQLiteTool } from "../tools/sqlite"
+import { isExecToolSpec, ExecTool, type ExecToolSpec } from "../tools/exec"
+import { isSQLiteToolSpec, SQLiteTool, type SQLiteToolSpec } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
 import { isServeToolSpec, ServeTool } from "../tools/serve"
-import { isAgentToolSpec, AgentTool } from "../tools/agent"
+import { isAgentToolSpec, AgentTool, type AgentToolSpec } from "../tools/agent"
 import { isNativeTool } from "../tools/native"
 import { loadFrom } from "../utils/loader"
 import { mergeValues } from "../utils/merge"
+import { Messages } from "../constants/messages"
+
+type ToolBundleSpec = {
+    name : string
+    tools: object[]
+}
+
+function validateToolBundle(raw : unknown) : raw is ToolBundleSpec {
+    if (raw === null) throw Error(Messages.bundle.baseNull())
+    if (typeof raw !== "object" )
+        throw Error(Messages.bundle.baseNeedsNameTools(raw))
+    if (!("name" in raw && typeof raw.name === "string")) throw Error(Messages.bundle.nameMissing())
+    const name = raw.name
+    if (!("tools" in raw)) throw Error(Messages.bundle.toolsMissing(name))
+    if (!(Array.isArray(raw.tools)))
+        throw Error(Messages.bundle.toolsType(name))
+    if (!(raw.tools.every((t : unknown) => typeof t === "object")))
+        throw Error(Messages.bundle.toolsItems(name))
+    return true
+}
 
 type DialecticHeaderSpec = {
     interlocutor : Interlocutor
     interlocutors? : [ ...Interlocutor[] ]
     macros?: MacroSpec[]
     hooks?: HookSpec[]
+    bundles? : ToolBundleSpec[]
 }
 
 type ManylecticHeaderSpec = {
     interlocutors : [ Interlocutor, ...Interlocutor[] ]
     macros?: MacroSpec[]
     hooks?: HookSpec[]
+    bundles? : ToolBundleSpec[]
 }
 
 export type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
@@ -35,6 +57,7 @@ export class LecticHeader {
     interlocutors : Interlocutor[]
     macros: Macro[]
     hooks: Hook[]
+    bundles: ToolBundleSpec[]
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
@@ -48,6 +71,7 @@ export class LecticHeader {
         }
         this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         this.hooks = (spec.hooks ?? []).map(spec => new Hook(spec))
+        this.bundles = spec.bundles ?? []
     }
 
     static mergeInterlocutorSpecs(yamls : (string | null)[]) {
@@ -77,6 +101,28 @@ export class LecticHeader {
         }
     }
 
+    private expandTools(tools: object[]): object[] {
+        const out: object[] = []
+        const idx = new Map<string, ToolBundleSpec>()
+        for (const b of this.bundles) idx.set(b.name, b)
+        const seen = new Set<string>()
+        const expandOne = (spec: object) => {
+            if (spec && "bundle" in spec && typeof spec.bundle === 'string') {
+                const name = spec.bundle
+                if (seen.has(name)) throw Error(Messages.bundle.cycle(name))
+                const bundle = idx.get(name)
+                if (!bundle) throw Error(Messages.bundle.unknownReference(name))
+                seen.add(name)
+                for (const inner of bundle.tools) expandOne(inner)
+                seen.delete(name)
+            } else {
+                out.push(spec)
+            }
+        }
+        for (const s of tools) expandOne(s)
+        return out
+    }
+
     async initialize() {
 
         if (this.interlocutor.registry) return
@@ -85,51 +131,54 @@ export class LecticHeader {
 
         this.interlocutor.registry = {}
 
-        if (this.interlocutor.tools) {
-            for (const spec of this.interlocutor.tools) {
-                // TODO it'd be nice to just have the tools save their
-                // registration boilerplate on to Tool as each class is defined
-                const register = (tool : Tool) => {
-                    if (this.interlocutor.registry === undefined) return
-                    if (tool.name in this.interlocutor.registry) {
-                        throw Error(`the name ${tool.name} is being used twice. Each tool needs a unique name`)
-                    } else {
-                        this.interlocutor.registry[tool.name] = tool 
-                    }
-                }
-                if (isExecToolSpec(spec)) {
-                    // don't mutate spec, it's confusing elsewhere if the
-                    // tool spec starts to not match the YAML, for example
-                    // if the YAML uses &* references
-                    const loadedSpec = { ...spec }
-                    loadedSpec.usage = await loadFrom(spec.usage)
-                    register(new ExecTool(loadedSpec, this.interlocutor.name))
-                } else if (isSQLiteToolSpec(spec)) {
-                    const loadedSpec = { ...spec }
-                    loadedSpec.details = await loadFrom(spec.details)
-                    register(new SQLiteTool(loadedSpec))
-                } else if (isThinkToolSpec(spec)) {
-                    register(new ThinkTool(spec))
-                } else if (isServeToolSpec(spec)) {
-                    register(new ServeTool(spec))
-                } else if (isAgentToolSpec(spec)) {
-                    const loadedSpec = { ...spec }
-                    loadedSpec.usage = await loadFrom(spec.usage)
-                    register(new AgentTool(loadedSpec, this.interlocutors))
-                } else if (isMCPSpec(spec)) {
-                    (await MCPTool.fromSpec(spec)).map(register)
-                } else if (isNativeTool(spec)) {
-                   // do nothing 
+        const toolSpecs = Array.isArray(this.interlocutor.tools)
+          ? this.expandTools(this.interlocutor.tools)
+          : []
+
+        for (const spec of toolSpecs) {
+            // TODO it'd be nice to just have the tools save their
+            // registration boilerplate on to Tool as each class is defined
+            const register = (tool : Tool) => {
+                if (this.interlocutor.registry === undefined) return
+                if (tool.name in this.interlocutor.registry) {
+                    throw Error(`the name ${tool.name} is being used twice. Each tool needs a unique name`)
                 } else {
-                    throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized. ` +
-                                `Check the tool section of your YAML header.`)
+                    this.interlocutor.registry[tool.name] = tool 
                 }
+            }
+            if (isExecToolSpec(spec)) {
+                // don't mutate spec, it's confusing elsewhere if the
+                // tool spec starts to not match the YAML, for example
+                // if the YAML uses &* references
+                const loadedSpec: ExecToolSpec = { ...spec }
+                loadedSpec.usage = await loadFrom(spec.usage)
+                register(new ExecTool(loadedSpec, this.interlocutor.name))
+            } else if (isSQLiteToolSpec(spec)) {
+                const loadedSpec: SQLiteToolSpec = { ...spec }
+                loadedSpec.details = await loadFrom(spec.details)
+                register(new SQLiteTool(loadedSpec))
+            } else if (isThinkToolSpec(spec)) {
+                register(new ThinkTool(spec))
+            } else if (isServeToolSpec(spec)) {
+                register(new ServeTool(spec))
+            } else if (isAgentToolSpec(spec)) {
+                const loadedSpec: AgentToolSpec = { ...spec }
+                loadedSpec.usage = await loadFrom(spec.usage)
+                register(new AgentTool(loadedSpec, this.interlocutors))
+            } else if (isMCPSpec(spec)) {
+                (await MCPTool.fromSpec(spec)).map(register)
+            } else if (isNativeTool(spec)) {
+               // do nothing 
+            } else {
+                throw Error(`The tool provided by ${JSON.stringify(spec)} wasn't recognized. ` +
+                            `Check the tool section of your YAML header.`)
             }
         }
 
     }
 }
 
+// This is similar to isLecticHeaderSpec, but throws on failed validation
 export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
     return raw !== null &&
         typeof raw === 'object' &&
@@ -150,8 +199,10 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
         ) && ('hooks' in raw
                 ? Array.isArray(raw.hooks) && raw.hooks.every(validateHookSpec)
                 : true
+        ) && ('bundles' in raw
+                ? Array.isArray(raw.bundles) && raw.bundles.every(validateToolBundle)
+                : true
              )
-        
 }
 
 export function isLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {

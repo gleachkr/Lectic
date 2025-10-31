@@ -86,6 +86,32 @@ a single turn, Lectic will run all of them concurrently, rather than one after
 another. This significantly speeds up complex tasks that involve gathering 
 information from multiple sources.
 
+## Tool bundles
+
+If you reuse the same set of tools across interlocutors, define a named
+bundle once and reference it by name in each interlocutor. Bundles are
+listed at the top level of the header.
+
+Example
+
+```yaml
+bundles:
+  - name: typescript_tools
+    tools:
+      - exec: tsc
+        name: tsc
+      - exec: eslint
+        name: eslint
+
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  tools:
+    - bundle: typescript_tools
+```
+
+You can still mix regular tools alongside bundle references.
+
 ## Available Tool Types
 
 Lectic supports a variety of tool types, each with its own capabilities and

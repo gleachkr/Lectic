@@ -9,6 +9,8 @@ included configuration files.
 - `interlocutor`: A single object defining the primary LLM speaker.
 - `interlocutors`: A list of interlocutor objects for multiparty
   conversations.
+- `bundles`: A list of named tool bundles you can reference from
+  interlocutors.
 - `macros`: A list of macro definitions. See [Macros](../automation/01_macros.qmd).
 - `hooks`: A list of hook definitions. See [Hooks](../automation/02_hooks.qmd).
 

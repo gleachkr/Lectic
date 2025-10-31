@@ -17,6 +17,7 @@ import { findUrlRangeInNodeRaw } from "./linkTargets"
 import { expandEnv } from "../utils/replace"
 import { normalizeUrl, hasGlobChars, globHasMatches, pathExists } from "./pathUtils"
 import type { Root } from "mdast"
+import { Messages } from "../constants/messages"
 
 // Narrow header structures for diagnostics. These are minimal shapes
 // we actually use in LSP; runtime uses richer types elsewhere.
@@ -25,11 +26,56 @@ export type InterlocutorLike = {
   prompt?: string
   tools?: unknown[]
 }
+
+function emitUnknownBundleErrors(
+  spec: HeaderLike,
+  headerIndex: HeaderRangeIndex | null,
+  headerRange: LspRangeT,
+  knownBundles: string[]
+): Diagnostic[] {
+  const diags: Diagnostic[] = []
+  const knownSet = new Set(knownBundles)
+  const bundleRanges = headerIndex?.bundleTargetRanges ?? []
+
+  const checkTools = (tools: unknown[]) => {
+    for (const t of tools) {
+      if (!t || typeof t !== 'object') continue
+      const bundle = (t as { bundle?: unknown }).bundle
+      if (typeof bundle !== 'string') continue
+      if (knownSet.has(bundle)) continue
+      const matches = bundleRanges.filter(a => a.target === bundle)
+      if (matches.length > 0) {
+        for (const m of matches) {
+          diags.push({
+            range: m.range,
+            severity: DiagnosticSeverity.Error,
+            source: 'lectic',
+            message: Messages.bundle.unknownReference(bundle)
+          })
+        }
+      } else {
+        diags.push({
+          range: headerRange,
+          severity: DiagnosticSeverity.Error,
+          source: 'lectic',
+          message: Messages.bundle.unknownReference(bundle)
+        })
+      }
+    }
+  }
+
+  for (const inter of collectAllInterlocutors(spec)) {
+    const tools = inter.tools
+    if (Array.isArray(tools)) checkTools(tools)
+  }
+  return diags
+}
 export type MacroLike = { name?: string }
 export type HeaderLike = {
   interlocutor?: InterlocutorLike
   interlocutors?: InterlocutorLike[]
   macros?: MacroLike[]
+  bundles?: { name?: string }[]
 }
 
 // Helper re-exported from positions.ts is imported above
@@ -100,6 +146,18 @@ function sanitizeHeaderLike(v: unknown): HeaderLike {
     const ms = (macros as unknown[])
       .map(sanitizeMacroLike).filter(Boolean) as MacroLike[]
     if (ms.length > 0) out.macros = ms
+  }
+  const bundles = obj["bundles"]
+  if (Array.isArray(bundles)) {
+    const bs = (bundles as unknown[])
+      .map((b: any) => {
+        if (b && typeof b === 'object' && typeof b.name === 'string') {
+          return { name: b.name }
+        }
+        return undefined
+      })
+      .filter(Boolean) as { name?: string }[]
+    if (bs.length > 0) out.bundles = bs
   }
   return out
 }
@@ -265,6 +323,18 @@ function collectInterlocutorNames(spec: HeaderLike): string[] {
   if (Array.isArray(spec.interlocutors))
     for (const it of spec.interlocutors)
       if (it && typeof it === "object") push(it.name)
+  return names
+}
+
+function collectBundleNames(spec: HeaderLike): string[] {
+  const names: string[] = []
+  const seen = new Set<string>()
+  const push = (n?: string) => {
+    if (typeof n !== 'string') return
+    if (!seen.has(n)) { seen.add(n); names.push(n) }
+  }
+  if (Array.isArray(spec.bundles))
+    for (const b of spec.bundles) push(b.name)
   return names
 }
 
@@ -439,6 +509,14 @@ export async function buildDiagnostics(
   diags.push(
     ...emitUnknownAgentTargetErrors(
       mergedSpec, headerIndex, headerRange, knownNames
+    )
+  )
+
+  // 5) Unknown bundle references in tools
+  const knownBundles = collectBundleNames(mergedSpec)
+  diags.push(
+    ...emitUnknownBundleErrors(
+      mergedSpec, headerIndex, headerRange, knownBundles
     )
   )
 

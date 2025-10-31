@@ -56,5 +56,23 @@ export const Messages = {
     baseNeedsOnDo: (raw: unknown) =>
       `Hook needs to be given with at least "on" and "do" fields. Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for hook`,
+  },
+
+  // Bundle
+  bundle: {
+    nameMissing: () => `Bundle needs to be given with a "name" field.`,
+    toolsMissing: (name: string) =>
+      `The bundle ${name} needs a tools field.`,
+    toolsType: (name: string) =>
+      `The tools field of bundle ${name} needs to be an array.`,
+    toolsItems: (name: string) =>
+      `One or more tools in bundle ${name} weren't properly specified`,
+    baseNeedsNameTools: (raw: unknown) =>
+      `Bundle needs to be given with at least "name" and "tools" fields. Got ${raw} instead.`,
+    baseNull: () => `Something went wrong, got null for bundle`,
+    unknownReference: (bundle: string) =>
+      `Unknown bundle reference: ${bundle}`,
+    cycle: (bundle: string) =>
+      `Bundle expansion cycle detected at ${bundle}`
   }
 } as const

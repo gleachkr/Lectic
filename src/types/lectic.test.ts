@@ -178,5 +178,65 @@ describe('LecticHeader', () => {
           const interlocutor = header.interlocutor;
           expect(interlocutor.registry).toEqual({});
     });
+
+    it('expands a bundle into tools', async () => {
+      const spec = {
+        bundles: [
+          { name: 'typescript_tools', tools: [
+            { exec: 'tsc', name: 'tsc' },
+            { exec: 'eslint', name: 'eslint' }
+          ]}
+        ],
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          tools: [ { bundle: 'typescript_tools' } ]
+        }
+      }
+      const header = new LecticHeader(spec as any)
+      await header.initialize()
+      const reg = header.interlocutor.registry ?? {}
+      expect(reg['tsc']).toBeInstanceOf(ExecTool)
+      expect(reg['eslint']).toBeInstanceOf(ExecTool)
+    })
+
+    it('supports nested bundles', async () => {
+      const spec = {
+        bundles: [
+          { name: 'base', tools: [ { exec: 'date', name: 'date' } ] },
+          { name: 'combo', tools: [ { bundle: 'base' }, { exec: 'echo', name: 'echo' } ] }
+        ],
+        interlocutor: {
+          name: 'Tester', prompt: 'p', tools: [ { bundle: 'combo' } ]
+        }
+      }
+      const header = new LecticHeader(spec as any)
+      await header.initialize()
+      const reg = header.interlocutor.registry ?? {}
+      expect(reg['date']).toBeInstanceOf(ExecTool)
+      expect(reg['echo']).toBeInstanceOf(ExecTool)
+    })
+
+    it('throws on unknown bundle', async () => {
+      const spec = {
+        interlocutor: { name: 'Tester', prompt: 'p', tools: [ { bundle: 'nope' } ] }
+      }
+      const header = new LecticHeader(spec as any)
+      const test = async () => await header.initialize()
+      expect(test).toThrow('Unknown bundle reference: nope')
+    })
+
+    it('throws on bundle cycle', async () => {
+      const spec = {
+        bundles: [
+          { name: 'a', tools: [ { bundle: 'b' } ] },
+          { name: 'b', tools: [ { bundle: 'a' } ] }
+        ],
+        interlocutor: { name: 'Tester', prompt: 'p', tools: [ { bundle: 'a' } ] }
+      }
+      const header = new LecticHeader(spec as any)
+      const test = async () => await header.initialize()
+      expect(test).toThrow('Bundle expansion cycle detected at a')
+    })
   });
 });
