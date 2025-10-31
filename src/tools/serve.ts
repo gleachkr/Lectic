@@ -49,15 +49,15 @@ export class ServeTool extends Tool {
         const rewriter = new HTMLRewriter()
         // ↓ NOOP atm, but leaving it because it seems like it'll be useful later
         const page = rewriter.transform(pageHtml)
-        let cb = (_x : unknown) => {}
-        const blocker = new Promise(resolve => cb = resolve)
+        let unblock: () => void = () => {}
+        const blocker = new Promise<void>(resolve => { unblock = resolve })
         const server = Bun.serve({
             port: this.serve_on_port,
             routes: {
                 "/": {
                     GET: () => {
                         server.stop()
-                        cb(null)
+                        unblock()
                         return new Response(page, {
                             headers: {
                                 "Content-Type": "text/html"

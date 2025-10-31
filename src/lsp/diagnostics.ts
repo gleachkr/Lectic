@@ -15,7 +15,7 @@ import * as YAML from "yaml"
 import { offsetToPosition } from "./positions"
 import { findUrlRangeInNodeRaw } from "./linkTargets"
 import { expandEnv } from "../utils/replace"
-import { normalizeUrl, hasGlobChars, globHasMatches, pathExists } from "./pathUtils"
+import { normalizeUrl, hasGlobChars, globHasMatches, pathExists } from "./utils/path"
 import type { Root } from "mdast"
 import { Messages } from "../constants/messages"
 
@@ -150,9 +150,9 @@ function sanitizeHeaderLike(v: unknown): HeaderLike {
   const bundles = obj["bundles"]
   if (Array.isArray(bundles)) {
     const bs = (bundles as unknown[])
-      .map((b: any) => {
-        if (b && typeof b === 'object' && typeof b.name === 'string') {
-          return { name: b.name }
+      .map((b: unknown) => {
+        if (typeof b === 'object' && b !== null && typeof (b as { name?: unknown }).name === 'string') {
+          return { name: (b as { name: string }).name }
         }
         return undefined
       })

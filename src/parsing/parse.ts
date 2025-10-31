@@ -10,14 +10,14 @@ import { readWorkspaceConfig } from "../utils/workspace"
 import { join } from "path"
 
 export function getYaml(raw:string) : string | null {
-    let expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/
-    let match = expr.exec(raw)
+    const expr = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/
+    const match = expr.exec(raw)
     return match?.[1] ?? null
 }
 
 export function getBody(raw:string) : string {
-    let expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/
-    let match = expr.exec(raw)
+    const expr = /^---[\s\S]*?(?:---|\.\.\.)([\s\S]*)$/
+    const match = expr.exec(raw)
     return match?.[1] ?? raw
 }
 
@@ -67,7 +67,7 @@ export async function mergedHeaderSpecForDoc(
     docPath: string | undefined
 ): Promise<unknown> {
     const systemConfig = join(lecticConfigDir(), "lectic.yaml")
-    const systemYaml = await Bun.file(systemConfig).text().catch(_ => null)
+    const systemYaml = await Bun.file(systemConfig).text().catch(_e => null)
     if (docPath !== undefined) {
         const workspaceYaml = await readWorkspaceConfig(docPath)
         return parseLecticHeaderSpec(docText, [systemYaml, workspaceYaml])

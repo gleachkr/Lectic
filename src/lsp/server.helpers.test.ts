@@ -1,5 +1,5 @@
 import { computeReplaceRange, findSingleColonStart } from "./directives"
-import { extractWorkspaceRoots } from "./serverHelpers"
+import { extractWorkspaceRoots } from "./utils/server"
 import type { InitializeParams } from "vscode-languageserver"
 import { describe, test, expect } from "bun:test"
 

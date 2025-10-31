@@ -17,9 +17,10 @@ export function extractWorkspaceRoots(params: InitializeParams): string[] {
   }
   // Fallback: if no workspaceFolders but rootUri exists (older clients),
   // honor it when it is a file URI.
-  if (roots.length === 0 && (params as any)?.rootUri) {
+  const legacy = (params as unknown as { rootUri?: string | null }).rootUri
+  if (roots.length === 0 && legacy) {
     try {
-      const u = new URL((params as any).rootUri)
+      const u = new URL(legacy)
       if (u.protocol === 'file:') roots.push(u.pathname)
     } catch {
       // ignore

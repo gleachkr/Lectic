@@ -1,10 +1,8 @@
 import { join } from "path"
 import { pathToFileURL } from "url"
 import { lecticConfigDir } from "../utils/xdg"
-import * as YAML from "yaml"
 import type { Range, Location } from "vscode-languageserver"
-import { Range as LspRange } from "vscode-languageserver/node"
-import { offsetToPosition } from "./positions"
+import { parseYaml, itemsOf, scalarValue, nodeAbsRange, isObj, getPair } from "./utils/yamlAst"
 
 // Types for safe, narrow shapes
 export type InterlocutorNameEntry = { name: string, range: Range }
@@ -22,85 +20,54 @@ export type DefinitionIndex = {
 }
 
 
-// Basic YAML map item access without any
-function mapGetPair(map: any, key: string): { key: any, value: any } | undefined {
-  const items: any[] = (map && typeof map === 'object' && Array.isArray(map.items))
-    ? map.items : []
-  for (const it of items) {
-    const k = (it?.key as any)?.value
-    if (k === key) return { key: it.key, value: it.value }
-  }
-  return undefined
-}
-
-function nodeAbsRange(text: string, node: any, baseOffset: number): Range | null {
-  const r = (node as any)?.range
-  if (Array.isArray(r) && typeof r[0] === 'number' && typeof r[2] === 'number') {
-    const start = baseOffset + r[0]
-    const end = baseOffset + r[2]
-    return LspRange.create(offsetToPosition(text, start), offsetToPosition(text, end))
-  }
-  const c = (node as any)?.cstNode as any
-  if (c && typeof c.offset === 'number' && typeof c.end === 'number') {
-    const start = baseOffset + c.offset
-    const end = baseOffset + c.end
-    return LspRange.create(offsetToPosition(text, start), offsetToPosition(text, end))
-  }
-  return null
-}
-
 function extractNamesFromConfigYaml(text: string): {
   interlocutors: InterlocutorNameEntry[],
   macros: MacroNameEntry[]
 } {
-  const doc = YAML.parseDocument(text, {
-    keepCstNodes: true,
-    keepNodeTypes: true,
-    logLevel: "silent"
-  } as any)
-  const root: any = doc.contents
+  const doc = parseYaml(text)
+  const root = (doc as unknown as { contents?: unknown }).contents
   const inters: InterlocutorNameEntry[] = []
-  const macros: MacroNameEntry[] = []
+  const macs: MacroNameEntry[] = []
 
-  const singlePair = mapGetPair(root, 'interlocutor')
+  const singlePair = getPair(root, 'interlocutor')
   const single = singlePair?.value
-  if (single && typeof single === 'object') {
-    const namePair = mapGetPair(single, 'name')
+  if (isObj(single)) {
+    const namePair = getPair(single, 'name')
     const nameVal = namePair?.value
-    const nameStr = (nameVal as any)?.value
+    const nameStr = scalarValue(nameVal)
     if (typeof nameStr === 'string') {
       const r = nodeAbsRange(text, nameVal, 0)
       if (r) inters.push({ name: nameStr, range: r })
     }
   }
 
-  const listPair = mapGetPair(root, 'interlocutors')
-  const listItems: any[] = Array.isArray(listPair?.value?.items) ? listPair!.value.items : []
+  const listPair = getPair(root, 'interlocutors')
+  const listItems = itemsOf(listPair?.value)
   for (const it of listItems) {
-    if (!it || typeof it !== 'object') continue
-    const namePair = mapGetPair(it, 'name')
+    if (!isObj(it)) continue
+    const namePair = getPair(it, 'name')
     const nv = namePair?.value
-    const nameStr = (nv as any)?.value
+    const nameStr = scalarValue(nv)
     if (typeof nameStr === 'string') {
       const r = nodeAbsRange(text, nv, 0)
       if (r) inters.push({ name: nameStr, range: r })
     }
   }
 
-  const macrosPair = mapGetPair(root, 'macros')
-  const macroItems: any[] = Array.isArray(macrosPair?.value?.items) ? macrosPair!.value.items : []
+  const macrosPair = getPair(root, 'macros')
+  const macroItems = itemsOf(macrosPair?.value)
   for (const m of macroItems) {
-    if (!m || typeof m !== 'object') continue
-    const namePair = mapGetPair(m, 'name')
+    if (!isObj(m)) continue
+    const namePair = getPair(m, 'name')
     const nv = namePair?.value
-    const nameStr = (nv as any)?.value
+    const nameStr = scalarValue(nv)
     if (typeof nameStr === 'string') {
       const r = nodeAbsRange(text, nv, 0)
-      if (r) macros.push({ name: nameStr, range: r })
+      if (r) macs.push({ name: nameStr, range: r })
     }
   }
 
-  return { interlocutors: inters, macros }
+  return { interlocutors: inters, macros: macs }
 }
 
 

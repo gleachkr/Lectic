@@ -17,6 +17,7 @@ function getBaseDir(type: DirType): string {
                 case 'cache':  return local;
                 case 'state':  return local;
             }
+            break;
         }
         case 'darwin': {
             const library = join(home, 'Library');
@@ -26,6 +27,7 @@ function getBaseDir(type: DirType): string {
                 case 'cache':  return join(library, 'Caches');
                 case 'state':  return join(library, 'Application Support');
             }
+            break;
         }
         default: { // linux and other POSIX
             const linuxDefaults = {

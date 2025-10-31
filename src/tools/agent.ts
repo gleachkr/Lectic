@@ -65,7 +65,7 @@ export class AgentTool extends Tool {
 
         const backend = getBackend(this.agent)
         const result = Logger.fromStream(backend.evaluate(lectic))
-        for await (const _ of result.chunks) { }
+        for await (const chunk of result.chunks) { void chunk }
         if (this.raw_output) {
             return ToolCallResults(await result.string)
         } else {

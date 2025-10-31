@@ -5,14 +5,15 @@ import remarkDirective from "remark-directive"
 import { nodeRaw } from "../parsing/markdown"
 import { isSerializedCall } from "../types/tool"
 import { isSerializedInlineAttachment } from "../types/inlineAttachment"
+import type { Root } from "mdast"
 
-export function buildFoldingRangesFromAst(ast: any, docText: string): LspFoldingRange[] {
+export function buildFoldingRangesFromAst(ast: Root, docText: string): LspFoldingRange[] {
   const out: LspFoldingRange[] = []
 
-  for (const node of ast.children ?? []) {
+  
+  for (const node of (ast.children ?? [])) {
     if (node.type !== 'containerDirective') continue
-
-    if (!Array.isArray(node.children) || node.children.length === 0) continue
+    if (!Array.isArray(node.children)) continue
 
     for (const b of node.children) {
       if (b.type !== "html") continue

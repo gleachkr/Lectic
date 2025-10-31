@@ -16,7 +16,7 @@ describe('loader', () => {
     const teardown = () => {
         try {
             unlinkSync(testFilePath);
-        } catch (error) {
+        } catch (_error) {
             // Ignore errors if the file doesn't exist
         }
     };

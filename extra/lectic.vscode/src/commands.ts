@@ -120,7 +120,7 @@ export async function submitLectic() {
 
     // --- Prepare buffer (add trailing newline if needed) ---
     logDebug('Ensuring buffer ends with a newline before execution...');
-    let initialEditSuccess = await editor.edit(editBuilder => {
+    const initialEditSuccess = await editor.edit(editBuilder => {
         let needsTrailingNewline = true;
         if (lineCount > 0 && document.lineAt(lineCount - 1).isEmptyOrWhitespace) {
             needsTrailingNewline = false;

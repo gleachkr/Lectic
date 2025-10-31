@@ -12,11 +12,12 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from "./common.ts"
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.mjs';
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
 // server tool use blocks begin (to preserve formatting semantics).
 export async function* anthropicTextChunks(
-    stream: any
+    stream: MessageStream
 ) : AsyncGenerator<string> {
     for await (const messageEvent of stream) {
         if (messageEvent.type === 'content_block_delta' && 
@@ -24,7 +25,7 @@ export async function* anthropicTextChunks(
             yield messageEvent.delta.text
         }
         if (messageEvent.type === 'content_block_start' &&
-            (messageEvent as any).content_block?.type === 'server_tool_use') {
+            messageEvent.content_block?.type === 'server_tool_use') {
             yield '\n\n'
         }
     }
@@ -113,7 +114,7 @@ async function handleMessage(
             const userParts : Anthropic.Messages.ContentBlockParam[] = []
             if (interaction.text.length > 0) {
                 modelParts.push({
-                    type: "text" as "text",
+                    type: "text" as const,
                     text: interaction.text
                 })
             }
@@ -168,7 +169,7 @@ async function handleMessage(
         const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
 
         const content : Anthropic.Messages.ContentBlockParam[] = [{
-            type: "text" as "text",
+            type: "text" as const,
             text: msg.content || "…"
         }]
 
@@ -269,7 +270,7 @@ async function* handleToolUse(
                 const theTool = block.name in registry ? registry[block.name] : null
                 yield serializeCall(theTool, {
                     name: block.name,
-                    args: block.input,
+                    args: block.input as Record<string,unknown>,
                     id: block.id,
                     isError: call.isError,
                     results: call.results
@@ -288,7 +289,7 @@ async function* handleToolUse(
 
         Logger.debug("anthropic - messages (tool)", messages)
 
-        let stream = client.messages.stream({
+        const stream = client.messages.stream({
             max_tokens: lectic.header.interlocutor.max_tokens || 2048,
             system: systemPrompt(lectic),
             messages: messages,
@@ -345,7 +346,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
 
         const model = lectic.header.interlocutor.model ?? 'claude-sonnet-4-20250514'
 
-        let stream = this.client.messages.stream({
+        const stream = this.client.messages.stream({
             system: systemPrompt(lectic),
             messages: messages,
             model,
@@ -366,7 +367,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
             assistant += text
         }
 
-        let msg = await stream.finalMessage()
+        const msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
         emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
@@ -414,7 +415,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
 
         const model = lectic.header.interlocutor.model ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0'
 
-        let stream = this.client.messages.stream({
+        const stream = this.client.messages.stream({
             system: systemPrompt(lectic),
             messages,
             model,
@@ -435,7 +436,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
             assistant += text
         }
 
-        let msg = await stream.finalMessage()
+        const msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
         emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)

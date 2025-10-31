@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import { buildDocumentSymbols } from "./symbols"
-import { buildTestBundle } from "./testHelpers"
+import { buildTestBundle } from "./utils/testHelpers"
 
 function namesOf(ds: any[]): string[] {
   const out: string[] = []

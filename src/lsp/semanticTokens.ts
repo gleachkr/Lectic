@@ -42,7 +42,7 @@ function isColon(ch: number) { return ch === 58 /* : */ }
 function isSpace(ch: number) { return ch === 32 || ch === 9 }
 
 function headerLineRange(text: string, b: BlockSpan): [number, number] | null {
-  let s = b.absStart
+  const s = b.absStart
   let e = text.indexOf("\n", s)
   if (e < 0 || e > b.absEnd) e = b.absEnd
   return [s, e]

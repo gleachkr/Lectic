@@ -15,7 +15,7 @@ type BooleanSchema = {
 type NumberSchema = {
     type: "number",
     description: string
-    enum? : any[] // undertyped for compatibility with ollama
+    enum? : unknown[] // provider enums are sometimes untyped; validate at runtime
     minimum? : number 
     maximum? : number
 }
@@ -23,7 +23,7 @@ type NumberSchema = {
 type IntegerSchema = {
     type: "integer",
     description: string
-    enum? : any[] // undertyped for compatibility with ollama
+    enum? : unknown[] // provider enums are sometimes untyped; validate at runtime
     minimum? : number 
     maximum? : number
 }
@@ -224,7 +224,7 @@ export function validateAgainstSchema(arg: unknown , schema: JSONSchema) : boole
 }
 
 
-export function deserialize(xml: string, schema: JSONSchema): any {
+export function deserialize(xml: string, schema: JSONSchema): unknown {
     if (isAnyOf(schema)) {
         const looksEscapedString = (s: string) => s.includes('\n┆') || (s.startsWith('\n') && s.endsWith('\n'))
         const order = (s: JSONSchema): number => {
@@ -303,8 +303,8 @@ export function deserialize(xml: string, schema: JSONSchema): any {
 
         case "array": {
             const inner = unwrap(xml, "array");
-            const items: any[] = [];
-            let elements = extractElements(inner)
+            const items: unknown[] = [];
+            const elements = extractElements(inner)
             for (const item of elements) {
                 items.push(deserialize(unwrap(item, "item"), schema.items));
             }
@@ -313,8 +313,8 @@ export function deserialize(xml: string, schema: JSONSchema): any {
         
         case "object": {
             const inner = unwrap(xml, "object");
-            const obj: any = {};
-            let elements = extractElements(inner)
+            const obj: Record<string, unknown> = {};
+            const elements = extractElements(inner)
             for (const element of elements) {
                 // Extract only the tag name, ignoring any attributes.
                 const keyNameRegex = /^<([a-zA-Z][a-zA-Z0-9_]*)\b/;

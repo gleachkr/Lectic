@@ -217,7 +217,7 @@ async function handleMessage(
             const toolCalls : OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = []
             if (interaction.text.length > 0) {
                 modelParts.push({
-                    type: "text" as "text",
+                    type: "text" as const,
                     text: interaction.text
                 })
             }
@@ -261,7 +261,7 @@ async function handleMessage(
     const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
 
     const content : OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{
-        type: "text" as "text",
+        type: "text" as const,
         text: msg.content
     }]
 
@@ -293,7 +293,7 @@ function developerMessage(lectic : Lectic) {
         // keeping backwards compatibility. Ollama however requires "system".
         // Probably other OAI compatible endpoints do too.
         // so we we'll use "system" until OAI descides to deprecate it.
-        role : "system" as "system",
+        role : "system" as const,
         content: systemPrompt(lectic)
     }
 }
@@ -346,7 +346,7 @@ export class OpenAIBackend implements Backend {
 
         lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
 
-        let stream = this.client.chat.completions.stream({
+        const stream = this.client.chat.completions.stream({
             messages: [developerMessage(lectic), ...messages],
             model: lectic.header.interlocutor.model,
             temperature: lectic.header.interlocutor.temperature,
@@ -368,7 +368,7 @@ export class OpenAIBackend implements Backend {
             assistant += text
         }
 
-        let msg = await stream.finalMessage()
+        const msg = await stream.finalMessage()
 
         Logger.debug(`${this.provider} - reply`, msg)
         emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)

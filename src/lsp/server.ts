@@ -27,7 +27,7 @@ import type {
   AnalysisBundle,
 } from "./analysisTypes"
 import type { FoldingRange, HoverParams } from "vscode-languageserver"
-import { extractWorkspaceRoots } from "./serverHelpers"
+import { extractWorkspaceRoots } from "./utils/server"
 import { buildSemanticTokens, semanticTokenLegend } from "./semanticTokens"
 
 // Minimal document record (track text and client-provided version)
@@ -38,14 +38,19 @@ type BundleWaiter = (b: AnalysisBundle) => void
 
 const docs = new Map<string, Doc>()
 
+const hasTypeTag = (m: unknown, tag: string): boolean => {
+  if (typeof m !== 'object' || m == null) return false
+  const t = (m as Record<string, unknown>)["type"]
+  return typeof t === 'string' && t === tag
+}
 function isFoldResult(m: unknown): m is FoldResult {
-  return !!m && typeof (m as any).type === 'string' && (m as any).type === 'fold'
+  return hasTypeTag(m, 'fold')
 }
 function isDiagnosticsResult(m: unknown): m is DiagnosticsResult {
-  return !!m && typeof (m as any).type === 'string' && (m as any).type === 'diagnostics'
+  return hasTypeTag(m, 'diagnostics')
 }
 function isBundleResult(m: unknown): m is BundleResult {
-  return !!m && typeof (m as any).type === 'string' && (m as any).type === 'bundle'
+  return hasTypeTag(m, 'bundle')
 }
 
 // Coordinator per document. It owns a worker and the last results.

@@ -1,40 +1,13 @@
 import type { Range } from "vscode-languageserver"
 import { Range as LspRange } from "vscode-languageserver/node"
-import * as YAML from "yaml"
 import { offsetToPosition } from "./positions"
+import { parseYaml, itemsOf, nodeAbsRange, isObj, getPair, getValue, stringOf } from "./utils/yamlAst"
 
 function findHeaderMatch(text: string): RegExpExecArray | null {
   const re = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
   return re.exec(text)
 }
 
-function nodeAbsRange(text: string, node: any, baseOffset: number): Range | null {
-  // Prefer node.range: [start, valueEnd, end]
-  const r = node?.range
-  if (Array.isArray(r) && typeof r[0] === 'number' && typeof r[2] === 'number') {
-    const start = baseOffset + r[0]
-    const end = baseOffset + r[2]
-    return LspRange.create(offsetToPosition(text, start), offsetToPosition(text, end))
-  }
-  // Fallback to CST node offsets
-  const c = node?.cstNode
-  if (c && typeof c.offset === 'number' && typeof c.end === 'number') {
-    const start = baseOffset + c.offset
-    const end = baseOffset + c.end
-    return LspRange.create(offsetToPosition(text, start), offsetToPosition(text, end))
-  }
-  return null
-}
-
-function getPair(map: any, key: string): any | undefined {
-  const items: any[] = (map && typeof map === 'object' && Array.isArray(map.items))
-    ? map.items : []
-  for (const it of items) {
-    const k = it?.key?.value
-    if (k === key) return it
-  }
-  return undefined
-}
 
 export type YamlPathRange = { path: (string | number)[], range: Range }
 
@@ -61,11 +34,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     offsetToPosition(docText, headerEnd)
   )
 
-  const doc = YAML.parseDocument(yamlText, {
-    keepCstNodes: true,
-    keepNodeTypes: true,
-    logLevel: "silent"
-  } as any)
+  const doc = parseYaml(yamlText)
 
   const interlocutorNameRanges: Array<{ name: string, range: Range }> = []
   const macroNameRanges: Array<{ name: string, range: Range }> = []
@@ -75,149 +44,104 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
 
   const root = doc.contents
 
-  function pushField(path: (string | number)[], node: any) {
+  function pushField(path: (string | number)[], node: unknown) {
     const r = nodeAbsRange(docText, node, contentStart)
     if (r) fieldRanges.push({ path, range: r })
   }
 
-  // single interlocutor
-  const singlePair = getPair(root, 'interlocutor')
-  const single = singlePair?.value
-  if (single && typeof single === 'object') {
-    // whole mapping
-    pushField(['interlocutor'], single)
+  const pushIf = (map: unknown, key: string, path: (string | number)[]) => {
+    const v = getValue(map, key)
+    if (v) pushField(path, v)
+  }
 
-    const namePair = getPair(single, 'name')
-    const nameVal = namePair?.value
-    if (nameVal && typeof nameVal.value === 'string') {
-      const r = nodeAbsRange(docText, nameVal, contentStart)
-      if (r) interlocutorNameRanges.push({ name: nameVal.value, range: r })
-      pushField(['interlocutor','name'], nameVal)
-    }
-    const promptPair = getPair(single, 'prompt')
-    if (promptPair?.value) pushField(['interlocutor','prompt'], promptPair.value)
-    const providerPair = getPair(single, 'provider')
-    if (providerPair?.value) pushField(['interlocutor','provider'], providerPair.value)
-    const modelPair = getPair(single, 'model')
-    if (modelPair?.value) pushField(['interlocutor','model'], modelPair.value)
-    const tempPair = getPair(single, 'temperature')
-    if (tempPair?.value) pushField(['interlocutor','temperature'], tempPair.value)
-    const mtokPair = getPair(single, 'max_tokens')
-    if (mtokPair?.value) pushField(['interlocutor','max_tokens'], mtokPair.value)
-    const mtuPair = getPair(single, 'max_tool_use')
-    if (mtuPair?.value) pushField(['interlocutor','max_tool_use'], mtuPair.value)
-    const reminderPair = getPair(single, 'reminder')
-    if (reminderPair?.value) pushField(['interlocutor','reminder'], reminderPair.value)
-    const nocachePair = getPair(single, 'nocache')
-    if (nocachePair?.value) pushField(['interlocutor','nocache'], nocachePair.value)
-
-    const toolsPair = getPair(single, 'tools')
-    if (toolsPair?.value) pushField(['interlocutor','tools'], toolsPair.value)
-    const tools: any[] = Array.isArray(toolsPair?.value?.items) ? toolsPair.value.items : []
+  function indexTools(toolsVal: unknown, basePath: (string | number)[]) {
+    if (toolsVal) pushField([...basePath, 'tools'], toolsVal)
+    const tools = itemsOf(toolsVal)
     tools.forEach((t, i) => {
-      pushField(['interlocutor','tools', i], t)
-      const agentPair = getPair(t, 'agent')
-      const aval = agentPair?.value
-      if (aval && typeof aval.value === 'string') {
+      pushField([...basePath, 'tools', i], t)
+      const aval = getValue(t, 'agent')
+      const agent = stringOf(aval)
+      if (agent) {
         const r = nodeAbsRange(docText, aval, contentStart)
-        if (r) agentTargetRanges.push({ target: aval.value, range: r })
-        pushField(['interlocutor','tools', i, 'agent'], aval)
+        if (r) agentTargetRanges.push({ target: agent, range: r })
+        pushField([...basePath, 'tools', i, 'agent'], aval)
       }
-      const bundlePair = getPair(t, 'bundle')
-      const bval = bundlePair?.value
-      if (bval && typeof bval.value === 'string') {
+      const bval = getValue(t, 'bundle')
+      const bundle = stringOf(bval)
+      if (bundle) {
         const r = nodeAbsRange(docText, bval, contentStart)
-        if (r) bundleTargetRanges.push({ target: bval.value, range: r })
-        pushField(['interlocutor','tools', i, 'bundle'], bval)
+        if (r) bundleTargetRanges.push({ target: bundle, range: r })
+        pushField([...basePath, 'tools', i, 'bundle'], bval)
       }
     })
   }
 
-  // interlocutors list
-  const listPair = getPair(root, 'interlocutors')
-  if (listPair?.value) pushField(['interlocutors'], listPair.value)
-  const listItems: any[] = Array.isArray(listPair?.value?.items) ? listPair.value.items : []
-  listItems.forEach((itMap, idx) => {
-    if (itMap && typeof itMap === 'object') {
-      pushField(['interlocutors', idx], itMap)
-      const namePair = getPair(itMap, 'name')
-      const val = namePair?.value
-      if (val && typeof val.value === 'string') {
-        const r = nodeAbsRange(docText, val, contentStart)
-        if (r) interlocutorNameRanges.push({ name: val.value, range: r })
-        pushField(['interlocutors', idx, 'name'], val)
-      }
-      const promptPair = getPair(itMap, 'prompt')
-      if (promptPair?.value) pushField(['interlocutors', idx, 'prompt'], promptPair.value)
-      const providerPair = getPair(itMap, 'provider')
-      if (providerPair?.value) pushField(['interlocutors', idx, 'provider'], providerPair.value)
-      const modelPair = getPair(itMap, 'model')
-      if (modelPair?.value) pushField(['interlocutors', idx, 'model'], modelPair.value)
-      const tempPair = getPair(itMap, 'temperature')
-      if (tempPair?.value) pushField(['interlocutors', idx, 'temperature'], tempPair.value)
-      const mtokPair = getPair(itMap, 'max_tokens')
-      if (mtokPair?.value) pushField(['interlocutors', idx, 'max_tokens'], mtokPair.value)
-      const mtuPair = getPair(itMap, 'max_tool_use')
-      if (mtuPair?.value) pushField(['interlocutors', idx, 'max_tool_use'], mtuPair.value)
-      const reminderPair = getPair(itMap, 'reminder')
-      if (reminderPair?.value) pushField(['interlocutors', idx, 'reminder'], reminderPair.value)
-      const nocachePair = getPair(itMap, 'nocache')
-      if (nocachePair?.value) pushField(['interlocutors', idx, 'nocache'], nocachePair.value)
+  function indexInterlocutor(map: unknown, basePath: (string | number)[]) {
+    if (!isObj(map)) return
+    pushField(basePath, map)
 
-      const toolsPair = getPair(itMap, 'tools')
-      if (toolsPair?.value) pushField(['interlocutors', idx, 'tools'], toolsPair.value)
-      const tools: any[] = Array.isArray(toolsPair?.value?.items) ? toolsPair.value.items : []
-      for (let i = 0; i < tools.length; i++) {
-        const tMap = tools[i]
-        pushField(['interlocutors', idx, 'tools', i], tMap)
-        const agentPair = getPair(tMap, 'agent')
-        const aval = agentPair?.value
-        if (aval && typeof aval.value === 'string') {
-          const r = nodeAbsRange(docText, aval, contentStart)
-          if (r) agentTargetRanges.push({ target: aval.value, range: r })
-          pushField(['interlocutors', idx, 'tools', i, 'agent'], aval)
-        }
-        const bundlePair = getPair(tMap, 'bundle')
-        const bval = bundlePair?.value
-        if (bval && typeof bval.value === 'string') {
-          const r = nodeAbsRange(docText, bval, contentStart)
-          if (r) bundleTargetRanges.push({ target: bval.value, range: r })
-          pushField(['interlocutors', idx, 'tools', i, 'bundle'], bval)
-        }
-      }
+    const nameNode = getValue(map, 'name')
+    const name = stringOf(nameNode)
+    if (name) {
+      const r = nodeAbsRange(docText, nameNode, contentStart)
+      if (r) interlocutorNameRanges.push({ name, range: r })
+      pushField([...basePath, 'name'], nameNode)
     }
+
+    pushIf(map, 'prompt', [...basePath, 'prompt'])
+    pushIf(map, 'provider', [...basePath, 'provider'])
+    pushIf(map, 'model', [...basePath, 'model'])
+    pushIf(map, 'temperature', [...basePath, 'temperature'])
+    pushIf(map, 'max_tokens', [...basePath, 'max_tokens'])
+    pushIf(map, 'max_tool_use', [...basePath, 'max_tool_use'])
+    pushIf(map, 'reminder', [...basePath, 'reminder'])
+    pushIf(map, 'nocache', [...basePath, 'nocache'])
+
+    const toolsVal = getValue(map, 'tools')
+    indexTools(toolsVal, basePath)
+  }
+
+  // single interlocutor
+  const single = getPair(root, 'interlocutor')?.value
+  if (isObj(single)) {
+    indexInterlocutor(single, ['interlocutor'])
+  }
+
+  // interlocutors list
+  const listVal = getPair(root, 'interlocutors')?.value
+  if (listVal) pushField(['interlocutors'], listVal)
+  const listItems = itemsOf(listVal)
+  listItems.forEach((itMap, idx) => {
+    indexInterlocutor(itMap, ['interlocutors', idx])
   })
 
   // macros list
-  const macrosPair = getPair(root, 'macros')
-  if (macrosPair?.value) pushField(['macros'], macrosPair.value)
-  const macroItems: any[] = Array.isArray(macrosPair?.value?.items) ? macrosPair.value.items : []
+  const macrosVal = getPair(root, 'macros')?.value
+  if (macrosVal) pushField(['macros'], macrosVal)
+  const macroItems = itemsOf(macrosVal)
   macroItems.forEach((mMap, i) => {
-    if (mMap && typeof mMap === 'object') {
+    if (isObj(mMap)) {
       pushField(['macros', i], mMap)
-      const namePair = getPair(mMap, 'name')
-      const val = namePair?.value
-      if (val && typeof val.value === 'string') {
+      const val = getValue(mMap, 'name')
+      const name = stringOf(val)
+      if (name) {
         const r = nodeAbsRange(docText, val, contentStart)
-        if (r) macroNameRanges.push({ name: val.value, range: r })
+        if (r) macroNameRanges.push({ name, range: r })
         pushField(['macros', i, 'name'], val)
       }
-      const expPair = getPair(mMap, 'expansion')
-      if (expPair?.value) pushField(['macros', i, 'expansion'], expPair.value)
+      pushIf(mMap, 'expansion', ['macros', i, 'expansion'])
     }
   })
 
   // hooks list
-  const hooksPair = getPair(root, 'hooks')
-  if (hooksPair?.value) pushField(['hooks'], hooksPair.value)
-  const hookItems: any[] = Array.isArray(hooksPair?.value?.items) ? hooksPair.value.items : []
+  const hooksVal = getPair(root, 'hooks')?.value
+  if (hooksVal) pushField(['hooks'], hooksVal)
+  const hookItems = itemsOf(hooksVal)
   hookItems.forEach((hMap, i) => {
-    if (hMap && typeof hMap === 'object') {
+    if (isObj(hMap)) {
       pushField(['hooks', i], hMap)
-      const onPair = getPair(hMap, 'on')
-      if (onPair?.value) pushField(['hooks', i, 'on'], onPair.value)
-      const doPair = getPair(hMap, 'do')
-      if (doPair?.value) pushField(['hooks', i, 'do'], doPair.value)
+      pushIf(hMap, 'on', ['hooks', i, 'on'])
+      pushIf(hMap, 'do', ['hooks', i, 'do'])
     }
   })
 

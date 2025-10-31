@@ -6,7 +6,7 @@ import { offsetToPosition, positionToOffset } from "./positions"
 import { mergedHeaderSpecForDoc } from "../parsing/parse"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { buildMacroIndex } from "./macroIndex"
-import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./pathUtils"
+import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./utils/path"
 import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
 import { unescapeTags, extractElements, unwrap } from "../parsing/xml" 
@@ -119,7 +119,9 @@ async function linkPreview(docText: string, startOff: number, endOff: number, do
   return await linkPreviewWith(norm, range, docDir)
 }
 
-async function linkPreviewWith(norm: ReturnType<typeof normalizeUrl>, range: any, docDir: string | undefined): Promise<Hover | null> {
+import type { Range } from "vscode-languageserver"
+
+async function linkPreviewWith(norm: ReturnType<typeof normalizeUrl>, range: Range, docDir: string | undefined): Promise<Hover | null> {
   const parts: string[] = []
   parts.push(`Path: ${code(norm.display)}`)
 
@@ -238,7 +240,7 @@ function isDisplayableMedia(mediaType?: string | null): boolean {
 function prettyBodyFor(raw: string, mediaType? : string, escape : boolean = true): { body: string, lang: string | null } {
   // raw here is serialized text with line markers and <│ escapes.
   // We must unescape before pretty printing.
-  let lang = langFor(mediaType)
+  const lang = langFor(mediaType)
   if (mediaType && mediaType.toLowerCase().includes("json")) {
     try {
       const unesc = escape ? unescapeTags(raw) : raw

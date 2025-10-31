@@ -84,7 +84,7 @@ export function emitAssistantMessageEvent(text : string | undefined | null, name
 
 export type ToolRegistry = Record<string, Tool>
 
-function isRecord(x: unknown): x is Record<string, any> {
+function isRecord(x: unknown): x is Record<string, unknown> {
     return typeof x === 'object' && x !== null && !Array.isArray(x)
 }
 

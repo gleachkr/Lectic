@@ -17,7 +17,8 @@ import { serializeInlineAttachment, type InlineAttachment } from "../types/inlin
 export function geminiAssistantText(
     response: GenerateContentResponse
 ) : string {
-    const parts = response.candidates?.[0]?.content?.parts || []
+    const first = response.candidates && response.candidates[0]
+    const parts = first?.content?.parts || []
     return parts.map(p => p.text || "").join("")
 }
 
@@ -33,8 +34,9 @@ type FunctionResponse = Part & {
 function consolidateText(response : GenerateContentResponse) {
     const newParts : Part[] = []
     let curPart : Part = {}
-    if (response.candidates?.[0].content?.parts?.length) {
-        for (const part of response.candidates?.[0].content?.parts) {
+    const first = response.candidates && response.candidates[0]
+    if (first?.content?.parts?.length) {
+        for (const part of first.content.parts) {
             if (part.text) {
                 if (curPart.text) curPart.text += part.text
                 else curPart = part
@@ -45,7 +47,7 @@ function consolidateText(response : GenerateContentResponse) {
             }
         }
         if (curPart.text) newParts.push(curPart)
-        response.candidates[0].content.parts = newParts
+        first.content.parts = newParts
     }
 }
 
@@ -86,21 +88,22 @@ async function* accumulateStream(
     accumulator : GenerateContentResponse & { candidates: [Candidate,...Candidate[]] }) : AsyncGenerator<string> {
 
       for await (const chunk of response) {
-          if (chunk.candidates?.[0].content?.parts?.length &&
-              accumulator.candidates[0]?.content?.parts
+          const first = chunk.candidates && chunk.candidates[0]
+          if (first?.content?.parts?.length &&
+              accumulator.candidates[0].content?.parts
              ) {
-              for (const part of chunk.candidates[0].content?.parts) {
+              for (const part of first.content.parts) {
                   if (typeof part.text == "string") {
                       yield part.text
                   }
                   if (part.codeExecutionResult) {
                       yield "\n\n"
                   }
-                  accumulator.candidates[0]?.content?.parts.push(part)
+                  accumulator.candidates[0].content?.parts?.push(part)
               }
           }
-          if (chunk.candidates?.[0]?.finishReason) {
-              accumulator.candidates[0].finishReason = chunk.candidates[0].finishReason 
+          if (first?.finishReason) {
+              accumulator.candidates[0].finishReason = first.finishReason 
           }
           accumulator.usageMetadata = chunk.usageMetadata ?? accumulator.usageMetadata
           accumulator.promptFeedback = chunk.promptFeedback ?? accumulator.promptFeedback
@@ -143,7 +146,7 @@ async function *handleToolUse(
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
 
     while (response.functionCalls && response.functionCalls.length > 0) {
-        let calls = response.functionCalls
+        const calls = response.functionCalls
         yield "\n\n"
         recur++
 

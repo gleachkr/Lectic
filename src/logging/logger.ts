@@ -2,7 +2,7 @@ import * as YAML from "yaml"
 import * as fs from 'fs';
 import type { Writable } from "node:stream"
 
-function formattedMsg(context: string, logged : any) : string  {
+function formattedMsg(context: string, logged : unknown) : string  {
     const now = new Date();
     const formattedDate = now.toLocaleString('en-US', {
         year: 'numeric',
@@ -23,7 +23,7 @@ ${YAML.stringify(logged, null, { blockQuote: "literal" })}
 
 export const Logger : {
     logfile : null | string,
-    debug(context : string, logged: any) : void,
+    debug(context : string, logged: unknown) : void,
     outfile: Writable
     write(output : string | AsyncIterable<string>) : Promise<void>
     fromStream<A>(generator : AsyncIterable<string | A>) 
@@ -45,14 +45,15 @@ export const Logger : {
     async write(output) {
         const outfile = this.outfile
         if (typeof output == "string") {
-            return new Promise(resolve => outfile.write(output, () => resolve()))
-        } else {
-            return new Promise(async resolve => {
-                for await (const chunk of output) {
-                    await new Promise(resolve => outfile.write(chunk, resolve))
-                }
-                resolve()
+            await new Promise<void>((resolve, reject) => {
+                outfile.write(output, (err?: Error | null) => err ? reject(err) : resolve())
             })
+        } else {
+            for await (const chunk of output) {
+                await new Promise<void>((resolve, reject) => {
+                    outfile.write(chunk, (err?: Error | null) => err ? reject(err) : resolve())
+                })
+            }
         }
     },
 
@@ -61,20 +62,20 @@ export const Logger : {
     // as `rest`, which is a nice to have, so I leave it here.
     fromStream<A>(generator : AsyncIterable<string | A>) {
         let resolver1 : (result : A[]) => void
-        let rejector1 : (result : any) => void
+        let rejector1 : (result : unknown) => void
         let resolver2 : (result : string) => void
-        let rejector2 : (result : any) => void
-        let accumulator : A[] = []
+        let rejector2 : (result : unknown) => void
+        const accumulator : A[] = []
         let theString = ""
-        let rest : Promise<A[]> = new Promise((resolve, reject) => {
+        const rest : Promise<A[]> = new Promise((resolve, reject) => {
             resolver1 = resolve
             rejector1 = reject
         })
-        let string : Promise<string> = new Promise((resolve, reject) => {
+        const string : Promise<string> = new Promise((resolve, reject) => {
             resolver2 = resolve
             rejector2 = reject
         })
-        let chunks = async function*() {
+        const chunks = async function*() {
             try {
                 for await (const x of generator) {
                     if (typeof x === "string") { 

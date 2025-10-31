@@ -49,7 +49,7 @@ export function parseDirectives(raw: string) : TextDirective[] {
 // Collect textDirective nodes from an existing AST (user chunks only)
 export function directivesFromAst(ast: Root): TextDirective[] {
     const directives : TextDirective[] = []
-    visit(ast as any, node => {
+    visit(ast, node => {
         const t = node?.type
         if (t === 'containerDirective') return SKIP
         if (t === 'textDirective') directives.push(node)
@@ -65,7 +65,7 @@ export function replaceDirectives(
     const ast = processor.parse(raw)
 
     let changed = false
-    visit(ast, "textDirective", (node: any, index, parent) => {
+    visit(ast, "textDirective", (node, index, parent) => {
         const contentRaw = nodeContentRaw(node, raw)
         const replacement = replacer(node.name, contentRaw)
         if (replacement != null && parent && typeof index === 'number') {

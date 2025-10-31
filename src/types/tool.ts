@@ -46,7 +46,7 @@ export abstract class Tool {
     abstract description: string
     abstract parameters: { [_ : string] : JSONSchema }
     abstract required? : string[] //TODO: this should not be optional
-    abstract call (arg : any) : Promise<ToolCallResult[]>
+    abstract call (arg : unknown) : Promise<ToolCallResult[]>
 
     validateArguments(args: Record<string, unknown>) {
         if (this.required) {
@@ -67,7 +67,7 @@ export abstract class Tool {
 
 export type ToolCall = { 
     name: string, 
-    args : Record<string, any>, 
+    args : Record<string, unknown>, 
     results : ToolCallResult[]
     id? : string
     isError? : boolean
@@ -81,7 +81,7 @@ export function ToolCallResults(s : string | string[], mimetype? : string) : Too
 const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
 
 export function serializeCall(tool: Tool | null, {name, args, results, id, isError} : ToolCall) : string {
-    let values = [] 
+    const values = [] 
     if (tool) {
         for (const key in tool.parameters) {
             if (key in args) {
@@ -114,16 +114,17 @@ export function deserializeCall(tool: Tool | null, serialized : string)
     if (!match) return null
 
     const [,name,, id,, isErrorStr, inner] = match
-    let [argstring, results] = extractElements(inner)
+    const [argstring, results] = extractElements(inner)
 
-    let args = { arguments: {} }
+    let args: Record<string, unknown> = {}
 
     if (tool) {
-        args = deserialize(`<object>${unwrap(argstring, "arguments")}</object>`, {
+        const parsed = deserialize(`<object>${unwrap(argstring, "arguments")}</object>`, {
             type: "object" as const,
             description: "tool call parameters",
             properties: tool.parameters
-        })
+        }) as Record<string, unknown>
+        args = parsed
         if (name !== tool.name) throw new Error(`Unexpected tool-call name, expected "${tool.name}", got "${name}"`)
     }
 

@@ -25,7 +25,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         ("usage" in raw ? typeof raw.usage === "string" : true) &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
         ("confirm" in raw ? typeof raw.confirm === "string" : true) &&
-        ("timeoutSeconds" in raw ? typeof (raw as any).timeoutSeconds === "number" : true) &&
+        ("timeoutSeconds" in raw ? typeof raw.timeoutSeconds === "number" : true) &&
         ("env" in raw 
             ? typeof raw.env === "object" && raw.env !== null && 
                 Object.values(raw.env).every(v => typeof v === "string")
@@ -60,7 +60,7 @@ function sanitizeCliOutput(s: string): string {
     const ansiRe = /[\u001B\u009B][[\\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-PR-TZcf-nq-uy=><]/g
     t = t.replace(ansiRe, "")
     // Fallback: strip generic CSI (ESC[ ... final byte) sequences
-    t = t.replace(/\x1B\[[0-?]*[ -\/]*[@-~]/g, "")
+    t = t.replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
 
     // Finally, collapse carriage-return overwrites per line
     t = t.split("\n").map((line) => {

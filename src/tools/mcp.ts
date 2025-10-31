@@ -261,7 +261,7 @@ export class MCPTool extends Tool {
             throw Error(`<error>Unexpected MCP server tool call response: ${JSON.stringify(content)}</error>`)
         } 
 
-        let results = [] as ToolCallResult[]
+        const results = [] as ToolCallResult[]
         for (const block of content) {
             if (isTextContent(block)) {
                 results.push(...ToolCallResults(block.text))

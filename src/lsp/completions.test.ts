@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import { computeCompletions } from "./completions"
-import { buildTestBundle } from "./testHelpers"
+import { buildTestBundle } from "./utils/testHelpers"
 
 function hasLabel(items: any[], label: string): boolean {
   return items.some(it => it?.label === label)

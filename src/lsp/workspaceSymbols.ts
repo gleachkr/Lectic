@@ -1,38 +1,12 @@
 import type { SymbolInformation } from "vscode-languageserver"
 import { SymbolKind } from "vscode-languageserver"
-import { Location as LspLocation, Range as LspRange } from "vscode-languageserver/node"
-import * as YAML from "yaml"
+import { Location as LspLocation } from "vscode-languageserver/node"
+import type { Range as VRange } from "vscode-languageserver"
 import { readFile } from "fs/promises"
 import { join } from "path"
 import { pathToFileURL } from "url"
 import { lecticConfigDir } from "../utils/xdg"
-import { offsetToPosition } from "./positions"
-
-function nodeAbsRange(node: any, baseOffset: number): { start: number, end: number } | null {
-  const r = (node as any)?.range
-  if (Array.isArray(r) && typeof r[0] === 'number' && typeof r[2] === 'number') {
-    const start = baseOffset + r[0]
-    const end = baseOffset + r[2]
-    return { start, end }
-  }
-  const c = (node as any)?.cstNode as any
-  if (c && typeof c.offset === 'number' && typeof c.end === 'number') {
-    const start = baseOffset + c.offset
-    const end = baseOffset + c.end
-    return { start, end }
-  }
-  return null
-}
-
-function getPair(map: any, key: string): any | undefined {
-  const items: any[] = (map && typeof map === 'object' && Array.isArray(map.items))
-    ? map.items : []
-  for (const it of items) {
-    const k = (it?.key as any)?.value
-    if (k === key) return it
-  }
-  return undefined
-}
+import { parseYaml, itemsOf, isObj, scalarValue, getPair, nodeAbsRange } from "./utils/yamlAst"
 
 async function symbolsFromYamlFile(filePath: string): Promise<SymbolInformation[]> {
   const out: SymbolInformation[] = []
@@ -42,60 +16,54 @@ async function symbolsFromYamlFile(filePath: string): Promise<SymbolInformation[
   } catch {
     return out
   }
-  const doc = YAML.parseDocument(text, {
-    keepCstNodes: true,
-    keepNodeTypes: true,
-    logLevel: 'silent'
-  } as any)
-  const root: any = doc.contents
+  const doc = parseYaml(text)
+  const root = (doc as unknown as { contents?: unknown }).contents
 
   const locUri = pathToFileURL(filePath).toString()
 
-  const push = (name: string, kind: SymbolKind, start: number, end: number) => {
-    const range = LspRange.create(offsetToPosition(text, start), offsetToPosition(text, end))
-    out.push({
-      name,
-      kind,
-      location: LspLocation.create(locUri, range)
-    })
+  const pushRange = (name: string, kind: SymbolKind, range: VRange) => {
+    out.push({ name, kind, location: LspLocation.create(locUri, range) })
   }
 
   // single interlocutor
   const singlePair = getPair(root, 'interlocutor')
   const single = singlePair?.value
-  if (single && typeof single === 'object') {
+  if (isObj(single)) {
     const namePair = getPair(single, 'name')
     const nameVal = namePair?.value
-    if (nameVal && typeof (nameVal as any).value === 'string') {
-      const r = nodeAbsRange(nameVal, 0)
-      if (r) push((nameVal as any).value, SymbolKind.Class, r.start, r.end)
+    const name = scalarValue(nameVal)
+    if (typeof name === 'string') {
+      const r = nodeAbsRange(text, nameVal, 0)
+      if (r) pushRange(name, SymbolKind.Class, r)
     }
   }
 
   // interlocutors list
   const listPair = getPair(root, 'interlocutors')
-  const listItems: any[] = Array.isArray(listPair?.value?.items) ? listPair.value.items : []
+  const listItems = itemsOf(listPair?.value)
   listItems.forEach((itMap) => {
-    if (itMap && typeof itMap === 'object') {
+    if (isObj(itMap)) {
       const namePair = getPair(itMap, 'name')
       const val = namePair?.value
-      if (val && typeof (val as any).value === 'string') {
-        const r = nodeAbsRange(val, 0)
-        if (r) push((val as any).value, SymbolKind.Class, r.start, r.end)
+      const name = scalarValue(val)
+      if (typeof name === 'string') {
+        const r = nodeAbsRange(text, val, 0)
+        if (r) pushRange(name, SymbolKind.Class, r)
       }
     }
   })
 
   // macros list
   const macrosPair = getPair(root, 'macros')
-  const macroItems: any[] = Array.isArray(macrosPair?.value?.items) ? macrosPair.value.items : []
+  const macroItems = itemsOf(macrosPair?.value)
   macroItems.forEach((mMap) => {
-    if (mMap && typeof mMap === 'object') {
+    if (isObj(mMap)) {
       const namePair = getPair(mMap, 'name')
       const val = namePair?.value
-      if (val && typeof (val as any).value === 'string') {
-        const r = nodeAbsRange(val, 0)
-        if (r) push((val as any).value, SymbolKind.Function, r.start, r.end)
+      const name = scalarValue(val)
+      if (typeof name === 'string') {
+        const r = nodeAbsRange(text, val, 0)
+        if (r) pushRange(name, SymbolKind.Function, r)
       }
     }
   })

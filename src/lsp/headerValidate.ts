@@ -17,11 +17,14 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     return issues
   }
 
-  const root: any = spec
+  const isObj = (v: unknown): v is Record<string, unknown> =>
+    typeof v === 'object' && v !== null
 
-  const validateInter = (raw: any, pathBase: (string | number)[]) => {
+  const root = spec as Record<string, unknown>
+
+  const validateInter = (raw: Record<string, unknown>, pathBase: (string | number)[]) => {
     // name
-    if (!("name" in raw) || typeof raw.name !== "string") {
+    if (!("name" in raw) || typeof raw["name"] !== "string") {
       issues.push({
         code: "interlocutor.name.missing",
         message: Messages.interlocutor.nameMissing(),
@@ -29,10 +32,10 @@ export function validateHeaderShape(spec: unknown): Issue[] {
         severity: "error"
       })
     }
-    const nameVal = typeof raw?.name === "string" ? raw.name : "<unknown>"
+    const nameVal = typeof raw?.["name"] === "string" ? raw["name"] : "<unknown>"
 
     // prompt
-    if (!("prompt" in raw) || typeof raw.prompt !== "string") {
+    if (!("prompt" in raw) || typeof raw["prompt"] !== "string") {
       issues.push({
         code: "interlocutor.prompt.missing",
         message: Messages.interlocutor.promptMissing(nameVal),
@@ -42,7 +45,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
 
     // model
-    if ("model" in raw && typeof raw.model !== "string") {
+    if ("model" in raw && typeof raw["model"] !== "string") {
       issues.push({
         code: "interlocutor.model.type",
         message: Messages.interlocutor.modelType(nameVal),
@@ -52,7 +55,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
 
     // provider
-    if ("provider" in raw && !isLLMProvider(raw.provider)) {
+    if ("provider" in raw && !isLLMProvider(raw["provider"])) {
       issues.push({
         code: "interlocutor.provider.enum",
         message: Messages.interlocutor.providerEnum(nameVal),
@@ -62,7 +65,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
 
     // max_tokens
-    if ("max_tokens" in raw && typeof raw.max_tokens !== "number") {
+    if ("max_tokens" in raw && typeof raw["max_tokens"] !== "number") {
       issues.push({
         code: "interlocutor.max_tokens.type",
         message: Messages.interlocutor.maxTokensType(nameVal),
@@ -72,7 +75,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
 
     // max_tool_use
-    if ("max_tool_use" in raw && typeof raw.max_tool_use !== "number") {
+    if ("max_tool_use" in raw && typeof raw["max_tool_use"] !== "number") {
       issues.push({
         code: "interlocutor.max_tool_use.type",
         message: Messages.interlocutor.maxToolUseType(nameVal),
@@ -82,7 +85,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
 
     // reminder
-    if ("reminder" in raw && typeof raw.reminder !== "string") {
+    if ("reminder" in raw && typeof raw["reminder"] !== "string") {
       issues.push({
         code: "interlocutor.reminder.type",
         message: Messages.interlocutor.reminderType(nameVal),
@@ -92,7 +95,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
 
     // nocache
-    if ("nocache" in raw && typeof raw.nocache !== "boolean") {
+    if ("nocache" in raw && typeof raw["nocache"] !== "boolean") {
       issues.push({
         code: "interlocutor.nocache.type",
         message: Messages.interlocutor.nocacheType(nameVal),
@@ -103,14 +106,14 @@ export function validateHeaderShape(spec: unknown): Issue[] {
 
     // temperature
     if ("temperature" in raw) {
-      if (typeof raw.temperature !== "number") {
+      if (typeof raw["temperature"] !== "number") {
         issues.push({
           code: "interlocutor.temperature.type",
           message: Messages.interlocutor.temperatureType(nameVal),
           path: [...pathBase, "temperature"],
           severity: "error"
         })
-      } else if (raw.temperature > 1 || raw.temperature < 0) {
+      } else if (raw["temperature"] > 1 || raw["temperature"] < 0) {
         issues.push({
           code: "interlocutor.temperature.range",
           message: Messages.interlocutor.temperatureRange(nameVal),
@@ -122,14 +125,15 @@ export function validateHeaderShape(spec: unknown): Issue[] {
 
     // tools
     if ("tools" in raw) {
-      if (!(typeof raw.tools === "object" && Array.isArray(raw.tools))) {
+      const tools = raw["tools"] as unknown
+      if (!(Array.isArray(tools))) {
         issues.push({
           code: "interlocutor.tools.type",
           message: Messages.interlocutor.toolsType(nameVal),
           path: [...pathBase, "tools"],
           severity: "error"
         })
-      } else if (!(raw.tools.every((t: any) => typeof t === "object"))) {
+      } else if (!tools.every((t) => isObj(t))) {
         issues.push({
           code: "interlocutor.tools.items",
           message: Messages.interlocutor.toolsItems(nameVal),
@@ -140,20 +144,22 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
   }
 
-  if ("interlocutor" in root && root.interlocutor) {
-    validateInter(root.interlocutor, ["interlocutor"])
+  if ("interlocutor" in root && root["interlocutor"]) {
+    validateInter(root["interlocutor"] as Record<string, unknown>, ["interlocutor"])
   }
-  if (Array.isArray(root?.interlocutors)) {
-    root.interlocutors.forEach((it: any, i: number) =>
-      validateInter(it, ["interlocutors", i])
-    )
+  const inters = root?.["interlocutors"] as unknown
+  if (Array.isArray(inters)) {
+    inters.forEach((it, i: number) => {
+      if (isObj(it)) validateInter(it, ["interlocutors", i])
+    })
   }
 
   // macros
-  if (Array.isArray(root?.macros)) {
-    root.macros.forEach((m: any, i: number) => {
-      if (!(m && typeof m === "object")) return
-      if (!("name" in m) || typeof m.name !== "string") {
+  const macros = root?.["macros"] as unknown
+  if (Array.isArray(macros)) {
+    macros.forEach((m, i: number) => {
+      if (!isObj(m)) return
+      if (!("name" in m) || typeof m["name"] !== "string") {
         issues.push({
           code: "macro.name.missing",
           message: Messages.macro.nameMissing(),
@@ -161,7 +167,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           severity: "error"
         })
       }
-      if (!("expansion" in m) || typeof m.expansion !== "string") {
+      if (!("expansion" in m) || typeof m["expansion"] !== "string") {
         issues.push({
           code: "macro.expansion.missing",
           message: Messages.macro.expansionMissing(),
@@ -173,10 +179,11 @@ export function validateHeaderShape(spec: unknown): Issue[] {
   }
 
   // bundles
-  if (Array.isArray(root?.bundles)) {
-    root.bundles.forEach((b: any, i: number) => {
-      if (!(b && typeof b === "object")) return
-      if (!("name" in b) || typeof b.name !== "string") {
+  const bundles = root?.["bundles"] as unknown
+  if (Array.isArray(bundles)) {
+    bundles.forEach((b, i: number) => {
+      if (!isObj(b)) return
+      if (!("name" in b) || typeof b["name"] !== "string") {
         issues.push({
           code: "bundle.name.missing",
           message: Messages.bundle.nameMissing(),
@@ -184,7 +191,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           severity: "error"
         })
       }
-      const nameVal = typeof b?.name === "string" ? b.name : "<unknown>"
+      const nameVal = typeof b?.["name"] === "string" ? b["name"] : "<unknown>"
       if (!("tools" in b)) {
         issues.push({
           code: "bundle.tools.missing",
@@ -192,14 +199,14 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           path: ["bundles", i, "tools"],
           severity: "error"
         })
-      } else if (!Array.isArray(b.tools)) {
+      } else if (!Array.isArray(b["tools"])) {
         issues.push({
           code: "bundle.tools.type",
           message: Messages.bundle.toolsType(nameVal),
           path: ["bundles", i, "tools"],
           severity: "error"
         })
-      } else if (!b.tools.every((t: unknown) => typeof t === "object")) {
+      } else if (!(b["tools"].every((t) => isObj(t)))) {
         issues.push({
           code: "bundle.tools.items",
           message: Messages.bundle.toolsItems(nameVal),
@@ -211,9 +218,10 @@ export function validateHeaderShape(spec: unknown): Issue[] {
   }
 
   // hooks
-  if (Array.isArray(root?.hooks)) {
-    root.hooks.forEach((h: unknown, i: number) => {
-      if (!(h && typeof h === "object")) return
+  const hooks = root?.["hooks"]
+  if (Array.isArray(hooks)) {
+    hooks.forEach((h, i: number) => {
+      if (!isObj(h)) return
       if (!("on" in h)) {
         issues.push({
           code: "hook.on.missing",
@@ -221,7 +229,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           path: ["hooks", i, "on"],
           severity: "error"
         })
-      } else if (typeof h.on !== "string" && !Array.isArray(h.on)) {
+      } else if (typeof h["on"] !== "string" && !Array.isArray(h["on"])) {
         issues.push({
           code: "hook.on.type",
           message: Messages.hook.onType(),
@@ -230,9 +238,9 @@ export function validateHeaderShape(spec: unknown): Issue[] {
         })
       } else {
         const allowed = ["user_message", "assistant_message", "error"]
-        const ok = typeof h.on === "string"
-          ? allowed.includes(h.on)
-          : h.on.every((x) => allowed.includes(x))
+        const ok = typeof h["on"] === "string"
+          ? allowed.includes(h["on"])
+          : h["on"].every((x) => allowed.includes(x))
         if (!ok) {
           issues.push({
             code: "hook.on.value",
@@ -242,7 +250,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           })
         }
       }
-      if (!("do" in h) || typeof h.do !== "string") {
+      if (!("do" in h) || typeof h["do"] !== "string") {
         issues.push({
           code: "hook.do.missing",
           message: Messages.hook.doMissing(),

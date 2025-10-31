@@ -1,7 +1,7 @@
 import { fileURLToPath } from "url"
 import { resolve as pathResolve } from "path"
 import { stat, open } from "fs/promises"
-import { expandEnv } from "../utils/replace"
+import { expandEnv } from "../../utils/replace"
 
 export type NormalizedUrl = {
   fsPath: string
@@ -59,7 +59,7 @@ export async function pathExists(p: string): Promise<boolean> {
 }
 
 export function hasGlobChars(p: string): boolean {
-  return /[\*\?\[\]\{\}]/.test(p)
+  return /[*?[\]{}]/.test(p)
 }
 
 export async function globHasMatches(
@@ -111,7 +111,7 @@ export async function readHeadPreview(
       await fh.close()
     }
   } catch {
-    if ((controller as any).aborted) return null
+    if (controller.signal.aborted) return null
     return null
   } finally {
     clearTimeout(timer)

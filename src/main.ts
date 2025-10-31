@@ -2,7 +2,10 @@
 const originalFetch = globalThis.fetch
 globalThis.fetch = Object.assign(
     function (req : string | URL | Request, opt? : RequestInit) { 
-        return originalFetch(req, opt ? { ...opt, timeout: false} as any : { timeout : false }) 
+        const withTimeout: RequestInit & { timeout?: number | false } = opt
+            ? { ...opt, timeout: false }
+            : { timeout: false }
+        return originalFetch(req, withTimeout)
     }, originalFetch)
 
 import { createWriteStream } from "fs"
@@ -68,7 +71,7 @@ async function getLecticString(opts : OptionValues) : Promise<string> {
 async function getIncludes() : Promise<(string | null)[]> {
         const startDir = lecticEnv["LECTIC_FILE"] ? dirname(lecticEnv["LECTIC_FILE"]) : process.cwd()
         const workspaceConfig = await readWorkspaceConfig(startDir)
-        const systemConfig = await Bun.file(join(lecticConfigDir(), 'lectic.yaml')).text().catch(_ => null)
+        const systemConfig = await Bun.file(join(lecticConfigDir(), 'lectic.yaml')).text().catch(() => null)
         return [systemConfig, workspaceConfig]
 }
 
@@ -86,7 +89,7 @@ async function main() {
         lecticEnv["LECTIC_FILE"] = opts["inplace"] || opts["file"]
     }
 
-    let lecticString = await getLecticString(opts)
+    const lecticString = await getLecticString(opts)
 
     if (opts["quiet"]) Logger.outfile = createWriteStream('/dev/null')
 
@@ -132,7 +135,7 @@ async function main() {
             if (!program.opts()["Short"]) {
                 await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
                 headerPrinted = true
-                let closeHeader = () => { Logger.write(`\n\n:::`).then(() => process.exit(0)) }
+                const closeHeader = () => { Logger.write(`\n\n:::`).then(() => process.exit(0)) }
                 process.on('SIGTERM', closeHeader)
                 process.on('SIGINT', closeHeader)
             }

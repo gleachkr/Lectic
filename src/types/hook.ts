@@ -36,7 +36,10 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     if (!("do" in raw) || typeof raw.do !== "string") {
         throw Error(Messages.hook.doMissing())
     }
-    if (!(typeof raw.on === "string" ? hookTypes.includes(raw.on) : raw.on.forEach(on => hookTypes.includes(on)))) {
+    const validOn = typeof raw.on === "string"
+        ? hookTypes.includes(raw.on)
+        : raw.on.every(on => hookTypes.includes(on))
+    if (!validOn) {
         throw Error(Messages.hook.onValue(hookTypes))
     }
     return true
@@ -53,9 +56,11 @@ export class Hook {
 
     run(env : Record<string, string | undefined> = {}) {
         // need async variants of exec* to make this nonblocking
-        this.do.split("\n").length > 1 
-            ? execScript(this.do, env)
-            : execCmd(expandEnv(this.do), env)
+        if (this.do.split("\n").length > 1) {
+            execScript(this.do, env)
+        } else {
+            execCmd(expandEnv(this.do), env)
+        }
     }
 
     static events = new EventEmitter<HookEvents>

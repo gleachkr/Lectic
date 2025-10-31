@@ -340,7 +340,7 @@ export class OpenAIResponsesBackend implements Backend {
 
         lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? "gpt-5"
 
-        let stream = this.client.responses.stream({
+        const stream = this.client.responses.stream({
             instructions: systemPrompt(lectic),
             input: messages,
             model: lectic.header.interlocutor.model,
@@ -367,14 +367,13 @@ export class OpenAIResponsesBackend implements Backend {
             }
         }
 
-        let msg = await stream.finalResponse()
+        const msg = await stream.finalResponse()
 
         Logger.debug(`${this.provider} - reply`, msg)
         emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
 
         if (msg.output.some(output => output.type === "function_call")) {
             yield* handleToolUse(msg, messages, lectic, this.client);
-        } else {
         }
     }
 

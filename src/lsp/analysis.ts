@@ -5,6 +5,7 @@ import { isSerializedCall } from "../types/tool"
 import { isSerializedInlineAttachment } from "../types/inlineAttachment"
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
+import type { Root } from "mdast"
 import type {
   AnalysisBundle,
   DirectiveSpan,
@@ -15,7 +16,7 @@ import type {
 } from "./analysisTypes"
 
 export function buildBundleFromAst(
-  ast: any,
+  ast: Root,
   docText: string,
   uri: string,
   version: number
@@ -61,6 +62,7 @@ export function buildBundleFromAst(
 
   type Asst = { name: string, s: number, e: number }
   const assistants: Asst[] = []
+
   for (const node of parseBlocks(body)) {
     if (node.type === 'containerDirective' && typeof node.name === 'string') {
       const s = node.position?.start?.offset
