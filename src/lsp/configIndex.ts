@@ -2,7 +2,8 @@ import { join } from "path"
 import { pathToFileURL } from "url"
 import { lecticConfigDir } from "../utils/xdg"
 import type { Range, Location } from "vscode-languageserver"
-import { parseYaml, itemsOf, scalarValue, nodeAbsRange, isObj, getPair } from "./utils/yamlAst"
+import { parseYaml, itemsOf, scalarValue, nodeAbsRange, getPair } from "./utils/yamlAst"
+import { isObjectRecord } from "../types/guards"
 
 // Types for safe, narrow shapes
 export type InterlocutorNameEntry = { name: string, range: Range }
@@ -31,7 +32,7 @@ function extractNamesFromConfigYaml(text: string): {
 
   const singlePair = getPair(root, 'interlocutor')
   const single = singlePair?.value
-  if (isObj(single)) {
+  if (isObjectRecord(single)) {
     const namePair = getPair(single, 'name')
     const nameVal = namePair?.value
     const nameStr = scalarValue(nameVal)
@@ -44,7 +45,7 @@ function extractNamesFromConfigYaml(text: string): {
   const listPair = getPair(root, 'interlocutors')
   const listItems = itemsOf(listPair?.value)
   for (const it of listItems) {
-    if (!isObj(it)) continue
+    if (!isObjectRecord(it)) continue
     const namePair = getPair(it, 'name')
     const nv = namePair?.value
     const nameStr = scalarValue(nv)
@@ -57,7 +58,7 @@ function extractNamesFromConfigYaml(text: string): {
   const macrosPair = getPair(root, 'macros')
   const macroItems = itemsOf(macrosPair?.value)
   for (const m of macroItems) {
-    if (!isObj(m)) continue
+    if (!isObjectRecord(m)) continue
     const namePair = getPair(m, 'name')
     const nv = namePair?.value
     const nameStr = scalarValue(nv)

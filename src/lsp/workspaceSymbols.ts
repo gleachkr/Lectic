@@ -6,7 +6,8 @@ import { readFile } from "fs/promises"
 import { join } from "path"
 import { pathToFileURL } from "url"
 import { lecticConfigDir } from "../utils/xdg"
-import { parseYaml, itemsOf, isObj, scalarValue, getPair, nodeAbsRange } from "./utils/yamlAst"
+import { parseYaml, itemsOf, scalarValue, getPair, nodeAbsRange } from "./utils/yamlAst"
+import { isObjectRecord } from "../types/guards"
 
 async function symbolsFromYamlFile(filePath: string): Promise<SymbolInformation[]> {
   const out: SymbolInformation[] = []
@@ -28,7 +29,7 @@ async function symbolsFromYamlFile(filePath: string): Promise<SymbolInformation[
   // single interlocutor
   const singlePair = getPair(root, 'interlocutor')
   const single = singlePair?.value
-  if (isObj(single)) {
+  if (isObjectRecord(single)) {
     const namePair = getPair(single, 'name')
     const nameVal = namePair?.value
     const name = scalarValue(nameVal)
@@ -42,7 +43,7 @@ async function symbolsFromYamlFile(filePath: string): Promise<SymbolInformation[
   const listPair = getPair(root, 'interlocutors')
   const listItems = itemsOf(listPair?.value)
   listItems.forEach((itMap) => {
-    if (isObj(itMap)) {
+    if (isObjectRecord(itMap)) {
       const namePair = getPair(itMap, 'name')
       const val = namePair?.value
       const name = scalarValue(val)
@@ -57,7 +58,7 @@ async function symbolsFromYamlFile(filePath: string): Promise<SymbolInformation[
   const macrosPair = getPair(root, 'macros')
   const macroItems = itemsOf(macrosPair?.value)
   macroItems.forEach((mMap) => {
-    if (isObj(mMap)) {
+    if (isObjectRecord(mMap)) {
       const namePair = getPair(mMap, 'name')
       const val = namePair?.value
       const name = scalarValue(val)

@@ -18,6 +18,7 @@ import { expandEnv } from "../utils/replace"
 import { normalizeUrl, hasGlobChars, globHasMatches, pathExists } from "./utils/path"
 import type { Root } from "mdast"
 import { Messages } from "../constants/messages"
+import { isObjectRecord } from "../types/guards"
 
 // Narrow header structures for diagnostics. These are minimal shapes
 // we actually use in LSP; runtime uses richer types elsewhere.
@@ -104,9 +105,6 @@ function tryEnclosingRange(
   return null
 }
 
-function isObjectRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null
-}
 function sanitizeInterlocutorLike(v: unknown): InterlocutorLike | undefined {
   if (!isObjectRecord(v)) return undefined
   const obj = v 
@@ -169,8 +167,6 @@ function parseLocalHeader(docText: string): unknown {
   return (parsed && typeof parsed === "object") ? parsed : {}
 }
 
-// Project-wide merged spec for semantics (includes system/workspace)
-// Now handled inline in buildDiagnostics to also surface merge errors.
 
 // Map non-throwing header issues to LSP diagnostics with precise ranges
 function mapHeaderIssues(

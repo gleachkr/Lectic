@@ -1,7 +1,8 @@
 import type { Range } from "vscode-languageserver"
 import { Range as LspRange } from "vscode-languageserver/node"
 import { offsetToPosition } from "./positions"
-import { parseYaml, itemsOf, nodeAbsRange, isObj, getPair, getValue, stringOf } from "./utils/yamlAst"
+import { parseYaml, itemsOf, nodeAbsRange, getPair, getValue, stringOf } from "./utils/yamlAst"
+import { isObjectRecord } from "../types/guards"
 
 function findHeaderMatch(text: string): RegExpExecArray | null {
   const re = /^---\n([\s\S]*?)\n(?:---|\.\.\.)/m
@@ -77,7 +78,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   }
 
   function indexInterlocutor(map: unknown, basePath: (string | number)[]) {
-    if (!isObj(map)) return
+    if (!isObjectRecord(map)) return
     pushField(basePath, map)
 
     const nameNode = getValue(map, 'name')
@@ -103,7 +104,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
 
   // single interlocutor
   const single = getPair(root, 'interlocutor')?.value
-  if (isObj(single)) {
+  if (isObjectRecord(single)) {
     indexInterlocutor(single, ['interlocutor'])
   }
 
@@ -120,7 +121,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   if (macrosVal) pushField(['macros'], macrosVal)
   const macroItems = itemsOf(macrosVal)
   macroItems.forEach((mMap, i) => {
-    if (isObj(mMap)) {
+    if (isObjectRecord(mMap)) {
       pushField(['macros', i], mMap)
       const val = getValue(mMap, 'name')
       const name = stringOf(val)
@@ -138,7 +139,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   if (hooksVal) pushField(['hooks'], hooksVal)
   const hookItems = itemsOf(hooksVal)
   hookItems.forEach((hMap, i) => {
-    if (isObj(hMap)) {
+    if (isObjectRecord(hMap)) {
       pushField(['hooks', i], hMap)
       pushIf(hMap, 'on', ['hooks', i, 'on'])
       pushIf(hMap, 'do', ['hooks', i, 'do'])

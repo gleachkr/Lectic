@@ -2,6 +2,7 @@ import * as YAML from "yaml"
 import type { Range } from "vscode-languageserver"
 import { Range as LspRange } from "vscode-languageserver/node"
 import { offsetToPosition } from "../positions"
+import { isObjectRecord } from "../../types/guards"
 
 const parseOpts: YAML.ParseOptions & { [k: string]: unknown } = {
   keepCstNodes: true,
@@ -9,18 +10,14 @@ const parseOpts: YAML.ParseOptions & { [k: string]: unknown } = {
   logLevel: "silent",
 }
 
-export function isObj(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null
-}
-
 export function itemsOf(v: unknown): unknown[] {
-  if (!isObj(v)) return []
+  if (!isObjectRecord(v)) return []
   const it = v["items"]
   return Array.isArray(it) ? it : []
 }
 
 export function scalarValue(n: unknown): unknown {
-  return isObj(n) ? n["value"] : undefined
+  return isObjectRecord(n) ? n["value"] : undefined
 }
 
 export function stringOf(n: unknown): string | undefined {
@@ -37,13 +34,13 @@ export function nodeAbsRange(
   node: unknown,
   baseOffset: number
 ): Range | null {
-  const r = isObj(node) ? node["range"] : undefined
+  const r = isObjectRecord(node) ? node["range"] : undefined
   if (Array.isArray(r) && typeof r[0] === 'number' && typeof r[2] === 'number') {
     const start = baseOffset + r[0]
     const end = baseOffset + r[2]
     return LspRange.create(offsetToPosition(text, start), offsetToPosition(text, end))
   }
-  const c = isObj(node) && isObj(node["cstNode"]) 
+  const c = isObjectRecord(node) && isObjectRecord(node["cstNode"]) 
     ? node["cstNode"]
     : undefined
   const off = c?.["offset"]
@@ -61,12 +58,12 @@ export function getPair(
   key: string
 ): { key: unknown, value: unknown } | undefined {
   for (const it of itemsOf(map)) {
-    const keyNode = isObj(it) ? it["key"] : undefined
+    const keyNode = isObjectRecord(it) ? it["key"] : undefined
     const k = scalarValue(keyNode)
     if (k === key) {
       return {
         key: keyNode,
-        value: isObj(it) ? it["value"] : undefined
+        value: isObjectRecord(it) ? it["value"] : undefined
       }
     }
   }

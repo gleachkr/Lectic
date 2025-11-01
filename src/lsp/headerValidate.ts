@@ -2,6 +2,7 @@
 // structured issues with YAML-like paths for precise diagnostics.
 import { isLLMProvider } from "../types/provider"
 import { Messages } from "../constants/messages"
+import { isObjectRecord } from "../types/guards"
 
 export type Issue = {
   code: string
@@ -16,9 +17,6 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     // Let existing top-level diagnostic handle this case.
     return issues
   }
-
-  const isObj = (v: unknown): v is Record<string, unknown> =>
-    typeof v === 'object' && v !== null
 
   const root = spec as Record<string, unknown>
 
@@ -133,7 +131,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           path: [...pathBase, "tools"],
           severity: "error"
         })
-      } else if (!tools.every((t) => isObj(t))) {
+      } else if (!tools.every((t) => isObjectRecord(t))) {
         issues.push({
           code: "interlocutor.tools.items",
           message: Messages.interlocutor.toolsItems(nameVal),
@@ -150,7 +148,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
   const inters = root?.["interlocutors"] as unknown
   if (Array.isArray(inters)) {
     inters.forEach((it, i: number) => {
-      if (isObj(it)) validateInter(it, ["interlocutors", i])
+      if (isObjectRecord(it)) validateInter(it, ["interlocutors", i])
     })
   }
 
@@ -158,7 +156,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
   const macros = root?.["macros"] as unknown
   if (Array.isArray(macros)) {
     macros.forEach((m, i: number) => {
-      if (!isObj(m)) return
+      if (!isObjectRecord(m)) return
       if (!("name" in m) || typeof m["name"] !== "string") {
         issues.push({
           code: "macro.name.missing",
@@ -182,7 +180,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
   const bundles = root?.["bundles"] as unknown
   if (Array.isArray(bundles)) {
     bundles.forEach((b, i: number) => {
-      if (!isObj(b)) return
+      if (!isObjectRecord(b)) return
       if (!("name" in b) || typeof b["name"] !== "string") {
         issues.push({
           code: "bundle.name.missing",
@@ -206,7 +204,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           path: ["bundles", i, "tools"],
           severity: "error"
         })
-      } else if (!(b["tools"].every((t) => isObj(t)))) {
+      } else if (!(b["tools"].every((t) => isObjectRecord(t)))) {
         issues.push({
           code: "bundle.tools.items",
           message: Messages.bundle.toolsItems(nameVal),
@@ -221,7 +219,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
   const hooks = root?.["hooks"]
   if (Array.isArray(hooks)) {
     hooks.forEach((h, i: number) => {
-      if (!isObj(h)) return
+      if (!isObjectRecord(h)) return
       if (!("on" in h)) {
         issues.push({
           code: "hook.on.missing",
