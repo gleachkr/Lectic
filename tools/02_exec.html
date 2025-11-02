@@ -386,6 +386,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>No shell is involved when executing single line commands. The command is executed directly. Shell features like globbing or command substitution will not work unless you invoke a shell yourself.</li>
 <li>Single‑line <code>exec</code> values have environment variables expanded before execution using the tool’s <code>env</code> plus standard Lectic variables.</li>
+<li>Single‑line commands are split into argv using simple shell‑like rules: single ‘…’ and double “…” quotes are supported; no globbing or substitution. If you need shell features, invoke a shell explicitly, e.g., <code>bash -lc '...'</code>.</li>
 <li>Multi‑line <code>exec</code> values must start with a shebang. Lectic writes the script to a temporary file and executes it with that interpreter.</li>
 </ul>
 <section id="working-directory-and-files" class="level3">

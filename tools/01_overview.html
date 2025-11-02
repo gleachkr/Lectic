@@ -316,6 +316,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
   </ul></li>
   <li><a href="#parallel-tool-execution" id="toc-parallel-tool-execution" class="nav-link" data-scroll-target="#parallel-tool-execution">Parallel Tool Execution</a></li>
+  <li><a href="#tool-bundles" id="toc-tool-bundles" class="nav-link" data-scroll-target="#tool-bundles">Tool bundles</a></li>
   <li><a href="#available-tool-types" id="toc-available-tool-types" class="nav-link" data-scroll-target="#available-tool-types">Available Tool Types</a></li>
   </ul></li>
   </ul>
@@ -387,6 +388,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="parallel-tool-execution" class="level2">
 <h2 class="anchored" data-anchor-id="parallel-tool-execution">Parallel Tool Execution</h2>
 <p>Tool calls are executed in parallel. If an LLM decides to use multiple tools in a single turn, Lectic will run all of them concurrently, rather than one after another. This significantly speeds up complex tasks that involve gathering information from multiple sources.</p>
+</section>
+<section id="tool-bundles" class="level2">
+<h2 class="anchored" data-anchor-id="tool-bundles">Tool bundles</h2>
+<p>If you reuse the same set of tools across interlocutors, define a named bundle once and reference it by name in each interlocutor. Bundles are listed at the top level of the header.</p>
+<p>Example</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">bundles</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> typescript_tools</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> tsc</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> tsc</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> eslint</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> eslint</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a helpful assistant.</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">bundle</span><span class="kw">:</span><span class="at"> typescript_tools</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You can still mix regular tools alongside bundle references.</p>
 </section>
 <section id="available-tool-types" class="level2">
 <h2 class="anchored" data-anchor-id="available-tool-types">Available Tool Types</h2>

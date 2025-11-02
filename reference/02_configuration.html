@@ -303,6 +303,7 @@ ul.task-list li input[type="checkbox"] {
 <ul>
 <li><code>interlocutor</code>: A single object defining the primary LLM speaker.</li>
 <li><code>interlocutors</code>: A list of interlocutor objects for multiparty conversations.</li>
+<li><code>bundles</code>: A list of named tool bundles you can reference from interlocutors.</li>
 <li><code>macros</code>: A list of macro definitions. See <a href="../automation/01_macros.html">Macros</a>.</li>
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>.</li>
 </ul>
@@ -351,15 +352,16 @@ ul.task-list li input[type="checkbox"] {
 <section id="tools" class="level3">
 <h3 class="anchored" data-anchor-id="tools">Tools</h3>
 <ul>
-<li><code>tools</code>: A list of tool definitions that this interlocutor can use. The format of each object in the list depends on the tool type. See the <a href="../tools/01_overview.html">Tools section</a> for detailed configuration guides for each tool. ` —</li>
+<li><code>tools</code>: A list of tool definitions that this interlocutor can use. The format of each object in the list depends on the tool type. See the <a href="../tools/01_overview.html">Tools section</a> for detailed configuration guides for each tool.</li>
 </ul>
+<hr>
 </section>
 </section>
 <section id="the-macro-object" class="level2">
 <h2 class="anchored" data-anchor-id="the-macro-object">The <code>macro</code> Object</h2>
 <ul>
 <li><code>name</code>: (Required) The name of the macro, used when invoking it with <code>:macro[name]</code>.</li>
-<li><code>expansion</code>: (Required) The content to be expanded. Can be a string, or loaded via <code>file:</code> or <code>exec:</code> (see</li>
+<li><code>expansion</code>: (Required) The content to be expanded. Can be a string, or loaded via <code>file:</code> or <code>exec:</code>. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details.</li>
 </ul>
 <hr>
 </section>
