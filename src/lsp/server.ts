@@ -6,6 +6,7 @@ import type {
   DocumentSymbolParams, FoldingRangeParams,
   WorkspaceSymbolParams, CodeActionParams,
   SemanticTokensParams, SemanticTokensRangeParams,
+  Diagnostic,
 } from "vscode-languageserver"
 import {
   createConnection, ProposedFeatures, TextDocumentSyncKind
@@ -29,6 +30,7 @@ import type {
 import type { FoldingRange, HoverParams } from "vscode-languageserver"
 import { extractWorkspaceRoots } from "./utils/server"
 import { buildSemanticTokens, semanticTokenLegend } from "./semanticTokens"
+import { initModelRegistry, onModelRegistryUpdate, computeModelDiagnostics } from "./models"
 
 // Minimal document record (track text and client-provided version)
 type Doc = { uri: string, text: string, version: number }
@@ -115,7 +117,24 @@ class DocumentAnalyzer {
       // Diagnostics arrive second
       if (isDiagnosticsResult(m)) {
         if (m.version === this.currentVersion) {
+          // First, forward base diagnostics immediately.
+          baseDiagnostics.set(this.uri, m.diagnostics)
           this.connection.sendDiagnostics({ uri: this.uri, diagnostics: m.diagnostics })
+          // Then, compute model diagnostics asynchronously and re‑publish.
+          const doc = docs.get(this.uri)
+          if (doc) {
+            const uriNow = this.uri
+            const versionNow = this.currentVersion
+            const u = new URL(uriNow)
+            const dir = u.protocol === 'file:' ? dirname(u.pathname) : undefined
+            computeModelDiagnostics(doc.text, dir).then(extra => {
+              // Only publish if still current
+              if (versionNow === this.currentVersion) {
+                const base = baseDiagnostics.get(uriNow) ?? []
+                this.connection.sendDiagnostics({ uri: uriNow, diagnostics: [...base, ...extra] })
+              }
+            }).catch(() => { /* ignore */ })
+          }
         }
         // Resolve the inflight task after diagnostics to allow request
         // chaining (fold then diagnostics constitutes one analysis unit).
@@ -219,6 +238,9 @@ class DocumentAnalyzer {
 
 const analyzers = new Map<string, DocumentAnalyzer>()
 
+// Cache the last diagnostics from the worker per document.
+const baseDiagnostics = new Map<string, Diagnostic[]>()
+
 let workspaceRoots: string[] = []
 
 function docDirOf(uri: string): string | undefined {
@@ -301,6 +323,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
   connection.onDidCloseTextDocument((ev: DidCloseTextDocumentParams) => {
     const uri = ev.textDocument.uri
     docs.delete(uri)
+    baseDiagnostics.delete(uri)
     const analyzer = analyzers.get(uri)
     if (analyzer) {
       analyzer.dispose()
@@ -404,6 +427,22 @@ export async function startLsp() {
     new StreamMessageWriter(process.stdout),
     ProposedFeatures.all
   )
+
+  // Kick off async model discovery without blocking initialization.
+  initModelRegistry()
+
+  // When models are discovered/updated, add or update diagnostics.
+  onModelRegistryUpdate(() => {
+    for (const [uri, doc] of docs.entries()) {
+      const base = baseDiagnostics.get(uri) ?? []
+      const u = new URL(uri)
+      const dir = u.protocol === 'file:' ? dirname(u.pathname) : undefined
+      computeModelDiagnostics(doc.text, dir).then(extra => {
+        connection.sendDiagnostics({ uri, diagnostics: [...base, ...extra] })
+      }).catch(() => { /* ignore */ })
+    }
+  })
+
   registerLspHandlers(connection)
   connection.listen()
 }
