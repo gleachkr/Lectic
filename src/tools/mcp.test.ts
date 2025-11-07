@@ -186,3 +186,80 @@ describe("MCP media blocks → data URLs", () => {
     expect(res[0].text.startsWith("data:image/png;base64,")).toBe(true);
   });
 });
+
+describe("Exclude filtering", () => {
+  it("omits excluded server tools and preserves list_resources", async () => {
+    const prev = (Client.prototype as any).listTools;
+    (Client.prototype as any).listTools = async () => ({
+      tools: [
+        { name: "search", description: "", inputSchema: { type: "object", properties: {} } },
+        { name: "dangerous", description: "", inputSchema: { type: "object", properties: {} } },
+      ],
+    });
+    try {
+      const tools = await MCPTool.fromSpec({
+        mcp_sse: "http://example.com",
+        name: "ns",
+        exclude: ["dangerous"],
+      } as any);
+      const names = tools.map((t: any) => t.name).sort();
+      expect(names).toContain("ns_search");
+      expect(names).not.toContain("ns_dangerous");
+      expect(names).toContain("ns_list_resources");
+    } finally {
+      (Client.prototype as any).listTools = prev;
+    }
+  });
+
+  it("does not create list_resources when name is absent, even with exclude", async () => {
+    const prev = (Client.prototype as any).listTools;
+    (Client.prototype as any).listTools = async () => ({
+      tools: [
+        { name: "search", description: "", inputSchema: { type: "object", properties: {} } },
+        { name: "dangerous", description: "", inputSchema: { type: "object", properties: {} } },
+      ],
+    });
+    try {
+      const tools = await MCPTool.fromSpec({
+        mcp_sse: "http://example.com",
+        exclude: ["dangerous"],
+      } as any);
+      const names = tools.map((t: any) => t.name).sort();
+      expect(names.find((n) => n.endsWith("_list_resources"))).toBeUndefined();
+      expect(names.find((n) => n.endsWith("_dangerous"))).toBeUndefined();
+    } finally {
+      (Client.prototype as any).listTools = prev;
+    }
+  });
+});
+
+describe("MCP resource blob → data URL", () => {
+  it("returns data URL for resource.blob when no text is present", async () => {
+    const fakeClient: any = {
+      callTool: async (_: any) => ({
+        content: [
+          {
+            type: "resource",
+            resource: {
+              uri: "file:///tmp/out.bin",
+              mimeType: "application/octet-stream",
+              blob: "QUJDRA==", // "ABCD" base64
+            },
+          },
+        ],
+      }),
+    };
+    const tool = new MCPTool({
+      name: "ns:gen_blob",
+      server_tool_name: "gen_blob",
+      server_name: "ns",
+      description: "",
+      schema: { type: "object", properties: {} } as any,
+      client: fakeClient,
+    });
+    const res = await tool.call({});
+    expect(res.length).toBe(1);
+    expect(res[0].mimetype).toBe("application/octet-stream");
+    expect(res[0].text.startsWith("data:application/octet-stream;base64,")).toBe(true);
+  });
+});

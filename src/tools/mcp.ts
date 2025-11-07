@@ -36,7 +36,7 @@ type MCPRoot = {
 function validateRoot(root : MCPRoot) {
     try {
         if ((new URL(root.uri)).protocol !== "file:") {
-            throw new Error("Root URIs must be of the form 'file://…")
+            throw new Error("Root URIs must be of the form 'file://…'")
         }
     } catch (e : unknown) {
         if (e instanceof Error) {
@@ -51,6 +51,7 @@ type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamable
     name?: string
     confirm?: string 
     roots?: MCPRoot[]
+    exclude?: string[]
 }
 
 type MCPToolSpec = {
@@ -105,7 +106,8 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
             isMCPSpecWebsocket(raw) || 
             isMCPSpecStreamableHttp(raw)) && 
            ("name" in raw ? typeof raw.name === "string" : true) &&
-           ("confirm" in raw ? typeof raw.confirm === "string" : true)
+           ("confirm" in raw ? typeof raw.confirm === "string" : true) &&
+           ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true)
 }
 
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
@@ -143,7 +145,7 @@ function isResourceContent(raw: unknown): raw is {
         "resource" in raw && typeof raw.resource === "object" &&
         raw.resource !== null &&
         "uri" in raw.resource && typeof raw.resource.uri === "string" &&
-        ("text" in raw.resource || "block" in raw.resource)
+        ("text" in raw.resource || "blob" in raw.resource)
 }
 
 function isMediaContent(raw: unknown): raw is {
@@ -154,7 +156,7 @@ function isMediaContent(raw: unknown): raw is {
     return raw !== null &&
         typeof raw === "object" &&
         "type" in raw && (raw.type === "image" || raw.type === "audio") &&
-        "data" in raw 
+        "data" in raw && typeof raw.data === "string"
 }
 
 class MCPListResources extends Tool {
@@ -273,8 +275,10 @@ export class MCPTool extends Tool {
                 if (block.resource.text) {
                     results.push(...ToolCallResults(block.resource.text))
                 } else {
-                    const uri = this.qualifyResourceUri(block.resource.uri)
                     const mt = block.resource.mimeType || "application/octet-stream"
+                    const uri = block.resource.blob 
+                    ? `data:${mt};base64,${block.resource.blob}`
+                    : this.qualifyResourceUri(block.resource.uri)
                     results.push(...ToolCallResults(uri, mt))
                 }
             } else if (isMediaContent(block)) {
@@ -360,7 +364,9 @@ export class MCPTool extends Tool {
             await client.connect(transport)
         }
 
-        const associated_tools : Tool[] = (await client.listTools()).tools.map(tool => {
+        const associated_tools : Tool[] = (await client.listTools()).tools
+        .filter(tool => !(spec.exclude && spec.exclude.includes(tool.name)))
+        .map(tool => {
             return new MCPTool({
                 name: `${prefix}_${tool.name}`,
                 server_tool_name: tool.name,

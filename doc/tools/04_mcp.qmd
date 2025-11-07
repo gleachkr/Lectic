@@ -65,6 +65,20 @@ For example, to access a `repo` resource from a server named `github`:
 
 The LLM is also given a tool to list the available resources from the server.
 
+### Excluding server tools
+
+You can hide specific tools that a server exposes by listing their names
+under `exclude`. 
+
+```yaml
+tools:
+  - name: github
+    mcp_ws: wss://example.org/mcp
+    exclude:
+      - dangerous_tool
+      - low_value_tool
+```
+
 ## Safety and trust
 
 ::: {.callout-warning}
