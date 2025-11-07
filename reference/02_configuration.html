@@ -303,7 +303,7 @@ ul.task-list li input[type="checkbox"] {
 <ul>
 <li><code>interlocutor</code>: A single object defining the primary LLM speaker.</li>
 <li><code>interlocutors</code>: A list of interlocutor objects for multiparty conversations.</li>
-<li><code>bundles</code>: A list of named tool bundles you can reference from interlocutors.</li>
+<li><code>kits</code>: A list of named tool kits you can reference from interlocutors.</li>
 <li><code>macros</code>: A list of macro definitions. See <a href="../automation/01_macros.html">Macros</a>.</li>
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>.</li>
 </ul>
@@ -354,7 +354,19 @@ ul.task-list li input[type="checkbox"] {
 <ul>
 <li><code>tools</code>: A list of tool definitions that this interlocutor can use. The format of each object in the list depends on the tool type. See the <a href="../tools/01_overview.html">Tools section</a> for detailed configuration guides for each tool.</li>
 </ul>
+<section id="mcp-tool-keys" class="level4">
+<h4 class="anchored" data-anchor-id="mcp-tool-keys">MCP tool keys</h4>
+<p>For tools that connect to Model Context Protocol (MCP) servers, these keys are recognized:</p>
+<ul>
+<li>One of: <code>mcp_command</code>, <code>mcp_ws</code>, <code>mcp_sse</code>, or <code>mcp_shttp</code>.</li>
+<li><code>name</code>: Optional server name used for namespacing and resource scheme.</li>
+<li><code>confirm</code>: Optional confirmation script, called before each tool use.</li>
+<li><code>sandbox</code>: Optional wrapper for <code>mcp_command</code> to isolate the server.</li>
+<li><code>roots</code>: Optional list of root objects for file access (each with <code>uri</code> and optional <code>name</code>).</li>
+<li><code>exclude</code>: Optional list of server tool names to hide.</li>
+</ul>
 <hr>
+</section>
 </section>
 </section>
 <section id="the-macro-object" class="level2">

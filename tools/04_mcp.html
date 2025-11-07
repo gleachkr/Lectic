@@ -316,6 +316,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#local-mcp-server-mcp_command" id="toc-local-mcp-server-mcp_command" class="nav-link" data-scroll-target="#local-mcp-server-mcp_command">Local MCP Server (<code>mcp_command</code>)</a></li>
   <li><a href="#remote-mcp-servers" id="toc-remote-mcp-servers" class="nav-link" data-scroll-target="#remote-mcp-servers">Remote MCP Servers</a></li>
   <li><a href="#server-resources-and-content-references" id="toc-server-resources-and-content-references" class="nav-link" data-scroll-target="#server-resources-and-content-references">Server Resources and Content References</a></li>
+  <li><a href="#excluding-server-tools" id="toc-excluding-server-tools" class="nav-link" data-scroll-target="#excluding-server-tools">Excluding server tools</a></li>
   </ul></li>
   <li><a href="#safety-and-trust" id="toc-safety-and-trust" class="nav-link" data-scroll-target="#safety-and-trust">Safety and trust</a>
   <ul class="collapse">
@@ -373,6 +374,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>If you give an MCP tool a <code>name</code> (e.g., <code>name: brave</code>), you can access any <a href="https://modelcontextprotocol.io/docs/concepts/resources">resources</a> it provides using a special content reference syntax. The scheme is the server’s name plus the resource type.</p>
 <p>For example, to access a <code>repo</code> resource from a server named <code>github</code>: <code>[README](github+repo://gleachkr/Lectic/contents/README.md)</code></p>
 <p>The LLM is also given a tool to list the available resources from the server.</p>
+</section>
+<section id="excluding-server-tools" class="level3">
+<h3 class="anchored" data-anchor-id="excluding-server-tools">Excluding server tools</h3>
+<p>You can hide specific tools that a server exposes by listing their names under <code>exclude</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_ws</span><span class="kw">:</span><span class="at"> wss://example.org/mcp</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exclude</span><span class="kw">:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> dangerous_tool</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> low_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="safety-and-trust" class="level2">
