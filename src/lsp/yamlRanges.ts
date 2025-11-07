@@ -18,7 +18,7 @@ export type HeaderRangeIndex = {
   interlocutorNameRanges: Array<{ name: string, range: Range }>,
   macroNameRanges: Array<{ name: string, range: Range }>,
   agentTargetRanges: Array<{ target: string, range: Range }>,
-  bundleTargetRanges: Array<{ target: string, range: Range }>,
+  kitTargetRanges: Array<{ target: string, range: Range }>,
   fieldRanges: YamlPathRange[],
   findRangesByPath: (path: (string | number)[]) => Range[]
 }
@@ -40,7 +40,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   const interlocutorNameRanges: Array<{ name: string, range: Range }> = []
   const macroNameRanges: Array<{ name: string, range: Range }> = []
   const agentTargetRanges: Array<{ target: string, range: Range }> = []
-  const bundleTargetRanges: Array<{ target: string, range: Range }> = []
+  const kitTargetRanges: Array<{ target: string, range: Range }> = []
   const fieldRanges: YamlPathRange[] = []
 
   const root = doc.contents
@@ -67,12 +67,12 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
         if (r) agentTargetRanges.push({ target: agent, range: r })
         pushField([...basePath, 'tools', i, 'agent'], aval)
       }
-      const bval = getValue(t, 'bundle')
-      const bundle = stringOf(bval)
-      if (bundle) {
+      const bval = getValue(t, 'kit')
+      const kit = stringOf(bval)
+      if (kit) {
         const r = nodeAbsRange(docText, bval, contentStart)
-        if (r) bundleTargetRanges.push({ target: bundle, range: r })
-        pushField([...basePath, 'tools', i, 'bundle'], bval)
+        if (r) kitTargetRanges.push({ target: kit, range: r })
+        pushField([...basePath, 'tools', i, 'kit'], bval)
       }
     })
   }
@@ -155,7 +155,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     interlocutorNameRanges,
     macroNameRanges,
     agentTargetRanges,
-    bundleTargetRanges,
+    kitTargetRanges,
     fieldRanges,
     findRangesByPath
   }

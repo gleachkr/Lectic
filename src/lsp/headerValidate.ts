@@ -176,39 +176,39 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     })
   }
 
-  // bundles
-  const bundles = root?.["bundles"] as unknown
-  if (Array.isArray(bundles)) {
-    bundles.forEach((b, i: number) => {
+  // kits
+  const kits = root?.["kits"] as unknown
+  if (Array.isArray(kits)) {
+    kits.forEach((b, i: number) => {
       if (!isObjectRecord(b)) return
       if (!("name" in b) || typeof b["name"] !== "string") {
         issues.push({
-          code: "bundle.name.missing",
-          message: Messages.bundle.nameMissing(),
-          path: ["bundles", i, "name"],
+          code: "kit.name.missing",
+          message: Messages.kit.nameMissing(),
+          path: ["kits", i, "name"],
           severity: "error"
         })
       }
       const nameVal = typeof b?.["name"] === "string" ? b["name"] : "<unknown>"
       if (!("tools" in b)) {
         issues.push({
-          code: "bundle.tools.missing",
-          message: Messages.bundle.toolsMissing(nameVal),
-          path: ["bundles", i, "tools"],
+          code: "kit.tools.missing",
+          message: Messages.kit.toolsMissing(nameVal),
+          path: ["kits", i, "tools"],
           severity: "error"
         })
       } else if (!Array.isArray(b["tools"])) {
         issues.push({
-          code: "bundle.tools.type",
-          message: Messages.bundle.toolsType(nameVal),
-          path: ["bundles", i, "tools"],
+          code: "kit.tools.type",
+          message: Messages.kit.toolsType(nameVal),
+          path: ["kits", i, "tools"],
           severity: "error"
         })
       } else if (!(b["tools"].every((t) => isObjectRecord(t)))) {
         issues.push({
-          code: "bundle.tools.items",
-          message: Messages.bundle.toolsItems(nameVal),
-          path: ["bundles", i, "tools"],
+          code: "kit.tools.items",
+          message: Messages.kit.toolsItems(nameVal),
+          path: ["kits", i, "tools"],
           severity: "error"
         })
       }

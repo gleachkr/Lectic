@@ -59,20 +59,20 @@ export const Messages = {
   },
 
   // Bundle
-  bundle: {
-    nameMissing: () => `Bundle needs to be given with a "name" field.`,
+  kit: {
+    nameMissing: () => `Kit needs to be given with a "name" field.`,
     toolsMissing: (name: string) =>
-      `The bundle ${name} needs a tools field.`,
+      `The kit ${name} needs a tools field.`,
     toolsType: (name: string) =>
-      `The tools field of bundle ${name} needs to be an array.`,
+      `The tools field of kit ${name} needs to be an array.`,
     toolsItems: (name: string) =>
-      `One or more tools in bundle ${name} weren't properly specified`,
+      `One or more tools in kit ${name} weren't properly specified`,
     baseNeedsNameTools: (raw: unknown) =>
-      `Bundle needs to be given with at least "name" and "tools" fields. Got ${raw} instead.`,
-    baseNull: () => `Something went wrong, got null for bundle`,
-    unknownReference: (bundle: string) =>
-      `Unknown bundle reference: ${bundle}`,
-    cycle: (bundle: string) =>
-      `Bundle expansion cycle detected at ${bundle}`
+      `Kit needs to be given with at least "name" and "tools" fields. Got ${raw} instead.`,
+    baseNull: () => `Something went wrong, got null for kit`,
+    unknownReference: (kit: string) =>
+      `Unknown kit reference: ${kit}`,
+    cycle: (kit: string) =>
+      `Kit expansion cycle detected at ${kit}`
   }
 } as const

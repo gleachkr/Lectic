@@ -179,9 +179,9 @@ describe('LecticHeader', () => {
           expect(interlocutor.registry).toEqual({});
     });
 
-    it('expands a bundle into tools', async () => {
+    it('expands a kit into tools', async () => {
       const spec = {
-        bundles: [
+        kits: [
           { name: 'typescript_tools', tools: [
             { exec: 'tsc', name: 'tsc' },
             { exec: 'eslint', name: 'eslint' }
@@ -190,7 +190,7 @@ describe('LecticHeader', () => {
         interlocutor: {
           name: 'Tester',
           prompt: 'Test prompt',
-          tools: [ { bundle: 'typescript_tools' } ]
+          tools: [ { kit: 'typescript_tools' } ]
         }
       }
       const header = new LecticHeader(spec as any)
@@ -200,14 +200,14 @@ describe('LecticHeader', () => {
       expect(reg['eslint']).toBeInstanceOf(ExecTool)
     })
 
-    it('supports nested bundles', async () => {
+    it('supports nested kits', async () => {
       const spec = {
-        bundles: [
+        kits: [
           { name: 'base', tools: [ { exec: 'date', name: 'date' } ] },
-          { name: 'combo', tools: [ { bundle: 'base' }, { exec: 'echo', name: 'echo' } ] }
+          { name: 'combo', tools: [ { kit: 'base' }, { exec: 'echo', name: 'echo' } ] }
         ],
         interlocutor: {
-          name: 'Tester', prompt: 'p', tools: [ { bundle: 'combo' } ]
+          name: 'Tester', prompt: 'p', tools: [ { kit: 'combo' } ]
         }
       }
       const header = new LecticHeader(spec as any)
@@ -217,26 +217,26 @@ describe('LecticHeader', () => {
       expect(reg['echo']).toBeInstanceOf(ExecTool)
     })
 
-    it('throws on unknown bundle', async () => {
+    it('throws on unknown kit', async () => {
       const spec = {
-        interlocutor: { name: 'Tester', prompt: 'p', tools: [ { bundle: 'nope' } ] }
+        interlocutor: { name: 'Tester', prompt: 'p', tools: [ { kit: 'nope' } ] }
       }
       const header = new LecticHeader(spec as any)
       const test = async () => await header.initialize()
-      expect(test).toThrow('Unknown bundle reference: nope')
+      expect(test).toThrow('Unknown kit reference: nope')
     })
 
-    it('throws on bundle cycle', async () => {
+    it('throws on kit cycle', async () => {
       const spec = {
-        bundles: [
-          { name: 'a', tools: [ { bundle: 'b' } ] },
-          { name: 'b', tools: [ { bundle: 'a' } ] }
+        kits: [
+          { name: 'a', tools: [ { kit: 'b' } ] },
+          { name: 'b', tools: [ { kit: 'a' } ] }
         ],
-        interlocutor: { name: 'Tester', prompt: 'p', tools: [ { bundle: 'a' } ] }
+        interlocutor: { name: 'Tester', prompt: 'p', tools: [ { kit: 'a' } ] }
       }
       const header = new LecticHeader(spec as any)
       const test = async () => await header.initialize()
-      expect(test).toThrow('Bundle expansion cycle detected at a')
+      expect(test).toThrow('Kit expansion cycle detected at a')
     })
   });
 });

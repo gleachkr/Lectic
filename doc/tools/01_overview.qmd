@@ -86,16 +86,16 @@ a single turn, Lectic will run all of them concurrently, rather than one after
 another. This significantly speeds up complex tasks that involve gathering 
 information from multiple sources.
 
-## Tool bundles
+## Tool kits
 
 If you reuse the same set of tools across interlocutors, define a named
-bundle once and reference it by name in each interlocutor. Bundles are
+kit once and reference it by name in each interlocutor. Kits are
 listed at the top level of the header.
 
 Example
 
 ```yaml
-bundles:
+kits:
   - name: typescript_tools
     tools:
       - exec: tsc
@@ -107,10 +107,10 @@ interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   tools:
-    - bundle: typescript_tools
+    - kit: typescript_tools
 ```
 
-You can still mix regular tools alongside bundle references.
+You can still mix regular tools alongside kit references.
 
 ## Available Tool Types
 

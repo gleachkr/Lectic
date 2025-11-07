@@ -16,22 +16,22 @@ import { loadFrom } from "../utils/loader"
 import { mergeValues } from "../utils/merge"
 import { Messages } from "../constants/messages"
 
-type ToolBundleSpec = {
+type ToolKitSpec = {
     name : string
     tools: object[]
 }
 
-function validateToolBundle(raw : unknown) : raw is ToolBundleSpec {
-    if (raw === null) throw Error(Messages.bundle.baseNull())
+function validateToolKit(raw : unknown) : raw is ToolKitSpec {
+    if (raw === null) throw Error(Messages.kit.baseNull())
     if (typeof raw !== "object" )
-        throw Error(Messages.bundle.baseNeedsNameTools(raw))
-    if (!("name" in raw && typeof raw.name === "string")) throw Error(Messages.bundle.nameMissing())
+        throw Error(Messages.kit.baseNeedsNameTools(raw))
+    if (!("name" in raw && typeof raw.name === "string")) throw Error(Messages.kit.nameMissing())
     const name = raw.name
-    if (!("tools" in raw)) throw Error(Messages.bundle.toolsMissing(name))
+    if (!("tools" in raw)) throw Error(Messages.kit.toolsMissing(name))
     if (!(Array.isArray(raw.tools)))
-        throw Error(Messages.bundle.toolsType(name))
+        throw Error(Messages.kit.toolsType(name))
     if (!(raw.tools.every((t : unknown) => typeof t === "object")))
-        throw Error(Messages.bundle.toolsItems(name))
+        throw Error(Messages.kit.toolsItems(name))
     return true
 }
 
@@ -40,14 +40,14 @@ type DialecticHeaderSpec = {
     interlocutors? : [ ...Interlocutor[] ]
     macros?: MacroSpec[]
     hooks?: HookSpec[]
-    bundles? : ToolBundleSpec[]
+    kits? : ToolKitSpec[]
 }
 
 type ManylecticHeaderSpec = {
     interlocutors : [ Interlocutor, ...Interlocutor[] ]
     macros?: MacroSpec[]
     hooks?: HookSpec[]
-    bundles? : ToolBundleSpec[]
+    kits? : ToolKitSpec[]
 }
 
 export type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
@@ -57,7 +57,7 @@ export class LecticHeader {
     interlocutors : Interlocutor[]
     macros: Macro[]
     hooks: Hook[]
-    bundles: ToolBundleSpec[]
+    kits: ToolKitSpec[]
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
@@ -71,7 +71,7 @@ export class LecticHeader {
         }
         this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         this.hooks = (spec.hooks ?? []).map(spec => new Hook(spec))
-        this.bundles = spec.bundles ?? []
+        this.kits = spec.kits ?? []
     }
 
     // Apply post-merge normalization shared by all merge pipelines.
@@ -115,17 +115,17 @@ export class LecticHeader {
 
     private expandTools(tools: object[]): object[] {
         const out: object[] = []
-        const idx = new Map<string, ToolBundleSpec>()
-        for (const b of this.bundles) idx.set(b.name, b)
+        const idx = new Map<string, ToolKitSpec>()
+        for (const b of this.kits) idx.set(b.name, b)
         const seen = new Set<string>()
         const expandOne = (spec: object) => {
-            if (spec && "bundle" in spec && typeof spec.bundle === 'string') {
-                const name = spec.bundle
-                if (seen.has(name)) throw Error(Messages.bundle.cycle(name))
-                const bundle = idx.get(name)
-                if (!bundle) throw Error(Messages.bundle.unknownReference(name))
+            if (spec && "kit" in spec && typeof spec.kit === 'string') {
+                const name = spec.kit
+                if (seen.has(name)) throw Error(Messages.kit.cycle(name))
+                const kit = idx.get(name)
+                if (!kit) throw Error(Messages.kit.unknownReference(name))
                 seen.add(name)
-                for (const inner of bundle.tools) expandOne(inner)
+                for (const inner of kit.tools) expandOne(inner)
                 seen.delete(name)
             } else {
                 out.push(spec)
@@ -211,8 +211,8 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
         ) && ('hooks' in raw
                 ? Array.isArray(raw.hooks) && raw.hooks.every(validateHookSpec)
                 : true
-        ) && ('bundles' in raw
-                ? Array.isArray(raw.bundles) && raw.bundles.every(validateToolBundle)
+        ) && ('kits' in raw
+                ? Array.isArray(raw.kits) && raw.kits.every(validateToolKit)
                 : true
              )
 }
