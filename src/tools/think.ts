@@ -36,7 +36,7 @@ export class ThinkTool extends Tool {
 
     required = ["thought"]
 
-    async call(args : { arguments : string[] }) : Promise<ToolCallResult[]> {
+    async call(args : { thought : string }) : Promise<ToolCallResult[]> {
         this.validateArguments(args);
         return ToolCallResults("thought complete.")
     }
