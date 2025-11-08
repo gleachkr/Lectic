@@ -166,7 +166,7 @@ export class ExecTool extends Tool {
     }
 
     parameters : { [key : string] : JSONSchema } = {
-        arguments : {
+        argv : {
             type : "array",
             description : "the arguments to the command",
             items : {
@@ -176,13 +176,13 @@ export class ExecTool extends Tool {
         }
     } 
 
-    required = ["arguments"]
+    required = ["argv"]
 
-    async call(params: { arguments : string[] } | Record<string,string> ) : Promise<ToolCallResult[]> {
+    async call(params: { argv : string[] } | Record<string,string> ) : Promise<ToolCallResult[]> {
         this.validateArguments(params);
 
-        const args = Array.isArray(params.arguments) ? params.arguments : []
-        const env = Array.isArray(params.arguments) ? this.env : {...params, ...this.env} as Record<string,string>
+        const args = Array.isArray(params.argv) ? params.argv : []
+        const env = Array.isArray(params.argv) ? this.env : {...params, ...this.env} as Record<string,string>
 
         if (this.confirm) {
             const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(params, null, 2)], {

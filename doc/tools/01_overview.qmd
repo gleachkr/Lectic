@@ -63,7 +63,7 @@ call and records the result.
 I will call the date tool first.
 
 <tool-call with="get_date">
-<arguments><arguments>[ ]</arguments></arguments>
+<arguments><argv>[ ]</argv></arguments>
 <results>
 <result type="text">
 ┆ <│stdout>Fri Mar 15 14:35:18 PDT 2024\n<│/stdout>

@@ -39,7 +39,7 @@ describe("hover: tool-call block", () => {
     // fenced/indented code block and the worker will not record a tool span.
     const xml = [
       "    <tool-call with=\"bun-test\" id=\"call_2\" is-error=\"false\">",
-      "    <arguments><arguments><array></array></arguments></arguments>",
+      "    <arguments><argv><array></array></argv></arguments>",
       "    <results>",
       "    <result type=\"application/xml\">",
       "    ┆<│stdout>ok\n",

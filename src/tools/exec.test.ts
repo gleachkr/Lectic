@@ -13,7 +13,7 @@ describe("ExecTool (async)", () => {
       { exec: "/bin/echo", name: "echo" },
       "Interlocutor_Name",
     );
-    const res = await tool.call({ arguments: ["hello"] });
+    const res = await tool.call({ argv: ["hello"] });
     const out = texts(res).join("\n");
     expect(out).toContain("<stdout>hello\n</stdout>");
   });
@@ -24,7 +24,7 @@ describe("ExecTool (async)", () => {
       { exec: script, name: "script-io" },
       "Interlocutor_Name",
     );
-    const res = await tool.call({ arguments: [] });
+    const res = await tool.call({ argv: [] });
     const out = texts(res).join("\n");
     expect(out).toContain("<stdout>OUT\n</stdout>");
     expect(out).toContain("<stderr>ERR\n</stderr>");
@@ -40,7 +40,7 @@ describe("ExecTool (async)", () => {
         "Interlocutor_Name",
       );
       try {
-        await tool.call({ arguments: [] });
+        await tool.call({ argv: [] });
         throw new Error("expected timeout");
       } catch (e) {
         expect(e).toBeInstanceOf(Error);
@@ -77,7 +77,7 @@ describe("ExecTool (async)", () => {
       { exec: "/bin/echo", name: "echo", schema: { FOO: "desc" } },
       "Interlocutor_Name",
     );
-    await expect(tool.call({ FOO: "x", BAR: "y" } as any)).rejects.toThrow(
+    expect(tool.call({ FOO: "x", BAR: "y" } as any)).rejects.toThrow(
       /Unknown argument: BAR/,
     );
   });
@@ -89,11 +89,11 @@ describe("ExecTool (async)", () => {
         { exec: "/bin/echo", name: "echo" },
         "Interlocutor_Name",
       );
-      const res = await tool.call({ arguments: ["hi"] });
+      const res = await tool.call({ argv: ["hi"] });
       const out = texts(res).join("\n");
       expect(out).toContain("<stdout>hi\n</stdout>");
-      await expect(tool.call({ FOO: "BAR" } as any)).rejects.toThrow(
-        /Missing required argument: arguments/,
+      expect(tool.call({ FOO: "BAR" } as any)).rejects.toThrow(
+        /Missing required argument: argv/,
       );
     },
   );
@@ -142,7 +142,7 @@ describe("ExecTool (async)", () => {
         { exec: script, name: "sanitize" },
         "Interlocutor_Name",
       );
-      const res = await tool.call({ arguments: [] });
+      const res = await tool.call({ argv: [] });
       const out = texts(res).join("\n");
       // After sanitization, stdout should contain the final progress line and plain text
       expect(out).toContain("<stdout>second\nred\n</stdout>");
