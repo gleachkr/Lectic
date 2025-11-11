@@ -338,7 +338,7 @@ export class OpenAIResponsesBackend implements Backend {
 
         Logger.debug("openai - messages", messages)
 
-        lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? "gpt-5"
+        lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
 
         const stream = this.client.responses.stream({
             instructions: systemPrompt(lectic),
@@ -376,6 +376,7 @@ export class OpenAIResponsesBackend implements Backend {
             yield* handleToolUse(msg, messages, lectic, this.client);
         }
     }
+
 
     get client() { 
         return new OpenAI({

@@ -57,13 +57,13 @@ function initResponse() : GenerateContentResponse & { candidates: [Candidate,...
       return response as GenerateContentResponse & { candidates: [Candidate,...Candidate[]] }
 }
 
-async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentListUnion) {
+async function getResult(lectic: Lectic, client: GoogleGenAI, model : string, messages: ContentListUnion) {
     const nativeTools = (lectic.header.interlocutor.tools || [])
     .filter(tool => "native" in tool)
     .map(tool => tool.native)
 
     return await client.models.generateContentStream({
-        model: lectic.header.interlocutor.model || "gemini-2.5-flash",
+        model: lectic.header.interlocutor.model ?? model,
         contents: messages,
         config: {
             systemInstruction: systemPrompt(lectic),
@@ -139,6 +139,7 @@ async function *handleToolUse(
     response : GenerateContentResponse, 
     messages : Content[], 
     lectic : Lectic,
+    model : string,
     client : GoogleGenAI) : AsyncGenerator<string | Message> {
 
     let recur = 0
@@ -202,7 +203,7 @@ async function *handleToolUse(
 
         const accumulatedResponse = initResponse()
 
-        const result = await getResult(lectic, client, messages)
+        const result = await getResult(lectic, client, model, messages)
 
         yield* accumulateStream(result, accumulatedResponse)
 
@@ -392,7 +393,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       Logger.debug("gemini - messages", messages)
 
-      const result = await getResult(lectic, this.client, messages)
+      const result = await getResult(lectic, this.client, this.defaultModel, messages)
 
       const accumulatedResponse = initResponse()
 
@@ -408,12 +409,14 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       if (accumulatedResponse.functionCalls?.length) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })
-          yield* handleToolUse(accumulatedResponse, messages, lectic, this.client);
+          yield* handleToolUse(accumulatedResponse, messages, lectic, this.defaultModel, this.client);
       } else {
           Logger.debug("gemini - reply", { accumulatedResponse })
       }
 
     },
+
+    defaultModel : "gemini-2.5-flash",
 
     provider : LLMProvider.Gemini,
 

@@ -344,7 +344,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
 
         Logger.debug("anthropic - messages", messages)
 
-        const model = lectic.header.interlocutor.model ?? 'claude-sonnet-4-20250514'
+        const model = lectic.header.interlocutor.model ?? this.defaultModel
 
         const stream = this.client.messages.stream({
             system: systemPrompt(lectic),
@@ -376,6 +376,8 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
             yield* handleToolUse(msg, messages, lectic, this.client, model)
         } 
     },
+
+    defaultModel : 'claude-sonnet-4-20250514',
 
     client : new Anthropic({
         apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
@@ -413,7 +415,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
 
         Logger.debug("anthropic - messages", messages)
 
-        const model = lectic.header.interlocutor.model ?? 'us.anthropic.claude-sonnet-4-20250514-v1:0'
+        const model = lectic.header.interlocutor.model ?? this.defaultModel
 
         const stream = this.client.messages.stream({
             system: systemPrompt(lectic),
@@ -446,6 +448,7 @@ export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } =
         } 
     },
 
+    defaultModel : 'us.anthropic.claude-sonnet-4-20250514-v1:0',
 
     client : new AnthropicBedrock({ maxRetries: 5 }),
 
