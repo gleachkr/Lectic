@@ -31,8 +31,8 @@ export function getBackend(interlocutor : Interlocutor) : Backend {
             url: 'http://localhost:11434/v1' 
             //XXX Make configurable
         })
-        case LLMProvider.Anthropic: return AnthropicBackend
-        case LLMProvider.AnthropicBedrock: return AnthropicBedrockBackend
+        case LLMProvider.Anthropic: return new AnthropicBackend()
+        case LLMProvider.AnthropicBedrock: return new AnthropicBedrockBackend()
         case LLMProvider.Gemini: return GeminiBackend
     }
 }

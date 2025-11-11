@@ -309,12 +309,27 @@ async function* handleToolUse(
         emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
 
     }
-
 }
 
-export const AnthropicBackend : Backend & { client : Anthropic } = {
+export class AnthropicBackend implements Backend {
+
+    provider: LLMProvider
+    defaultModel: string
+    client: Anthropic | AnthropicBedrock
+
+    constructor() {
+        this.provider = LLMProvider.Anthropic
+        this.defaultModel = 'claude-sonnet-4-20250514'
+        this.client = new Anthropic({
+            apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
+            maxRetries: 5,
+        })
+    }
 
     async listModels(): Promise<string[]> {
+        // Bedrock model enumeration via Anthropic SDK is not supported
+        // here. Return an empty list for now.
+        if (!("models" in this.client)) return []
         try {
             const page = await this.client.models.list()
             const ids: string[] = []
@@ -323,7 +338,7 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
         } catch (_e) {
             return []
         }
-    },
+    }
 
     async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
 
@@ -375,83 +390,17 @@ export const AnthropicBackend : Backend & { client : Anthropic } = {
         if (msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model)
         } 
-    },
-
-    defaultModel : 'claude-sonnet-4-20250514',
-
-    client : new Anthropic({
-        apiKey: process.env['ANTHROPIC_API_KEY'], // TODO api key on cli or in lectic
-        maxRetries: 5,
-    }),
-
-    provider : LLMProvider.Anthropic,
-
+    }
 }
 
-export const AnthropicBedrockBackend : Backend & { client : AnthropicBedrock } = {
+export class AnthropicBedrockBackend extends AnthropicBackend {
 
-    async listModels(): Promise<string[]> {
-        // Bedrock model enumeration via Anthropic SDK is not supported
-        // here. Return an empty list for now.
-        return []
-    },
+    client: AnthropicBedrock
 
-    async *evaluate(lectic : Lectic) : AsyncIterable<string | Message> {
-
-        const messages : Anthropic.Messages.MessageParam[] = []
-
-        const cmdAttachments : InlineAttachment[] = []
-
-        for (let i = 0; i < lectic.body.messages.length; i++) {
-            const m = lectic.body.messages[i]
-            if (m.role === "user" && i === lectic.body.messages.length - 1) {
-                messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
-            } else {
-                messages.push(...await handleMessage(m, lectic))
-            }
-        }
-
-        if (!lectic.header.interlocutor.nocache) updateCache(messages)
-
-        Logger.debug("anthropic - messages", messages)
-
-        const model = lectic.header.interlocutor.model ?? this.defaultModel
-
-        const stream = this.client.messages.stream({
-            system: systemPrompt(lectic),
-            messages,
-            model,
-            temperature: lectic.header.interlocutor.temperature,
-            max_tokens: lectic.header.interlocutor.max_tokens || 2048,
-            tools: getTools(lectic)
-        });
-
-        // Emit cached inline attachments at the top of the assistant block
-        if (cmdAttachments.length > 0) {
-            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
-            yield preface
-        }
-
-        let assistant = ""
-        for await (const text of anthropicTextChunks(stream)) {
-            yield text
-            assistant += text
-        }
-
-        const msg = await stream.finalMessage()
-
-        Logger.debug("anthropic - reply", msg)
-        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
-
-        if (msg.stop_reason == "tool_use") {
-            yield* handleToolUse(msg, messages, lectic, this.client, model)
-        } 
-    },
-
-    defaultModel : 'us.anthropic.claude-sonnet-4-20250514-v1:0',
-
-    client : new AnthropicBedrock({ maxRetries: 5 }),
-
-    provider : LLMProvider.AnthropicBedrock,
-
+    constructor() {
+        super()
+        this.provider = LLMProvider.AnthropicBedrock
+        this.defaultModel = 'us.anthropic.claude-sonnet-4-20250514-v1:0'
+        this.client = new AnthropicBedrock({ maxRetries: 5 })
+    }
 }

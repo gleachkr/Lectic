@@ -195,7 +195,7 @@ program
   const out: Array<{ name: string; models: string[] }> = []
   // Anthropic
   if (process.env['ANTHROPIC_API_KEY']) {
-    const models = await AnthropicBackend.listModels()
+    const models = await new AnthropicBackend().listModels()
     out.push({ name: LLMProvider.Anthropic, models })
   }
   // Gemini

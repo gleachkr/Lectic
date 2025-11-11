@@ -15,17 +15,18 @@ function asyncIterableFrom<T>(items: T[]) {
 
 describe("backend model listing", () => {
   test("Anthropic models.list supports async iteration", async () => {
-    const orig = AnthropicBackend.client
+    const anthropic = new AnthropicBackend()
+    const orig = anthropic.client
     try {
-      (AnthropicBackend as any).client = {
+      (anthropic as any).client = {
         models: {
           list: async () => asyncIterableFrom([ { id: "claude-3-haiku-20240307" }, { id: "claude-3-5-sonnet" } ])
         }
       }
-      const ids = await AnthropicBackend.listModels()
+      const ids = await anthropic.listModels()
       expect(ids).toEqual(["claude-3-haiku-20240307", "claude-3-5-sonnet"])
     } finally {
-      ;(AnthropicBackend as any).client = orig
+      anthropic.client = orig
     }
   })
 
@@ -94,7 +95,8 @@ describe("backend model listing", () => {
   })
 
   test("Anthropic Bedrock returns empty list", async () => {
-    const ids = await AnthropicBedrockBackend.listModels()
+    const anthropic = new AnthropicBedrockBackend
+    const ids = await anthropic.listModels()
     expect(ids).toEqual([])
   })
 })

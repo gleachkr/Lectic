@@ -36,7 +36,7 @@ class ModelRegistry {
 
     // Anthropic
     if (process.env["ANTHROPIC_API_KEY"]) {
-      tasks.push(AnthropicBackend.listModels().then(ms => {
+      tasks.push((new AnthropicBackend()).listModels().then(ms => {
         this.cache.set(LLMProvider.Anthropic, ms)
       }).catch(() => { /* ignore */ }))
     }
