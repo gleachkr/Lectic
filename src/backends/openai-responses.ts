@@ -96,6 +96,10 @@ async function *handleToolUse(
 
         // Echo prior assistant output
         for (const o of message.output) {
+            // patch calls explicably have different input/output shapes in the type system
+            // Fix if we ever add the patch tool
+            if (o.type == "apply_patch_call_output" || 
+                o.type == "apply_patch_call") continue
             messages.push(o)
         }
 
@@ -140,6 +144,7 @@ async function *handleToolUse(
                 'reasoning.encrypted_content',
                 'code_interpreter_call.outputs'
             ],
+            prompt_cache_retention: "24h",
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens,
             tools: getTools(lectic)
@@ -348,6 +353,7 @@ export class OpenAIResponsesBackend implements Backend {
                 'reasoning.encrypted_content',
                 'code_interpreter_call.outputs'
             ],
+            prompt_cache_retention: "24h",
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens,
             tools: getTools(lectic)
