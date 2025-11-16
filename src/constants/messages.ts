@@ -25,6 +25,10 @@ export const Messages = {
       `The temperature for ${name} wasn't well-formed, it needs to be a number.`,
     temperatureRange: (name: string) =>
       `The temperature for ${name} wasn't well-formed, it needs to between 1 and 0.`,
+    thinkingBudgetType: (name: string) =>
+      `The thinking budget for ${name} wasn't well-formed, it needs to be a whole number.`,
+    thinkingEffortType: (name: string) =>
+      `The thinking effort for ${name} wasn't well-formed, it needs to be one of 'none', 'low', 'medium' or 'high'.`,
     toolsType: (name: string) =>
       `The tools for ${name} need to be given in an array.`,
     toolsItems: (name: string) =>

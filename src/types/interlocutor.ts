@@ -15,6 +15,8 @@ export type Interlocutor = {
     max_tool_use? : number
     reminder? : string
     nocache? : boolean
+    thinking_budget?: number
+    thinking_effort?: "none" | "low" | "medium" | "high"
 }
 
 export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
@@ -48,6 +50,16 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
     } 
     if (("nocache" in raw) && typeof raw.nocache!== "boolean") {
         throw Error(Messages.interlocutor.nocacheType(raw.name))
+    } 
+    if (("thinking_budget" in raw) && !Number.isInteger(raw.thinking_budget)) {
+        throw Error(Messages.interlocutor.thinkingBudgetType(raw.name))
+    } 
+    if (("thinking_effort" in raw) && 
+        (raw.thinking_effort !== "none") &&
+        (raw.thinking_effort !== "low") &&
+        (raw.thinking_effort !== "medium") &&
+        (raw.thinking_effort !== "high")) {
+        throw Error(Messages.interlocutor.thinkingEffortType(raw.name))
     } 
     if (("temperature" in raw)) {
         if (typeof raw.temperature !== "number") {
