@@ -1,4 +1,4 @@
-import type { CompletionItem, CompletionParams, TextEdit } from "vscode-languageserver"
+import type { CompletionItem, CompletionParams, TextEdit, Position, Range } from "vscode-languageserver"
 import { CompletionItemKind, InsertTextFormat, Range as RangeNS } from "vscode-languageserver/node"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { buildInterlocutorIndex, previewInterlocutor } from "./interlocutorIndex"
@@ -7,10 +7,49 @@ import { isLecticHeaderSpec } from "../types/lectic"
 import { mergedHeaderSpecForDocDetailed, getYaml } from "../parsing/parse"
 import type { AnalysisBundle } from "./analysisTypes"
 import { buildHeaderRangeIndex } from "./yamlRanges"
-import { parseYaml, getValue, stringOf } from "./utils/yamlAst"
-import { getDefaultProvider, isLLMProvider, LLMProvider } from "../types/provider"
+import { parseYaml } from "./utils/yamlAst"
 import { modelRegistry } from "./models"
 import { isObjectRecord } from "../types/guards"
+import { inRange } from "./utils/range"
+import { startsWithCI } from "./utils/text"
+import { effectiveProviderForPath } from "./utils/provider"
+
+
+
+// Static tool kind catalog for YAML tools arrays
+const TOOL_KINDS: Array<{ key: string, detail: string, sort: string }> = [
+  { key: 'exec',         detail: 'Execute a command or script',           sort: '01_exec' },
+  { key: 'sqlite',       detail: 'SQLite database query tool',            sort: '02_sqlite' },
+  { key: 'mcp_command',  detail: 'Local MCP server tool',                 sort: '20_mcp_command' },
+  { key: 'mcp_ws',       detail: 'WebSocket MCP server tool',             sort: '21_mcp_ws' },
+  { key: 'mcp_sse',      detail: 'SSE MCP server tool',                   sort: '22_mcp_sse' },
+  { key: 'mcp_shttp',    detail: 'Streamable HTTP MCP tool',              sort: '23_mcp_shttp' },
+  { key: 'agent',        detail: 'Interlocutor-as-tool agent',            sort: '10_agent' },
+  { key: 'think_about',  detail: 'Scratchpad reasoning tool',             sort: '11_think' },
+  { key: 'serve_on_port',detail: 'Ephemeral HTTP server tool',            sort: '12_serve' },
+  { key: 'native',       detail: 'Provider-native tool (search/code)',    sort: '13_native' },
+  { key: 'kit',          detail: 'Reference a named tool kit',            sort: '14_kit' },
+]
+
+const NATIVE_SUPPORTED = ['search', 'code']
+
+function computeValueEdit(
+  lineText: string,
+  pos: Position,
+): { prefixLc: string, range: Range } {
+  const linePrefix = lineText.slice(0, pos.character)
+  const colonIndex = linePrefix.lastIndexOf(':')
+  const afterColon = colonIndex >= 0 ? linePrefix.slice(colonIndex + 1) : ''
+  const prefixRaw = afterColon.replace(/^\s*/, '')
+  const prefixLc = prefixRaw.toLowerCase()
+  const replaceStartChar =
+    colonIndex + 1 + (afterColon.length - prefixRaw.length)
+  const range = RangeNS.create(
+    { line: pos.line, character: replaceStartChar },
+    { line: pos.line, character: pos.character },
+  )
+  return { prefixLc, range }
+}
 
 export async function computeCompletions(
   _uri: string,
@@ -24,71 +63,186 @@ export async function computeCompletions(
 
   const items: CompletionItem[] = []
 
-  // 0) YAML header: model suggestions for active provider
-  {
-    const header = buildHeaderRangeIndex(docText)
-    if (header) {
-      // Find a model field whose range contains the cursor
-      const hit = header.fieldRanges.find(fr => {
-        const last = fr.path[fr.path.length - 1]
-        if (last !== 'model') return false
-        const r = fr.range
-        if (pos.line < r.start.line || pos.line > r.end.line) return false
-        if (pos.line === r.start.line && pos.character < r.start.character) return false
-        if (pos.line === r.end.line && pos.character > r.end.character) return false
-        return true
-      })
-      if (hit) {
-        // Determine provider from merged spec (respects system/workspace)
-        const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
-        const spec = specRes.spec as unknown
-        const root = isObjectRecord(spec) ? spec : {}
-        let provider: LLMProvider | null = null
-        try {
-          if (hit.path[0] === 'interlocutor') {
-            const it = isObjectRecord(root['interlocutor']) 
-                ? root['interlocutor'] : undefined
-            const p = it?.['provider']
-            provider = isLLMProvider(p) ? p : getDefaultProvider()
-          } else if (hit.path[0] === 'interlocutors' && typeof hit.path[1] === 'number') {
-            // Match merged interlocutor by name from local header
-            const yamlText = getYaml(docText) ?? ''
-            const localDoc = parseYaml(yamlText).contents as unknown
-            const lroot = isObjectRecord(localDoc) ? localDoc : {}
-            const arr = lroot['interlocutors']
-            const itLocal = Array.isArray(arr) 
-                ? (arr as unknown[])[hit.path[1] as number] : undefined
-            const localName = stringOf(getValue(itLocal, 'name'))
-            const mergedArr = Array.isArray(root['interlocutors']) 
-                ? (root['interlocutors'] as unknown[]) : []
-            let fromMerged: unknown = undefined
-            if (typeof localName === 'string') {
-              for (const m of mergedArr) {
-                if (isObjectRecord(m) && typeof m['name'] === 'string' && m['name'] === localName) {
-                  fromMerged = m['provider']
-                  break
-                }
-              }
-            }
-            provider = isLLMProvider(fromMerged) ? fromMerged : getDefaultProvider()
-          }
-        } catch {
-          try { provider = getDefaultProvider() } catch { provider = null }
-        }
+  // 0) YAML header completions: model, tool kinds, kit/agent/native values
+  const header = buildHeaderRangeIndex(docText)
+  if (header) {
+    // Model value suggestions for active provider
+    const modelHit = header.fieldRanges.find(fr => {
+      const last = fr.path[fr.path.length - 1]
+      if (last !== 'model') return false
+      return inRange(pos, fr.range)
+    })
+    if (modelHit) {
+      const yamlText = getYaml(docText) ?? ''
+      const localDoc = parseYaml(yamlText).contents as unknown
+      const provider = await effectiveProviderForPath(
+        docText,
+        docDir,
+        localDoc,
+        modelHit.path,
+      )
 
-        if (provider) {
-          const models = modelRegistry.get(provider) ?? []
-          for (const m of models) {
+      if (provider) {
+        const models = modelRegistry.get(provider) ?? []
+        const { prefixLc, range } = computeValueEdit(lineText, pos)
+        for (const m of models) {
+          if (prefixLc && !startsWithCI(m, prefixLc)) continue
+          items.push({
+            label: m,
+            kind: CompletionItemKind.Value,
+            detail: `model (${provider})`,
+            insertTextFormat: InsertTextFormat.PlainText,
+            // Let client replace the typed prefix
+            textEdit: prefixLc ? { range, newText: m } : undefined,
+          })
+        }
+        return items
+      }
+    }
+
+    // Tool kinds inside tools arrays
+    const toolItem = header.toolItemRanges.find(tr => inRange(pos, tr.range))
+    if (toolItem) {
+      const linePrefix = lineText.slice(0, pos.character)
+      const dashIndex = linePrefix.lastIndexOf('-')
+      if (dashIndex >= 0) {
+        const afterDash = linePrefix.slice(dashIndex + 1)
+        if (!afterDash.includes(':')) {
+          const prefixRaw = afterDash.replace(/^\s*/, '')
+          const prefixLc = prefixRaw.toLowerCase()
+          const replaceStartChar =
+            dashIndex + 1 + (afterDash.length - prefixRaw.length)
+          const textEditRange = RangeNS.create(
+            { line: pos.line, character: replaceStartChar },
+            { line: pos.line, character: pos.character },
+          )
+
+          for (const tk of TOOL_KINDS) {
+            if (prefixLc && !tk.key.toLowerCase().startsWith(prefixLc)) continue
+            const textEdit: TextEdit = {
+              range: textEditRange,
+              newText: `${tk.key}: `,
+            }
             items.push({
-              label: m,
-              kind: CompletionItemKind.Value,
-              detail: `model (${provider})`,
+              label: tk.key,
+              kind: CompletionItemKind.Keyword,
+              detail: tk.detail,
+              sortText: tk.sort,
               insertTextFormat: InsertTextFormat.PlainText,
+              textEdit,
             })
           }
+
           return items
         }
       }
+    }
+
+    // Kit name suggestions after kit:
+    const inKitValue = header.kitTargetRanges.find(kr => inRange(pos, kr.range))
+      || header.fieldRanges.find(fr => {
+        const last = fr.path[fr.path.length - 1]
+        return last === 'kit' && inRange(pos, fr.range)
+      })
+    // Fallback: inside a tools item and the line looks like "... kit: <cursor>"
+    const linePrefix2 = lineText.slice(0, pos.character)
+    const colonIdx = linePrefix2.lastIndexOf(':')
+    const insideHeaderRange = inRange(pos, header.headerFullRange)
+    const looksLikeKitLine = insideHeaderRange && colonIdx >= 0 && /kit\s*$/i.test(linePrefix2.slice(0, colonIdx).trimEnd())
+
+    if (inKitValue || looksLikeKitLine) {
+      const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+      const spec = specRes.spec
+      if (!isLecticHeaderSpec(spec)) return items
+      const mergedKitsUnknown = (spec as Record<string, unknown>)['kits']
+      const mergedKits = Array.isArray(mergedKitsUnknown) ? mergedKitsUnknown as unknown[] : []
+
+      const edit = computeValueEdit(lineText, pos)
+      const prefixLc = edit.prefixLc
+      const textEditRange = edit.range
+
+      const seen = new Set<string>()
+      for (const kit of mergedKits) {
+        if (!isObjectRecord(kit)) continue
+        const nameRaw = kit['name']
+        const name = typeof nameRaw === 'string' ? nameRaw : undefined
+        if (!name) continue
+        const key = name.toLowerCase()
+        if (seen.has(key)) continue
+        if (prefixLc && !startsWithCI(name, prefixLc)) continue
+        seen.add(key)
+        const textEdit: TextEdit = { range: textEditRange, newText: name }
+        items.push({
+          label: name,
+          kind: CompletionItemKind.Value,
+          detail: 'Tool kit (merged config)',
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit,
+        })
+      }
+
+      return items
+    }
+
+    // Agent name suggestions after agent:
+    const inAgentValue = header.agentTargetRanges.find(ar => inRange(pos, ar.range))
+      || header.fieldRanges.find(fr => {
+        const last = fr.path[fr.path.length - 1]
+        return last === 'agent' && inRange(pos, fr.range)
+      })
+    const looksLikeAgentLine = insideHeaderRange && colonIdx >= 0 && /agent\s*$/i.test(linePrefix2.slice(0, colonIdx).trimEnd())
+
+    if (inAgentValue || looksLikeAgentLine) {
+      const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+      const spec = specRes.spec
+      if (!isLecticHeaderSpec(spec)) return items
+      const interNames = buildInterlocutorIndex(spec)
+
+      const edit = computeValueEdit(lineText, pos)
+      const prefixLc = edit.prefixLc
+      const textEditRange = edit.range
+
+      for (const n of interNames) {
+        const name = n.name
+        if (prefixLc && !name.toLowerCase().startsWith(prefixLc)) continue
+        const textEdit: TextEdit = { range: textEditRange, newText: name }
+        items.push({
+          label: name,
+          kind: CompletionItemKind.Value,
+          detail: previewInterlocutor(n).detail,
+          documentation: previewInterlocutor(n).documentation,
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit,
+        })
+      }
+      return items
+    }
+
+    // Native tool type suggestions after native:
+    const inNativeValue = header.nativeTypeRanges.find(nr => inRange(pos, nr.range))
+      || header.fieldRanges.find(fr => {
+        const last = fr.path[fr.path.length - 1]
+        return last === 'native' && inRange(pos, fr.range)
+      })
+    const looksLikeNativeLine = insideHeaderRange && colonIdx >= 0 && /native\s*$/i.test(linePrefix2.slice(0, colonIdx).trimEnd())
+
+    if (inNativeValue || looksLikeNativeLine) {
+      const edit = computeValueEdit(lineText, pos)
+      const prefixLc = edit.prefixLc
+      const textEditRange = edit.range
+
+      for (const t of NATIVE_SUPPORTED) {
+        if (prefixLc && !t.startsWith(prefixLc)) continue
+        const textEdit: TextEdit = { range: textEditRange, newText: t }
+        items.push({
+          label: t,
+          kind: CompletionItemKind.Value,
+          detail: 'Native tool type',
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit,
+        })
+      }
+      return items
     }
   }
 
@@ -143,7 +297,7 @@ export async function computeCompletions(
   }
 
   // 2) Directive keywords on ':'
-  if (colonStart === null) return null
+  if (colonStart === null) return []
 
   type Dir = { key: string, label: string, insert: string, detail: string, documentation: string }
   const directives: Dir[] = [

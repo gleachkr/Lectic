@@ -1,14 +1,14 @@
 import type { Diagnostic, Range } from "vscode-languageserver"
 import { DiagnosticSeverity } from "vscode-languageserver/node"
-import { LLMProvider, getDefaultProvider, isLLMProvider } from "../types/provider"
+import { LLMProvider } from "../types/provider"
 import { AnthropicBackend } from "../backends/anthropic"
 import { GeminiBackend } from "../backends/gemini"
 import { OpenAIBackend } from "../backends/openai"
 import { OpenAIResponsesBackend } from "../backends/openai-responses"
 import { buildHeaderRangeIndex } from "./yamlRanges"
-import { getYaml, mergedHeaderSpecForDocDetailed } from "../parsing/parse"
+import { getYaml } from "../parsing/parse"
 import { parseYaml, getValue, stringOf } from "./utils/yamlAst"
-import { isObjectRecord } from "../types/guards"
+import { effectiveProviderForPath } from "./utils/provider"
 
 // Simple background model registry with change listeners.
 class ModelRegistry {
@@ -109,57 +109,6 @@ export function initModelRegistry() {
 
 export function onModelRegistryUpdate(cb: () => void): () => void {
   return modelRegistry.onUpdate(cb)
-}
-
-async function effectiveProviderForPath(
-  docText: string,
-  docDir: string | undefined,
-  localDoc: unknown,
-  path: (string|number)[],
-): Promise<LLMProvider | null> {
-  try {
-    const mergeRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
-    const spec = mergeRes.spec as unknown
-
-    const root = isObjectRecord(spec) ? spec as Record<string, unknown> : {}
-
-    // Helper: convert unknown to enum or default
-    const toProv = (p: unknown): LLMProvider | null => {
-      if (isLLMProvider(p)) return p
-      try { return getDefaultProvider() } catch { return null }
-    }
-
-    if (path[0] === 'interlocutor') {
-      const inter = isObjectRecord(root['interlocutor'])
-        ? root['interlocutor'] as Record<string, unknown>
-        : undefined
-      const p = inter?.['provider']
-      return toProv(p)
-    }
-
-    if (path[0] === 'interlocutors' && typeof path[1] === 'number') {
-      // Identify the local name first, then find merged by name
-      const list = getValue(localDoc as unknown, 'interlocutors')
-      const seq = (list as { items?: unknown })
-      const items = Array.isArray(seq?.items) ? seq.items as unknown[] : []
-      const it = items[path[1] as number]
-      const localName = stringOf(getValue(it, 'name'))
-      const mergedArr = Array.isArray(root['interlocutors']) ? (root['interlocutors'] as unknown[]) : []
-      let fromMerged: unknown = undefined
-      if (typeof localName === 'string') {
-        for (const m of mergedArr) {
-          if (isObjectRecord(m) && typeof m['name'] === 'string' && m['name'] === localName) {
-            fromMerged = m['provider']
-            break
-          }
-        }
-      }
-      return toProv(fromMerged)
-    }
-  } catch {
-    // fall through
-  }
-  try { return getDefaultProvider() } catch { return null }
 }
 
 const ENUMERABLE_PROVIDERS = new Set<LLMProvider>([

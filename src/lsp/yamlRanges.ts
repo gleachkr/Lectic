@@ -19,6 +19,8 @@ export type HeaderRangeIndex = {
   macroNameRanges: Array<{ name: string, range: Range }>,
   agentTargetRanges: Array<{ target: string, range: Range }>,
   kitTargetRanges: Array<{ target: string, range: Range }>,
+  nativeTypeRanges: Array<{ type: string, range: Range }>,
+  toolItemRanges: Array<{ range: Range }>,
   fieldRanges: YamlPathRange[],
   findRangesByPath: (path: (string | number)[]) => Range[]
 }
@@ -41,6 +43,8 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   const macroNameRanges: Array<{ name: string, range: Range }> = []
   const agentTargetRanges: Array<{ target: string, range: Range }> = []
   const kitTargetRanges: Array<{ target: string, range: Range }> = []
+  const nativeTypeRanges: Array<{ type: string, range: Range }> = []
+  const toolItemRanges: Array<{ range: Range }> = []
   const fieldRanges: YamlPathRange[] = []
 
   const root = doc.contents
@@ -59,20 +63,35 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     if (toolsVal) pushField([...basePath, 'tools'], toolsVal)
     const tools = itemsOf(toolsVal)
     tools.forEach((t, i) => {
+      const itemRange = nodeAbsRange(docText, t, contentStart)
+      if (itemRange) toolItemRanges.push({ range: itemRange })
       pushField([...basePath, 'tools', i], t)
+
+      // agent: always record field range if present; record target when scalar
       const aval = getValue(t, 'agent')
+      if (aval) pushField([...basePath, 'tools', i, 'agent'], aval)
       const agent = stringOf(aval)
       if (agent) {
         const r = nodeAbsRange(docText, aval, contentStart)
         if (r) agentTargetRanges.push({ target: agent, range: r })
-        pushField([...basePath, 'tools', i, 'agent'], aval)
       }
+
+      // kit: always record field range; record target when scalar
       const bval = getValue(t, 'kit')
+      if (bval) pushField([...basePath, 'tools', i, 'kit'], bval)
       const kit = stringOf(bval)
       if (kit) {
         const r = nodeAbsRange(docText, bval, contentStart)
         if (r) kitTargetRanges.push({ target: kit, range: r })
-        pushField([...basePath, 'tools', i, 'kit'], bval)
+      }
+
+      // native: always record field range; record type when scalar
+      const nval = getValue(t, 'native')
+      if (nval) pushField([...basePath, 'tools', i, 'native'], nval)
+      const ntype = stringOf(nval)
+      if (ntype) {
+        const r = nodeAbsRange(docText, nval, contentStart)
+        if (r) nativeTypeRanges.push({ type: ntype, range: r })
       }
     })
   }
@@ -156,6 +175,8 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     macroNameRanges,
     agentTargetRanges,
     kitTargetRanges,
+    nativeTypeRanges,
+    toolItemRanges,
     fieldRanges,
     findRangesByPath
   }

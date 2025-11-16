@@ -274,7 +274,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Full,
         completionProvider: {
-          triggerCharacters: [":", "["]
+          triggerCharacters: [":", "[", "-"]
         },
         hoverProvider: true,
         definitionProvider: true,

@@ -1,6 +1,9 @@
 import { describe, test, expect } from "bun:test"
 import { computeCompletions } from "./completions"
 import { buildTestBundle } from "./utils/testHelpers"
+import { mkdtemp, writeFile, rm } from "fs/promises"
+import { tmpdir } from "os"
+import { join } from "path"
 
 function hasLabel(items: any[], label: string): boolean {
   return items.some(it => it?.label === label)
@@ -19,6 +22,117 @@ describe("completions (unit)", () => {
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     expect(hasLabel(arr, "cmd")).toBeTrue()
     expect(hasLabel(arr, "macro")).toBeTrue()
+  })
+
+  test("tools array suggests tool kinds after '-' with no key yet", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    - \n---\n`
+    const line = 5
+    const char = text.split(/\r?\n/)[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    expect(labels.has("exec")).toBeTrue()
+    expect(labels.has("sqlite")).toBeTrue()
+  })
+
+  test("tools array tool kinds filter by typed prefix", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    -  m\n---\n`
+    const line = 5
+    const char = text.split(/\r?\n/)[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    expect(labels.has("mcp_ws")).toBeTrue()
+    expect(labels.has("mcp_sse")).toBeTrue()
+    expect(labels.has("exec")).toBeFalse()
+  })
+
+  test("kit tool suggests kit names", async () => {
+    const text = `---\nkits:\n  - name: typescript_tools\n    tools: []\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    - kit: \n---\n`
+    const line = 8
+    const char = text.split(/\r?\n/)[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    expect(labels.has("typescript_tools")).toBeTrue()
+  })
+
+  test("kit tool suggests workspace kit names (merged)", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    - kit: \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('kit:'))
+    const char = lines[line].length
+    const wsDir = await mkdtemp(join(tmpdir(), 'lectic-ws-'))
+    try {
+      await writeFile(join(wsDir, 'lectic.yaml'), `kits:\n  - name: shared_kit\n    tools: []\n`)
+      const items: any = await computeCompletions(
+        "file:///doc.lec",
+        text,
+        { line, character: char } as any,
+        wsDir,
+        buildTestBundle(text)
+      )
+      const arr = Array.isArray(items) ? items : (items?.items ?? [])
+      const labels = new Set(arr.map((x: any) => x.label))
+      expect(labels.has("shared_kit")).toBeTrue()
+    } finally {
+      await rm(wsDir, { recursive: true, force: true })
+    }
+  })
+
+  test("agent tool suggests interlocutor names", async () => {
+    const text = `---\ninterlocutors:\n  - name: Boggle\n    prompt: hi\n  - name: Oggle\n    prompt: hi\ninterlocutor:\n  name: Main\n  prompt: hi\n  tools:\n    - agent: \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('agent:'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    expect(labels.has("Boggle")).toBeTrue()
+    expect(labels.has("Oggle")).toBeTrue()
+    expect(labels.has("Main")).toBeTrue()
+  })
+
+  test("native tool suggests supported types", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    - native: \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('native:'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    expect(labels.has("search")).toBeTrue()
+    expect(labels.has("code")).toBeTrue()
   })
 
   test("inside :macro[...] suggests macro names only", async () => {

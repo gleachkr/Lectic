@@ -4,13 +4,7 @@ import { buildDefinitionIndex } from "./configIndex"
 import { getYaml } from "../parsing/parse"
 import { dirname } from "path"
 import { directiveAtPosition } from "./directives"
-
-function inRange(pos: Position, r: { start: Position, end: Position }): boolean {
-  if (pos.line < r.start.line || pos.line > r.end.line) return false
-  if (pos.line === r.start.line && pos.character < r.start.character) return false
-  if (pos.line === r.end.line && pos.character > r.end.character) return false
-  return true
-}
+import { inRange } from "./utils/range"
 
 export async function resolveDefinition(
   uri: string,

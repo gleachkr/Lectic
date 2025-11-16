@@ -3,8 +3,8 @@ title: LSP Server (Experimental)
 ---
 
 Lectic includes a small Language Server Protocol (LSP) server that
-provides completion for directives and macros, plus hovers. It is stdio
-only.
+provides completion for directives, macros, and common YAML header
+fields, plus hovers. It is stdio only.
 
 Overview
 - Command: `lectic lsp`
@@ -12,7 +12,7 @@ Overview
 - Features: `textDocument/completion`, `textDocument/hover`,
   diagnostics, document symbols (outline), workspace symbols,
   folding ranges, code actions, semantic tokens, go to definition
-- Triggers: `:` and `[` inside directive brackets
+- Triggers: `:`, `[` in directive brackets, and `-` in tools arrays
 - Insertions
   - Directives use snippets and place the cursor inside brackets (or at
     the end for reset):
@@ -30,6 +30,12 @@ Overview
 Where completions come from
 - Directives: built‑in suggestions for `:cmd`, `:ask`, `:aside`,
   `:macro`, and `:reset`.
+- YAML header fields:
+  - `model`: provider‑appropriate model names.
+  - `tools` array items: tool kinds after a bare `-`.
+  - `kit: ...`: merged kit names from system/workspace/header.
+  - `agent: ...`: merged interlocutor names.
+  - `native: ...`: supported native types (`search`, `code`).
 - Macros: merged from the same places and precedence as the CLI (higher
   wins):
   1) System config: `${LECTIC_CONFIG}/lectic.yaml`
@@ -42,6 +48,8 @@ Where completions come from
 - The server shows a simple preview in the completion item.
 
 Behavior examples
+- Type `-` on a line inside `tools:` → suggestions for tool kinds
+  (exec, sqlite, mcp_*, native, kit, ...).
 - Type `:` → suggestions for directives.
 - Type `:ma` → `macro` appears and inserts `:macro[$0]`.
 - Type `:macro[` → invoke completion to see macro names; select one to
@@ -86,7 +94,7 @@ vim.api.nvim_create_autocmd("FileType", {
 ```
 
 - Using completion
-  - With nvim‑cmp (recommended), LSP completion should pop on `:`.
+  - With nvim‑cmp (recommended), LSP completion pops on `:` and `-`.
   - Inside brackets, invoke completion manually (`Ctrl‑x Ctrl‑o`) if your
     setup is not configured to trigger automatically.
 
@@ -94,7 +102,9 @@ vim.api.nvim_create_autocmd("FileType", {
   - Ensure `lectic` is on PATH inside Neovim.
   - Ensure the buffer contains macros in the header or that a
     `lectic.yaml` is present in the working root.
-  - Completion is only offered on a single `:` (not `::` or `:::`).
+  - Directive completion only triggers on a single `:` (not `::` or
+    `:::`). Tool‑kind completion triggers on the first line of a tools
+    item after `-`.
 
 VS Code setup
 - The server is an external stdio LSP. You can connect to it from a
