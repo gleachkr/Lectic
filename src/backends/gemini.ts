@@ -79,6 +79,11 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, model : string, me
             }],
             temperature: lectic.header.interlocutor.temperature,
             maxOutputTokens: lectic.header.interlocutor.max_tokens,
+            thinkingConfig: {
+                // -1 means to choose the budget dynamically
+                thinkingBudget: lectic.header.interlocutor.thinking_budget ?? -1,
+                includeThoughts: true,
+            }
         }
     });
 }

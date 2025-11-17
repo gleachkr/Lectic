@@ -72,6 +72,8 @@ interlocutor:
   prompt: You are a helpful assistant.
   provider: anthropic
   model: claude-3-haiku-20240307
+  # Optional thinking controls (Anthropic/Gemini):
+  # thinking_budget: 1024     # integer token budget for reasoning
 ---
 
 Hello, world! What is a fun fact about the Rust programming language?

@@ -147,7 +147,10 @@ async function *handleToolUse(
             prompt_cache_retention: "24h",
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens,
-            tools: getTools(lectic)
+            tools: getTools(lectic),
+            reasoning: lectic.header.interlocutor.thinking_effort ? {
+                effort: lectic.header.interlocutor.thinking_effort
+            } : undefined,
         })
     
         let assistant = ""
@@ -356,6 +359,9 @@ export class OpenAIResponsesBackend implements Backend {
             prompt_cache_retention: "24h",
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens,
+            reasoning: lectic.header.interlocutor.thinking_effort ? {
+                effort: lectic.header.interlocutor.thinking_effort
+            } : undefined,
             tools: getTools(lectic)
         });
 

@@ -294,7 +294,11 @@ async function* handleToolUse(
             system: systemPrompt(lectic),
             messages: messages,
             model,
-            tools: getTools(lectic)
+            tools: getTools(lectic),
+            thinking: lectic.header.interlocutor.thinking_budget !== undefined ? {
+                type: 'enabled',
+                budget_tokens: lectic.header.interlocutor.thinking_budget 
+            } : undefined
         });
 
         let assistant = ""
@@ -367,7 +371,11 @@ export class AnthropicBackend implements Backend {
             model,
             temperature: lectic.header.interlocutor.temperature,
             max_tokens: lectic.header.interlocutor.max_tokens || 2048,
-            tools: getTools(lectic)
+            tools: getTools(lectic),
+            thinking: lectic.header.interlocutor.thinking_budget !== undefined ? {
+                type: 'enabled',
+                budget_tokens: lectic.header.interlocutor.thinking_budget 
+            } : undefined
         });
 
         // Emit cached inline attachments at the top of the assistant block
