@@ -102,6 +102,29 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       })
     }
 
+    // thinking_budget
+    if ("thinking_budget" in raw && !Number.isInteger(raw["thinking_budget"])) {
+      issues.push({
+        code: "interlocutor.thinking_budget.type",
+        message: Messages.interlocutor.thinkingBudgetType(nameVal),
+        path: [...pathBase, "thinking_budget"],
+        severity: "error"
+      })
+    }
+
+    // thinking_effort
+    if ("thinking_effort" in raw) {
+      const eff = raw["thinking_effort"]
+      if (eff !== "none" && eff !== "low" && eff !== "medium" && eff !== "high") {
+        issues.push({
+          code: "interlocutor.thinking_effort.type",
+          message: Messages.interlocutor.thinkingEffortType(nameVal),
+          path: [...pathBase, "thinking_effort"],
+          severity: "error"
+        })
+      }
+    }
+
     // temperature
     if ("temperature" in raw) {
       if (typeof raw["temperature"] !== "number") {
