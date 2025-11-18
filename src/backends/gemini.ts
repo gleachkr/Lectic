@@ -98,7 +98,7 @@ async function* accumulateStream(
               accumulator.candidates[0].content?.parts
              ) {
               for (const part of first.content.parts) {
-                  if (typeof part.text == "string") {
+                  if (part.thought === false && typeof part.text == "string") {
                       yield part.text
                   }
                   if (part.codeExecutionResult) {
