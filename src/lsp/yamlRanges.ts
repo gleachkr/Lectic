@@ -100,25 +100,32 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     if (!isObjectRecord(map)) return
     pushField(basePath, map)
 
-    const nameNode = getValue(map, 'name')
-    const name = stringOf(nameNode)
-    if (name) {
-      const r = nodeAbsRange(docText, nameNode, contentStart)
-      if (r) interlocutorNameRanges.push({ name, range: r })
-      pushField([...basePath, 'name'], nameNode)
+    let toolsVal: unknown = undefined
+
+    const items = itemsOf(map)
+    items.forEach((pair) => {
+      if (!isObjectRecord(pair)) return
+      const keyNode = (pair as { [k: string]: unknown })['key']
+      const valueNode = (pair as { [k: string]: unknown })['value']
+      const key = stringOf(keyNode)
+      if (!key) return
+
+      if (key === 'name') {
+        const name = stringOf(valueNode)
+        if (name) {
+          const r = nodeAbsRange(docText, valueNode, contentStart)
+          if (r) interlocutorNameRanges.push({ name, range: r })
+        }
+      } else if (key === 'tools') {
+        toolsVal = valueNode
+      }
+
+      pushField([...basePath, key], valueNode)
+    })
+
+    if (toolsVal !== undefined) {
+      indexTools(toolsVal, basePath)
     }
-
-    pushIf(map, 'prompt', [...basePath, 'prompt'])
-    pushIf(map, 'provider', [...basePath, 'provider'])
-    pushIf(map, 'model', [...basePath, 'model'])
-    pushIf(map, 'temperature', [...basePath, 'temperature'])
-    pushIf(map, 'max_tokens', [...basePath, 'max_tokens'])
-    pushIf(map, 'max_tool_use', [...basePath, 'max_tool_use'])
-    pushIf(map, 'reminder', [...basePath, 'reminder'])
-    pushIf(map, 'nocache', [...basePath, 'nocache'])
-
-    const toolsVal = getValue(map, 'tools')
-    indexTools(toolsVal, basePath)
   }
 
   // single interlocutor

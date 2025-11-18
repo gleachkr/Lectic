@@ -7,12 +7,13 @@ import { isLecticHeaderSpec } from "../types/lectic"
 import { mergedHeaderSpecForDocDetailed, getYaml } from "../parsing/parse"
 import type { AnalysisBundle } from "./analysisTypes"
 import { buildHeaderRangeIndex } from "./yamlRanges"
-import { parseYaml } from "./utils/yamlAst"
+import { parseYaml, getValue, itemsOf, stringOf } from "./utils/yamlAst"
 import { modelRegistry } from "./models"
 import { isObjectRecord } from "../types/guards"
 import { inRange } from "./utils/range"
 import { startsWithCI } from "./utils/text"
 import { effectiveProviderForPath } from "./utils/provider"
+import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
 
 
 
@@ -32,6 +33,13 @@ const TOOL_KINDS: Array<{ key: string, detail: string, sort: string }> = [
 ]
 
 const NATIVE_SUPPORTED = ['search', 'code']
+
+const INTERLOCUTOR_FIELD_ITEMS: Array<{ key: string, detail: string, sort: string }> =
+  INTERLOCUTOR_KEYS.map((key, idx) => ({
+    key,
+    detail: 'Interlocutor property',
+    sort: String(idx + 1).padStart(2, '0') + '_' + key,
+  }))
 
 function computeValueEdit(
   lineText: string,
@@ -58,7 +66,8 @@ export async function computeCompletions(
   docDir: string | undefined,
   bundle?: AnalysisBundle
 ): Promise<CompletionItem[] | null> {
-  const lineText = docText.split(/\r?\n/)[pos.line] ?? ""
+  const allLines = docText.split(/\r?\n/)
+  const lineText = allLines[pos.line] ?? ""
   const colonStart = findSingleColonStart(lineText, pos.character)
 
   const items: CompletionItem[] = []
@@ -66,6 +75,11 @@ export async function computeCompletions(
   // 0) YAML header completions: model, tool kinds, kit/agent/native values
   const header = buildHeaderRangeIndex(docText)
   if (header) {
+    const yamlText = getYaml(docText) ?? ''
+    const parsedDoc = parseYaml(yamlText)
+    const yamlRoot = parsedDoc.contents as unknown
+    const insideHeaderRange = inRange(pos, header.headerFullRange)
+
     // Model value suggestions for active provider
     const modelHit = header.fieldRanges.find(fr => {
       const last = fr.path[fr.path.length - 1]
@@ -73,12 +87,10 @@ export async function computeCompletions(
       return inRange(pos, fr.range)
     })
     if (modelHit) {
-      const yamlText = getYaml(docText) ?? ''
-      const localDoc = parseYaml(yamlText).contents as unknown
       const provider = await effectiveProviderForPath(
         docText,
         docDir,
-        localDoc,
+        yamlRoot,
         modelHit.path,
       )
 
@@ -97,6 +109,107 @@ export async function computeCompletions(
           })
         }
         return items
+      }
+    }
+
+    // Interlocutor property name suggestions inside mappings
+    const linePrefix = lineText.slice(0, pos.character)
+    const colonInLine = linePrefix.lastIndexOf(':')
+    const trimmedLine = linePrefix.trimStart()
+    const isListItemLine = trimmedLine.startsWith('-')
+
+    if (colonInLine === -1 && !isListItemLine) {
+      const interMapping = header.fieldRanges.find(fr => {
+        const p = fr.path
+        const isInterPath =
+          (p.length === 1 && p[0] === 'interlocutor') ||
+          (p.length === 2 && p[0] === 'interlocutors' && typeof p[1] === 'number')
+        if (!isInterPath) return false
+
+        if (inRange(pos, fr.range)) return true
+        if (!insideHeaderRange) return false
+
+        const afterEnd =
+          pos.line > fr.range.end.line ||
+          (pos.line === fr.range.end.line && pos.character > fr.range.end.character)
+        if (!afterEnd) return false
+
+        for (let l = fr.range.end.line + 1; l <= pos.line; l++) {
+          const t = allLines[l] ?? ''
+          const trimmed = t.trim()
+          if (trimmed === '' || trimmed.startsWith('#')) continue
+          return false
+        }
+        return true
+      })
+
+      const insideTools = header.fieldRanges.some(fr => {
+        if (!inRange(pos, fr.range)) return false
+        const p = fr.path
+        if (p.length === 2 && p[0] === 'interlocutor' && p[1] === 'tools') return true
+        if (
+          p.length === 3 &&
+          p[0] === 'interlocutors' &&
+          typeof p[1] === 'number' &&
+          p[2] === 'tools'
+        ) return true
+        return false
+      })
+
+      const keyMatch = /^\s*([A-Za-z_][A-Za-z0-9_]*)?\s*$/.exec(linePrefix)
+      if (interMapping && !insideTools && keyMatch) {
+        const indentMatch = /^(\s*)/.exec(linePrefix) ?? ['','']
+        const indent = indentMatch[1] ?? ''
+        const keyPrefixRaw = keyMatch[1] ?? ''
+        const keyPrefixLc = keyPrefixRaw.toLowerCase()
+
+        const getNodeAtPath = (root: unknown, path: (string | number)[]): unknown => {
+          let node: unknown = root
+          for (const seg of path) {
+            if (typeof seg === 'string') {
+              node = getValue(node, seg)
+            } else {
+              const items = itemsOf(node)
+              node = items[seg]
+            }
+            if (!node) break
+          }
+          return node
+        }
+
+        const mapNode = getNodeAtPath(yamlRoot, interMapping.path)
+        const seenKeys = new Set<string>()
+        const itemNodes = itemsOf(mapNode)
+        for (const it of itemNodes) {
+          const keyNode = isObjectRecord(it)
+            ? (it as { [k: string]: unknown })['key']
+            : undefined
+          const keyName = stringOf(keyNode)
+          if (typeof keyName === 'string') seenKeys.add(keyName)
+        }
+
+        const replaceRange = RangeNS.create(
+          { line: pos.line, character: indent.length },
+          { line: pos.line, character: pos.character },
+        )
+
+        for (const f of INTERLOCUTOR_FIELD_ITEMS) {
+          if (seenKeys.has(f.key)) continue
+          if (keyPrefixLc && !f.key.toLowerCase().startsWith(keyPrefixLc)) continue
+          items.push({
+            label: f.key,
+            kind: CompletionItemKind.Property,
+            detail: f.detail,
+            sortText: f.sort,
+            insertTextFormat: InsertTextFormat.PlainText,
+            textEdit: {
+              range: replaceRange,
+              newText: `${f.key}: `,
+            },
+          })
+        }
+
+        if (items.length > 0) return items
       }
     }
 
@@ -147,7 +260,6 @@ export async function computeCompletions(
     // Fallback: inside a tools item and the line looks like "... kit: <cursor>"
     const linePrefix2 = lineText.slice(0, pos.character)
     const colonIdx = linePrefix2.lastIndexOf(':')
-    const insideHeaderRange = inRange(pos, header.headerFullRange)
     const looksLikeKitLine = insideHeaderRange && colonIdx >= 0 && /kit\s*$/i.test(linePrefix2.slice(0, colonIdx).trimEnd())
 
     if (inKitValue || looksLikeKitLine) {

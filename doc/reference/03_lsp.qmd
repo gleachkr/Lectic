@@ -31,6 +31,10 @@ Where completions come from
 - Directives: built‑in suggestions for `:cmd`, `:ask`, `:aside`,
   `:macro`, and `:reset`.
 - YAML header fields:
+  - `interlocutor` / `interlocutors` blocks: top‑level interlocutor
+    properties such as `name`, `prompt`, `provider`, `model`,
+    `temperature`, `max_tokens`, `max_tool_use`, `thinking_effort`,
+    `thinking_budget`, `reminder`, `tools`, and `nocache`.
   - `model`: provider‑appropriate model names.
   - `tools` array items: tool kinds after a bare `-`.
   - `kit: ...`: merged kit names from system/workspace/header.
@@ -136,6 +140,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 Diagnostics
 - The server publishes diagnostics on open/change.
+- Header field validation covers missing or mistyped interlocutor
+  properties (name, prompt, model, provider, etc.). Unknown top‑level
+  properties on an interlocutor are reported as warnings (for example,
+  `Unknown property "mood" on interlocutor A.`).
 - Duplicate names in the document header are warned with precise ranges.
   Later entries win at runtime; the warning helps catch mistakes.
 - Duplicates originating only from included configs may be reported with

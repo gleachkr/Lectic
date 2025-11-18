@@ -33,6 +33,8 @@ export const Messages = {
       `The tools for ${name} need to be given in an array.`,
     toolsItems: (name: string) =>
       `One or more tools for ${name} weren't properly specified`,
+    unknownField: (name: string, field: string) =>
+      `Unknown property "${field}" on interlocutor ${name}.`,
     // Broader constructor guard messages (runtime-only)
     baseNeedsNamePrompt: (raw: unknown) =>
       `Interlocutor needs to be given with at least name and prompt fields. Got ${raw} instead.`,

@@ -43,4 +43,16 @@ describe("header field diagnostics", () => {
     expect(idx).toBeGreaterThan(0)
     expect(d!.range.start.line).toBe(idx)
   })
+
+  test("unknown interlocutor property warns on its value", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  mood: cheerful\n---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, "Unknown property \"mood\"")
+    expect(d).toBeDefined()
+    const ls = lines(text)
+    const idx = ls.findIndex(l => l.includes("mood: cheerful"))
+    expect(idx).toBeGreaterThan(0)
+    expect(d!.range.start.line).toBe(idx)
+  })
 })

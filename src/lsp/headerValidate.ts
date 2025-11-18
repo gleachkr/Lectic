@@ -3,6 +3,7 @@
 import { isLLMProvider } from "../types/provider"
 import { Messages } from "../constants/messages"
 import { isObjectRecord } from "../types/guards"
+import { INTERLOCUTOR_KEY_SET } from "./interlocutorFields"
 
 export type Issue = {
   code: string
@@ -160,6 +161,18 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           message: Messages.interlocutor.toolsItems(nameVal),
           path: [...pathBase, "tools"],
           severity: "error"
+        })
+      }
+    }
+
+    // unknown fields
+    for (const key of Object.keys(raw)) {
+      if (!INTERLOCUTOR_KEY_SET.has(key)) {
+        issues.push({
+          code: "interlocutor.field.unknown",
+          message: Messages.interlocutor.unknownField(nameVal, key),
+          path: [...pathBase, key],
+          severity: "warning",
         })
       }
     }

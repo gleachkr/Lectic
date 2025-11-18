@@ -14,4 +14,15 @@ describe("yamlRanges field mapping", () => {
     const line = ls.findIndex(l => l.includes("max_tokens: \"abc\""))
     expect(rs[0].start.line).toBe(line)
   })
+
+  test("interlocutor mapping range end line for simple header", () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  \n---\nBody\n`
+    const idx = buildHeaderRangeIndex(text)
+    expect(idx).not.toBeNull()
+    const fr = idx!.fieldRanges.find(fr => fr.path.length === 1 && fr.path[0] === 'interlocutor')
+    expect(fr).toBeDefined()
+    // Instrumentation: assert concrete line/character to reveal range in failure output
+    expect(fr!.range.end.line).toBe(4)
+    expect(fr!.range.end.character).toBe(0)
+  })
 })

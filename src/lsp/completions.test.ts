@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test"
 import { computeCompletions } from "./completions"
 import { buildTestBundle } from "./utils/testHelpers"
+import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
 import { mkdtemp, writeFile, rm } from "fs/promises"
 import { tmpdir } from "os"
 import { join } from "path"
@@ -39,6 +40,68 @@ describe("completions (unit)", () => {
     const labels = new Set(arr.map((x: any) => x.label))
     expect(labels.has("exec")).toBeTrue()
     expect(labels.has("sqlite")).toBeTrue()
+  })
+
+  test("suggests interlocutor properties inside single interlocutor mapping", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.trim() === '')
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    const props = Array.from(labels)
+      .map(l => String(l))
+      .filter(l => (INTERLOCUTOR_KEYS as readonly string[]).includes(l))
+    expect(props.length).toBeGreaterThan(0)
+  })
+
+  test("filters interlocutor property suggestions by typed prefix", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  mo\n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.trim().startsWith('mo'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    const props = Array.from(labels)
+      .map(l => String(l))
+      .filter(l => (INTERLOCUTOR_KEYS as readonly string[]).includes(l))
+    expect(props.length).toBeGreaterThan(0)
+    const prefixesOk = props.every(l => l.startsWith('mo'))
+    expect(prefixesOk).toBeTrue()
+  })
+
+  test("suggests interlocutor properties inside interlocutors list entries", async () => {
+    const text = `---\ninterlocutors:\n  - name: A\n    prompt: hi\n    \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.trim() === '')
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    const props = Array.from(labels)
+      .map(l => String(l))
+      .filter(l => (INTERLOCUTOR_KEYS as readonly string[]).includes(l))
+    expect(props.length).toBeGreaterThan(0)
   })
 
   test("tools array tool kinds filter by typed prefix", async () => {

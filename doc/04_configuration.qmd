@@ -56,6 +56,11 @@ specific rules:
   don't match, the value from the highest-precedence source is used without
   any merging.
 
+Additionally, the LSP validates header fields. It reports errors for
+missing or mistyped interlocutor properties and warns when you add
+unknown properties to an interlocutor mapping, which helps catch typos
+in keys like `model` or `max_tokens`.
+
 ### Example
 
 Imagine you have a global config in `~/.config/lectic/lectic.yaml`:

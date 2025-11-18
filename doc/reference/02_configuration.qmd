@@ -98,6 +98,11 @@ keys are recognized:
   `uri` and optional `name`).
 - `exclude`: Optional list of server tool names to hide.
 
+If you add keys to an interlocutor object that are not listed in this
+section, Lectic will still parse the YAML, but the LSP marks those
+properties as unknown with a warning. This is usually a sign of a typo
+in a key name.
+
 ---
 
 ## The `macro` Object
