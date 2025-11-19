@@ -1,6 +1,6 @@
 import type { Content, Part, ContentListUnion, Candidate, Model, Pager } from '@google/genai'
 import type * as Gemini from '@google/genai' 
-import { GoogleGenAI, GenerateContentResponse } from '@google/genai'
+import { GoogleGenAI, GenerateContentResponse, ThinkingLevel } from '@google/genai'
 import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
 import { serializeCall, type ToolCallResult } from "../types/tool"
@@ -62,6 +62,16 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, model : string, me
     .filter(tool => "native" in tool)
     .map(tool => tool.native)
 
+    let thinkingConfig : Gemini.ThinkingConfig
+
+    switch (lectic.header.interlocutor.thinking_effort) {
+      case "low" : thinkingConfig = { includeThoughts: true, thinkingLevel: ThinkingLevel.LOW }; break
+      case "medium" : thinkingConfig = { includeThoughts: true, thinkingLevel: ThinkingLevel.THINKING_LEVEL_UNSPECIFIED }; break
+      case "high" : thinkingConfig = { includeThoughts: true, thinkingLevel: ThinkingLevel.HIGH }; break
+      case "none" : thinkingConfig = { includeThoughts: true, thinkingBudget: 0 }; break
+      default: thinkingConfig = { includeThoughts: true, thinkingBudget: lectic.header.interlocutor.thinking_budget ?? -1 }
+    }
+
     return await client.models.generateContentStream({
         model: lectic.header.interlocutor.model ?? model,
         contents: messages,
@@ -79,11 +89,7 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, model : string, me
             }],
             temperature: lectic.header.interlocutor.temperature,
             maxOutputTokens: lectic.header.interlocutor.max_tokens,
-            thinkingConfig: {
-                // -1 means to choose the budget dynamically
-                thinkingBudget: lectic.header.interlocutor.thinking_budget ?? -1,
-                includeThoughts: true,
-            }
+            thinkingConfig
         }
     });
 }

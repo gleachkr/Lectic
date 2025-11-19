@@ -42,8 +42,8 @@ An interlocutor object defines a single LLM "personality" or configuration.
 - `max_tool_use`: The maximum number of tool calls the LLM is allowed to
   make in a single turn.
 - `thinking_effort`: Optional hint (used by the `openai` Responses
-  provider) about how much effort to spend reasoning. One of `none`, `low`,
-  `medium`, or `high`.
+  provider, and by `gemini-3-pro`) about how much effort to spend reasoning.
+  One of `none`, `low`, `medium`, or `high`.
 - `thinking_budget`: Optional integer token budget for providers that
   support structured thinking phases (Anthropic, Anthropic/Bedrock,
   Gemini). Ignored by the `openai` and `openai/chat` providers.

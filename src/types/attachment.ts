@@ -144,10 +144,10 @@ export class MessageAttachment {
         } else if (this.resource) {
             const contents = (await this.resource).contents
             return contents.map(part => {
-                const mimetype = part.text 
+                const mimetype = "text" in part
                     ? part.mimeType?.replace(/^text\/.+$/,"text/plain") ?? "text/plain"
                     : part.mimeType || "application/octet-stream"
-                const bytes = part.blob
+                const bytes = "blob" in part
                     ? Uint8Array.fromBase64(part.blob as string)
                     : Buffer.from(part.text as string)
                 return new MessageAttachmentPart({
