@@ -29,7 +29,7 @@
 
       packages.lectic-nvim = pkgs.vimUtils.buildVimPlugin {
         pname = "lectic-nvim";
-        version = "0.0.1";
+        version = "0.0.0-beta7";
         src = ./extra/lectic.nvim;
       };
 
