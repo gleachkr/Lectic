@@ -325,6 +325,8 @@ ul.task-list li input[type="checkbox"] {
 <li><code>temperature</code>: A number between 0 and 1 controlling the randomness of the output.</li>
 <li><code>max_tokens</code>: The maximum number of tokens to generate in a response.</li>
 <li><code>max_tool_use</code>: The maximum number of tool calls the LLM is allowed to make in a single turn.</li>
+<li><code>thinking_effort</code>: Optional hint (used by the <code>openai</code> Responses provider, and by <code>gemini-3-pro</code>) about how much effort to spend reasoning. One of <code>none</code>, <code>low</code>, <code>medium</code>, or <code>high</code>.</li>
+<li><code>thinking_budget</code>: Optional integer token budget for providers that support structured thinking phases (Anthropic, Anthropic/Bedrock, Gemini). Ignored by the <code>openai</code> and <code>openai/chat</code> providers.</li>
 </ul>
 <section id="providers-and-defaults" class="level4">
 <h4 class="anchored" data-anchor-id="providers-and-defaults">Providers and defaults</h4>
@@ -366,6 +368,7 @@ ul.task-list li input[type="checkbox"] {
 <li><code>roots</code>: Optional list of root objects for file access (each with <code>uri</code> and optional <code>name</code>).</li>
 <li><code>exclude</code>: Optional list of server tool names to hide.</li>
 </ul>
+<p>If you add keys to an interlocutor object that are not listed in this section, Lectic will still parse the YAML, but the LSP marks those properties as unknown with a warning. This is usually a sign of a typo in a key name.</p>
 <hr>
 </section>
 </section>

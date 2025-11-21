@@ -359,6 +359,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Arrays (Lists)</strong>: Merged based on the <code>name</code> attribute of their elements. If two objects in an array share the same <code>name</code>, they are merged. Otherwise, the elements are simply combined. This is especially useful for managing lists of tools and interlocutors. When duplicate named items appear within a single file, later entries override earlier ones. The LSP warns on duplicate names in the document header to help catch mistakes.</li>
 <li><strong>Other Values</strong>: For simple values (strings, numbers) or if the types don’t match, the value from the highest-precedence source is used without any merging.</li>
 </ul>
+<p>Additionally, the LSP validates header fields. It reports errors for missing or mistyped interlocutor properties and warns when you add unknown properties to an interlocutor mapping, which helps catch typos in keys like <code>model</code> or <code>max_tokens</code>.</p>
 <section id="example" class="level3">
 <h3 class="anchored" data-anchor-id="example">Example</h3>
 <p>Imagine you have a global config in <code>~/.config/lectic/lectic.yaml</code>:</p>
