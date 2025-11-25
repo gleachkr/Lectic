@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test"
 import { computeCompletions } from "./completions"
 import { buildTestBundle } from "./utils/testHelpers"
 import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
+import { LLMProvider } from "../types/provider"
 import { mkdtemp, writeFile, rm } from "fs/promises"
 import { tmpdir } from "os"
 import { join } from "path"
@@ -266,5 +267,66 @@ describe("completions (unit)", () => {
     const labels = new Set(arr.map((x: any) => x.label))
     expect(labels.has("Boggle")).toBeTrue()
     expect(labels.has("Oggle")).toBeTrue()
+  })
+
+  test("suggests provider values", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  provider: \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('provider:'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    
+    for (const p of Object.values(LLMProvider)) {
+        expect(labels.has(p)).toBeTrue()
+    }
+  })
+
+  test("suggests thinking_effort values", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  thinking_effort: \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('thinking_effort:'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    
+    expect(labels.has("none")).toBeTrue()
+    expect(labels.has("low")).toBeTrue()
+    expect(labels.has("medium")).toBeTrue()
+    expect(labels.has("high")).toBeTrue()
+  })
+
+  test("suggests provider values with prefix", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  provider: ant\n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('provider:'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    
+    expect(labels.has(LLMProvider.Anthropic)).toBeTrue()
+    expect(labels.has(LLMProvider.AnthropicBedrock)).toBeTrue()
+    expect(labels.has(LLMProvider.OpenAI)).toBeFalse()
   })
 })

@@ -13,6 +13,7 @@ import { isObjectRecord } from "../types/guards"
 import { inRange } from "./utils/range"
 import { startsWithCI } from "./utils/text"
 import { effectiveProviderForPath } from "./utils/provider"
+import { LLMProvider } from "../types/provider"
 import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
 
 
@@ -110,6 +111,48 @@ export async function computeCompletions(
         }
         return items
       }
+    }
+
+    // Provider value suggestions
+    const providerHit = header.fieldRanges.find(fr => {
+      const last = fr.path[fr.path.length - 1]
+      return last === 'provider' && inRange(pos, fr.range)
+    })
+    if (providerHit) {
+      const { prefixLc, range } = computeValueEdit(lineText, pos)
+      const providers = Object.values(LLMProvider)
+      for (const p of providers) {
+        if (prefixLc && !startsWithCI(p, prefixLc)) continue
+        items.push({
+          label: p,
+          kind: CompletionItemKind.Value,
+          detail: 'Provider',
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit: { range, newText: p },
+        })
+      }
+      return items
+    }
+
+    // Thinking effort suggestions
+    const thinkingEffortHit = header.fieldRanges.find(fr => {
+      const last = fr.path[fr.path.length - 1]
+      return last === 'thinking_effort' && inRange(pos, fr.range)
+    })
+    if (thinkingEffortHit) {
+      const { prefixLc, range } = computeValueEdit(lineText, pos)
+      const values = ["none", "low", "medium", "high"]
+      for (const v of values) {
+        if (prefixLc && !startsWithCI(v, prefixLc)) continue
+        items.push({
+          label: v,
+          kind: CompletionItemKind.Value,
+          detail: 'Thinking Effort',
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit: { range, newText: v },
+        })
+      }
+      return items
     }
 
     // Interlocutor property name suggestions inside mappings
