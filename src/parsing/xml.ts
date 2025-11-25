@@ -47,7 +47,8 @@ export function escapeTags(string : string) {
 }
 
 export function unescapeTags(string : string) {
-    return string.slice(0,-1)
+    const s = string.endsWith('\n') ? string.slice(0, -1) : string
+    return s
         .replace(/\n┆/g, '\n')
         .replace(/^\r?\n/, '')
         .replace(/<│/g, '<')

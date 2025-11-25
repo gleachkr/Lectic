@@ -71,4 +71,43 @@ describe("hover: tool-call block", () => {
     const hover = await computeHover(doc, pos, undefined, bundle)
     expect(hover).toBeNull()
   })
+
+  test("formats complex XML arguments as YAML", async () => {
+    // Objects are serialized with real tags. Leaf values are escaped.
+    const serializedObj = `
+<object>
+<name>
+┆Test
+</name>
+<items>
+<array>
+<item>
+┆A
+</item>
+<item>
+┆B
+</item>
+</array>
+</items>
+</object>`
+
+    const doc = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with="test">\n<arguments><complex>${serializedObj}\n</complex></arguments>\n<results></results>\n</tool-call>\n:::\n`
+
+    const s = doc.indexOf("<tool-call")
+    const e = doc.indexOf("</tool-call>") + "</tool-call>".length
+    
+    const bundle = mkBundleWithToolSpan(s, e)
+    const pos = offsetToPosition(doc, s + 10)
+    const hover = await computeHover(doc, pos, undefined, bundle)
+    
+    expect(hover).not.toBeNull()
+    const md = (hover!.contents as any).value as string
+    
+    // Check for YAML structure
+    expect(md).toContain("name: Test")
+    expect(md).toContain("items:")
+    expect(md).toContain("- A")
+    expect(md).toContain("- B")
+    expect(md).toContain("```yaml")
+  })
 })

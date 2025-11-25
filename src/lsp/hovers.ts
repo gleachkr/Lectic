@@ -11,6 +11,7 @@ import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
 import { unescapeTags, extractElements, unwrap } from "../parsing/xml" 
 import { deserializeInlineAttachment } from "../types/inlineAttachment"
+import { stringify } from "yaml"
 
 export async function computeHover(
   docText: string,
@@ -237,6 +238,45 @@ function isDisplayableMedia(mediaType?: string | null): boolean {
   return mt.startsWith("text/") || mt.startsWith("application/")
 }
 
+function genericDeserialize(text: string): unknown {
+  const trimmed = text.trim()
+  if (trimmed.startsWith("<object>") && trimmed.endsWith("</object>")) {
+     try {
+       const inner = unwrap(trimmed, "object")
+       const obj: Record<string, unknown> = {}
+       const elements = extractElements(inner)
+       for (const el of elements) {
+           const t = parseTag(el)
+           if (t) {
+               const valText = unwrap(el, t.name)
+               obj[t.name] = genericDeserialize(valText)
+           }
+       }
+       return obj
+     } catch {
+       return unescapeTags(text)
+     }
+  } 
+  if (trimmed.startsWith("<array>") && trimmed.endsWith("</array>")) {
+     try {
+       const inner = unwrap(trimmed, "array")
+       const arr: unknown[] = []
+       const elements = extractElements(inner)
+       for (const el of elements) {
+           const t = parseTag(el)
+           if (t && t.name === "item") {
+                const valText = unwrap(el, "item")
+                arr.push(genericDeserialize(valText))
+           }
+       }
+       return arr
+     } catch {
+       return unescapeTags(text)
+     }
+  }
+  return unescapeTags(text)
+}
+
 function prettyBodyFor(raw: string, mediaType? : string, escape : boolean = true): { body: string, lang: string | null } {
   // raw here is serialized text with line markers and <│ escapes.
   // We must unescape before pretty printing.
@@ -251,6 +291,20 @@ function prettyBodyFor(raw: string, mediaType? : string, escape : boolean = true
       // Fall through to generic unescape below.
     }
   }
+
+  // Try generic deserialization for Lectic's object/array XML
+  const trimmed = raw.trim()
+  if (trimmed.startsWith("<object>") || trimmed.startsWith("<array>")) {
+      try {
+          const obj = genericDeserialize(trimmed)
+          // Use YAML for display
+          const yamlStr = stringify(obj)
+          return { body: yamlStr.trim(), lang: "yaml" }
+      } catch {
+          // Fall back to unescaping
+      }
+  }
+
   const body = escape ? unescapeTags(raw) : raw
   return { body, lang }
 }
