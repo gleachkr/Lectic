@@ -102,14 +102,14 @@ async function handleMessage(
 ) : Promise<Anthropic.Messages.MessageParam[]> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : Anthropic.Messages.MessageParam[] = []
-        const { attachments, interactions } = msg.parseAssistantContent()
-        if (attachments.length > 0) {
-            results.push({ 
-                role: "user", 
-                content: attachments.map(a => ({ type: "text" as const, text: a.content })) 
-            })
-        }
+        const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
+            if (interaction.attachments.length > 0) {
+                results.push({ 
+                    role: "user", 
+                    content: interaction.attachments.map(a => ({ type: "text" as const, text: a.content })) 
+                })
+            }
             const modelParts : Anthropic.Messages.ContentBlockParam[] = []
             const userParts : Anthropic.Messages.ContentBlockParam[] = []
             if (interaction.text.length > 0) {
@@ -147,7 +147,10 @@ async function handleMessage(
                 )
             }
 
-            results.push({ role: "assistant", content: modelParts })
+            // could have empty model parts if it's a pure inline attachment
+            if (modelParts.length > 0) {
+                results.push({ role: "assistant", content: modelParts })
+            }
             if (userParts.length > 0) {
                 results.push({ role : "user", content: userParts })
             }

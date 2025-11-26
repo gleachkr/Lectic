@@ -291,11 +291,11 @@ async function handleMessage(
 ) : Promise<Content[]> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) {
         const results : Content[] = []
-        const { attachments, interactions } = msg.parseAssistantContent()
-        if (attachments.length > 0) {
-            results.push({ role: "user", parts: attachments.map(a => ({ text: a.content })) })
-        }
+        const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
+            if (interaction.attachments.length > 0) {
+                results.push({ role: "user", parts: interaction.attachments.map(a => ({ text: a.content })) })
+            }
             const modelParts : Part[] = []
             const userParts : Part[] = []
             if (interaction.text.length > 0) {

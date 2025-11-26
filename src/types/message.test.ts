@@ -202,18 +202,38 @@ describe('UserMessage', () => {
 });
 
 describe('AssistantMessage', () => {
-    it('extracts leading inline attachments via single pass', async () => {
+    it('extracts leading inline attachments into the first interaction', async () => {
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
         const a1 = serializeInlineAttachment({ kind: 'cmd', command: 'x', content: 'C1' })
         const a2 = serializeInlineAttachment({ kind: 'cmd', command: 'y', content: 'C2' })
         const content = `${a1}\n\n${a2}\n\nThen text.`
         const msg = new AssistantMessage({ content, interlocutor: fake })
         const { attachments, interactions } = msg.parseAssistantContent()
-        expect(attachments.length).toBe(2)
-        expect(attachments[0].command).toBe('x')
-        expect(attachments[1].command).toBe('y')
-        const combined = interactions.map(i => i.text).join("\n")
-        expect(combined.includes('Then text.')).toBe(true)
+        expect(attachments.length).toBe(0)
+        expect(interactions.length).toBe(1)
+        expect(interactions[0].attachments.length).toBe(2)
+        expect(interactions[0].attachments[0].command).toBe('x')
+        expect(interactions[0].attachments[1].command).toBe('y')
+        expect(interactions[0].text).toContain('Then text.')
+    })
+
+    it('extracts interleaved inline attachments', async () => {
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
+        const a1 = serializeInlineAttachment({ kind: 'cmd', command: 'x', content: 'C1' })
+        const content = `Text1\n\n${a1}\n\nText2`
+        const msg = new AssistantMessage({ content, interlocutor: fake })
+        const { interactions } = msg.parseAssistantContent()
+        
+        expect(interactions.length).toBe(2)
+        
+        // Interaction 1: Text1
+        expect(interactions[0].text).toContain('Text1')
+        expect(interactions[0].attachments.length).toBe(0)
+        
+        // Interaction 2: Attachment + Text2
+        expect(interactions[1].attachments.length).toBe(1)
+        expect(interactions[1].attachments[0].command).toBe('x')
+        expect(interactions[1].text).toContain('Text2')
     })
 
     it('should extract a tool call', async () => {

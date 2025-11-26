@@ -206,14 +206,14 @@ async function handleMessage(
 ) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
     if (msg.role === "assistant") { 
         const results : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
-        const { attachments, interactions } = msg.parseAssistantContent()
-        if (attachments.length > 0) {
-            results.push({
-                role: "user",
-                content: attachments.map((a: InlineAttachment) => ({ type: "text" as const, text: a.content }))
-            })
-        }
+        const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
+            if (interaction.attachments.length > 0) {
+                results.push({
+                    role: "user",
+                    content: interaction.attachments.map((a: InlineAttachment) => ({ type: "text" as const, text: a.content }))
+                })
+            }
             const modelParts : OpenAI.Chat.Completions.ChatCompletionContentPartText[] = []
             const toolCalls : OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = []
             if (interaction.text.length > 0) {

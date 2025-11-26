@@ -22,6 +22,7 @@ export type MessageDirective = {
 export type MessageInteraction = {
     text : string
     calls: ToolCall[]
+    attachments: InlineAttachment[]
 }
 
 export class UserMessage {
@@ -96,47 +97,45 @@ export class AssistantMessage {
         this.tools = interlocutor.registry ?? {}
     }
 
-    // Parse out leading inline attachments and subsequent interactions
-    // in a single mdast pass. This avoids string slicing and keeps
-    // positions consistent if we later allow mixing content.
+    // Parse out inline attachments and subsequent interactions
+    // in a single mdast pass.
     parseAssistantContent(): { attachments: InlineAttachment[], interactions: MessageInteraction[] } {
         const raw = this.content
         const blocks = parseBlocks(raw)
 
-        const attachments: InlineAttachment[] = []
-        let i = 0
-        while (i < blocks.length) {
-            const blockRaw = nodeRaw(blocks[i], raw)
-            if (isSerializedInlineAttachment(blockRaw)) {
-                attachments.push(deserializeInlineAttachment(blockRaw))
-                i++
-                continue
-            }
-            // stop on first non-attachment block
-            break
-        }
+        const attachments: InlineAttachment[] = [] // Legacy field, now always empty
 
         let curText : RootContent[] = []
         let curCalls : ToolCall[] = []
+        let curAttachments: InlineAttachment[] = []
         const interactions : MessageInteraction[] = []
 
         const flush = () => {
-            if (curText.length > 0 || curCalls.length > 0) {
+            if (curText.length > 0 || curCalls.length > 0 || curAttachments.length > 0) {
                 let text = ""
                 if (curText.length > 0) {
                     const content_start = curText[0].position?.start.offset
                     const content_end = curText[curText.length - 1].position?.end.offset
                     text = raw.slice(content_start, content_end)
                 }
-                interactions.push({ text, calls: curCalls })
+                interactions.push({ text, calls: curCalls, attachments: curAttachments })
                 curText = []
                 curCalls = []
+                curAttachments = []
             }
         }
 
         for (const block of blocks) {
             const blockRaw = nodeRaw(block, raw)
-            if (isSerializedCall(blockRaw)) {
+            if (isSerializedInlineAttachment(blockRaw)) {
+                // If we have accumulated text or calls, flush them first.
+                // This ensures the attachment starts a NEW interaction context
+                // (as a user message injection) following the previous text.
+                if (curText.length > 0 || curCalls.length > 0) {
+                    flush()
+                }
+                curAttachments.push(deserializeInlineAttachment(blockRaw))
+            } else if (isSerializedCall(blockRaw)) {
                 const name = getSerializedCallName(blockRaw)
                 if (!name) throw Error("Parse error for tool call: couldn't parse name")
                 const call = deserializeCall(this.tools[name] ?? null, blockRaw)
