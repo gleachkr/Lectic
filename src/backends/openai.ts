@@ -11,6 +11,15 @@ import { systemPrompt, pdfFragment, emitAssistantMessageEvent,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
+const SUPPORTS_PROMPT_CACHE_RETENTION = [
+    "gpt-5.1",
+    "gpt-5.1-codex",
+    "gpt-5.1-codex-mini",
+    "gpt-5.1-chat-latest",
+    "gpt-5",
+    "gpt-4.1"
+]
+
 
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
     const tools : OpenAI.Chat.Completions.ChatCompletionTool[] = []
@@ -131,12 +140,17 @@ async function *handleToolUse(
 
         Logger.debug("openai - messages (tool)", messages)
 
+        // model has been set at this point
+        const model = lectic.header.interlocutor.model as string
+
         const stream = client.chat.completions.stream({
             messages: [developerMessage(lectic), ...messages],
-            model: lectic.header.interlocutor.model ?? "Missing default model",
+            model,
             temperature: lectic.header.interlocutor.temperature,
             max_completion_tokens: lectic.header.interlocutor.max_tokens,
-            prompt_cache_retention: "24h",
+            prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
+                ? "24h"
+                : undefined,
             tools: getTools(lectic)
         })
     
@@ -352,7 +366,9 @@ export class OpenAIBackend implements Backend {
             model: lectic.header.interlocutor.model,
             temperature: lectic.header.interlocutor.temperature,
             max_completion_tokens: lectic.header.interlocutor.max_tokens,
-            prompt_cache_retention: "24h",
+            prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION.includes(lectic.header.interlocutor.model)
+                ? "24h"
+                : undefined,
             stream: true,
             tools: getTools(lectic)
         });
