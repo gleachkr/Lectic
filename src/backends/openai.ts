@@ -10,6 +10,7 @@ import { systemPrompt, pdfFragment, emitAssistantMessageEvent, runHooks,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { strictify } from '../types/schema.ts'
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
     "gpt-5.1",
@@ -24,17 +25,20 @@ const SUPPORTS_PROMPT_CACHE_RETENTION = [
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
     const tools : OpenAI.Chat.Completions.ChatCompletionTool[] = []
     for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
+        // https://platform.openai.com/docs/guides/structured-outputs/supported-schemas#supported-schemas
+        // - defaults aren't supported
+        // https://platform.openai.com/docs/guides/function-calling#strict-mode
+        // in strict mode
+        // - additionalProperties must be false on all objects
+        // - all properties of each object must be required
 
-        // the OPENAI API rejects default values for parameters. These are
-        // hints about what happens when a value is missing, but they can
-        // probably be safely scrubbed
-        //
-        // c.f. https://json-schema.org/understanding-json-schema/reference/annotations
         for (const key in tool.parameters) {
             if ("default" in tool.parameters[key]) {
                 delete tool.parameters[key].default
             }
+            tool.parameters[key] = strictify(tool.parameters[key])
         }
+
         tools.push({
             type: "function",
             function: {

@@ -10,6 +10,7 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, runHook
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { strictify } from '../types/schema.ts'
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
     "gpt-5.1",
@@ -36,7 +37,10 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
             if ("default" in tool.parameters[key]) {
                 delete tool.parameters[key].default
             }
+            tool.parameters[key] = strictify(tool.parameters[key])
         }
+
+
         tools.push({
             type: "function",
             name : tool.name,
@@ -45,7 +49,6 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
             parameters: {
                 "type" : "object",
                 "properties" : tool.parameters,
-                // OPENAI API always wants every key to be required
                 "required" : Object.keys(tool.parameters),
                 "additionalProperties" : false,
             }

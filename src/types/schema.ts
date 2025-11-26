@@ -43,11 +43,43 @@ export type ObjectSchema = {
     description: string
     required?: string[]
     properties: Record<string, JSONSchema>
+    additionalProperties?: boolean
 }
 
 type AnyOfSchema = {
     anyOf: JSONSchema[]
     description?: string
+}
+
+// rewrites schema for compatibility with OAI strict mode
+export function strictify(schema : JSONSchema) : JSONSchema {
+    if (!("type" in schema)) {
+        return {
+            ...schema,
+            anyOf: schema.anyOf.map(strictify), 
+        }
+    }
+    switch (schema.type) {
+        case "string": 
+        case "number":
+        case "integer":
+        case "boolean":
+        case "null" : 
+            return schema
+        case "array": 
+            return {
+                ...schema,
+                items: strictify(schema.items)
+            }
+        case "object":
+            return {
+                ...schema,
+                required: Object.keys(schema.properties),
+                additionalProperties: false,
+            }
+        default:
+            throw Error("unrecognized schema type in strictify")
+    }
 }
 
 export type JSONSchema = StringSchema 
