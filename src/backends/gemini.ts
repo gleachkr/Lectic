@@ -8,7 +8,7 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, runHooks,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
@@ -151,14 +151,16 @@ async function *handleToolUse(
     messages : Content[], 
     lectic : Lectic,
     model : string,
-    client : GoogleGenAI) : AsyncGenerator<string | Message> {
+    client : GoogleGenAI,
+    initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
 
     let recur = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+    let currentHookRes = initialHookRes ?? []
 
-    while (response.functionCalls && response.functionCalls.length > 0) {
-        const calls = response.functionCalls
+    while (currentHookRes.length > 0 || response.functionCalls && response.functionCalls.length > 0) {
+        const calls = response.functionCalls ?? []
         yield "\n\n"
         recur++
 
@@ -196,6 +198,12 @@ async function *handleToolUse(
             ...await collectAttachmentPartsFromCalls(realized, partToContent)
         ]
 
+        if (currentHookRes && currentHookRes.length > 0) {
+             for (const h of currentHookRes) {
+                 userParts.push({ text: h.content })
+             }
+        }
+
         // yield results
         for (const call of realized) {
             const theTool = call.name in registry ? registry[call.name] : null
@@ -218,7 +226,13 @@ async function *handleToolUse(
 
         yield* accumulateStream(result, accumulatedResponse)
 
-        emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic.header.interlocutor.name)
+        currentHookRes = emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic)
+
+        if (currentHookRes.length > 0) {
+             yield "\n\n"
+             yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
+             yield "\n\n"
+        }
 
         Logger.debug("gemini - reply (tool)", {
             accumulatedResponse
@@ -287,7 +301,7 @@ async function partToContent(part : MessageAttachmentPart)
 async function handleMessage(
     msg : Message,
     lectic: Lectic,
-    opt?: { cmdAttachments?: InlineAttachment[] }
+    opt?: { inlineAttachments?: InlineAttachment[] }
 ) : Promise<Content[]> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) {
         const results : Content[] = []
@@ -356,10 +370,11 @@ async function handleMessage(
             }
         }
 
-        if (opt?.cmdAttachments !== undefined) {
+        if (opt?.inlineAttachments !== undefined) {
             const { textBlocks, inline } = await computeCmdAttachments(msg)
             for (const t of textBlocks) content.push({ text: t })
-            opt.cmdAttachments.push(...inline)
+            for (const t of opt.inlineAttachments) content.push({ text: t.content })
+            opt.inlineAttachments.push(...inline)
         }
 
         return [{ role : "user", parts: content }]
@@ -391,12 +406,19 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       const lastIdx = lectic.body.messages.length - 1
       const lastIsUser = lastIdx >= 0 && lectic.body.messages[lastIdx].role === 'user'
 
-      const cmdAttachments: InlineAttachment[] = []
+      const inlineAttachments: InlineAttachment[] = []
 
       for (let i = 0; i < lectic.body.messages.length; i++) {
           const m = lectic.body.messages[i]
           if (m.role === "user" && lastIsUser && i === lastIdx) {
-              messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
+              // Run user_message hooks
+              const hookResults = runHooks(lectic.header.hooks, "user_message", {
+                  "USER_MESSAGE": m.content ?? ""
+              })
+              inlineAttachments.push(...hookResults)
+
+              const newParams = await handleMessage(m, lectic, { inlineAttachments })
+              messages.push(...newParams)
           } else {
               messages.push(...await handleMessage(m, lectic))
           }
@@ -409,18 +431,23 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       const accumulatedResponse = initResponse()
 
       // Emit cached inline attachments at the top of the assistant block
-      if (cmdAttachments.length > 0) {
-          const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+      if (inlineAttachments.length > 0) {
+          const preface = inlineAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
           yield preface
       }
 
       yield* accumulateStream(result, accumulatedResponse)
 
-      emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic.header.interlocutor.name)
+      const assistantHookRes = emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic)
+      if (assistantHookRes.length > 0) {
+             yield "\n\n"
+             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
+             yield "\n\n"
+      }
 
       if (accumulatedResponse.functionCalls?.length) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })
-          yield* handleToolUse(accumulatedResponse, messages, lectic, this.defaultModel, this.client);
+          yield* handleToolUse(accumulatedResponse, messages, lectic, this.defaultModel, this.client, assistantHookRes);
       } else {
           Logger.debug("gemini - reply", { accumulatedResponse })
       }

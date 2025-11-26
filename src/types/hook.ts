@@ -1,5 +1,5 @@
 import { execScript, execCmd } from "../utils/exec";
-import { expandEnv} from "../utils/replace";
+import { expandEnv } from "../utils/replace";
 import EventEmitter from 'events'
 import { Messages } from "../constants/messages"
 
@@ -9,7 +9,7 @@ const hookTypes = [
     "error"
 ]
 
-type HookEvents = { 
+export type HookEvents = { 
     user_message : [Record<string,string>] 
     assistant_message : [Record<string,string>] 
     error : [Record<string,string>] 
@@ -18,6 +18,7 @@ type HookEvents = {
 export type HookSpec = {
     on: keyof HookEvents | (keyof HookEvents)[]
     do: string
+    inline?: boolean
 }
 
 export function validateHookSpec (raw : unknown) : raw is HookSpec {
@@ -48,18 +49,20 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
 export class Hook {
     on : (keyof HookEvents)[]
     do : string
+    inline : boolean
     constructor(spec : HookSpec) {
         this.on = typeof spec.on === "string" ? [spec.on] : spec.on
         this.do = spec.do
-        this.on.forEach(on => Hook.events.on(on, env => this.run(env)))
+        this.inline = spec.inline ?? false
     }
 
-    run(env : Record<string, string | undefined> = {}) {
-        // need async variants of exec* to make this nonblocking
+    execute(env : Record<string, string | undefined> = {}) : string | undefined {
         if (this.do.split("\n").length > 1) {
-            execScript(this.do, env)
+            const result = execScript(this.do, env)
+            if (this.inline) return result
         } else {
-            execCmd(expandEnv(this.do), env)
+            const result = execCmd(expandEnv(this.do, env), env)
+            if (this.inline) return result
         }
     }
 
@@ -69,4 +72,4 @@ export class Hook {
 
 // need to attach at least one handler to error, in order to avoid tripping
 // over weird node special-casing of this event name.
-Hook.events.on("error", () => {})
+// Hook.events.on("error", () => {})

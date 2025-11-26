@@ -2,7 +2,7 @@ import { escapeTags, unescapeTags } from "../parsing/xml"
 import { unwrap, extractElements } from "../parsing/xml"
 
 export type InlineAttachment = {
-  kind: "cmd"
+  kind: "cmd" | "hook"
   command: string
   content: string
   mimetype?: string // defaults to text/plain
@@ -22,7 +22,7 @@ export function deserializeInlineAttachment(xml: string): InlineAttachment {
   if (!openMatch) throw new Error(`Invalid inline-attachment: ${xml}`)
   const attrs = openMatch[1]
   const kindMatch = /\bkind="([^"]*)"/.exec(attrs)
-  const kind = (kindMatch?.[1] || "cmd") as "cmd"
+  const kind = (kindMatch?.[1] || "cmd") as "cmd" | "hook"
 
   const inner = unwrap(outer, "inline-attachment")
   const parts = extractElements(inner)

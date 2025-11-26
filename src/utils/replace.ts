@@ -1,6 +1,6 @@
 import { lecticEnv } from "../utils/xdg";
 
-export function expandEnv(target : string, extra?: Record<string, string>) : string {
+export function expandEnv(target : string, extra?: Record<string, string | undefined>) : string {
 
     const env : Record<string, string | undefined> = { ...process.env, ...lecticEnv, ...(extra ?? {}) }
 

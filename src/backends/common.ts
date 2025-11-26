@@ -1,6 +1,7 @@
+import { Logger } from "../logging/logger"
 import { PDFDocument } from 'pdf-lib';
 import type { Lectic } from "../types/lectic"
-import { Hook } from "../types/hook"
+import { Hook, type HookEvents } from "../types/hook"
 import type { Tool } from "../types/tool"
 import type { ToolCall } from "../types/tool"
 import { ToolCallResults } from "../types/tool"
@@ -73,11 +74,42 @@ export async function pdfFragment(
         return await newPDF.save()
 }
 
-export function emitAssistantMessageEvent(text : string | undefined | null, name : string) {
-    if (text && text.length > 0) {
-        Hook.events.emit("assistant_message", { 
+export function runHooks(
+    hooks: Hook[],
+    event: keyof HookEvents,
+    env: Record<string, string>
+): InlineAttachment[] {
+    const inline: InlineAttachment[] = []
+    
+    const active = hooks.filter(h => h.on.includes(event))
+
+    for (const hook of active) {
+        try {
+            const result = hook.execute(env)
+            if (result && result.trim().length > 0) {
+                 inline.push({
+                     kind: "hook",
+                     command: hook.do,
+                     content: result,
+                     mimetype: "text/plain"
+                 })
+            }
+        } catch (e) {
+            Logger.debug(`An error occurred during the hook execution of ${hook.do}`, e)
+        }
+    }
+    return inline
+}
+
+export function emitAssistantMessageEvent(text : string | undefined | null, lectic: Lectic) {
+    if (text) {
+        return runHooks(lectic.header.hooks, "assistant_message", { 
             ASSISTANT_MESSAGE: text,
-            LECTIC_INTERLOCUTOR: name
+            LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name
+        })
+    } else {
+        return runHooks(lectic.header.hooks, "assistant_message", { 
+            LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name
         })
     }
 }

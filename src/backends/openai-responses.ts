@@ -6,10 +6,19 @@ import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { serializeCall } from "../types/tool"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, runHooks,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+
+const SUPPORTS_PROMPT_CACHE_RETENTION = [
+    "gpt-5.1",
+    "gpt-5.1-codex",
+    "gpt-5.1-codex-mini",
+    "gpt-5.1-chat-latest",
+    "gpt-5",
+    "gpt-4.1"
+]
 
 function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
     const tools : OpenAI.Responses.Tool[] = []
@@ -61,13 +70,15 @@ async function *handleToolUse(
     message : OpenAI.Responses.Response, 
     messages : OpenAI.Responses.ResponseInput, 
     lectic : Lectic,
-    client : OpenAI) : AsyncGenerator<string | Message> {
+    client : OpenAI,
+    initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
 
     let recur = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+    let currentHookRes = initialHookRes ?? []
 
-    while (message.output.filter(output => output.type == "function_call").length > 0) {
+    while (currentHookRes.length > 0 || message.output.filter(output => output.type == "function_call").length > 0) {
         yield "\n\n"
         recur++
 
@@ -121,6 +132,11 @@ async function *handleToolUse(
             realized,
             partToContent,
         )
+
+        for (const h of currentHookRes) {
+            attachParts.push({ type: "input_text", text: h.content })
+        }
+
         if (attachParts.length > 0) {
             messages.push({ role: 'user', content: attachParts })
         }
@@ -144,7 +160,10 @@ async function *handleToolUse(
                 'reasoning.encrypted_content',
                 'code_interpreter_call.outputs'
             ],
-            prompt_cache_retention: "24h",
+            prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION
+                .includes(lectic.header.interlocutor.model as string)
+                ? "24h"
+                : undefined,
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens,
             tools: getTools(lectic),
@@ -165,7 +184,12 @@ async function *handleToolUse(
         message = await stream.finalResponse()
 
         Logger.debug("openai - reply (tool)", message)
-        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic)
+        if (currentHookRes.length > 0) {
+             yield "\n\n"
+             yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
+             yield "\n\n"
+        }
 
     }
 }
@@ -208,7 +232,7 @@ async function partToContent(part : MessageAttachmentPart)
 async function handleMessage(
     msg : Message,
     lectic : Lectic,
-    opt?: { cmdAttachments?: InlineAttachment[] }
+    opt?: { inlineAttachments?: InlineAttachment[] }
 ) : Promise<OpenAI.Responses.ResponseInput> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : OpenAI.Responses.ResponseInput = []
@@ -291,10 +315,11 @@ async function handleMessage(
         }
     }
 
-    if (opt?.cmdAttachments !== undefined) {
+    if (opt?.inlineAttachments !== undefined) {
         const { textBlocks, inline } = await computeCmdAttachments(msg)
         for (const t of textBlocks) content.push({ type: "input_text", text: t })
-        opt.cmdAttachments.push(...inline)
+        for (const t of opt.inlineAttachments) content.push({ type: "input_text", text: t.content })
+        opt.inlineAttachments.push(...inline)
     }
 
     return [{ role : msg.role, content }]
@@ -333,12 +358,19 @@ export class OpenAIResponsesBackend implements Backend {
         const lastIdx = lectic.body.messages.length - 1
         const lastIsUser = lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
 
-        const cmdAttachments: InlineAttachment[] = []
+        const inlineAttachments : InlineAttachment[] = []
 
         for (let i = 0; i < lectic.body.messages.length; i++) {
             const m = lectic.body.messages[i]
             if (m.role === "user" && lastIsUser && i === lastIdx) {
-                messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
+                // Run user_message hooks
+                const hookResults = runHooks(lectic.header.hooks, "user_message", {
+                    "USER_MESSAGE": m.content ?? ""
+                })
+                inlineAttachments.push(...hookResults)
+
+                const newParams = await handleMessage(m, lectic, { inlineAttachments })
+                messages.push(...newParams)
             } else {
                 messages.push(...await handleMessage(m, lectic))
             }
@@ -356,7 +388,10 @@ export class OpenAIResponsesBackend implements Backend {
                 'reasoning.encrypted_content',
                 'code_interpreter_call.outputs'
             ],
-            prompt_cache_retention: "24h",
+            prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION
+                .includes(lectic.header.interlocutor.model)
+                ? "24h"
+                : undefined,
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens,
             reasoning: lectic.header.interlocutor.thinking_effort ? {
@@ -366,8 +401,8 @@ export class OpenAIResponsesBackend implements Backend {
         });
 
         // Emit cached inline attachments at the top of the assistant block
-        if (cmdAttachments.length > 0) {
-            yield cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+        if (inlineAttachments.length > 0) {
+            yield inlineAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
         }
 
         let assistant = ""
@@ -382,10 +417,15 @@ export class OpenAIResponsesBackend implements Backend {
         const msg = await stream.finalResponse()
 
         Logger.debug(`${this.provider} - reply`, msg)
-        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
+        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic)
+        if (assistantHookRes.length > 0) {
+             yield "\n\n"
+             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
+             yield "\n\n"
+        }
 
         if (msg.output.some(output => output.type === "function_call")) {
-            yield* handleToolUse(msg, messages, lectic, this.client);
+            yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes);
         }
     }
 

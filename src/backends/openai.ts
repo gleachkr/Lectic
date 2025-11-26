@@ -6,7 +6,7 @@ import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
-import { systemPrompt, pdfFragment, emitAssistantMessageEvent,
+import { systemPrompt, pdfFragment, emitAssistantMessageEvent, runHooks,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
@@ -59,13 +59,15 @@ async function *handleToolUse(
     message : OpenAI.Chat.ChatCompletionMessage, 
     messages : OpenAI.Chat.Completions.ChatCompletionMessageParam[], 
     lectic : Lectic,
-    client : OpenAI) : AsyncGenerator<string | Message> {
+    client : OpenAI,
+    initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
 
     let recur = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+    let currentHookRes = initialHookRes ?? []
 
-    while (message.tool_calls) {
+    while (currentHookRes.length > 0 || message.tool_calls) {
         yield "\n\n"
         recur++
 
@@ -99,7 +101,7 @@ async function *handleToolUse(
             }))
         const realized = [ ...realizedFunction, ...realizedUnsupported ]
 
-        for (const call of message.tool_calls) {
+        for (const call of message.tool_calls ?? []) {
             const realizedCall = realized.find(c => c.id === call.id)
             if (realizedCall && call.type === "function") {
                 const theTool = call.function.name in registry 
@@ -119,13 +121,16 @@ async function *handleToolUse(
         // Attach any non-text results via a user message with attachments
         {
             const parts = await collectAttachmentPartsFromCalls(realized, partToContent)
+            for (const h of currentHookRes) {
+                parts.push({ type: "text", text: h.content })
+            }
             if (parts.length > 0) {
                 messages.push({ role: 'user', content: parts })
             }
         }
 
         // also push provider tool result messages so the model can continue
-        for (const call of message.tool_calls) {
+        for (const call of message.tool_calls ?? []) {
             const realizedCall = realized.find(c => c.id === call.id)
             if (realizedCall && call.type === "function") {
                 messages.push({
@@ -164,7 +169,12 @@ async function *handleToolUse(
         message = await stream.finalMessage()
 
         Logger.debug("openai - reply (tool)", message)
-        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic)
+        if (currentHookRes.length > 0) {
+             yield "\n\n"
+             yield currentHookRes.map(serializeInlineAttachment).join("\n\n")
+             yield "\n\n"
+        }
 
     }
 }
@@ -216,7 +226,7 @@ async function partToContent(part : MessageAttachmentPart)
 
 async function handleMessage(
     msg : Message,
-    opt?: { cmdAttachments?: InlineAttachment[] }
+    opt?: { inlineAttachments?: InlineAttachment[] }
 ) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
     if (msg.role === "assistant") { 
         const results : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
@@ -293,10 +303,11 @@ async function handleMessage(
         }
     }
 
-    if (opt?.cmdAttachments !== undefined) {
+    if (opt?.inlineAttachments !== undefined) {
         const { textBlocks, inline } = await computeCmdAttachments(msg)
         for (const t of textBlocks) content.push({ type: "text", text: t })
-        opt.cmdAttachments.push(...inline)
+        for (const t of opt.inlineAttachments) content.push({ type: "text", text: t.content })
+        opt.inlineAttachments.push(...inline)
     }
 
     return [{ role : msg.role, content }]
@@ -346,12 +357,19 @@ export class OpenAIBackend implements Backend {
         const lastIdx = lectic.body.messages.length - 1
         const lastIsUser = lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
 
-        const cmdAttachments: InlineAttachment[] = []
+        const inlineAttachments : InlineAttachment[] = []
 
         for (let i = 0; i < lectic.body.messages.length; i++) {
             const m = lectic.body.messages[i]
             if (m.role === "user" && lastIsUser && i === lastIdx) {
-                messages.push(...await handleMessage(m, { cmdAttachments }))
+                // Run user_message hooks
+                const hookResults = runHooks(lectic.header.hooks, "user_message", {
+                    "USER_MESSAGE": m.content ?? ""
+                })
+                inlineAttachments.push(...hookResults)
+
+                const newParams = await handleMessage(m, { inlineAttachments, })
+                messages.push(...newParams)
             } else {
                 messages.push(...await handleMessage(m))
             }
@@ -374,8 +392,8 @@ export class OpenAIBackend implements Backend {
         });
 
         // Emit cached inline attachments at the top of the assistant block
-        if (cmdAttachments.length > 0) {
-            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+        if (inlineAttachments.length > 0) {
+            const preface = inlineAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
             yield preface
         }
 
@@ -389,10 +407,15 @@ export class OpenAIBackend implements Backend {
         const msg = await stream.finalMessage()
 
         Logger.debug(`${this.provider} - reply`, msg)
-        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
+        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic)
+        if (assistantHookRes.length > 0) {
+             yield "\n\n"
+             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n")  
+             yield "\n\n"
+        }
 
         if (msg.tool_calls) {
-            yield* handleToolUse(msg, messages, lectic, this.client);
+            yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes);
         } 
 
     }

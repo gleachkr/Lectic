@@ -3,11 +3,12 @@ import { join, dirname } from "path"
 import { parseLectic, getYaml } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
+import { runHooks } from "./backends/common"
 import { version } from "../package.json"
 import { lecticConfigDir, lecticEnv } from "./utils/xdg";
 import { readWorkspaceConfig } from "./utils/workspace";
 import { UserMessage } from "./types/message"
-import { Hook } from "./types/hook"
+import { Lectic } from "./types/lectic"
 import { program, type OptionValues } from 'commander'
 
 async function getLecticString(opts : OptionValues) : Promise<string> {
@@ -81,11 +82,13 @@ export async function completions() {
         await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
+    let lectic : Lectic | undefined
+
     try {
 
         const includes = await getIncludes()
 
-        const lectic = await parseLectic(lecticString, includes)
+        lectic = await parseLectic(lecticString, includes)
 
         if (opts["header"]) {
             const newHeader = `---\n${getYaml(lecticString) ?? ""}\n---`
@@ -103,9 +106,9 @@ export async function completions() {
             }
 
             if (lectic.body.messages.at(-1) instanceof UserMessage) {
-                Hook.events.emit("user_message", {
-                    "USER_MESSAGE" : lectic.body.messages.at(-1)?.content ?? ""
-                })
+                // Hook.events.emit("user_message", {
+                //    "USER_MESSAGE" : lectic.body.messages.at(-1)?.content ?? ""
+                // })
             }
 
             // we handle directives, which may update header fields
@@ -148,7 +151,12 @@ export async function completions() {
 
         const ERROR_MESSAGE = error instanceof Error ? error.message : JSON.stringify(error)
         await Logger.write(`<error>\n${ERROR_MESSAGE}\n</error>`)
-        Hook.events.emit("error", { ERROR_MESSAGE })
+        
+        if (lectic) {
+             runHooks(lectic.header.hooks, "error", { ERROR_MESSAGE })
+        } else {
+             // Hook.events.emit("error", { ERROR_MESSAGE })
+        }
 
         if (!program.opts()["Short"]) await Logger.write(`\n\n:::`)
         process.exit(1)

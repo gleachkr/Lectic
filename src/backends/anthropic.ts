@@ -8,7 +8,7 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, runHooks,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from "./common.ts"
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
@@ -98,7 +98,7 @@ function updateCache(messages : Anthropic.Messages.MessageParam[]) {
 async function handleMessage(
     msg : Message,
     lectic: Lectic,
-    opt?: { cmdAttachments?: InlineAttachment[] }
+    opt?: { inlineAttachments?: InlineAttachment[] }
 ) : Promise<Anthropic.Messages.MessageParam[]> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : Anthropic.Messages.MessageParam[] = []
@@ -188,10 +188,11 @@ async function handleMessage(
             }
         }
 
-        if (opt?.cmdAttachments !== undefined) {
+        if (opt?.inlineAttachments !== undefined) {
             const { textBlocks, inline } = await computeCmdAttachments(msg)
             for (const t of textBlocks) content.push({ type: "text", text: t })
-            opt.cmdAttachments.push(...inline)
+            for (const t of opt.inlineAttachments) content.push({ type: "text", text: t.content })
+            opt.inlineAttachments.push(...inline)
         }
 
         return [{ role : msg.role, content }]
@@ -232,19 +233,28 @@ async function* handleToolUse(
     lectic : Lectic,
     client : Anthropic | AnthropicBedrock,
     model : string,
+    initialHookRes? : InlineAttachment[]
 ) : AsyncGenerator<string | Message> {
 
     let recur = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+    let currentHookRes = initialHookRes ?? []
 
-    while (message.stop_reason == "tool_use") {
+    while (message.stop_reason == "tool_use" || currentHookRes.length > 0) {
         yield "\n\n"
         recur++
 
         if (recur > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
             return
+        }
+
+        if (currentHookRes.length > 0) {
+            messages.push({
+                role: "user",
+                content: currentHookRes.map(h => ({ type: "text", text: h.content }))
+            })
         }
 
         messages.push({
@@ -286,7 +296,7 @@ async function* handleToolUse(
         const attach = await collectAttachmentPartsFromCalls(realized, partToContent)
         content.push(...attach)
 
-        messages.push({ role: "user", content })
+        if (content.length > 0) messages.push({ role: "user", content })
 
         if (!lectic.header.interlocutor.nocache) updateCache(messages)
 
@@ -313,7 +323,13 @@ async function* handleToolUse(
         message = await stream.finalMessage()
 
         Logger.debug("anthropic - reply (tool)", message)
-        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
+
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic)
+        if (currentHookRes.length > 0) {
+            yield "\n\n"
+            yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
+            yield "\n\n"
+        }
 
     }
 }
@@ -351,12 +367,21 @@ export class AnthropicBackend implements Backend {
 
         const messages : Anthropic.Messages.MessageParam[] = []
 
-        const cmdAttachments : InlineAttachment[] = []
+        const inlineAttachments : InlineAttachment[] = []
 
         for (let i = 0; i < lectic.body.messages.length; i++) {
             const m = lectic.body.messages[i]
             if (m.role === "user" && i === lectic.body.messages.length - 1) {
-                messages.push(...await handleMessage(m, lectic, { cmdAttachments }))
+                // Run user_message hooks
+                const hookResults = runHooks(lectic.header.hooks, "user_message", {
+                    "USER_MESSAGE": m.content ?? ""
+                })
+                inlineAttachments.push(...hookResults)
+
+                const newParams = await handleMessage(m, lectic, { 
+                    inlineAttachments,
+                })
+                messages.push(...newParams)
             } else {
                 messages.push(...await handleMessage(m, lectic))
             }
@@ -382,8 +407,8 @@ export class AnthropicBackend implements Backend {
         });
 
         // Emit cached inline attachments at the top of the assistant block
-        if (cmdAttachments.length > 0) {
-            const preface = cmdAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
+        if (inlineAttachments.length > 0) {
+            const preface = inlineAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
             yield preface
         }
 
@@ -396,10 +421,15 @@ export class AnthropicBackend implements Backend {
         const msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
-        emitAssistantMessageEvent(assistant, lectic.header.interlocutor.name)
+        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic)
+        if (assistantHookRes.length > 0) {
+             yield "\n\n"
+             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
+             yield "\n\n"
+        }
 
         if (msg.stop_reason == "tool_use") {
-            yield* handleToolUse(msg, messages, lectic, this.client, model)
+            yield* handleToolUse(msg, messages, lectic, this.client, model, assistantHookRes)
         } 
     }
 }
