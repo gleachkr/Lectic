@@ -38,7 +38,9 @@ function M.submit_lectic()
       assert(not err, err)
         if data then
           vim.schedule(function()
-            vim.cmd.undojoin()
+            if vim.api.nvim_get_current_buf() == buf then
+              pcall(vim.cmd.undojoin)
+            end
             vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
             local cur_lines = vim.api.nvim_buf_get_lines(buf, -2, -1, true)
             local new_lines = vim.split(data, '\n')
