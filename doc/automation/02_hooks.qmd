@@ -9,10 +9,12 @@ Hooks are defined in your YAML configuration under the `hooks` key.
 
 ## Hook configuration
 
-A hook has two fields:
+A hook has three fields:
 
 - `on`: A single event name or a list of event names to listen for.
 - `do`: The command or inline script to run when the event fires.
+- `inline`: (Optional) A boolean. If `true`, the standard output of the command
+  is captured and injected into the conversation. Defaults to `false`.
 
 ```yaml
 hooks:
@@ -25,8 +27,17 @@ with a shebang (e.g., `#!/bin/bash`). If it is a single line, it is treated
 as a command. Commands are executed directly (not through a shell), so
 shell features like command substitution will not work.
 
-Hook commands run synchronously. Their stdout, stderr, and exit status are
-ignored by Lectic. Use your own logging inside the hook if you want persistent records.
+Hook commands run synchronously. By default, their stdout, stderr, and exit
+status are ignored by Lectic. However, if you set `inline: true`, the standard
+output is captured and added to the conversation.
+
+- For `user_message` events, the output is injected as context for the LLM
+  before it generates a response. It also appears at the top of the assistant's
+  response block.
+- For `assistant_message` events, the output is appended to the end of the
+  assistant's response block. This will trigger another reply from the
+  assistant, so be careful to only fire an inline hook when you want the
+  assisant to generate more content.
 
 ## Available events and environment
 
@@ -113,3 +124,21 @@ Notes:
 - `LECTIC_FILE` is populated when using `-f`/`-i` and may be empty when
   streaming from stdin.
 - Adjust the table schema to suit your use case.
+
+## Example: Injecting context
+
+This example automatically runs `date` before every user message and
+injects the output into the context. This allows the LLM to always know the
+date and time without you needing to run :cmd[date]
+
+
+```yaml
+hooks:
+  - on: user_message
+    inline: true
+    do: 
+      #!/usr/bin/env bash
+      echo "<date-and-time>"
+      date
+      echo "</date-and-time>"
+```

@@ -125,3 +125,5 @@ in a key name.
   occurs. If multi‑line, it must start with a shebang (e.g., `#!/bin/bash`).
   Event context is provided as environment variables. See the Hooks guide
   for details.
+- `inline`: (Optional) Boolean. If `true`, the output of the hook is
+  captured and injected into the conversation. Defaults to `false`.
