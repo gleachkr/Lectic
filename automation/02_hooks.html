@@ -315,6 +315,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#hook-configuration" id="toc-hook-configuration" class="nav-link" data-scroll-target="#hook-configuration">Hook configuration</a></li>
   <li><a href="#available-events-and-environment" id="toc-available-events-and-environment" class="nav-link" data-scroll-target="#available-events-and-environment">Available events and environment</a></li>
   <li><a href="#example-log-messages-to-sqlite-for-longterm-memory" id="toc-example-log-messages-to-sqlite-for-longterm-memory" class="nav-link" data-scroll-target="#example-log-messages-to-sqlite-for-longterm-memory">Example: log messages to SQLite for long‑term memory</a></li>
+  <li><a href="#example-injecting-context" id="toc-example-injecting-context" class="nav-link" data-scroll-target="#example-injecting-context">Example: Injecting context</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -331,16 +332,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Hooks are defined in your YAML configuration under the <code>hooks</code> key.</p>
 <section id="hook-configuration" class="level2">
 <h2 class="anchored" data-anchor-id="hook-configuration">Hook configuration</h2>
-<p>A hook has two fields:</p>
+<p>A hook has three fields:</p>
 <ul>
 <li><code>on</code>: A single event name or a list of event names to listen for.</li>
 <li><code>do</code>: The command or inline script to run when the event fires.</li>
+<li><code>inline</code>: (Optional) A boolean. If <code>true</code>, the standard output of the command is captured and injected into the conversation. Defaults to <code>false</code>.</li>
 </ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">assistant_message</span><span class="kw">,</span><span class="at"> user_message</span><span class="kw">]</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> ./log-activity.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If <code>do</code> contains multiple lines, it is treated as a script and must begin with a shebang (e.g., <code>#!/bin/bash</code>). If it is a single line, it is treated as a command. Commands are executed directly (not through a shell), so shell features like command substitution will not work.</p>
-<p>Hook commands run synchronously. Their stdout, stderr, and exit status are ignored by Lectic. Use your own logging inside the hook if you want persistent records.</p>
+<p>Hook commands run synchronously. By default, their stdout, stderr, and exit status are ignored by Lectic. However, if you set <code>inline: true</code>, the standard output is captured and added to the conversation.</p>
+<ul>
+<li>For <code>user_message</code> events, the output is injected as context for the LLM before it generates a response. It also appears at the top of the assistant’s response block.</li>
+<li>For <code>assistant_message</code> events, the output is appended to the end of the assistant’s response block. This will trigger another reply from the assistant, so be careful to only fire an inline hook when you want the assisant to generate more content.</li>
+</ul>
 </section>
 <section id="available-events-and-environment" class="level2">
 <h2 class="anchored" data-anchor-id="available-events-and-environment">Available events and environment</h2>
@@ -425,6 +431,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>LECTIC_FILE</code> is populated when using <code>-f</code>/<code>-i</code> and may be empty when streaming from stdin.</li>
 <li>Adjust the table schema to suit your use case.</li>
 </ul>
+</section>
+<section id="example-injecting-context" class="level2">
+<h2 class="anchored" data-anchor-id="example-injecting-context">Example: Injecting context</h2>
+<p>This example automatically runs <code>date</code> before every user message and injects the output into the context. This allows the LLM to always know the date and time without you needing to run :cmd[date]</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> user_message</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> </span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">      #!/usr/bin/env bash</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">      echo "&lt;date-and-time&gt;"</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">      date</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">      echo "&lt;/date-and-time&gt;"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

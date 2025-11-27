@@ -364,7 +364,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Markdown code fences inside assistant blocks can also use three backticks.</p>
-<p>Inline attachments at the top - Lectic may insert one or more inline attachment blocks at the very start of an assistant block. These are XML chunks beginning with <code>&lt;inline-attachment ...&gt;</code>. They are used to cache computed content from directives like <code>:cmd[...]</code>. - When sending a request to the provider, these attachments are treated as if they were a user message that immediately precedes the assistant’s round.</p>
+<p>Lectic may insert one or more inline attachment blocks. These are XML chunks beginning with <code>&lt;inline-attachment ...&gt;</code>. They are used to cache computed content from directives like <code>:cmd[...]</code>. When sending a request to the provider, these attachments are treated as if they were a user message that immediately precedes the assistant’s round.</p>
 <section id="example" class="level3">
 <h3 class="anchored" data-anchor-id="example">Example</h3>
 <p>Here is a complete, simple conversation file showing all the parts together:</p>
