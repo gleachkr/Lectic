@@ -74,6 +74,30 @@ export async function pdfFragment(
         return await newPDF.save()
 }
 
+function parseHookOutput(text: string): { content: string, attributes: Record<string, string> } {
+    const lines = text.split('\n')
+    const attributes: Record<string, string> = {}
+    let headerEnd = 0
+    
+    // Parse headers until blank line or non-header
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const match = /^LECTIC:([A-Za-z0-9_-]+):(.*)$/.exec(line)
+        if (match) {
+            attributes[match[1].toLowerCase()] = match[2]
+            headerEnd = i + 1
+        } else {
+            if (line.trim().length === 0 && Object.keys(attributes).length > 0) {
+                headerEnd = i + 1
+            } 
+            break 
+        } 
+    }
+    
+    const content = lines.slice(headerEnd).join('\n')
+    return { content, attributes }
+}
+
 export function runHooks(
     hooks: Hook[],
     event: keyof HookEvents,
@@ -87,11 +111,13 @@ export function runHooks(
         try {
             const result = hook.execute(env)
             if (result && result.trim().length > 0) {
+                 const { content, attributes } = parseHookOutput(result)
                  inline.push({
                      kind: "hook",
                      command: hook.do,
-                     content: result,
-                     mimetype: "text/plain"
+                     content: content,
+                     mimetype: "text/plain",
+                     attributes: Object.keys(attributes).length > 0 ? attributes : undefined
                  })
             }
         } catch (e) {

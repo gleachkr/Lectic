@@ -6,13 +6,24 @@ export type InlineAttachment = {
   command: string
   content: string
   mimetype?: string // defaults to text/plain
+  attributes?: Record<string, string>
 }
 
 export function serializeInlineAttachment(a: InlineAttachment): string {
   const type = a.mimetype ?? "text/plain"
   const cmdXml = `<command>${escapeTags(a.command)}</command>`
   const contentXml = `<content type="${type}">${escapeTags(a.content)}</content>`
-  return `<inline-attachment kind="${a.kind}">\n${cmdXml}\n${contentXml}\n</inline-attachment>`
+  
+  let attrStr = `kind="${a.kind}"`
+  if (a.attributes) {
+    for (const [key, val] of Object.entries(a.attributes)) {
+      // Basic attribute escaping
+      const escaped = val.replace(/"/g, "&quot;")
+      attrStr += ` ${key}="${escaped}"`
+    }
+  }
+  
+  return `<inline-attachment ${attrStr}>\n${cmdXml}\n${contentXml}\n</inline-attachment>`
 }
 
 export function deserializeInlineAttachment(xml: string): InlineAttachment {
@@ -20,9 +31,18 @@ export function deserializeInlineAttachment(xml: string): InlineAttachment {
   // Extract attributes
   const openMatch = /^<inline-attachment\b([^>]*)>/.exec(outer)
   if (!openMatch) throw new Error(`Invalid inline-attachment: ${xml}`)
-  const attrs = openMatch[1]
-  const kindMatch = /\bkind="([^"]*)"/.exec(attrs)
-  const kind = (kindMatch?.[1] || "cmd") as "cmd" | "hook"
+  const attrsStr = openMatch[1]
+  
+  // Simple attribute parser
+  const attributes: Record<string, string> = {}
+  const re = /([a-zA-Z0-9_:-]+)="([^"]*)"/g
+  let m
+  while ((m = re.exec(attrsStr)) !== null) {
+    attributes[m[1]] = m[2].replace(/&quot;/g, '"')
+  }
+
+  const kind = (attributes["kind"] || "cmd") as "cmd" | "hook"
+  delete attributes["kind"]
 
   const inner = unwrap(outer, "inline-attachment")
   const parts = extractElements(inner)
@@ -40,7 +60,11 @@ export function deserializeInlineAttachment(xml: string): InlineAttachment {
   const mimetype = contentTypeMatch?.[1]
   const content = unescapeTags(unwrap(contentEl, "content"))
 
-  return { kind, command, content, mimetype }
+  const result: InlineAttachment = { kind, command, content, mimetype }
+  if (Object.keys(attributes).length > 0) {
+    result.attributes = attributes
+  }
+  return result
 }
 
 

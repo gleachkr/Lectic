@@ -11,4 +11,18 @@ describe("inline attachment serialization", () => {
     expect(b.content).toBe(a.content)
     expect(b.mimetype).toBe("text/plain")
   })
+
+  it("roundtrips attachment with attributes", () => {
+    const a: any = { 
+        kind: "hook", 
+        command: "test", 
+        content: "foo", 
+        mimetype: "text/plain",
+        attributes: { abc: "text", other: 'val with "' }
+    }
+    const xml = serializeInlineAttachment(a)
+    const b = deserializeInlineAttachment(xml)
+    expect(b.kind).toBe("hook")
+    expect(b.attributes).toEqual({ abc: "text", other: 'val with "' })
+  })
 })
