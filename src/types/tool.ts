@@ -140,6 +140,5 @@ export function getSerializedCallName(call : string) : string | null {
 }
 
 export function isSerializedCall(call : string) : boolean {
-    const result = toolCallRegex.test(call.trim())
-    return result
+    return toolCallRegex.test(call.trim())
 }

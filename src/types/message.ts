@@ -127,7 +127,7 @@ export class AssistantMessage {
 
         for (const block of blocks) {
             const blockRaw = nodeRaw(block, raw)
-            if (isSerializedInlineAttachment(blockRaw)) {
+            if (block.type == "html" && isSerializedInlineAttachment(blockRaw)) {
                 // If we have accumulated text or calls, flush them first.
                 // This ensures the attachment starts a NEW interaction context
                 // (as a user message injection) following the previous text.
@@ -135,7 +135,7 @@ export class AssistantMessage {
                     flush()
                 }
                 curAttachments.push(deserializeInlineAttachment(blockRaw))
-            } else if (isSerializedCall(blockRaw)) {
+            } else if (block.type == "html" && isSerializedCall(blockRaw)) {
                 const name = getSerializedCallName(blockRaw)
                 if (!name) throw Error("Parse error for tool call: couldn't parse name")
                 const call = deserializeCall(this.tools[name] ?? null, blockRaw)

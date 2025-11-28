@@ -69,7 +69,3 @@ export class Hook {
     static events = new EventEmitter<HookEvents>
 
 }
-
-// need to attach at least one handler to error, in order to avoid tripping
-// over weird node special-casing of this event name.
-// Hook.events.on("error", () => {})

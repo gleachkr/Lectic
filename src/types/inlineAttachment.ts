@@ -45,5 +45,5 @@ export function deserializeInlineAttachment(xml: string): InlineAttachment {
 
 
 export function isSerializedInlineAttachment(s: string): boolean {
-  return /<inline-attachment\b/.test(s.trim())
+  return /^<inline-attachment\b/.test(s.trim())
 }
