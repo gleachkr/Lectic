@@ -187,7 +187,8 @@ async function *handleToolUse(
         message = await stream.finalResponse()
 
         Logger.debug("openai - reply (tool)", message)
-        currentHookRes = emitAssistantMessageEvent(assistant, lectic)
+        const hasMoreToolCalls = message.output.some(o => o.type === "function_call")
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone: !hasMoreToolCalls })
         if (currentHookRes.length > 0) {
              yield "\n\n"
              yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
@@ -420,14 +421,15 @@ export class OpenAIResponsesBackend implements Backend {
         const msg = await stream.finalResponse()
 
         Logger.debug(`${this.provider} - reply`, msg)
-        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic)
+        const hasToolCalls = msg.output.some(o => o.type === "function_call")
+        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone: !hasToolCalls })
         if (assistantHookRes.length > 0) {
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
              yield "\n\n"
         }
 
-        if (msg.output.some(output => output.type === "function_call")) {
+        if (hasToolCalls) {
             yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes);
         }
     }

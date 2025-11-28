@@ -127,17 +127,21 @@ export function runHooks(
     return inline
 }
 
-export function emitAssistantMessageEvent(text : string | undefined | null, lectic: Lectic) {
-    if (text) {
-        return runHooks(lectic.header.hooks, "assistant_message", { 
-            ASSISTANT_MESSAGE: text,
-            LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name
-        })
-    } else {
-        return runHooks(lectic.header.hooks, "assistant_message", { 
-            LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name
-        })
+export function emitAssistantMessageEvent(
+    text : string | undefined | null, 
+    lectic: Lectic,
+    opt?: { toolUseDone?: boolean }
+) {
+    const baseEnv: Record<string, string> = {
+        LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name
     }
+    if (text) {
+        baseEnv["ASSISTANT_MESSAGE"] = text
+    }
+    if (opt?.toolUseDone) {
+        baseEnv["TOOL_USE_DONE"] = "1"
+    }
+    return runHooks(lectic.header.hooks, "assistant_message", baseEnv)
 }
 
 export type ToolRegistry = Record<string, Tool>

@@ -226,7 +226,12 @@ async function *handleToolUse(
 
         yield* accumulateStream(result, accumulatedResponse)
 
-        currentHookRes = emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic)
+        const hasMoreToolCalls = (accumulatedResponse.functionCalls?.length ?? 0) > 0
+        currentHookRes = emitAssistantMessageEvent(
+            geminiAssistantText(accumulatedResponse), 
+            lectic, 
+            { toolUseDone: !hasMoreToolCalls }
+        )
 
         if (currentHookRes.length > 0) {
              yield "\n\n"
@@ -438,14 +443,19 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       yield* accumulateStream(result, accumulatedResponse)
 
-      const assistantHookRes = emitAssistantMessageEvent(geminiAssistantText(accumulatedResponse), lectic)
+      const hasToolCalls = (accumulatedResponse.functionCalls?.length ?? 0) > 0
+      const assistantHookRes = emitAssistantMessageEvent(
+          geminiAssistantText(accumulatedResponse), 
+          lectic,
+          { toolUseDone: !hasToolCalls }
+      )
       if (assistantHookRes.length > 0) {
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
              yield "\n\n"
       }
 
-      if (accumulatedResponse.functionCalls?.length) {
+      if (hasToolCalls) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })
           yield* handleToolUse(accumulatedResponse, messages, lectic, this.defaultModel, this.client, assistantHookRes);
       } else {

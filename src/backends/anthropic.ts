@@ -324,7 +324,8 @@ async function* handleToolUse(
 
         Logger.debug("anthropic - reply (tool)", message)
 
-        currentHookRes = emitAssistantMessageEvent(assistant, lectic)
+        const toolUseDone = message.stop_reason !== "tool_use"
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone })
         if (currentHookRes.length > 0) {
             yield "\n\n"
             yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
@@ -421,7 +422,8 @@ export class AnthropicBackend implements Backend {
         const msg = await stream.finalMessage()
 
         Logger.debug("anthropic - reply", msg)
-        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic)
+        const toolUseDone = msg.stop_reason !== "tool_use"
+        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone })
         if (assistantHookRes.length > 0) {
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 

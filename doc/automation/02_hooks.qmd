@@ -58,6 +58,10 @@ passed.
     - `ASSISTANT_MESSAGE`: The full text of the assistant's response that
       was just produced.
     - `LECTIC_INTERLOCUTOR`: The name of the interlocutor who spoke.
+    - `TOOL_USE_DONE`: Set to `1` when the assistant has finished using
+      tools and is ready to conclude. Not set if there are pending tool
+      calls. This lets inline hooks decide whether to inject follow-up
+      content only when all work is complete.
     - Standard Lectic variables as above.
   - When: Immediately after the assistant's message is streamed.
 
@@ -142,3 +146,22 @@ hooks:
       date
       echo "</date-and-time>"
 ```
+
+## Example: Notification when work completes
+
+This example sends a desktop notification when the assistant finishes a
+tool-use workflow. The hook checks `TOOL_USE_DONE` so you only get
+notified once the work is actually done, not after each intermediate step.
+
+```yaml
+hooks:
+  - on: assistant_message
+    do: |
+      #!/usr/bin/env bash
+      if [[ "${TOOL_USE_DONE:-}" == "1" ]]; then
+        notify-send "Lectic" "Assistant finished working"
+      fi
+```
+
+This is especially useful for long-running agentic tasks where you want
+to step away and be alerted when the assistant is done.
