@@ -13,7 +13,11 @@ export class MessageCommand {
     async execute() {
         switch (this.variant) {
             case "cmd" : {
-                const rawCmd = { raw : this.command.trim() }
+                const rawCmd = { 
+                    raw : this.command
+                            .trim()
+                            .replace(/[\n\r]+/g,'') 
+                }
                 const result = await $`${rawCmd}`.nothrow().quiet()
                 if (result.exitCode === 0) {
                     return `<stdout from="${this.command}">${result.stdout.toString()}</stdout>`
