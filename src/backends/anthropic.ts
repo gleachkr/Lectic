@@ -236,16 +236,17 @@ async function* handleToolUse(
     initialHookRes? : InlineAttachment[]
 ) : AsyncGenerator<string | Message> {
 
-    let recur = 0
+    let loopCount = 0
+    let finalPassCount = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
     let currentHookRes = initialHookRes ?? []
 
     while (message.stop_reason == "tool_use" || currentHookRes.length > 0) {
         yield "\n\n"
-        recur++
+        loopCount++
 
-        if (recur > max_tool_use + 2) {
+        if (loopCount > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
             return
         }
@@ -264,7 +265,7 @@ async function* handleToolUse(
 
         const tool_uses = message.content.filter(block => block.type == "tool_use")
         const entries = tool_uses.map(block => ({ id: block.id, name: block.name, args: block.input }))
-        const realized: ToolCall[] = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
+        const realized: ToolCall[] = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use })
 
         // convert to anthropic blocks for the API
         const content: Anthropic.Messages.ContentBlockParam[] = realized.map((call: ToolCall) => ({
@@ -325,8 +326,15 @@ async function* handleToolUse(
         Logger.debug("anthropic - reply (tool)", message)
 
         const toolUseDone = message.stop_reason !== "tool_use"
-        currentHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone })
+        const usage = {
+            input: message.usage.input_tokens,
+            output: message.usage.output_tokens,
+            total: message.usage.input_tokens + message.usage.output_tokens
+        }
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic, { 
+            toolUseDone, usage, loopCount, finalPassCount })
         if (currentHookRes.length > 0) {
+            if (toolUseDone) finalPassCount++
             yield "\n\n"
             yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
             yield "\n\n"
@@ -423,7 +431,12 @@ export class AnthropicBackend implements Backend {
 
         Logger.debug("anthropic - reply", msg)
         const toolUseDone = msg.stop_reason !== "tool_use"
-        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone })
+        const usage = {
+            input: msg.usage.input_tokens,
+            output: msg.usage.output_tokens,
+            total: msg.usage.input_tokens + msg.usage.output_tokens
+        }
+        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone, usage, loopCount: 0, finalPassCount: 0 })
         if (assistantHookRes.length > 0) {
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 

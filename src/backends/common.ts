@@ -130,16 +130,29 @@ export function runHooks(
 export function emitAssistantMessageEvent(
     text : string | undefined | null, 
     lectic: Lectic,
-    opt?: { toolUseDone?: boolean }
+    opt?: { 
+        toolUseDone?: boolean, 
+        usage?: { input: number, output: number, total: number },
+        loopCount?: number,
+        finalPassCount?: number
+    }
 ) {
     const baseEnv: Record<string, string> = {
-        LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name
+        LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name,
+        LECTIC_MODEL: lectic.header.interlocutor.model ?? "default"
     }
-    if (text) {
-        baseEnv["ASSISTANT_MESSAGE"] = text
+    if (text) { baseEnv["ASSISTANT_MESSAGE"] = text }
+    if (opt?.toolUseDone) { baseEnv["TOOL_USE_DONE"] = "1" }
+    if (opt?.usage) {
+        baseEnv["LECTIC_TOKEN_USAGE_INPUT"] = opt.usage.input.toString()
+        baseEnv["LECTIC_TOKEN_USAGE_OUTPUT"] = opt.usage.output.toString()
+        baseEnv["LECTIC_TOKEN_USAGE_TOTAL"] = opt.usage.total.toString()
     }
-    if (opt?.toolUseDone) {
-        baseEnv["TOOL_USE_DONE"] = "1"
+    if (opt?.loopCount !== undefined) {
+        baseEnv["LECTIC_LOOP_COUNT"] = opt.loopCount.toString()
+    }
+    if (opt?.finalPassCount !== undefined) {
+        baseEnv["LECTIC_FINAL_PASS_COUNT"] = opt.finalPassCount.toString()
     }
     return runHooks(lectic.header.hooks, "assistant_message", baseEnv)
 }

@@ -154,7 +154,8 @@ async function *handleToolUse(
     client : GoogleGenAI,
     initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
 
-    let recur = 0
+    let loopCount = 0
+    let finalPassCount = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
     let currentHookRes = initialHookRes ?? []
@@ -162,9 +163,9 @@ async function *handleToolUse(
     while (currentHookRes.length > 0 || response.functionCalls && response.functionCalls.length > 0) {
         const calls = response.functionCalls ?? []
         yield "\n\n"
-        recur++
+        loopCount++
 
-        if (recur > max_tool_use + 2) {
+        if (loopCount > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
             return
         }
@@ -179,7 +180,7 @@ async function *handleToolUse(
 
         // Resolve via shared helper
         const entries = calls.map(call => ({ id: call.id, name: call.name ?? "", args: call.args }))
-        const realized = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
+        const realized = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use })
 
         // Convert to provider FunctionResponse parts
         const parts: FunctionResponse[] = realized.map(call => ({
@@ -227,13 +228,19 @@ async function *handleToolUse(
         yield* accumulateStream(result, accumulatedResponse)
 
         const hasMoreToolCalls = (accumulatedResponse.functionCalls?.length ?? 0) > 0
+        const usageMeta = accumulatedResponse.usageMetadata
+        const usage = usageMeta ? {
+            input: usageMeta.promptTokenCount ?? 0,
+            output: usageMeta.candidatesTokenCount ?? 0,
+            total: usageMeta.totalTokenCount ?? 0
+        } : undefined
         currentHookRes = emitAssistantMessageEvent(
-            geminiAssistantText(accumulatedResponse), 
-            lectic, 
-            { toolUseDone: !hasMoreToolCalls }
+            geminiAssistantText(accumulatedResponse), lectic, 
+            { toolUseDone: !hasMoreToolCalls, usage, loopCount, finalPassCount }
         )
 
         if (currentHookRes.length > 0) {
+             if (!hasMoreToolCalls) finalPassCount++
              yield "\n\n"
              yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
              yield "\n\n"
@@ -444,10 +451,16 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       yield* accumulateStream(result, accumulatedResponse)
 
       const hasToolCalls = (accumulatedResponse.functionCalls?.length ?? 0) > 0
+      const usageMeta = accumulatedResponse.usageMetadata
+      const usage = usageMeta ? {
+          input: usageMeta.promptTokenCount ?? 0,
+          output: usageMeta.candidatesTokenCount ?? 0,
+          total: usageMeta.totalTokenCount ?? 0
+      } : undefined
       const assistantHookRes = emitAssistantMessageEvent(
           geminiAssistantText(accumulatedResponse), 
           lectic,
-          { toolUseDone: !hasToolCalls }
+          { toolUseDone: !hasToolCalls, usage, loopCount: 0, finalPassCount: 0 }
       )
       if (assistantHookRes.length > 0) {
              yield "\n\n"

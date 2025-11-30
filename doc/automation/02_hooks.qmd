@@ -58,10 +58,18 @@ passed.
     - `ASSISTANT_MESSAGE`: The full text of the assistant's response that
       was just produced.
     - `LECTIC_INTERLOCUTOR`: The name of the interlocutor who spoke.
+    - `LECTIC_MODEL`: The model of the interlocutor who spoke.
     - `TOOL_USE_DONE`: Set to `1` when the assistant has finished using
       tools and is ready to conclude. Not set if there are pending tool
       calls. This lets inline hooks decide whether to inject follow-up
       content only when all work is complete.
+    - `LECTIC_TOKEN_USAGE_INPUT`: Count of input tokens used for this turn.
+    - `LECTIC_TOKEN_USAGE_OUTPUT`: Count of output tokens used for this turn.
+    - `LECTIC_TOKEN_USAGE_TOTAL`: Total tokens used for this turn.
+    - `LECTIC_LOOP_COUNT`: How many times the tool calling loop has run
+      (0-indexed).
+    - `LECTIC_FINAL_PASS_COUNT`: How many times the assistant has
+      finished work but was kept alive by an inline hook.
     - Standard Lectic variables as above.
   - When: Immediately after the assistant's message is streamed.
 

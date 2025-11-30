@@ -66,16 +66,17 @@ async function *handleToolUse(
     client : OpenAI,
     initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
 
-    let recur = 0
+    let loopCount = 0
+    let finalPassCount = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
     let currentHookRes = initialHookRes ?? []
 
     while (currentHookRes.length > 0 || message.tool_calls) {
         yield "\n\n"
-        recur++
+        loopCount++
 
-        if (recur > max_tool_use + 2) {
+        if (loopCount > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
         }
 
@@ -93,7 +94,7 @@ async function *handleToolUse(
                 try { args = JSON.parse(call.function.arguments) } catch { args = undefined }
                 return { id: call.id, name: call.function.name, args }
             })
-        const realizedFunction = await resolveToolCalls(entries, registry, { limitExceeded: recur > max_tool_use })
+        const realizedFunction = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use })
         const realizedUnsupported = (message.tool_calls ?? [])
             .filter(call => call.type !== "function")
             .map(call => ({
@@ -170,12 +171,21 @@ async function *handleToolUse(
             assistant += text
         }
 
-        message = await stream.finalMessage()
+        const completion = await stream.finalChatCompletion()
+        message = completion.choices[0].message
+        const usageData = completion.usage
+        const usage = usageData ? {
+            input: usageData.prompt_tokens,
+            output: usageData.completion_tokens,
+            total: usageData.total_tokens
+        } : undefined
 
         Logger.debug("openai - reply (tool)", message)
         const toolUseDone = !message.tool_calls
-        currentHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone })
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic, 
+            { toolUseDone, usage, loopCount, finalPassCount })
         if (currentHookRes.length > 0) {
+             if (toolUseDone) finalPassCount++
              yield "\n\n"
              yield currentHookRes.map(serializeInlineAttachment).join("\n\n")
              yield "\n\n"
@@ -409,11 +419,18 @@ export class OpenAIBackend implements Backend {
             assistant += text
         }
 
-        const msg = await stream.finalMessage()
+        const completion = await stream.finalChatCompletion()
+        const msg = completion.choices[0].message
+        const usageData = completion.usage
+        const usage = usageData ? {
+            input: usageData.prompt_tokens,
+            output: usageData.completion_tokens,
+            total: usageData.total_tokens
+        } : undefined
 
         Logger.debug(`${this.provider} - reply`, msg)
         const toolUseDone = !msg.tool_calls
-        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone })
+        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone, usage, loopCount: 0, finalPassCount: 0 })
         if (assistantHookRes.length > 0) {
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n")  
