@@ -105,12 +105,6 @@ export async function completions() {
                 }
             }
 
-            if (lectic.body.messages.at(-1) instanceof UserMessage) {
-                // Hook.events.emit("user_message", {
-                //    "USER_MESSAGE" : lectic.body.messages.at(-1)?.content ?? ""
-                // })
-            }
-
             // we handle directives, which may update header fields
             lectic.handleDirectives()
 
