@@ -52,7 +52,6 @@ tools:
   [External Prompts](../context_management/03_external_prompts.qmd)
   for semantics.
 - `sandbox`: A path to a sandboxing script. See safety below.
-- `confirm`: A path to a confirmation script. See safety below.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the tool
@@ -176,16 +175,12 @@ files or networks unless you fully trust the tool and its usage.
 :::
 
 Lectic provides two mechanisms to help you keep `exec` tools safe:
-confirmation scripts and sandboxing.
+hooks and sandboxing.
 
-### Confirmation scripts (`confirm`)
+### Confirmation via hooks
 
-If a `confirm` script is provided, Lectic runs it before every call. The
-script receives two arguments: the tool's name and a JSON string of the call
-arguments. If the confirmation script exits non‑zero, the call is cancelled.
-
-An example script that uses a graphical dialog is in
-`extra/confirm/zenity-confirm.sh`.
+You can use the `tool_use_pre` hook to implement confirmation dialogs or logic.
+See [Hooks](../automation/02_hooks.qmd) for examples.
 
 ### Sandboxing (`sandbox`)
 

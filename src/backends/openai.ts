@@ -94,7 +94,7 @@ async function *handleToolUse(
                 try { args = JSON.parse(call.function.arguments) } catch { args = undefined }
                 return { id: call.id, name: call.function.name, args }
             })
-        const realizedFunction = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use })
+        const realizedFunction = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
         const realizedUnsupported = (message.tool_calls ?? [])
             .filter(call => call.type !== "function")
             .map(call => ({

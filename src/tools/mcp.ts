@@ -1,6 +1,5 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema, ObjectSchema } from "../types/schema"
-import { lecticEnv } from "../utils/xdg";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
@@ -49,7 +48,6 @@ function validateRoot(root : MCPRoot) {
 
 type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamableHTTP) & { 
     name?: string
-    confirm?: string 
     roots?: MCPRoot[]
     exclude?: string[]
 }
@@ -59,7 +57,6 @@ type MCPToolSpec = {
     server_tool_name: string // the original name of the tool, known to the server
     server_name: string // the configured MCP server name (scheme prefix)
     description?: string
-    confirm?: string
     sandbox?: string
     schema: ObjectSchema
     client: Client
@@ -106,7 +103,6 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
             isMCPSpecWebsocket(raw) || 
             isMCPSpecStreamableHttp(raw)) && 
            ("name" in raw ? typeof raw.name === "string" : true) &&
-           ("confirm" in raw ? typeof raw.confirm === "string" : true) &&
            ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true)
 }
 
@@ -209,20 +205,18 @@ export class MCPTool extends Tool {
     description: string
     parameters: { [_ : string] : JSONSchema }
     required?: string[]
-    confirm?: string
     sandbox?: string
     client: Client
     static count : number = 0
     static clientByHash : Record<string, Client> = {}
     static clientByName : Record<string, Client> = {}
 
-    constructor({name, server_tool_name, server_name, description, schema, confirm, client}: MCPToolSpec) {
+    constructor({name, server_tool_name, server_name, description, schema, client}: MCPToolSpec) {
         super()
         this.client = client
         this.name = name
         this.server_tool_name = server_tool_name
         this.server_name = server_name
-        this.confirm = confirm ? expandEnv(confirm) : confirm
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
         if (!schema) {
@@ -245,16 +239,6 @@ export class MCPTool extends Tool {
     async call(args : Record<string, unknown>) : Promise<ToolCallResult[]> {
 
         this.validateArguments(args)
-
-        if (this.confirm) {
-            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(args,null,2)],{
-                env: { ...process.env, ...lecticEnv },
-                stderr: "ignore" //discard stderr
-            })
-            if (proc.exitCode !==0) {
-                throw Error(`<error>Tool use permission denied</error>`)
-            }
-        }
 
         const response = await this.client.callTool({ name: this.server_tool_name, arguments: args })
         const content = response.content
@@ -375,7 +359,6 @@ export class MCPTool extends Tool {
                 // ↓ We cast here. The MCP docs seem to guarantee these are schemata
                 schema: tool.inputSchema as ObjectSchema,
                 client: client, // the tools share a single client
-                confirm: spec.confirm,
                 sandbox: "sandbox" in spec ? spec.sandbox : undefined
             })
         })

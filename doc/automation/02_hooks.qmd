@@ -73,13 +73,38 @@ passed.
     - Standard Lectic variables as above.
   - When: Immediately after the assistant's message is streamed.
 
+- `tool_use_pre`
+  - Environment:
+    - `TOOL_NAME`: The name of the tool being called.
+    - `TOOL_ARGS`: A JSON string containing the tool arguments.
+    - Standard Lectic variables as above.
+  - When: After tool parameters are collected but before execution.
+  - Behavior: If the hook exits with a non-zero status code, the tool call is blocked, and the LLM receives a "permission denied" error.
+
 - `error`
   - Environment:
     - `ERROR_MESSAGE`: A descriptive error message.
     - Standard Lectic variables as above.
   - When: Whenever an uncaught error is encountered.
 
-## Example: log messages to SQLite for long‑term memory
+## Example: Human-in-the-loop tool confirmation
+
+This example uses `tool_use_pre` to require confirmation before any tool
+execution. It uses `zenity` to show a dialog box with the tool name and
+arguments.
+
+```yaml
+hooks:
+  - on: tool_use_pre
+    do: |
+      #!/usr/bin/env bash
+      # Display a confirmation dialog
+      zenity --question \
+             --title="Allow Tool Use?" \
+             --text="Tool: $TOOL_NAME\nArgs: $TOOL_ARGS"
+      # Zenity exits with 0 for Yes/OK and 1 for No/Cancel
+      exit $?
+```
 
 This example persists every user and assistant message to an SQLite
 database located in your Lectic data directory. You can later query this

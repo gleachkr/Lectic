@@ -109,9 +109,9 @@ export function runHooks(
 
     for (const hook of active) {
         try {
-            const result = hook.execute(env)
-            if (result && result.trim().length > 0) {
-                 const { content, attributes } = parseHookOutput(result)
+            const { output } = hook.execute(env)
+            if (output && output.trim().length > 0) {
+                 const { content, attributes } = parseHookOutput(output)
                  inline.push({
                      kind: "hook",
                      command: hook.do,
@@ -168,10 +168,11 @@ export type ToolCallEntry = { id?: string, name: string, args: unknown }
 export async function resolveToolCalls(
     entries: ToolCallEntry[],
     registry: ToolRegistry,
-    opt?: { limitExceeded?: boolean }
+    opt?: { limitExceeded?: boolean, lectic?: Lectic }
 ): Promise<ToolCall[]> {
     const limitMsg = "Tool usage limit exceeded, no further tool calls will be allowed"
     const invalidArgsMsg = "The tool input isn't the right type. Tool inputs need to be returned as objects."
+    const hooks = opt?.lectic?.header.hooks
     const results: ToolCall[] = []
     for (const e of entries) {
         const id = e.id
@@ -188,6 +189,19 @@ export async function resolveToolCalls(
         if (name in registry) {
             try {
                 const args = e.args
+                if (hooks) {
+                     const activeHooks = hooks.filter(h => h.on.includes("tool_use_pre"))
+                     for (const hook of activeHooks) {
+                         const hookEnv = {
+                             TOOL_NAME: name,
+                             TOOL_ARGS: JSON.stringify(args)
+                         }
+                         const { exitCode } = hook.execute(hookEnv)
+                         if (exitCode !== 0) {
+                             throw new Error("Tool use permission denied")
+                         }
+                     }
+                }
                 const r = await registry[name].call(args)
                 results.push({ name, args, id, isError: false, results: r })
             } catch (error) {

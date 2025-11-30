@@ -1,7 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { ExecTool } from "./exec";
 import { ToolCallResult } from "../types/tool";
-import * as fs from "fs";
 
 function texts(results: ToolCallResult[]) {
   return results.map((r) => r.toBlock());
@@ -98,35 +97,7 @@ describe("ExecTool (async)", () => {
     },
   );
 
-  it("confirm receives named params JSON in schema mode", async () => {
-    const confirmPath = `./.tmp-confirm-${Bun.randomUUIDv7()}.sh`;
-    const capturePath = `./.confirm_capture-${Bun.randomUUIDv7()}.json`;
-    const confirmScript = `#!/bin/bash\n` +
-      `printf "%s" "$2" > "${capturePath}"\n` +
-      `exit 0\n`;
-    await Bun.write(confirmPath, confirmScript);
-    fs.chmodSync(confirmPath, 0o755);
 
-    try {
-      const tool = new ExecTool(
-        { exec: "/bin/echo", name: "echo", confirm: confirmPath, schema: { FOO: "desc" } },
-        "Interlocutor_Name",
-      );
-
-      const params = { FOO: "BAR" };
-      const res = await tool.call(params);
-      expect(fs.existsSync(capturePath)).toBe(true);
-      const content = await Bun.file(capturePath).text();
-      const parsed = JSON.parse(content);
-      expect(parsed).toEqual(params);
-      // also ensure the call still executed
-      const out = texts(res).join("\n");
-      expect(out).toContain("<stdout>\n</stdout>");
-    } finally {
-      if (fs.existsSync(confirmPath)) fs.unlinkSync(confirmPath);
-      if (fs.existsSync(capturePath)) fs.unlinkSync(capturePath);
-    }
-  });
 
   it(
     "sanitizes carriage-return overwrites and ANSI sequences",

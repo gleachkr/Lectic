@@ -107,7 +107,7 @@ async function *handleToolUse(
                 try { args = JSON.parse(o.arguments) } catch { args = undefined }
                 return { id: o.call_id, name: o.name, args }
             })
-        const realized = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use })
+        const realized = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
 
         // Echo prior assistant output
         for (const o of message.output) {

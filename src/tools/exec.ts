@@ -11,7 +11,6 @@ export type ExecToolSpec = {
     usage?: string
     name?: string
     sandbox?: string
-    confirm?: string
     env?: Record<string, string>
     schema?: Record<string, string>
     timeoutSeconds?: number
@@ -24,7 +23,6 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         typeof raw.exec === "string" &&
         ("usage" in raw ? typeof raw.usage === "string" : true) &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
-        ("confirm" in raw ? typeof raw.confirm === "string" : true) &&
         ("timeoutSeconds" in raw ? typeof raw.timeoutSeconds === "number" : true) &&
         ("env" in raw 
             ? typeof raw.env === "object" && raw.env !== null && 
@@ -122,7 +120,6 @@ export class ExecTool extends Tool {
     isScript: boolean
     sandbox?: string
     description: string
-    confirm?: string
     env: Record<string, string>
     timeoutSeconds?: number
     static count : number = 0
@@ -134,7 +131,6 @@ export class ExecTool extends Tool {
         this.isScript = this.exec.split('\n').length > 1
         this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
         this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox
-        this.confirm = spec.confirm ? expandEnv(spec.confirm, this.env) : spec.confirm
         this.timeoutSeconds = spec.timeoutSeconds
 
         if (spec.schema) {
@@ -183,15 +179,6 @@ export class ExecTool extends Tool {
 
         const args = Array.isArray(params.argv) ? params.argv : []
         const env = Array.isArray(params.argv) ? this.env : {...params, ...this.env} as Record<string,string>
-
-        if (this.confirm) {
-            const proc = Bun.spawnSync([this.confirm, this.name, JSON.stringify(params, null, 2)], {
-                env: { ...process.env, ...lecticEnv }
-            })
-            if (proc.exitCode !==0) {
-                throw Error(`<error>Tool use permission denied</error>`)
-            }
-        }
 
         let proc = null
         let cleanup = () => {}

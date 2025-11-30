@@ -265,7 +265,7 @@ async function* handleToolUse(
 
         const tool_uses = message.content.filter(block => block.type == "tool_use")
         const entries = tool_uses.map(block => ({ id: block.id, name: block.name, args: block.input }))
-        const realized: ToolCall[] = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use })
+        const realized: ToolCall[] = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
 
         // convert to anthropic blocks for the API
         const content: Anthropic.Messages.ContentBlockParam[] = realized.map((call: ToolCall) => ({

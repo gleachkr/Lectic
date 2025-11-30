@@ -106,37 +106,7 @@ describe("Identity keys include roots and sandbox", () => {
   });
 });
 
-describe("Confirm sees namespaced tool name; server sees original name", () => {
-  it("sends namespaced to confirm and original to server", async () => {
-    // Build a tool manually to avoid fromSpec complexities
-    const fakeClient: any = {
-      callTool: async ({ name }: any) => ({ content: [{ type: "text", text: name }] }),
-    };
-    let seenArgs: any[] | null = null;
-    (Bun as any).spawnSync = (args: any[]) => {
-      seenArgs = args;
-      return { exitCode: 0, stdout: new Uint8Array(), stderr: new Uint8Array() } as any;
-    };
-    const tool = new MCPTool({
-      name: "ns:search",
-      server_tool_name: "search",
-      server_name: "ns",
-      description: "",
-      schema: { type: "object", properties: {} } as any,
-      client: fakeClient,
-      confirm: "dummy-confirm",
-    });
-    const res = await tool.call({});
-    // Confirm received namespaced name
-    expect(seenArgs).not.toBeNull();
-    if (!seenArgs) throw new Error("confirm not called");
-    expect((seenArgs as any)[0]).toBe("dummy-confirm");
-    expect((seenArgs as any)[1]).toBe("ns:search");
-    // Server received original tool name and echoed it in content
-    const out = (res[0] as any).text as string;
-    expect(out).toBe("search");
-  });
-});
+
 
 describe("Client reuse", () => {
   it("same spec initializes one client and reuses it", async () => {

@@ -1,4 +1,4 @@
-import { execScript, execCmd } from "../utils/exec";
+import { execScriptFull, execCmdFull } from "../utils/exec";
 import { expandEnv } from "../utils/replace";
 import EventEmitter from 'events'
 import { Messages } from "../constants/messages"
@@ -6,13 +6,15 @@ import { Messages } from "../constants/messages"
 const hookTypes = [
     "user_message",
     "assistant_message",
-    "error"
+    "error",
+    "tool_use_pre"
 ]
 
 export type HookEvents = { 
     user_message : [Record<string,string>] 
     assistant_message : [Record<string,string>] 
     error : [Record<string,string>] 
+    tool_use_pre : [Record<string,string>]
 }
 
 export type HookSpec = {
@@ -56,13 +58,13 @@ export class Hook {
         this.inline = spec.inline ?? false
     }
 
-    execute(env : Record<string, string | undefined> = {}) : string | undefined {
+    execute(env : Record<string, string | undefined> = {}) : { output: string | undefined, exitCode: number } {
         if (this.do.split("\n").length > 1) {
-            const result = execScript(this.do, env)
-            if (this.inline) return result
+            const result = execScriptFull(this.do, env)
+            return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
         } else {
-            const result = execCmd(expandEnv(this.do, env), env)
-            if (this.inline) return result
+            const result = execCmdFull(expandEnv(this.do, env), env)
+            return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
         }
     }
 

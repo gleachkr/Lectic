@@ -180,7 +180,7 @@ async function *handleToolUse(
 
         // Resolve via shared helper
         const entries = calls.map(call => ({ id: call.id, name: call.name ?? "", args: call.args }))
-        const realized = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use })
+        const realized = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
 
         // Convert to provider FunctionResponse parts
         const parts: FunctionResponse[] = realized.map(call => ({

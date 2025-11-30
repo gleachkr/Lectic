@@ -271,7 +271,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           severity: "error"
         })
       } else {
-        const allowed = ["user_message", "assistant_message", "error"]
+        const allowed = ["user_message", "assistant_message", "error", "tool_use_pre"]
         const ok = typeof h["on"] === "string"
           ? allowed.includes(h["on"])
           : h["on"].every((x) => allowed.includes(x))
