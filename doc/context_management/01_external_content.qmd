@@ -127,3 +127,6 @@ Notes
   Lectic environment variables like `LECTIC_FILE` are available. By contrast,
   single‑line `exec` tools run without a shell; invoke a shell explicitly if
   you need shell features.
+- line breaks inside of `:cmd` are ignored so that if a `:cmd` happens to
+  line-wrap, the newline doesn't affect the command to be executed.
+    
