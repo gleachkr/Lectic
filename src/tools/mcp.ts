@@ -7,6 +7,7 @@ import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websoc
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import { expandEnv } from "../utils/replace";
+import { isHookSpecList, type HookSpec } from "../types/hook";
 
 type MCPSpecSTDIO = {
     mcp_command: string
@@ -50,6 +51,7 @@ type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamable
     name?: string
     roots?: MCPRoot[]
     exclude?: string[]
+    hooks? : HookSpec[]
 }
 
 type MCPToolSpec = {
@@ -60,6 +62,7 @@ type MCPToolSpec = {
     sandbox?: string
     schema: ObjectSchema
     client: Client
+    hooks? : HookSpec[]
 }
 
 function isMCPSpecSTDIO(raw : unknown) : raw is MCPSpecSTDIO {
@@ -103,7 +106,8 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
             isMCPSpecWebsocket(raw) || 
             isMCPSpecStreamableHttp(raw)) && 
            ("name" in raw ? typeof raw.name === "string" : true) &&
-           ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true)
+           ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true) &&
+           ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
@@ -162,8 +166,8 @@ class MCPListResources extends Tool {
     name : string
     client: Client
 
-    constructor({server_name, client}: {server_name : string, client: Client}) {
-        super()
+    constructor({server_name, client, hooks}: {hooks?: HookSpec[], server_name : string, client: Client}) {
+        super(hooks)
         this.client = client
         this.server_name = server_name
         this.name = `${server_name}_list_resources`
@@ -211,8 +215,8 @@ export class MCPTool extends Tool {
     static clientByHash : Record<string, Client> = {}
     static clientByName : Record<string, Client> = {}
 
-    constructor({name, server_tool_name, server_name, description, schema, client}: MCPToolSpec) {
-        super()
+    constructor({name, server_tool_name, server_name, description, schema, client, hooks}: MCPToolSpec) {
+        super(hooks)
         this.client = client
         this.name = name
         this.server_tool_name = server_tool_name

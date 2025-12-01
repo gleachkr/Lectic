@@ -112,6 +112,28 @@ interlocutor:
 
 You can still mix regular tools alongside kit references.
 
+## Hooks
+
+Tool calls will trigger `tool_use_pre` hook, which fire after the parameters
+have been supplied to the tool, but before the tool returns results. If the
+hook exits with non-zero exit status, the tool call will be blocked and the LLM
+will receive a "permission denied" error. For details see
+[Hooks](../automation/02_hooks.qmd). If you want to have a `tool_use_pre` hook
+that applies only to a certain tool, you can provided it as part of the YAML
+definition of the tool, writing for example:
+
+```yaml
+---
+interlocutor:
+  tools:
+    - exec: clean_directory.sh
+      name: clean_directory
+      hooks:
+        - on: tool_use_pre
+          do: confirm.sh
+---
+```
+
 ## Available Tool Types
 
 Lectic supports a variety of tool types, each with its own capabilities and
@@ -123,3 +145,5 @@ configuration options. Read the individual tool guides for usage details and bes
 - **[Agent](./05_agent.qmd)**: Allow one interlocutor to call another as a tool.
 - **[Other Tools](./06_other_tools.qmd)**: Includes `think`, `serve`, and
   native provider tools.
+
+Note that `native` tools do not support hooks.

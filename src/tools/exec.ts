@@ -5,6 +5,7 @@ import { readStream } from "../utils/stream";
 import { expandEnv } from "../utils/replace";
 import { parseCommandToArgv, writeTempShebangScriptAsync } from "../utils/execHelpers";
 import type { JSONSchema } from "../types/schema.ts"
+import { isHookSpecList, type HookSpec } from "../types/hook.ts";
 
 export type ExecToolSpec = {
     exec: string
@@ -14,6 +15,7 @@ export type ExecToolSpec = {
     env?: Record<string, string>
     schema?: Record<string, string>
     timeoutSeconds?: number
+    hooks? : HookSpec[]
 }
 
 export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
@@ -33,7 +35,8 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
                 typeof raw.schema=== "object" && raw.schema !== null && 
                 Object.values(raw.schema).every(v => typeof v === "string")
             : true
-        )
+        ) &&
+        ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
 /**
@@ -125,7 +128,7 @@ export class ExecTool extends Tool {
     static count : number = 0
 
     constructor(spec: ExecToolSpec, interlocutor_name : string) {
-        super()
+        super(spec.hooks)
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.isScript = this.exec.split('\n').length > 1

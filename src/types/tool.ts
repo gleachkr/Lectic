@@ -1,6 +1,7 @@
 import { unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
 import { serialize, deserialize, validateAgainstSchema } from "./schema.ts"
 import type { JSONSchema } from "./schema.ts"
+import { Hook, type HookSpec } from "./hook"
 
 export class ToolCallResult {
     mimetype: string
@@ -46,6 +47,12 @@ export abstract class Tool {
     abstract description: string
     abstract parameters: { [_ : string] : JSONSchema }
     abstract required : string[]
+    hooks: Hook[]
+
+    constructor(hooks?: HookSpec[]) {
+        this.hooks = (hooks ?? []).map(h => new Hook(h))
+    }
+
     abstract call (arg : unknown) : Promise<ToolCallResult[]>
 
     validateArguments(args: Record<string, unknown>) {

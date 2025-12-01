@@ -5,7 +5,8 @@ and scripts in response to events in Lectic's lifecycle. Use them for
 logging, notifications, post‑processing, or integrating with other tools
 and workflows.
 
-Hooks are defined in your YAML configuration under the `hooks` key.
+Hooks are defined in your YAML configuration under the `hooks` key, or per-tool
+in the `hooks` key of a tool specification.
 
 ## Hook configuration
 
@@ -14,7 +15,8 @@ A hook has three fields:
 - `on`: A single event name or a list of event names to listen for.
 - `do`: The command or inline script to run when the event fires.
 - `inline`: (Optional) A boolean. If `true`, the standard output of the command
-  is captured and injected into the conversation. Defaults to `false`.
+  is captured and injected into the conversation. Defaults to `false`. Only
+  applicable to `assistant_message` and `user_message`.
 
 ```yaml
 hooks:

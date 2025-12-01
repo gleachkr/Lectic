@@ -3,6 +3,7 @@ import { Database } from "bun:sqlite"
 import { parse, show } from "sql-parser-cst"
 import { expandEnv } from "../utils/replace";
 import * as YAML from "yaml"
+import { isHookSpecList, type HookSpec } from "../types/hook";
 
 export type SQLiteToolSpec = {
     sqlite: string
@@ -11,6 +12,7 @@ export type SQLiteToolSpec = {
     limit? : number
     readonly?: boolean
     extensions?: string[] | string
+    hooks?: HookSpec[]
 }
 
 export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
@@ -25,7 +27,8 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
             ? typeof raw.extensions === "string" ||
               Array.isArray(raw.extensions) && raw.extensions.every(ext => typeof ext === "string")
             : true
-        )
+        ) &&
+        ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
 const description = `
@@ -48,7 +51,7 @@ export class SQLiteTool extends Tool {
     static count : number = 0
 
     constructor(spec: SQLiteToolSpec) {
-        super()
+        super(spec.hooks)
         this.name = spec.name ?? `sqlite_tool_${SQLiteTool.count}`
         this.details = spec.details
         this.limit = spec.limit

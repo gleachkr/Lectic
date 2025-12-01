@@ -1,3 +1,4 @@
+import { isHookSpecList, type HookSpec } from "../types/hook"
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import open from "open"
 
@@ -5,6 +6,7 @@ export type ServeToolSpec = {
     serve_on_port: number
     name?: string
     usage?: string
+    hooks?: HookSpec[]
 }
 
 export function isServeToolSpec(raw : unknown) : raw is ServeToolSpec {
@@ -12,6 +14,7 @@ export function isServeToolSpec(raw : unknown) : raw is ServeToolSpec {
         && typeof raw === "object" 
         && "serve_on_port" in raw
         && typeof raw.serve_on_port === "number"
+        && ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
 export class ServeTool extends Tool {
@@ -22,7 +25,7 @@ export class ServeTool extends Tool {
     static count : number = 0
 
     constructor(spec: ServeToolSpec) {
-        super()
+        super(spec.hooks)
         this.name = spec.name ?? `serve_tool_${ServeTool.count}`
         this.serve_on_port = spec.serve_on_port
         this.description = 

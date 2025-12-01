@@ -5,16 +5,21 @@ import { Logger } from "../logging/logger"
 import { LecticHeader, Lectic } from "../types/lectic"
 import { UserMessage, AssistantMessage } from "../types/message"
 import type { Interlocutor } from "../types/interlocutor"
+import { type HookSpec, isHookSpecList } from "../types/hook"
 
 export type AgentToolSpec = {
     agent: string
     name?: string
     usage?: string
     raw_output?: boolean
+    hooks?: HookSpec[]
 }
 
 export function isAgentToolSpec(raw : unknown) : raw is AgentToolSpec {
-    return raw !== null && typeof raw === "object" && "agent" in raw
+    return raw !== null && 
+        typeof raw === "object" && 
+        "agent" in raw &&
+        ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
 export class AgentTool extends Tool {
@@ -26,8 +31,8 @@ export class AgentTool extends Tool {
     raw_output: boolean
     static count : number = 0
 
-    constructor(spec: AgentToolSpec, interlocutors: Interlocutor[] ) {
-        super()
+    constructor(spec: AgentToolSpec, interlocutors: Interlocutor[]) {
+        super(spec.hooks)
         this.name = spec.name ?? `agent_tool_${AgentTool.count}`
         const agent = interlocutors.find(i => i.name === spec.agent)
         if (agent === undefined) throw Error(`There's no interlocutor named ${spec.agent}`)

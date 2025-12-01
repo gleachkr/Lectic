@@ -1,13 +1,18 @@
+import { isHookSpecList, type HookSpec } from "../types/hook"
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 
 export type ThinkToolSpec = {
     think_about: string
     name?: string
     usage?: string
+    hooks?: HookSpec[]
 }
 
 export function isThinkToolSpec(raw : unknown) : raw is ThinkToolSpec {
-    return raw !== null && typeof raw === "object" && "think_about" in raw
+    return raw !== null 
+    && typeof raw === "object" 
+    && "think_about" in raw 
+    && ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
 export class ThinkTool extends Tool {
@@ -17,7 +22,7 @@ export class ThinkTool extends Tool {
     static count : number = 0
 
     constructor(spec: ThinkToolSpec) {
-        super()
+        super(spec.hooks)
         this.name = spec.name ?? `think_tool_${ThinkTool.count}`
         this.description = 
             `Use the tool to think about ${spec.think_about}. ` +

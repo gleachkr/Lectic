@@ -48,6 +48,18 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     return true
 }
 
+export function isHookSpec(raw : unknown) : raw is HookSpec {
+    try {
+        return validateHookSpec(raw)
+    } catch {
+        return false
+    }
+}
+
+export function isHookSpecList(raw: unknown): raw is HookSpec[] {
+    return Array.isArray(raw) && raw.every(isHookSpec)
+}
+
 export class Hook {
     on : (keyof HookEvents)[]
     do : string

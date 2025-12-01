@@ -10,7 +10,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             parameters: { message: { type: 'string', description: 'A message' } },
             call: async (_arg) => ToolCallResults('success'),
             validateArguments: _ => null,
-            required: []
+            required: [],
+            hooks: []
         }
 
         const call = {
@@ -32,7 +33,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
             call: async (_arg) => ToolCallResults('done'),
             validateArguments: _ => null,
-            required: []
+            required: [],
+            hooks: []
         };
 
         const call = {
@@ -54,7 +56,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             parameters: { amount: { type: 'number', description: 'An amount' } },
             call: async (_arg) => ToolCallResults('calculated'),
             validateArguments: _ => null,
-            required: []
+            required: [],
+            hooks: []
         };
 
         const call = {
@@ -78,7 +81,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             },
             call: async (_arg) => ToolCallResults('completed'),
             validateArguments: _ => null,
-            required: []
+            required: [],
+            hooks: []
         };
 
         const call = {
@@ -109,7 +113,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             },
             call: async (_arg) => ToolCallResults('adjusted'),
             validateArguments: _ => null,
-            required: []
+            required: [],
+            hooks: []
         };
 
         const call = {
@@ -130,7 +135,8 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         parameters: { param: { type: 'string', description: 'A parameter' } },
         call: async (_arg) => ToolCallResults('result'),
         validateArguments: _ => null,
-        required: []
+        required: [],
+        hooks: []
     };
 
     it('should correctly handle a ToolCall with an id attribute', () => {
@@ -189,7 +195,8 @@ describe('Result escaping round-trip edge cases', () => {
         parameters: { },
         call: async (_arg) => ToolCallResults('ok'),
         validateArguments: _ => null,
-        required: []
+        required: [],
+        hooks: []
     };
 
     const cases: string[] = [
