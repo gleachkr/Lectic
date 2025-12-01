@@ -204,7 +204,7 @@ export class MCPTool extends Tool {
     server_name: string
     description: string
     parameters: { [_ : string] : JSONSchema }
-    required?: string[]
+    required: string[]
     sandbox?: string
     client: Client
     static count : number = 0
@@ -219,16 +219,12 @@ export class MCPTool extends Tool {
         this.server_name = server_name
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
-        if (!schema) {
-            this.parameters = {}
-            this.required = []
-        } else {
-            this.parameters = schema.properties
-            // XXX: MCP types don't include the required property. The JSON
-            // Schema spec says that when it's omitted, nothing is required
-            // <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-validation-00#rfc.section.6.5>
-            this.required = schema.required
-        }
+        
+        this.parameters = schema.properties
+        // XXX: MCP types don't require the required property. The JSON
+        // Schema spec says that when it's omitted, nothing is required
+        // <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-validation-00#rfc.section.6.5>
+        this.required = schema.required ?? []
     };
 
     private qualifyResourceUri(uri: string): string {

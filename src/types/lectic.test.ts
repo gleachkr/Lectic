@@ -4,21 +4,7 @@ import { SQLiteTool } from '../tools/sqlite';
 import { ThinkTool } from '../tools/think';
 import { ServeTool } from '../tools/serve';
 import { AgentTool } from '../tools/agent';
-import { expect, it, describe, mock } from "bun:test";
-
-// Mock the file and exec loaders
-mock.module('../utils/loader', () => ({
-  loadFrom: async (spec: any) => {
-    if (typeof spec === 'string' && spec.startsWith('file:')) {
-      return `content from ${spec.slice(5)}`;
-    }
-    if (typeof spec === 'string' && spec.startsWith('exec:')) {
-        return `output from ${spec.slice(5)}`;
-    }
-    return spec;
-  },
-}));
-
+import { expect, it, describe } from "bun:test";
 
 describe('LecticHeader', () => {
   it('should initialize with a single interlocutor', () => {

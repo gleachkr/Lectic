@@ -45,17 +45,16 @@ export abstract class Tool {
     abstract name: string
     abstract description: string
     abstract parameters: { [_ : string] : JSONSchema }
-    abstract required? : string[] //TODO: this should not be optional
+    abstract required : string[]
     abstract call (arg : unknown) : Promise<ToolCallResult[]>
 
     validateArguments(args: Record<string, unknown>) {
-        if (this.required) {
-            for (const key of this.required) {
-                if (!(key in args)) {
-                    throw new Error(`Missing required argument: ${key}`);
-                }
+        for (const key of this.required) {
+            if (!(key in args)) {
+                throw new Error(`Missing required argument: ${key}`);
             }
         }
+
         for (const key of Object.keys(args)) {
             if (!(key in this.parameters)) {
                 throw new Error(`Unknown argument: ${key}`);

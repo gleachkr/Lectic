@@ -242,7 +242,8 @@ describe('AssistantMessage', () => {
             description: 'Tool that handles booleans',
             parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
             call: async (_arg) => ToolCallResults('done'),
-            validateArguments: _ => null
+            validateArguments: _ => null,
+            required: []
         };
 
         const call = {
@@ -268,7 +269,8 @@ describe('AssistantMessage', () => {
             description: 'Tool that handles booleans',
             parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
             call: async (_arg) => ToolCallResults('done\n\ndone\n\ndone\n\ndone'),
-            validateArguments: _ => null
+            validateArguments: _ => null,
+            required: []
         };
 
         const call = {
@@ -294,7 +296,8 @@ describe('AssistantMessage', () => {
             description: 'echo tool',
             parameters: { s: { type: 'string', description: 'string' } },
             call: async (_arg) => ToolCallResults('x'),
-            validateArguments: _ => null
+            validateArguments: _ => null,
+            required: []
         };
         const call1 = { name: 'echo', args: { s: 'a' }, results: ToolCallResults('ra') };
         const call2 = { name: 'echo', args: { s: 'b' }, results: ToolCallResults('rb') };
@@ -317,7 +320,8 @@ describe('AssistantMessage', () => {
             description: 'noop',
             parameters: {},
             call: async (_arg) => ToolCallResults('done'),
-            validateArguments: _ => null
+            validateArguments: _ => null,
+            required: []
         };
         const s = serializeCall(tool, { name: 'noop', args: {}, results: ToolCallResults('r')});
         const content = `${s}\n\nthen some text`;
@@ -347,7 +351,8 @@ describe('AssistantMessage', () => {
             description: 'sum',
             parameters: { a: { type: 'number', description: 'a' }, b: { type: 'number', description: 'b' } },
             call: async (_arg) => ToolCallResults('3'),
-            validateArguments: _ => null
+            validateArguments: _ => null,
+            required: []
         };
         const call = {
             name: 'sum',
@@ -373,7 +378,8 @@ describe('AssistantMessage', () => {
             description: 'echo',
             parameters: { s: { type: 'string', description: 's' } },
             call: async (_arg) => ToolCallResults('x'),
-            validateArguments: _ => null
+            validateArguments: _ => null,
+            required: []
         };
         const s = serializeCall(tool, { name: 'echo', args: { s: 'hi' }, results: ToolCallResults('ok')});
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any; // echo missing
