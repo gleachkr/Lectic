@@ -327,7 +327,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#execution-environment" id="toc-execution-environment" class="nav-link" data-scroll-target="#execution-environment">Execution environment</a></li>
   <li><a href="#safety-and-trust" id="toc-safety-and-trust" class="nav-link" data-scroll-target="#safety-and-trust">Safety and trust</a>
   <ul class="collapse">
-  <li><a href="#confirmation-scripts-confirm" id="toc-confirmation-scripts-confirm" class="nav-link" data-scroll-target="#confirmation-scripts-confirm">Confirmation scripts (<code>confirm</code>)</a></li>
+  <li><a href="#confirmation-via-hooks" id="toc-confirmation-via-hooks" class="nav-link" data-scroll-target="#confirmation-via-hooks">Confirmation via hooks</a></li>
   <li><a href="#sandboxing-sandbox" id="toc-sandboxing-sandbox" class="nav-link" data-scroll-target="#sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</a></li>
   </ul></li>
   </ul></li>
@@ -375,7 +375,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>name</code>: An optional name for the tool.</li>
 <li><code>usage</code>: A string with instructions for the LLM. It also accepts <code>file:</code> and <code>exec:</code> sources. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for semantics.</li>
 <li><code>sandbox</code>: A path to a sandboxing script. See safety below.</li>
-<li><code>confirm</code>: A path to a confirmation script. See safety below.</li>
 <li><code>timeoutSeconds</code>: Seconds to wait before aborting a long‑running call.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
 <li><code>schema</code>: A map of parameter name → description. When present, the tool takes named string parameters (exposed as env vars). When absent, the tool instead takes a required <code>arguments</code> array of strings.</li>
@@ -468,11 +467,10 @@ Warning
 <p>Granting an LLM the ability to execute commands can be dangerous. Treat every <code>exec</code> tool as a capability you are delegating. Combine human‑in‑the‑ loop confirmation and sandboxing to minimize risk. Do not expose sensitive files or networks unless you fully trust the tool and its usage.</p>
 </div>
 </div>
-<p>Lectic provides two mechanisms to help you keep <code>exec</code> tools safe: confirmation scripts and sandboxing.</p>
-<section id="confirmation-scripts-confirm" class="level3">
-<h3 class="anchored" data-anchor-id="confirmation-scripts-confirm">Confirmation scripts (<code>confirm</code>)</h3>
-<p>If a <code>confirm</code> script is provided, Lectic runs it before every call. The script receives two arguments: the tool’s name and a JSON string of the call arguments. If the confirmation script exits non‑zero, the call is cancelled.</p>
-<p>An example script that uses a graphical dialog is in <code>extra/confirm/zenity-confirm.sh</code>.</p>
+<p>Lectic provides two mechanisms to help you keep <code>exec</code> tools safe: hooks and sandboxing.</p>
+<section id="confirmation-via-hooks" class="level3">
+<h3 class="anchored" data-anchor-id="confirmation-via-hooks">Confirmation via hooks</h3>
+<p>You can use the <code>tool_use_pre</code> hook to implement confirmation dialogs or logic. See <a href="../automation/02_hooks.html">Hooks</a> for examples.</p>
 </section>
 <section id="sandboxing-sandbox" class="level3">
 <h3 class="anchored" data-anchor-id="sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</h3>

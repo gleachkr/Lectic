@@ -363,7 +363,6 @@ ul.task-list li input[type="checkbox"] {
 <ul>
 <li>One of: <code>mcp_command</code>, <code>mcp_ws</code>, <code>mcp_sse</code>, or <code>mcp_shttp</code>.</li>
 <li><code>name</code>: Optional server name used for namespacing and resource scheme.</li>
-<li><code>confirm</code>: Optional confirmation script, called before each tool use.</li>
 <li><code>sandbox</code>: Optional wrapper for <code>mcp_command</code> to isolate the server.</li>
 <li><code>roots</code>: Optional list of root objects for file access (each with <code>uri</code> and optional <code>name</code>).</li>
 <li><code>exclude</code>: Optional list of server tool names to hide.</li>
@@ -384,7 +383,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="the-hook-object" class="level2">
 <h2 class="anchored" data-anchor-id="the-hook-object">The <code>hook</code> Object</h2>
 <ul>
-<li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, and <code>error</code>.</li>
+<li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, <code>error</code>, and <code>tool_use_pre</code>.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event occurs. If multi‑line, it must start with a shebang (e.g., <code>#!/bin/bash</code>). Event context is provided as environment variables. See the Hooks guide for details.</li>
 <li><code>inline</code>: (Optional) Boolean. If <code>true</code>, the output of the hook is captured and injected into the conversation. Defaults to <code>false</code>.</li>
 </ul>

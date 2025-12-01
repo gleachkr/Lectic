@@ -321,7 +321,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#safety-and-trust" id="toc-safety-and-trust" class="nav-link" data-scroll-target="#safety-and-trust">Safety and trust</a>
   <ul class="collapse">
-  <li><a href="#confirmation-scripts-confirm" id="toc-confirmation-scripts-confirm" class="nav-link" data-scroll-target="#confirmation-scripts-confirm">Confirmation Scripts (<code>confirm</code>)</a></li>
+  <li><a href="#confirmation-via-hooks" id="toc-confirmation-via-hooks" class="nav-link" data-scroll-target="#confirmation-via-hooks">Confirmation via hooks</a></li>
   <li><a href="#sandboxing-sandbox" id="toc-sandboxing-sandbox" class="nav-link" data-scroll-target="#sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</a></li>
   </ul></li>
   </ul></li>
@@ -402,14 +402,14 @@ Warning
 <p>While powerful, the MCP protocol carries significant security risks. Treat MCP integration as a high-trust capability. Never connect to untrusted servers; a malicious server could exfiltrate data or perform unwanted actions. Lectic’s safety mechanisms reduce mistakes from a well‑behaved LLM, not attacks from a hostile server.</p>
 </div>
 </div>
-<section id="confirmation-scripts-confirm" class="level3">
-<h3 class="anchored" data-anchor-id="confirmation-scripts-confirm">Confirmation Scripts (<code>confirm</code>)</h3>
-<p>Just like with the <code>exec</code> tool, you can specify a <code>confirm</code> script. This script will be executed before every tool call dispatched to the MCP server, giving you a chance to approve or deny the action.</p>
+<section id="confirmation-via-hooks" class="level3">
+<h3 class="anchored" data-anchor-id="confirmation-via-hooks">Confirmation via hooks</h3>
+<p>Just like with the <code>exec</code> tool, you can use the <code>tool_use_pre</code> hook to implement confirmation dialogs or logic. See <a href="../automation/02_hooks.html">Hooks</a> for examples.</p>
 </section>
 <section id="sandboxing-sandbox" class="level3">
 <h3 class="anchored" data-anchor-id="sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</h3>
 <p>For local <code>mcp_command</code> tools, you can specify a <code>sandbox</code> script. This script will be used to launch the MCP server process in a controlled and isolated environment, limiting its access to your system.</p>
-<p>See the documentation for the <a href="../tools/02_exec.html">Exec Tool</a> for more details on how confirmation and sandboxing scripts work.</p>
+<p>See the documentation for the <a href="../tools/02_exec.html">Exec Tool</a> for more details on how sandboxing scripts work.</p>
 
 
 </section>
