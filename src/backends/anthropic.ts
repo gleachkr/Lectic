@@ -20,7 +20,7 @@ export async function* anthropicTextChunks(
     stream: MessageStream
 ) : AsyncGenerator<string> {
     for await (const messageEvent of stream) {
-        if (messageEvent.type === 'content_block_delta' && 
+        if (messageEvent.type === 'content_block_delta' &&
             messageEvent.delta.type === "text_delta") {
             yield messageEvent.delta.text
         }
@@ -36,9 +36,9 @@ async function partToContent(part: MessageAttachmentPart) {
     let bytes = part.bytes
     if (!(media_type && bytes)) return null
         switch(media_type) {
-            case "image/gif" : 
-                case "image/jpeg": 
-                case "image/webp": 
+            case "image/gif" :
+                case "image/jpeg":
+                case "image/webp":
                 case "image/png": return {
                 type : "image",
                 source : {
@@ -47,10 +47,10 @@ async function partToContent(part: MessageAttachmentPart) {
                     "data" : Buffer.from(bytes).toString("base64")
                 }
             } as const
-            case "application/pdf" : 
+            case "application/pdf" :
                 if (part.fragmentParams) bytes = await pdfFragment(bytes, part.fragmentParams)
                 return {
-                    type : "document", 
+                    type : "document",
                     title : part.title,
                     source : {
                         "type" : "base64",
@@ -59,7 +59,7 @@ async function partToContent(part: MessageAttachmentPart) {
                     }
                 } as const
             case "text/plain" : return {
-                type : "document", 
+                type : "document",
                 title : part.title,
                 source : {
                     "type" : "text",
@@ -69,7 +69,7 @@ async function partToContent(part: MessageAttachmentPart) {
             } as const
             default : return {
                 type: "text",
-                text: `<error>Media type ${media_type} is not supported.</error>` 
+                text: `<error>Media type ${media_type} is not supported.</error>`
             } as const
         }
 }
@@ -79,11 +79,11 @@ function updateCache(messages : Anthropic.Messages.MessageParam[]) {
     for (const message of messages) {
         if (message.content.length > 0) {
             const last_content = message.content[message.content.length - 1]
-            if (typeof last_content !== "string" && 
+            if (typeof last_content !== "string" &&
                 last_content.type !== "redacted_thinking" &&
-                    last_content.type !== "thinking") 
+                    last_content.type !== "thinking")
                 {
-                    if (idx == messages.length - 1) { 
+                    if (idx == messages.length - 1) {
                         last_content.cache_control = { type: "ephemeral" }
                     } else if (typeof last_content !== "string") {
                         delete last_content.cache_control
@@ -100,14 +100,14 @@ async function handleMessage(
     lectic: Lectic,
     opt?: { inlineAttachments?: InlineAttachment[] }
 ) : Promise<Anthropic.Messages.MessageParam[]> {
-    if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
+    if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) {
         const results : Anthropic.Messages.MessageParam[] = []
         const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
             if (interaction.attachments.length > 0) {
-                results.push({ 
-                    role: "user", 
-                    content: interaction.attachments.map(a => ({ type: "text" as const, text: a.content })) 
+                results.push({
+                    role: "user",
+                    content: interaction.attachments.map(a => ({ type: "text" as const, text: a.content }))
                 })
             }
             const modelParts : Anthropic.Messages.ContentBlockParam[] = []
@@ -158,12 +158,12 @@ async function handleMessage(
 
         return results
     } else if (msg.role === "assistant") {
-        return [{ 
-            role : "user", 
-            content: [{ 
-                type: "text", 
+        return [{
+            role : "user",
+            content: [{
+                type: "text",
                 text: wrapText({
-                    text: msg.content || "…", 
+                    text: msg.content || "…",
                     name: msg.name
                 })}]
         }]
@@ -228,8 +228,8 @@ function getTools(lectic : Lectic) : Anthropic.Messages.ToolUnion[] {
 }
 
 async function* handleToolUse(
-    message: Anthropic.Messages.Message, 
-    messages : Anthropic.Messages.MessageParam[], 
+    message: Anthropic.Messages.Message,
+    messages : Anthropic.Messages.MessageParam[],
     lectic : Lectic,
     client : Anthropic | AnthropicBedrock,
     model : string,
@@ -311,7 +311,7 @@ async function* handleToolUse(
             tools: getTools(lectic),
             thinking: lectic.header.interlocutor.thinking_budget !== undefined ? {
                 type: 'enabled',
-                budget_tokens: lectic.header.interlocutor.thinking_budget 
+                budget_tokens: lectic.header.interlocutor.thinking_budget
             } : undefined
         });
 
@@ -331,12 +331,12 @@ async function* handleToolUse(
             output: message.usage.output_tokens,
             total: message.usage.input_tokens + message.usage.output_tokens
         }
-        currentHookRes = emitAssistantMessageEvent(assistant, lectic, { 
+        currentHookRes = emitAssistantMessageEvent(assistant, lectic, {
             toolUseDone, usage, loopCount, finalPassCount })
         if (currentHookRes.length > 0) {
             if (toolUseDone) finalPassCount++
             yield "\n\n"
-            yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
+            yield currentHookRes.map(serializeInlineAttachment).join("\n\n")
             yield "\n\n"
         }
 
@@ -387,7 +387,7 @@ export class AnthropicBackend implements Backend {
                 })
                 inlineAttachments.push(...hookResults)
 
-                const newParams = await handleMessage(m, lectic, { 
+                const newParams = await handleMessage(m, lectic, {
                     inlineAttachments,
                 })
                 messages.push(...newParams)
@@ -411,7 +411,7 @@ export class AnthropicBackend implements Backend {
             tools: getTools(lectic),
             thinking: lectic.header.interlocutor.thinking_budget !== undefined ? {
                 type: 'enabled',
-                budget_tokens: lectic.header.interlocutor.thinking_budget 
+                budget_tokens: lectic.header.interlocutor.thinking_budget
             } : undefined
         });
 
@@ -439,13 +439,13 @@ export class AnthropicBackend implements Backend {
         const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone, usage, loopCount: 0, finalPassCount: 0 })
         if (assistantHookRes.length > 0) {
              yield "\n\n"
-             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
+             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n")
              yield "\n\n"
         }
 
         if (msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model, assistantHookRes)
-        } 
+        }
     }
 }
 
