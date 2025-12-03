@@ -501,11 +501,7 @@ export async function buildDiagnostics(
 
   // 3) Coarse missing-interlocutor check on merged spec
   if (!hasAnyInterlocutor(mergedSpec)) {
-    const msg = "YAML Header is missing something. " +
-      "One or more interlocutors need to be specified. " +
-      "(Use either `interlocutor:` for a single interlocutor, " +
-      "or `interlocutors:` for a list, " +
-      "and include at least a name and prompt for each interlocutor)."
+    const msg = Messages.header.missingInterlocutor()
     if (!diags.some(d => d.message === msg)) {
       diags.push({
         range: headerRange,

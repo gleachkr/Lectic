@@ -34,7 +34,7 @@ describe("diagnostics", () => {
       const ast = remark().use(remarkDirective).parse(text)
       const diags = await buildDiagnostics(ast, text, undefined)
       expect(diags.length > 0).toBeTrue()
-      expect(hasMessage(diags, "YAML Header is missing")).toBeTrue()
+      expect(hasMessage(diags, "Header must have either")).toBeTrue()
     })
   })
 

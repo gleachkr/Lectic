@@ -181,118 +181,172 @@ export function validateHeaderShape(spec: unknown): Issue[] {
   if ("interlocutor" in root && root["interlocutor"]) {
     validateInter(root["interlocutor"] as Record<string, unknown>, ["interlocutor"])
   }
-  const inters = root?.["interlocutors"] as unknown
-  if (Array.isArray(inters)) {
-    inters.forEach((it, i: number) => {
-      if (isObjectRecord(it)) validateInter(it, ["interlocutors", i])
-    })
+  if ("interlocutors" in root) {
+    const inters = root["interlocutors"]
+    if (!Array.isArray(inters)) {
+      issues.push({
+        code: "header.interlocutors.type",
+        message: Messages.header.interlocutorsType(),
+        path: ["interlocutors"],
+        severity: "error"
+      })
+    } else {
+      // Empty check logic:
+      // If there is no single interlocutor, then the list cannot be empty.
+      // But validateHeaderShape is usually checking local spec.
+      // The validation rule in validateLecticHeaderSpec is:
+      // if (!hasInterlocutor && (r['interlocutors'] as any[]).length === 0)
+      // We can apply that here to the local spec: if local has both fields, and list is empty,
+      // and single is missing... well, single might be in merged spec.
+      // But if single is missing locally and list is empty locally, that's suspicious locally.
+      // Let's stick to type checking the items.
+      if (inters.length === 0 && !("interlocutor" in root)) {
+         issues.push({
+            code: "header.interlocutors.empty",
+            message: Messages.header.interlocutorsEmpty(),
+            path: ["interlocutors"],
+            severity: "error"
+         })
+      }
+
+      inters.forEach((it, i: number) => {
+        if (isObjectRecord(it)) validateInter(it, ["interlocutors", i])
+      })
+    }
   }
 
   // macros
-  const macros = root?.["macros"] as unknown
-  if (Array.isArray(macros)) {
-    macros.forEach((m, i: number) => {
-      if (!isObjectRecord(m)) return
-      if (!("name" in m) || typeof m["name"] !== "string") {
-        issues.push({
-          code: "macro.name.missing",
-          message: Messages.macro.nameMissing(),
-          path: ["macros", i, "name"],
-          severity: "error"
-        })
-      }
-      if (!("expansion" in m) || typeof m["expansion"] !== "string") {
-        issues.push({
-          code: "macro.expansion.missing",
-          message: Messages.macro.expansionMissing(),
-          path: ["macros", i, "expansion"],
-          severity: "error"
-        })
-      }
-    })
-  }
-
-  // kits
-  const kits = root?.["kits"] as unknown
-  if (Array.isArray(kits)) {
-    kits.forEach((b, i: number) => {
-      if (!isObjectRecord(b)) return
-      if (!("name" in b) || typeof b["name"] !== "string") {
-        issues.push({
-          code: "kit.name.missing",
-          message: Messages.kit.nameMissing(),
-          path: ["kits", i, "name"],
-          severity: "error"
-        })
-      }
-      const nameVal = typeof b?.["name"] === "string" ? b["name"] : "<unknown>"
-      if (!("tools" in b)) {
-        issues.push({
-          code: "kit.tools.missing",
-          message: Messages.kit.toolsMissing(nameVal),
-          path: ["kits", i, "tools"],
-          severity: "error"
-        })
-      } else if (!Array.isArray(b["tools"])) {
-        issues.push({
-          code: "kit.tools.type",
-          message: Messages.kit.toolsType(nameVal),
-          path: ["kits", i, "tools"],
-          severity: "error"
-        })
-      } else if (!(b["tools"].every((t) => isObjectRecord(t)))) {
-        issues.push({
-          code: "kit.tools.items",
-          message: Messages.kit.toolsItems(nameVal),
-          path: ["kits", i, "tools"],
-          severity: "error"
-        })
-      }
-    })
-  }
-
-  // hooks
-  const hooks = root?.["hooks"]
-  if (Array.isArray(hooks)) {
-    hooks.forEach((h, i: number) => {
-      if (!isObjectRecord(h)) return
-      if (!("on" in h)) {
-        issues.push({
-          code: "hook.on.missing",
-          message: Messages.hook.onMissing(),
-          path: ["hooks", i, "on"],
-          severity: "error"
-        })
-      } else if (typeof h["on"] !== "string" && !Array.isArray(h["on"])) {
-        issues.push({
-          code: "hook.on.type",
-          message: Messages.hook.onType(),
-          path: ["hooks", i, "on"],
-          severity: "error"
-        })
-      } else {
-        const allowed = ["user_message", "assistant_message", "error", "tool_use_pre"]
-        const ok = typeof h["on"] === "string"
-          ? allowed.includes(h["on"])
-          : h["on"].every((x) => allowed.includes(x))
-        if (!ok) {
+  if ("macros" in root) {
+    const macros = root["macros"]
+    if (!Array.isArray(macros)) {
+      issues.push({
+        code: "header.macros.type",
+        message: Messages.header.macrosType(),
+        path: ["macros"],
+        severity: "error"
+      })
+    } else {
+      macros.forEach((m, i: number) => {
+        if (!isObjectRecord(m)) return
+        if (!("name" in m) || typeof m["name"] !== "string") {
           issues.push({
-            code: "hook.on.value",
-            message: Messages.hook.onValue(allowed),
-            path: ["hooks", i, "on"],
+            code: "macro.name.missing",
+            message: Messages.macro.nameMissing(),
+            path: ["macros", i, "name"],
             severity: "error"
           })
         }
-      }
-      if (!("do" in h) || typeof h["do"] !== "string") {
-        issues.push({
-          code: "hook.do.missing",
-          message: Messages.hook.doMissing(),
-          path: ["hooks", i, "do"],
-          severity: "error"
-        })
-      }
-    })
+        if (!("expansion" in m) || typeof m["expansion"] !== "string") {
+          issues.push({
+            code: "macro.expansion.missing",
+            message: Messages.macro.expansionMissing(),
+            path: ["macros", i, "expansion"],
+            severity: "error"
+          })
+        }
+      })
+    }
+  }
+
+  // kits
+  if ("kits" in root) {
+    const kits = root["kits"]
+    if (!Array.isArray(kits)) {
+      issues.push({
+        code: "header.kits.type",
+        message: Messages.header.kitsType(),
+        path: ["kits"],
+        severity: "error"
+      })
+    } else {
+      kits.forEach((b, i: number) => {
+        if (!isObjectRecord(b)) return
+        if (!("name" in b) || typeof b["name"] !== "string") {
+          issues.push({
+            code: "kit.name.missing",
+            message: Messages.kit.nameMissing(),
+            path: ["kits", i, "name"],
+            severity: "error"
+          })
+        }
+        const nameVal = typeof b?.["name"] === "string" ? b["name"] : "<unknown>"
+        if (!("tools" in b)) {
+          issues.push({
+            code: "kit.tools.missing",
+            message: Messages.kit.toolsMissing(nameVal),
+            path: ["kits", i, "tools"],
+            severity: "error"
+          })
+        } else if (!Array.isArray(b["tools"])) {
+          issues.push({
+            code: "kit.tools.type",
+            message: Messages.kit.toolsType(nameVal),
+            path: ["kits", i, "tools"],
+            severity: "error"
+          })
+        } else if (!(b["tools"].every((t) => isObjectRecord(t)))) {
+          issues.push({
+            code: "kit.tools.items",
+            message: Messages.kit.toolsItems(nameVal),
+            path: ["kits", i, "tools"],
+            severity: "error"
+          })
+        }
+      })
+    }
+  }
+
+  // hooks
+  if ("hooks" in root) {
+    const hooks = root["hooks"]
+    if (!Array.isArray(hooks)) {
+      issues.push({
+        code: "header.hooks.type",
+        message: Messages.header.hooksType(),
+        path: ["hooks"],
+        severity: "error"
+      })
+    } else {
+      hooks.forEach((h, i: number) => {
+        if (!isObjectRecord(h)) return
+        if (!("on" in h)) {
+          issues.push({
+            code: "hook.on.missing",
+            message: Messages.hook.onMissing(),
+            path: ["hooks", i, "on"],
+            severity: "error"
+          })
+        } else if (typeof h["on"] !== "string" && !Array.isArray(h["on"])) {
+          issues.push({
+            code: "hook.on.type",
+            message: Messages.hook.onType(),
+            path: ["hooks", i, "on"],
+            severity: "error"
+          })
+        } else {
+          const allowed = ["user_message", "assistant_message", "error", "tool_use_pre"]
+          const ok = typeof h["on"] === "string"
+            ? allowed.includes(h["on"])
+            : h["on"].every((x) => allowed.includes(x))
+          if (!ok) {
+            issues.push({
+              code: "hook.on.value",
+              message: Messages.hook.onValue(allowed),
+              path: ["hooks", i, "on"],
+              severity: "error"
+            })
+          }
+        }
+        if (!("do" in h) || typeof h["do"] !== "string") {
+          issues.push({
+            code: "hook.do.missing",
+            message: Messages.hook.doMissing(),
+            path: ["hooks", i, "do"],
+            severity: "error"
+          })
+        }
+      })
+    }
   }
 
   return issues

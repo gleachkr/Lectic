@@ -123,11 +123,7 @@ export async function parseLectic(raw: string, include : (string | null)[]) : Pr
     }
 
     if (!validateLecticHeaderSpec(headerSpec)) throw Error(
-         "YAML Header is missing something. " +
-         "One or more interlocutors need to be specified. " +
-         "(Use either `interlocutor:` for a single interlocutor, " + 
-         "or `interlocutors:` for a list, " + 
-         "and include at least a name and prompt for each interlocutor)."
+         "Something's wrong with the YAML Header."
     )
 
     const header = new LecticHeader(headerSpec)
