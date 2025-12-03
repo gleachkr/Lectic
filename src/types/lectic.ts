@@ -192,35 +192,54 @@ export class LecticHeader {
 
 // This is similar to isLecticHeaderSpec, but throws on failed validation
 export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
-    return raw !== null &&
-        typeof raw === 'object' &&
-        (('interlocutor' in raw 
-            && validateInterlocutor(raw.interlocutor)
-            && ('interlocutors' in raw 
-                ? Array.isArray(raw.interlocutors) && raw.interlocutors.every(validateInterlocutor)
-                : true
-               )
-         ) ||
-         ('interlocutors' in raw 
-            && Array.isArray(raw.interlocutors)
-            && raw.interlocutors.length !== 0
-            && raw.interlocutors.every(validateInterlocutor))
-        ) && ('macros' in raw
-                ? Array.isArray(raw.macros) && raw.macros.every(validateMacroSpec)
-                : true
-        ) && ('hooks' in raw
-                ? Array.isArray(raw.hooks) && raw.hooks.every(validateHookSpec)
-                : true
-        ) && ('kits' in raw
-                ? Array.isArray(raw.kits) && raw.kits.every(validateToolKit)
-                : true
-             )
+    if (raw === null) throw Error(Messages.header.baseNull())
+    if (typeof raw !== 'object') throw Error(Messages.header.baseType())
+
+    const r = raw as Record<string, unknown>
+
+    const hasInterlocutor = 'interlocutor' in r
+    const hasInterlocutors = 'interlocutors' in r
+
+    if (!hasInterlocutor && !hasInterlocutors) {
+        throw Error(Messages.header.missingInterlocutor())
+    }
+
+    if (hasInterlocutor) {
+        validateInterlocutor(r['interlocutor'])
+    }
+
+    if (hasInterlocutors) {
+        if (!Array.isArray(r['interlocutors'])) {
+            throw Error(Messages.header.interlocutorsType())
+        }
+        (r['interlocutors'] as any[]).every(validateInterlocutor)
+
+        if (!hasInterlocutor && (r['interlocutors'] as any[]).length === 0) {
+            throw Error(Messages.header.interlocutorsEmpty())
+        }
+    }
+
+    if ('macros' in r) {
+        if (!Array.isArray(r['macros'])) { throw Error(Messages.header.macrosType()) }
+        (r['macros'] as any[]).every(validateMacroSpec)
+    }
+
+    if ('hooks' in r) {
+        if (!Array.isArray(r['hooks'])) { throw Error(Messages.header.hooksType()) }
+        (r['hooks'] as any[]).every(validateHookSpec)
+    }
+
+    if ('kits' in r) {
+        if (!Array.isArray(r['kits'])) { throw Error(Messages.header.kitsType()) }
+        (r['kits'] as any[]).every(validateToolKit)
+    }
+
+    return true
 }
 
 export function isLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
     try {
-        validateLecticHeaderSpec(raw)
-        return true
+        return validateLecticHeaderSpec(raw)
     } catch {
         return false
     }

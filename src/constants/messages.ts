@@ -80,5 +80,17 @@ export const Messages = {
       `Unknown kit reference: ${kit}`,
     cycle: (kit: string) =>
       `Kit expansion cycle detected at ${kit}`
+  },
+
+  // Header
+  header: {
+    baseNull: () => `Header cannot be null.`,
+    baseType: () => `Header must be an object.`,
+    missingInterlocutor: () => `Header must have either an 'interlocutor' or 'interlocutors' field.`,
+    interlocutorsType: () => `'interlocutors' must be an array.`,
+    interlocutorsEmpty: () => `'interlocutors' array cannot be empty.`,
+    macrosType: () => `'macros' must be an array.`,
+    hooksType: () => `'hooks' must be an array.`,
+    kitsType: () => `'kits' must be an array.`
   }
 } as const
