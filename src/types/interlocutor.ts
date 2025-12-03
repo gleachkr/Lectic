@@ -1,5 +1,6 @@
 import { LLMProvider, isLLMProvider } from "./provider"
 import { Tool } from "./tool"
+import { type HookSpec, type Hook, isHookSpecList } from "./hook"
 import { Messages } from "../constants/messages"
 
 // TODO Possibly this should be a union type over per-backend interfaces.
@@ -15,6 +16,8 @@ export type Interlocutor = {
     max_tool_use? : number
     reminder? : string
     nocache? : boolean
+    hooks? : HookSpec[]
+    active_hooks?: Hook[]
     thinking_budget?: number
     thinking_effort?: "none" | "low" | "medium" | "high"
 }
@@ -73,6 +76,13 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
             throw Error(Messages.interlocutor.toolsType(raw.name))
         } else if (!(raw.tools.every(t => typeof t === "object"))) {
             throw Error(Messages.interlocutor.toolsItems(raw.name))
+        }
+    }
+    if (("hooks" in raw)) {
+        if (!Array.isArray(raw.hooks)) {
+            throw Error(Messages.interlocutor.hooksType(raw.name))
+        } else if (!isHookSpecList(raw.hooks)) {
+            throw Error(Messages.interlocutor.hooksItems(raw.name))
         }
     }
     return true

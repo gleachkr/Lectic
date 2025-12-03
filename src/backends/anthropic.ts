@@ -8,9 +8,10 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, runHooks,
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
-    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from "./common.ts"
+    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
+    emitUserMessageEvent} from "./common.ts"
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.mjs';
 
@@ -381,10 +382,8 @@ export class AnthropicBackend implements Backend {
         for (let i = 0; i < lectic.body.messages.length; i++) {
             const m = lectic.body.messages[i]
             if (m.role === "user" && i === lectic.body.messages.length - 1) {
-                // Run user_message hooks
-                const hookResults = runHooks(lectic.header.hooks, "user_message", {
-                    "USER_MESSAGE": m.content ?? ""
-                })
+                
+                const hookResults = emitUserMessageEvent(m.content, lectic)
                 inlineAttachments.push(...hookResults)
 
                 const newParams = await handleMessage(m, lectic, {

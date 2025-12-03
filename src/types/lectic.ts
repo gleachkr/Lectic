@@ -15,6 +15,7 @@ import { isNativeTool } from "../tools/native"
 import { loadFrom } from "../utils/loader"
 import { mergeValues } from "../utils/merge"
 import { Messages } from "../constants/messages"
+import { isObjectRecord } from "./guards"
 
 type ToolKitSpec = {
     name : string
@@ -79,16 +80,14 @@ export class LecticHeader {
     // the same name, merge them so the single interlocutor includes
     // the properties from its list counterpart.
     static normalizeMergedSpec(raw: unknown): unknown {
-        const isObj = (v: unknown): v is Record<string, unknown> =>
-            typeof v === 'object' && v !== null
-        if (!isObj(raw)) return raw
+        if (!isObjectRecord(raw)) return raw
         const curInterlocutor = raw['interlocutor']
         const interlocutors = raw['interlocutors']
-        if (!isObj(curInterlocutor) || !Array.isArray(interlocutors)) return raw
+        if (!isObjectRecord(curInterlocutor) || !Array.isArray(interlocutors)) return raw
         const nameVal = curInterlocutor['name']
         if (!(typeof nameVal === 'string')) return raw
         const otherInterlocutor = interlocutors.find((inter: unknown) => {
-            return isObj(inter) && inter['name'] === nameVal
+            return isObjectRecord(inter) && inter['name'] === nameVal
         })
         if (otherInterlocutor) {
             raw['interlocutor'] = mergeValues(otherInterlocutor, curInterlocutor)
@@ -142,6 +141,7 @@ export class LecticHeader {
         this.interlocutor.prompt = await loadFrom(this.interlocutor.prompt)
 
         this.interlocutor.registry = {}
+        this.interlocutor.active_hooks = (this.interlocutor.hooks ?? []).map(h => new Hook(h))
 
         const toolSpecs = Array.isArray(this.interlocutor.tools)
           ? this.expandTools(this.interlocutor.tools)
@@ -193,45 +193,43 @@ export class LecticHeader {
 // This is similar to isLecticHeaderSpec, but throws on failed validation
 export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
     if (raw === null) throw Error(Messages.header.baseNull())
-    if (typeof raw !== 'object') throw Error(Messages.header.baseType())
+    if (!isObjectRecord(raw)) throw Error(Messages.header.baseType())
 
-    const r = raw as Record<string, unknown>
-
-    const hasInterlocutor = 'interlocutor' in r
-    const hasInterlocutors = 'interlocutors' in r
+    const hasInterlocutor = 'interlocutor' in raw
+    const hasInterlocutors = 'interlocutors' in raw
 
     if (!hasInterlocutor && !hasInterlocutors) {
         throw Error(Messages.header.missingInterlocutor())
     }
 
     if (hasInterlocutor) {
-        validateInterlocutor(r['interlocutor'])
+        validateInterlocutor(raw['interlocutor'])
     }
 
     if (hasInterlocutors) {
-        if (!Array.isArray(r['interlocutors'])) {
+        if (!Array.isArray(raw['interlocutors'])) {
             throw Error(Messages.header.interlocutorsType())
         }
-        (r['interlocutors'] as any[]).every(validateInterlocutor)
+        raw['interlocutors'].every(validateInterlocutor)
 
-        if (!hasInterlocutor && (r['interlocutors'] as any[]).length === 0) {
+        if (!hasInterlocutor && raw['interlocutors'].length === 0) {
             throw Error(Messages.header.interlocutorsEmpty())
         }
     }
 
-    if ('macros' in r) {
-        if (!Array.isArray(r['macros'])) { throw Error(Messages.header.macrosType()) }
-        (r['macros'] as any[]).every(validateMacroSpec)
+    if ('macros' in raw) {
+        if (!Array.isArray(raw['macros'])) { throw Error(Messages.header.macrosType()) }
+        raw['macros'].every(validateMacroSpec)
     }
 
-    if ('hooks' in r) {
-        if (!Array.isArray(r['hooks'])) { throw Error(Messages.header.hooksType()) }
-        (r['hooks'] as any[]).every(validateHookSpec)
+    if ('hooks' in raw) {
+        if (!Array.isArray(raw['hooks'])) { throw Error(Messages.header.hooksType()) }
+        raw['hooks'].every(validateHookSpec)
     }
 
-    if ('kits' in r) {
-        if (!Array.isArray(r['kits'])) { throw Error(Messages.header.kitsType()) }
-        (r['kits'] as any[]).every(validateToolKit)
+    if ('kits' in raw) {
+        if (!Array.isArray(raw['kits'])) { throw Error(Messages.header.kitsType()) }
+        raw['kits'].every(validateToolKit)
     }
 
     return true
@@ -246,7 +244,7 @@ export function isLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
 }
 
 export type LecticBody = {
-    messages : Message[];
+    messages : Message[]
 }
 
 export function isLecticBody(raw: unknown): raw is LecticBody {
@@ -254,7 +252,7 @@ export function isLecticBody(raw: unknown): raw is LecticBody {
         typeof raw === 'object' &&
         'messages' in raw &&
         Array.isArray(raw.messages) &&
-        raw.messages.every(isMessage);
+        raw.messages.every(isMessage)
 }
 
 export class Lectic {
@@ -295,5 +293,5 @@ export function isLectic(raw: unknown): raw is Lectic {
         'header' in raw &&
         'body' in raw &&
         (raw.header instanceof LecticHeader) &&
-        isLecticBody(raw.body);
+        isLecticBody(raw.body)
 }

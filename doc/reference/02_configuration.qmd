@@ -25,9 +25,10 @@ An interlocutor object defines a single LLM "personality" or configuration.
 - `prompt`: (Required) The base system prompt that defines the LLM's
   personality and instructions. The value can be a string, or it can be
   loaded from a file (`file:./path.txt`) or a command (`exec:get-prompt`).
-  See
-  [External Prompts](../context_management/03_external_prompts.qmd)
+  See [External Prompts](../context_management/03_external_prompts.qmd)
   for details and examples.
+- `hooks`: A list of hook definitions. See [Hooks](../automation/02_hooks.qmd).
+  These hooks fire only when this interlocutor is active.
 
 ### Model Configuration
 
@@ -82,8 +83,10 @@ For a more detailed discussion of provider and model options, see
 ### Tools
 
 - `tools`: A list of tool definitions that this interlocutor can use. The
-  format of each object in the list depends on the tool type. See the
-  [Tools section](../tools/01_overview.qmd) for detailed configuration guides for each tool.
+  format of each object in the list depends on the tool type. See the [Tools
+  section](../tools/01_overview.qmd) for detailed configuration guides for each
+  tool. All tools support a `hooks` array for `tool_use_pre` hooks scoped to
+  that particular tool.
 
 #### MCP tool keys
 

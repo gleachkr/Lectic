@@ -154,7 +154,23 @@ export function emitAssistantMessageEvent(
     if (opt?.finalPassCount !== undefined) {
         baseEnv["LECTIC_FINAL_PASS_COUNT"] = opt.finalPassCount.toString()
     }
-    return runHooks(lectic.header.hooks, "assistant_message", baseEnv)
+
+    const all_hooks = lectic.header.hooks.concat(lectic.header.interlocutor.active_hooks ?? [])
+    return runHooks(all_hooks, "assistant_message", baseEnv)
+}
+
+export function emitUserMessageEvent(
+    text : string | undefined | null, 
+    lectic: Lectic,
+) {
+    const baseEnv: Record<string, string> = {
+        LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name,
+        LECTIC_MODEL: lectic.header.interlocutor.model ?? "default"
+    }
+    if (text) { baseEnv["USER_MESSAGE"] = text }
+
+    const all_hooks = lectic.header.hooks.concat(lectic.header.interlocutor.active_hooks ?? [])
+    return runHooks(all_hooks, "user_message", baseEnv)
 }
 
 export type ToolRegistry = Record<string, Tool>
@@ -172,7 +188,8 @@ export async function resolveToolCalls(
 ): Promise<ToolCall[]> {
     const limitMsg = "Tool usage limit exceeded, no further tool calls will be allowed"
     const invalidArgsMsg = "The tool input isn't the right type. Tool inputs need to be returned as objects."
-    const global_hooks = opt?.lectic?.header.hooks
+    const global_hooks = opt?.lectic?.header.hooks ?? []
+    const interlocutor_hooks = opt?.lectic?.header.interlocutor.active_hooks ?? []
     const results: ToolCall[] = []
     for (const e of entries) {
         const id = e.id
@@ -188,7 +205,7 @@ export async function resolveToolCalls(
         }
         if (name in registry) {
             try {
-                const hooks = (global_hooks ?? []).concat(registry[name].hooks)
+                const hooks = [...global_hooks, ...interlocutor_hooks, ...registry[name].hooks]
                 const args = e.args
                 if (hooks) {
                      const activeHooks = hooks.filter(h => h.on.includes("tool_use_pre"))

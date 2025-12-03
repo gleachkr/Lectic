@@ -165,6 +165,67 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       }
     }
 
+    // hooks
+    if ("hooks" in raw) {
+      const hooks = raw["hooks"] as unknown
+      if (!(Array.isArray(hooks))) {
+        issues.push({
+          code: "interlocutor.hooks.type",
+          message: Messages.interlocutor.hooksType(nameVal),
+          path: [...pathBase, "hooks"],
+          severity: "error"
+        })
+      } else {
+        hooks.forEach((h, i: number) => {
+          if (!isObjectRecord(h)) {
+            issues.push({
+              code: "interlocutor.hooks.items",
+              message: Messages.interlocutor.hooksItems(nameVal),
+              path: [...pathBase, "hooks", i],
+              severity: "error"
+            })
+            return
+          }
+          if (!("on" in h)) {
+            issues.push({
+              code: "hook.on.missing",
+              message: Messages.hook.onMissing(),
+              path: [...pathBase, "hooks", i, "on"],
+              severity: "error"
+            })
+          } else if (typeof h["on"] !== "string" && !Array.isArray(h["on"])) {
+            issues.push({
+              code: "hook.on.type",
+              message: Messages.hook.onType(),
+              path: [...pathBase, "hooks", i, "on"],
+              severity: "error"
+            })
+          } else {
+            const allowed = ["user_message", "assistant_message", "error", "tool_use_pre"]
+            const ok = typeof h["on"] === "string"
+              ? allowed.includes(h["on"])
+              : h["on"].every((x) => typeof x === "string" && allowed.includes(x))
+            if (!ok) {
+              issues.push({
+                code: "hook.on.value",
+                message: Messages.hook.onValue(allowed),
+                path: [...pathBase, "hooks", i, "on"],
+                severity: "error"
+              })
+            }
+          }
+          if (!("do" in h) || typeof h["do"] !== "string") {
+            issues.push({
+              code: "hook.do.missing",
+              message: Messages.hook.doMissing(),
+              path: [...pathBase, "hooks", i, "do"],
+              severity: "error"
+            })
+          }
+        })
+      }
+    }
+
     // unknown fields
     for (const key of Object.keys(raw)) {
       if (!INTERLOCUTOR_KEY_SET.has(key)) {

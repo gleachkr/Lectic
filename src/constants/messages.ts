@@ -33,6 +33,10 @@ export const Messages = {
       `The tools for ${name} need to be given in an array.`,
     toolsItems: (name: string) =>
       `One or more tools for ${name} weren't properly specified`,
+    hooksType: (name: string) =>
+      `The hooks for ${name} need to be given in an array.`,
+    hooksItems: (name: string) =>
+      `One or more hooks for ${name} weren't properly specified`,
     unknownField: (name: string, field: string) =>
       `Unknown property "${field}" on interlocutor ${name}.`,
     // Broader constructor guard messages (runtime-only)

@@ -8,9 +8,10 @@ import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
-import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent, runHooks,
+import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
-    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
+    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
+    emitUserMessageEvent} from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Extract concatenated assistant text from a Gemini response.
@@ -423,14 +424,8 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       for (let i = 0; i < lectic.body.messages.length; i++) {
           const m = lectic.body.messages[i]
           if (m.role === "user" && lastIsUser && i === lastIdx) {
-              // Run user_message hooks
-              const hookResults = runHooks(lectic.header.hooks, "user_message", {
-                  "USER_MESSAGE": m.content ?? ""
-              })
-              inlineAttachments.push(...hookResults)
-
-              const newParams = await handleMessage(m, lectic, { inlineAttachments })
-              messages.push(...newParams)
+              inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
+              messages.push(...await handleMessage(m, lectic, { inlineAttachments }))
           } else {
               messages.push(...await handleMessage(m, lectic))
           }

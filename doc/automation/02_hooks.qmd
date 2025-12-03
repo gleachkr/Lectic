@@ -5,8 +5,9 @@ and scripts in response to events in Lectic's lifecycle. Use them for
 logging, notifications, post‑processing, or integrating with other tools
 and workflows.
 
-Hooks are defined in your YAML configuration under the `hooks` key, or per-tool
-in the `hooks` key of a tool specification.
+Hooks are defined in your YAML configuration under the `hooks` key, per-tool in
+the `hooks` key of a tool specification, or per-interlocutor in the `hooks` key
+of an interlocutor specification.
 
 ## Hook configuration
 

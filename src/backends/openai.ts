@@ -6,9 +6,10 @@ import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/tool"
-import { systemPrompt, pdfFragment, emitAssistantMessageEvent, runHooks,
+import { systemPrompt, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
-    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime } from './common.ts'
+    gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
+    emitUserMessageEvent} from './common.ts'
 import { serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import { strictify } from '../types/schema.ts'
 
@@ -377,14 +378,8 @@ export class OpenAIBackend implements Backend {
         for (let i = 0; i < lectic.body.messages.length; i++) {
             const m = lectic.body.messages[i]
             if (m.role === "user" && lastIsUser && i === lastIdx) {
-                // Run user_message hooks
-                const hookResults = runHooks(lectic.header.hooks, "user_message", {
-                    "USER_MESSAGE": m.content ?? ""
-                })
-                inlineAttachments.push(...hookResults)
-
-                const newParams = await handleMessage(m, { inlineAttachments, })
-                messages.push(...newParams)
+                inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
+                messages.push(...await handleMessage(m, { inlineAttachments, }))
             } else {
                 messages.push(...await handleMessage(m))
             }
