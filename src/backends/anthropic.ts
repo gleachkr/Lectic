@@ -442,7 +442,7 @@ export class AnthropicBackend implements Backend {
              yield "\n\n"
         }
 
-        if (msg.stop_reason == "tool_use") {
+        if (assistantHookRes.length > 0 || msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model, assistantHookRes)
         }
     }

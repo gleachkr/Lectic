@@ -432,7 +432,7 @@ export class OpenAIBackend implements Backend {
              yield "\n\n"
         }
 
-        if (msg.tool_calls) {
+        if (assistantHookRes.length > 0 || msg.tool_calls) {
             yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes);
         } 
 

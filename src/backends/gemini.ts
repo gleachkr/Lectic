@@ -463,7 +463,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
              yield "\n\n"
       }
 
-      if (hasToolCalls) {
+      if (hasToolCalls || assistantHookRes.length > 0) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })
           yield* handleToolUse(accumulatedResponse, messages, lectic, this.defaultModel, this.client, assistantHookRes);
       } else {
