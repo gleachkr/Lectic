@@ -46,7 +46,7 @@ output is captured and added to the conversation.
 
 Lectic emits three hook events. When an event fires, the hook process
 receives its context as environment variables. No positional arguments are
-passed.
+passed. However, the hook may receive content via standard input.
 
 - `user_message`
   - Environment:
@@ -57,6 +57,8 @@ passed.
   - When: Just before the request is sent to the LLM provider.
 
 - `assistant_message`
+  - Standard Input: The raw markdown text of the conversation body up to
+    this point.
   - Environment:
     - `ASSISTANT_MESSAGE`: The full text of the assistant's response that
       was just produced.
