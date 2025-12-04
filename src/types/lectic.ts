@@ -243,9 +243,21 @@ export function isLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
     }
 }
 
-export type LecticBody = {
+export class LecticBody {
     messages : Message[]
     raw: string
+
+    constructor({ messages, raw } : { messages: Message[], raw: string }) {
+        this.messages = messages
+        this.raw = raw
+    }
+
+    snapshot(opt: { closeBlock?: boolean } = {}): string {
+        if (opt.closeBlock) {
+             return `${this.raw}\n\n:::`
+        }
+        return this.raw
+    }
 }
 
 export function isLecticBody(raw: unknown): raw is LecticBody {
@@ -255,7 +267,8 @@ export function isLecticBody(raw: unknown): raw is LecticBody {
         Array.isArray(raw.messages) &&
         raw.messages.every(isMessage) &&
         'raw' in raw &&
-        typeof raw.raw === 'string'
+        typeof raw.raw === 'string' &&
+        'snapshot' in raw
 }
 
 export class Lectic {

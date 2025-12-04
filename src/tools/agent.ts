@@ -2,7 +2,7 @@ import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { getBackend } from "../backends/util"
 import { Logger } from "../logging/logger"
 // XXX Circular import, would be good to fix eventually.
-import { LecticHeader, Lectic } from "../types/lectic"
+import { LecticHeader, Lectic, LecticBody } from "../types/lectic"
 import { UserMessage, AssistantMessage } from "../types/message"
 import type { Interlocutor } from "../types/interlocutor"
 import { type HookSpec, isHookSpecList } from "../types/hook"
@@ -63,7 +63,7 @@ export class AgentTool extends Tool {
         this.validateArguments({ content });
         const lectic = new Lectic({
             header: new LecticHeader({interlocutor: this.agent, interlocutors: this.interlocutors}),
-            body: { messages: [new UserMessage({ content })], raw: content },
+            body: new LecticBody({ messages: [new UserMessage({ content })], raw: content }),
         })
 
         await lectic.header.initialize()

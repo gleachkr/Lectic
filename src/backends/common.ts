@@ -157,7 +157,7 @@ export function emitAssistantMessageEvent(
     }
 
     const all_hooks = lectic.header.hooks.concat(lectic.header.interlocutor.active_hooks ?? [])
-    return runHooks(all_hooks, "assistant_message", baseEnv, `${lectic.body.raw}\n\n:::`)
+    return runHooks(all_hooks, "assistant_message", baseEnv, lectic.body.snapshot({ closeBlock: true }))
 }
 
 export function emitUserMessageEvent(
