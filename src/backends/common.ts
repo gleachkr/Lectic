@@ -101,7 +101,8 @@ function parseHookOutput(text: string): { content: string, attributes: Record<st
 export function runHooks(
     hooks: Hook[],
     event: keyof HookEvents,
-    env: Record<string, string>
+    env: Record<string, string>,
+    stdin? : string
 ): InlineAttachment[] {
     const inline: InlineAttachment[] = []
     
@@ -109,7 +110,7 @@ export function runHooks(
 
     for (const hook of active) {
         try {
-            const { output } = hook.execute(env)
+            const { output } = hook.execute(env, stdin)
             if (output && output.trim().length > 0) {
                  const { content, attributes } = parseHookOutput(output)
                  inline.push({
@@ -156,7 +157,7 @@ export function emitAssistantMessageEvent(
     }
 
     const all_hooks = lectic.header.hooks.concat(lectic.header.interlocutor.active_hooks ?? [])
-    return runHooks(all_hooks, "assistant_message", baseEnv)
+    return runHooks(all_hooks, "assistant_message", baseEnv, `${lectic.body.raw}\n\n:::`)
 }
 
 export function emitUserMessageEvent(

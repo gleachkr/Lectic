@@ -70,12 +70,12 @@ export class Hook {
         this.inline = spec.inline ?? false
     }
 
-    execute(env : Record<string, string | undefined> = {}) : { output: string | undefined, exitCode: number } {
+    execute(env : Record<string, string | undefined> = {}, stdin? : string) : { output: string | undefined, exitCode: number } {
         if (this.do.split("\n").length > 1) {
-            const result = execScriptFull(this.do, env)
+            const result = execScriptFull(this.do, env, stdin ? new Blob([stdin]) : undefined)
             return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
         } else {
-            const result = execCmdFull(expandEnv(this.do, env), env)
+            const result = execCmdFull(expandEnv(this.do, env), env, stdin ? new Blob([stdin]) : undefined)
             return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
         }
     }
