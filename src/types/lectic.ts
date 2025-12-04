@@ -245,6 +245,7 @@ export function isLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpec {
 
 export type LecticBody = {
     messages : Message[]
+    raw: string
 }
 
 export function isLecticBody(raw: unknown): raw is LecticBody {
@@ -252,7 +253,9 @@ export function isLecticBody(raw: unknown): raw is LecticBody {
         typeof raw === 'object' &&
         'messages' in raw &&
         Array.isArray(raw.messages) &&
-        raw.messages.every(isMessage)
+        raw.messages.every(isMessage) &&
+        'raw' in raw &&
+        typeof raw.raw === 'string'
 }
 
 export class Lectic {

@@ -130,5 +130,5 @@ export async function parseLectic(raw: string, include : (string | null)[]) : Pr
 
     const messages = bodyToMessages(rawBody, header)
 
-    return new Lectic({ header, body : { messages }})
+    return new Lectic({ header, body : { messages, raw }})
 }

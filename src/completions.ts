@@ -22,6 +22,7 @@ async function getLecticString(opts : OptionValues) : Promise<string> {
     }
 }
 
+
 async function getIncludes() : Promise<(string | null)[]> {
         const startDir = lecticEnv["LECTIC_FILE"] ? dirname(lecticEnv["LECTIC_FILE"]) : process.cwd()
         const workspaceConfig = await readWorkspaceConfig(startDir)
@@ -112,27 +113,44 @@ export async function completions() {
             await lectic.header.initialize()
 
             const backend = getBackend(lectic.header.interlocutor)
+            const header = `:::${lectic.header.interlocutor.name}\n\n`
+            const footer = `\n\n:::`
+            lectic.body.raw = `${lectic.body.raw.trim()}\n\n` + header
 
             if (!program.opts()["Short"]) {
-                await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
+                await Logger.write(header)
                 headerPrinted = true
-                const closeHeader = () => { Logger.write(`\n\n:::`).then(() => process.exit(0)) }
+                const closeHeader = () => { 
+                    // no point in updating lectic.body.raw, we're exiting.
+                    Logger.write(footer).then(() => process.exit(0)) 
+                }
                 process.on('SIGTERM', closeHeader)
                 process.on('SIGINT', closeHeader)
             }
 
-            const result = Logger.fromStream(backend.evaluate(lectic))
+            const recordingStream = (async function* () {
+                for await (const chunk of backend.evaluate(lectic)) {
+                    // Only append text strings to the raw body, ignore non-string return values
+                    if (typeof chunk === 'string') {
+                        lectic.body.raw += chunk
+                    }
+                    yield chunk
+                }
+            })()
+
+            const result = Logger.fromStream(recordingStream)
             await Logger.write(result.chunks)
             await result.rest
 
-            if (!program.opts()["Short"]) await Logger.write(`\n\n:::`)
+            if (!program.opts()["Short"]) { await Logger.write(footer) }
+            if (lectic) lectic.body.raw += footer
 
             if (opts["inplace"]) {
                 Logger.outfile = createWriteStream(opts["inplace"])
                 await Logger.write(`${lecticString.trim()}\n\n`)
-                await Logger.write(`:::${lectic.header.interlocutor.name}\n\n`)
+                await Logger.write(header)
                 await result.string.then(string => Logger.write(string))
-                await Logger.write(`\n\n:::`)
+                await Logger.write(footer)
             }
         }
         process.exit(0)

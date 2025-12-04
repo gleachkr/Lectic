@@ -63,7 +63,7 @@ export class AgentTool extends Tool {
         this.validateArguments({ content });
         const lectic = new Lectic({
             header: new LecticHeader({interlocutor: this.agent, interlocutors: this.interlocutors}),
-            body: { messages: [new UserMessage({ content })] },
+            body: { messages: [new UserMessage({ content })], raw: content },
         })
 
         await lectic.header.initialize()
