@@ -1,34 +1,14 @@
 import { createWriteStream } from "fs"
-import { join, dirname } from "path"
 import { parseLectic, getYaml } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
 import { runHooks } from "./backends/common"
 import { version } from "../package.json"
-import { lecticConfigDir, lecticEnv } from "./utils/xdg";
-import { readWorkspaceConfig } from "./utils/workspace";
+import { lecticEnv } from "./utils/xdg";
 import { UserMessage } from "./types/message"
 import { Lectic } from "./types/lectic"
 import { program, type OptionValues } from 'commander'
-
-async function getLecticString(opts : OptionValues) : Promise<string> {
-    if (opts["inplace"] || opts["file"]) {
-        const path = opts["inplace"] || opts["file"]
-        const fileText = await Bun.file(path).text()
-        const pipeText = process.stdin.isTTY ? "" : `\n\n${await Bun.stdin.text()}` 
-        return fileText + pipeText
-    } else {
-        return Bun.stdin.text()
-    }
-}
-
-
-async function getIncludes() : Promise<(string | null)[]> {
-        const startDir = lecticEnv["LECTIC_FILE"] ? dirname(lecticEnv["LECTIC_FILE"]) : process.cwd()
-        const workspaceConfig = await readWorkspaceConfig(startDir)
-        const systemConfig = await Bun.file(join(lecticConfigDir(), 'lectic.yaml')).text().catch(() => null)
-        return [systemConfig, workspaceConfig]
-}
+import { getIncludes, getLecticString } from "./utils/cli"
 
 function validateOptions(opts : OptionValues) {
     if (opts["header"]) {

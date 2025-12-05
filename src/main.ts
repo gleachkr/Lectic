@@ -10,8 +10,8 @@ globalThis.fetch = Object.assign(
 
 import { program } from 'commander'
 import { startLsp } from "./lsp/server"
-import { completions } from "./completions"
-import { listModels } from "./models"
+import { completions } from "./completionCmd"
+import { listModels } from "./modelCmd"
 
 program
 .name('lectic')
