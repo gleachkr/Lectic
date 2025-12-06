@@ -41,7 +41,9 @@ export function normalizeUrl(
     return { fsPath: '', display: base, fragment, kind: 'remote' }
   }
 
-  const expanded = expandEnv(base, docDir ? { PWD : docDir } : {} )
+  // Tilde expansion: replace leading ~ with $HOME so expandEnv sees it
+  const withTilde = base.replace(/^~/, "$HOME")
+  const expanded = expandEnv(withTilde, docDir ? { PWD : docDir } : {} )
   const fsPath = expanded.startsWith('/')
     ? expanded
     : (docDir ? pathResolve(docDir, expanded) : expanded)
