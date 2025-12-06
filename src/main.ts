@@ -12,6 +12,7 @@ import { program } from 'commander'
 import { startLsp } from "./lsp/server"
 import { completions } from "./completionCmd"
 import { listModels } from "./modelCmd"
+import { parseCmd } from "./parseCmd"
 
 program
 .name('lectic')
@@ -34,5 +35,12 @@ program
 .command('models')
 .description('List available models for detected providers')
 .action(listModels)
+
+program
+.command('parse')
+.description('Parse a lectic file into JSON/YAML structure, or reverse the process')
+.option('--yaml', 'Emit output as YAML instead of JSON')
+.option('--reverse', 'Reconstruct lectic file from JSON/YAML input')
+.action(parseCmd)
 
 program.parse()

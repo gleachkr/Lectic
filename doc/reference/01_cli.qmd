@@ -15,6 +15,15 @@ lectic [FLAGS] [OPTIONS]
 - `lectic lsp`
   Start the LSP server. Transport: stdio.
 
+- `lectic parse`
+  Parse a lectic file into a JSON representation of the parsed file
+  structure. Useful for programmatic analysis and modification.
+
+  Flags:
+  - `--yaml`: Emit YAML instead of JSON.
+  - `--reverse`: Ingest JSON (or YAML) output and reconstruct the original
+    lectic file.
+
 - `lectic models`
   List available models for providers with detected API keys. Only
   providers with API keys in the environment are queried.
@@ -90,4 +99,14 @@ lectic [FLAGS] [OPTIONS]
 - Start the LSP server (stdio transport):
   ```bash
   lectic lsp
+  ```
+
+- Parse a file to JSON:
+  ```bash
+  lectic parse -f conversation.lec
+  ```
+
+- Round-trip a file through parsing and reconstruction:
+  ```bash
+  lectic parse -f conversation.lec | lectic parse --reverse
   ```
