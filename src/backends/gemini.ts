@@ -12,7 +12,7 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
     emitUserMessageEvent} from './common.ts'
-import { inlineNotFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { inlineNotFinal, inlineReset, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Extract concatenated assistant text from a Gemini response.
 export function geminiAssistantText(
@@ -172,6 +172,12 @@ async function *handleToolUse(
             return
         }
 
+        const resetAttachments = currentHookRes.filter(inlineReset)
+        if (resetAttachments.length > 0) {
+            messages.length = 0
+            messages.push({ role: "user", parts: resetAttachments.map(h => ({ text: h.content })) })
+        }
+
         messages.push({
             role: "model",
             parts: response.candidates?.[0].content?.parts
@@ -202,7 +208,7 @@ async function *handleToolUse(
         ]
 
         if (currentHookRes && currentHookRes.length > 0) {
-             for (const h of currentHookRes) {
+             for (const h of currentHookRes.filter(h => !inlineReset(h))) {
                  userParts.push({ text: h.content })
              }
         }
@@ -316,11 +322,16 @@ async function handleMessage(
     msg : Message,
     lectic: Lectic,
     opt?: { inlineAttachments?: InlineAttachment[] }
-) : Promise<Content[]> {
+) : Promise<{ messages: Content[], reset: boolean }> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) {
-        const results : Content[] = []
+        let results : Content[] = []
+        let reset = false
         const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
+            if (interaction.attachments.some(inlineReset)) {
+                results = []
+                reset = true
+            }
             if (interaction.attachments.length > 0) {
                 results.push({ role: "user", parts: interaction.attachments.map(a => ({ text: a.content })) })
             }
@@ -358,12 +369,12 @@ async function handleMessage(
                 results.push({role : "user", parts: userParts})
             }
         }
-        return results
+        return { messages: results, reset }
     } else if (msg.role === "assistant") {
-        return [{ 
+        return { messages: [{ 
             role : "user", 
             parts: [{ text: wrapText({text: msg.content, name: msg.name})}]
-        }]
+        }], reset: false }
     } else {
         const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
 
@@ -391,7 +402,7 @@ async function handleMessage(
             opt.inlineAttachments.push(...inline)
         }
 
-        return [{ role : "user", parts: content }]
+        return { messages: [{ role : "user", parts: content }], reset: false }
     }
 }
 
@@ -426,9 +437,12 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
           const m = lectic.body.messages[i]
           if (m.role === "user" && lastIsUser && i === lastIdx) {
               inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
-              messages.push(...await handleMessage(m, lectic, { inlineAttachments }))
+              const { messages: newMsgs } = await handleMessage(m, lectic, { inlineAttachments })
+              messages.push(...newMsgs)
           } else {
-              messages.push(...await handleMessage(m, lectic))
+              const { messages: newMsgs, reset } = await handleMessage(m, lectic)
+              if (reset) messages.length = 0
+              messages.push(...newMsgs)
           }
       }
 
@@ -459,6 +473,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
           { toolUseDone: !hasToolCalls, usage, loopCount: 0, finalPassCount: 0 }
       )
       if (assistantHookRes.length > 0) {
+             if (assistantHookRes.some(inlineReset)) messages.length = 0
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
              yield "\n\n"

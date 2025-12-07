@@ -12,7 +12,7 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
     emitUserMessageEvent} from "./common.ts"
-import { inlineNotFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { inlineNotFinal, inlineReset, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.mjs';
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
@@ -100,11 +100,17 @@ async function handleMessage(
     msg : Message,
     lectic: Lectic,
     opt?: { inlineAttachments?: InlineAttachment[] }
-) : Promise<Anthropic.Messages.MessageParam[]> {
+) : Promise<{ messages: Anthropic.Messages.MessageParam[], reset: boolean }> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) {
         const results : Anthropic.Messages.MessageParam[] = []
+        let reset = false
         const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
+            if (interaction.attachments.some(inlineReset)) {
+                results.length = 0
+                reset = true
+            }
+
             if (interaction.attachments.length > 0) {
                 results.push({
                     role: "user",
@@ -157,9 +163,9 @@ async function handleMessage(
             }
         }
 
-        return results
+        return { messages: results, reset }
     } else if (msg.role === "assistant") {
-        return [{
+        return { messages: [{
             role : "user",
             content: [{
                 type: "text",
@@ -167,7 +173,7 @@ async function handleMessage(
                     text: msg.content || "…",
                     name: msg.name
                 })}]
-        }]
+        }], reset: false }
     } else {
 
         const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
@@ -196,7 +202,7 @@ async function handleMessage(
             opt.inlineAttachments.push(...inline)
         }
 
-        return [{ role : msg.role, content }]
+        return { messages: [{ role : msg.role, content }], reset: false }
     }
 }
 
@@ -252,10 +258,12 @@ async function* handleToolUse(
             return
         }
 
-        if (currentHookRes.length > 0) {
+        const resetAttachments = currentHookRes.filter(inlineReset)
+        if (resetAttachments.length > 0) {
+            messages.length = 0
             messages.push({
                 role: "user",
-                content: currentHookRes.map(h => ({ type: "text", text: h.content }))
+                content: resetAttachments.map(h => ({ type: "text" as const, text: h.content }))
             })
         }
 
@@ -293,10 +301,14 @@ async function* handleToolUse(
             }
         }
 
-        // Merge attachments into the same user message that holds the
-        // tool_result blocks to satisfy Anthropic's ordering rule.
+        // Merge attachments after tool_result blocks in the same
+        // user message to satisfy Anthropic's ordering rule.
         const attach = await collectAttachmentPartsFromCalls(realized, partToContent)
         content.push(...attach)
+
+        for (const h of currentHookRes.filter(h => !inlineReset(h))) {
+             content.push({ type: "text", text: h.content })
+        }
 
         if (content.length > 0) messages.push({ role: "user", content })
 
@@ -386,12 +398,14 @@ export class AnthropicBackend implements Backend {
                 const hookResults = emitUserMessageEvent(m.content, lectic)
                 inlineAttachments.push(...hookResults)
 
-                const newParams = await handleMessage(m, lectic, {
+                const { messages: newMsgs } = await handleMessage(m, lectic, {
                     inlineAttachments,
                 })
-                messages.push(...newParams)
+                messages.push(...newMsgs)
             } else {
-                messages.push(...await handleMessage(m, lectic))
+                const { messages: newMsgs, reset } = await handleMessage(m, lectic)
+                if (reset) messages.length = 0
+                messages.push(...newMsgs)
             }
         }
 
@@ -437,6 +451,7 @@ export class AnthropicBackend implements Backend {
         }
         const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone, usage, loopCount: 0, finalPassCount: 0 })
         if (assistantHookRes.length > 0) {
+             if (assistantHookRes.some(inlineReset)) messages.length = 0
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n")
              yield "\n\n"

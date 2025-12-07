@@ -10,7 +10,7 @@ import { systemPrompt, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
     emitUserMessageEvent} from './common.ts'
-import { inlineNotFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { inlineNotFinal, inlineReset, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import { strictify } from '../types/schema.ts'
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
@@ -81,6 +81,15 @@ async function *handleToolUse(
             yield "<error>Runaway tool use!</error>"
         }
 
+        const resetAttachments = currentHookRes.filter(inlineReset)
+        if (resetAttachments.length > 0) {
+            messages.length = 0
+            messages.push({
+                role: "user",
+                content: resetAttachments.map(h => ({ type: "text", text: h.content }))
+            })
+        }
+
         messages.push({
             name: lectic.header.interlocutor.name,
             role: "assistant",
@@ -127,7 +136,10 @@ async function *handleToolUse(
         // Attach any non-text results via a user message with attachments
         {
             const parts = await collectAttachmentPartsFromCalls(realized, partToContent)
-            for (const h of currentHookRes) {
+            const attachmentsToAdd = resetAttachments.length > 0 
+                ? currentHookRes.filter(h => !inlineReset(h))
+                : currentHookRes
+            for (const h of attachmentsToAdd) {
                 parts.push({ type: "text", text: h.content })
             }
             if (parts.length > 0) {
@@ -186,6 +198,9 @@ async function *handleToolUse(
         currentHookRes = emitAssistantMessageEvent(assistant, lectic, 
             { toolUseDone, usage, loopCount, finalPassCount })
         if (currentHookRes.length > 0) {
+             if (currentHookRes.some(h => h.attributes?.['reset'] === "true")) {
+                 messages.length = 0
+             }
              if (toolUseDone) finalPassCount++
              yield "\n\n"
              yield currentHookRes.map(serializeInlineAttachment).join("\n\n")
@@ -243,11 +258,17 @@ async function partToContent(part : MessageAttachmentPart)
 async function handleMessage(
     msg : Message,
     opt?: { inlineAttachments?: InlineAttachment[] }
-) : Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
+) : Promise<{ messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[], reset: boolean }> {
     if (msg.role === "assistant") { 
-        const results : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
+        let results : OpenAI.Chat.Completions.ChatCompletionMessageParam[] = []
+        let reset = false
         const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
+            if (interaction.attachments.some(inlineReset)) {
+                results = []
+                reset = true
+            }
+
             if (interaction.attachments.length > 0) {
                 results.push({
                     role: "user",
@@ -296,7 +317,7 @@ async function handleMessage(
                         .map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))})
             }
         }
-        return results
+        return { messages: results, reset }
     }
 
     const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
@@ -326,7 +347,7 @@ async function handleMessage(
         opt.inlineAttachments.push(...inline)
     }
 
-    return [{ role : msg.role, content }]
+    return { messages: [{ role : msg.role, content }], reset: false }
 }
 
 function developerMessage(lectic : Lectic) {
@@ -379,9 +400,12 @@ export class OpenAIBackend implements Backend {
             const m = lectic.body.messages[i]
             if (m.role === "user" && lastIsUser && i === lastIdx) {
                 inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
-                messages.push(...await handleMessage(m, { inlineAttachments, }))
+                const { messages: newMsgs } = await handleMessage(m, { inlineAttachments, })
+                messages.push(...newMsgs)
             } else {
-                messages.push(...await handleMessage(m))
+                const { messages: newMsgs, reset } = await handleMessage(m)
+                if (reset) messages.length = 0
+                messages.push(...newMsgs)
             }
         }
 
@@ -427,6 +451,9 @@ export class OpenAIBackend implements Backend {
         const toolUseDone = !msg.tool_calls
         const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone, usage, loopCount: 0, finalPassCount: 0 })
         if (assistantHookRes.length > 0) {
+             if (assistantHookRes.some(inlineReset)) {
+                 messages.length = 0
+             }
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n")  
              yield "\n\n"

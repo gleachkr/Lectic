@@ -71,6 +71,10 @@ export function inlineNotFinal(inline : InlineAttachment) : boolean {
     return !inline.attributes || !("final" in inline.attributes)
 }
 
+export function inlineReset(inline : InlineAttachment) : boolean {
+    return !!inline.attributes && ("reset" in inline.attributes)
+}
+
 export function isSerializedInlineAttachment(s: string): boolean {
   return /^<inline-attachment\b/.test(s.trim())
 }

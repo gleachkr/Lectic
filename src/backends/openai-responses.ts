@@ -10,7 +10,7 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
     emitUserMessageEvent} from './common.ts'
-import { inlineNotFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { inlineNotFinal, inlineReset, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import { strictify } from '../types/schema.ts'
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
@@ -93,6 +93,14 @@ async function *handleToolUse(
             return
         }
 
+        const resetAttachments = currentHookRes.filter(inlineReset)
+        if (resetAttachments.length > 0) {
+            messages.length = 0
+            messages.push({
+                role: "user",
+                content: resetAttachments.map(h => ({ type: "input_text", text: h.content }))
+            })
+        }
 
         // Clean streaming leftovers that break the API
         for (const output of message.output) {
@@ -139,7 +147,7 @@ async function *handleToolUse(
             partToContent,
         )
 
-        for (const h of currentHookRes) {
+        for (const h of currentHookRes.filter(h => !inlineReset(h))) {
             attachParts.push({ type: "input_text", text: h.content })
         }
 
@@ -248,11 +256,17 @@ async function handleMessage(
     msg : Message,
     lectic : Lectic,
     opt?: { inlineAttachments?: InlineAttachment[] }
-) : Promise<OpenAI.Responses.ResponseInput> {
+) : Promise<{ messages: OpenAI.Responses.ResponseInput, reset: boolean }> {
     if (msg.role === "assistant" && msg.name === lectic.header.interlocutor.name) { 
         const results : OpenAI.Responses.ResponseInput = []
+        let reset = false
         const { interactions } = msg.parseAssistantContent()
         for (const interaction of interactions) {
+            if (interaction.attachments.some(inlineReset)) {
+                results.length = 0
+                reset = true
+            }
+
             if (interaction.attachments.length > 0) {
                 results.push({
                     role: "user",
@@ -297,9 +311,9 @@ async function handleMessage(
             })
             }
         }
-        return results
+        return { messages: results, reset }
     } else if (msg.role === "assistant") {
-        return [{
+        return { messages: [{
             role: "user",
             content: [{
                 type: "input_text",
@@ -308,7 +322,7 @@ async function handleMessage(
                     name: msg.name
                 })
             }]
-        }]
+        }], reset: false }
     }
 
     const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
@@ -337,7 +351,7 @@ async function handleMessage(
         opt.inlineAttachments.push(...inline)
     }
 
-    return [{ role : msg.role, content }]
+    return { messages: [{ role : msg.role, content }], reset: false }
 }
 
 export class OpenAIResponsesBackend implements Backend {
@@ -379,9 +393,12 @@ export class OpenAIResponsesBackend implements Backend {
             const m = lectic.body.messages[i]
             if (m.role === "user" && lastIsUser && i === lastIdx) {
                 inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
-                messages.push(...await handleMessage(m, lectic, { inlineAttachments, }))
+                const { messages: newMsgs } = await handleMessage(m, lectic, { inlineAttachments, })
+                messages.push(...newMsgs)
             } else {
-                messages.push(...await handleMessage(m, lectic))
+                const { messages: newMsgs, reset } = await handleMessage(m, lectic)
+                if (reset) messages.length = 0
+                messages.push(...newMsgs)
             }
         }
 
@@ -435,6 +452,7 @@ export class OpenAIResponsesBackend implements Backend {
         const hasToolCalls = msg.output.some(o => o.type === "function_call")
         const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone: !hasToolCalls, usage, loopCount: 0, finalPassCount: 0 })
         if (assistantHookRes.length > 0) {
+             if (assistantHookRes.some(inlineReset)) messages.length = 0
              yield "\n\n"
              yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
              yield "\n\n"
