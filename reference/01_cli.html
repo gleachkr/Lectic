@@ -338,6 +338,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="subcommands">Subcommands</h2>
 <ul>
 <li><p><code>lectic lsp</code> Start the LSP server. Transport: stdio.</p></li>
+<li><p><code>lectic parse</code> Parse a lectic file into a JSON representation of the parsed file structure. Useful for programmatic analysis and modification.</p>
+<p>Flags:</p>
+<ul>
+<li><code>--yaml</code>: Emit YAML instead of JSON.</li>
+<li><code>--reverse</code>: Ingest JSON (or YAML) output and reconstruct the original lectic file.</li>
+</ul></li>
 <li><p><code>lectic models</code> List available models for providers with detected API keys. Only providers with API keys in the environment are queried.</p></li>
 </ul>
 </section>
@@ -378,6 +384,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> models</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Start the LSP server (stdio transport):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> lsp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<li><p>Parse a file to JSON:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<li><p>Round-trip a file through parsing and reconstruction:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span> parse <span class="at">--reverse</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 </ul>
 
 

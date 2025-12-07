@@ -316,6 +316,7 @@ ul.task-list li input[type="checkbox"] {
 <ul>
 <li><code>name</code>: (Required) The name of the speaker, used in the <code>:::Name</code> response blocks.</li>
 <li><code>prompt</code>: (Required) The base system prompt that defines the LLM’s personality and instructions. The value can be a string, or it can be loaded from a file (<code>file:./path.txt</code>) or a command (<code>exec:get-prompt</code>). See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details and examples.</li>
+<li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>. These hooks fire only when this interlocutor is active.</li>
 </ul>
 <section id="model-configuration" class="level3">
 <h3 class="anchored" data-anchor-id="model-configuration">Model Configuration</h3>
@@ -355,7 +356,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="tools" class="level3">
 <h3 class="anchored" data-anchor-id="tools">Tools</h3>
 <ul>
-<li><code>tools</code>: A list of tool definitions that this interlocutor can use. The format of each object in the list depends on the tool type. See the <a href="../tools/01_overview.html">Tools section</a> for detailed configuration guides for each tool.</li>
+<li><code>tools</code>: A list of tool definitions that this interlocutor can use. The format of each object in the list depends on the tool type. See the <a href="../tools/01_overview.html">Tools section</a> for detailed configuration guides for each tool. All tools support a <code>hooks</code> array for <code>tool_use_pre</code> hooks scoped to that particular tool.</li>
 </ul>
 <section id="mcp-tool-keys" class="level4">
 <h4 class="anchored" data-anchor-id="mcp-tool-keys">MCP tool keys</h4>

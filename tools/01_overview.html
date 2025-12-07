@@ -318,6 +318,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#parallel-tool-execution" id="toc-parallel-tool-execution" class="nav-link" data-scroll-target="#parallel-tool-execution">Parallel Tool Execution</a></li>
   <li><a href="#tool-kits" id="toc-tool-kits" class="nav-link" data-scroll-target="#tool-kits">Tool kits</a></li>
+  <li><a href="#hooks" id="toc-hooks" class="nav-link" data-scroll-target="#hooks">Hooks</a></li>
   <li><a href="#available-tool-types" id="toc-available-tool-types" class="nav-link" data-scroll-target="#available-tool-types">Available Tool Types</a></li>
   </ul></li>
   </ul>
@@ -409,6 +410,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">kit</span><span class="kw">:</span><span class="at"> typescript_tools</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>You can still mix regular tools alongside kit references.</p>
 </section>
+<section id="hooks" class="level2">
+<h2 class="anchored" data-anchor-id="hooks">Hooks</h2>
+<p>Tool calls will trigger <code>tool_use_pre</code> hook, which fire after the parameters have been supplied to the tool, but before the tool returns results. If the hook exits with non-zero exit status, the tool call will be blocked and the LLM will receive a “permission denied” error. For details see <a href="../automation/02_hooks.html">Hooks</a>. If you want to have a <code>tool_use_pre</code> hook that applies only to a certain tool, you can provided it as part of the YAML definition of the tool, writing for example:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> clean_directory.sh</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">name</span><span class="kw">:</span><span class="at"> clean_directory</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> tool_use_pre</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">do</span><span class="kw">:</span><span class="at"> confirm.sh</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="available-tool-types" class="level2">
 <h2 class="anchored" data-anchor-id="available-tool-types">Available Tool Types</h2>
 <p>Lectic supports a variety of tool types, each with its own capabilities and configuration options. Read the individual tool guides for usage details and best practices:</p>
@@ -419,6 +433,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong><a href="../tools/05_agent.html">Agent</a></strong>: Allow one interlocutor to call another as a tool.</li>
 <li><strong><a href="../tools/06_other_tools.html">Other Tools</a></strong>: Includes <code>think</code>, <code>serve</code>, and native provider tools.</li>
 </ul>
+<p>Note that <code>native</code> tools do not support hooks.</p>
 
 
 </section>
