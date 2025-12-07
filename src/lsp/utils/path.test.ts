@@ -4,7 +4,7 @@ import { join } from "path"
 
 describe("normalizeUrl", () => {
   test("expands ~ at start of path", () => {
-    const home = process.env.HOME || "/home/user"
+    const home = process.env["HOME"] || "/home/user"
     const res = normalizeUrl("~/foo/bar.txt", "/tmp")
     expect(res.fsPath).toBe(join(home, "foo/bar.txt"))
     expect(res.kind).toBe("file")
@@ -17,8 +17,8 @@ describe("normalizeUrl", () => {
   })
 
   test("expands env vars and ~", () => {
-    const home = process.env.HOME || "/home/user"
-    process.env.TEST_VAR = "baz"
+    const home = process.env["HOME"] || "/home/user"
+    process.env["TEST_VAR"] = "baz"
     const res = normalizeUrl("~/$TEST_VAR/bar.txt", "/tmp")
     expect(res.fsPath).toBe(join(home, "baz/bar.txt"))
   })
