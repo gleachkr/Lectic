@@ -95,13 +95,14 @@ passed. However, the hook may receive content via standard input.
 ## Hook headers and attributes
 
 Hooks can pass metadata back to Lectic by including headers at the very
-beginning of their output. Headers follow the format `LECTIC:KEY:VALUE` and
-must appear before any other content. The headers are stripped from the
-visible output and stored as attributes on the inline block.
+beginning of their output. Headers follow the format `LECTIC:KEY:VALUE` or
+simply `LECTIC:KEY` (where the value defaults to "true") and must appear
+before any other content. The headers are stripped from the visible output
+and stored as attributes on the inline block.
 
 ```bash
 #!/usr/bin/env bash
-echo "LECTIC:final:true"
+echo "LECTIC:final"
 echo ""
 echo "System check complete. One issue found."
 ```

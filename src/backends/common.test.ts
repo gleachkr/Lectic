@@ -37,6 +37,23 @@ echo "actual content"`,
         expect(results[0].content.trim()).toBe("actual content")
     })
 
+    it("parses headers without values", () => {
+        const hook = new Hook({
+            on: "user_message",
+            do: `#!/bin/bash
+echo "LECTIC:final"
+echo "content"`,
+            inline: true
+        })
+        
+        const results = runHooks([hook], "user_message", {})
+        expect(results).toHaveLength(1)
+        expect(results[0].attributes).toEqual({
+            final: "true"
+        })
+        expect(results[0].content.trim()).toBe("content")
+    })
+
     it("parses headers case-insensitively for keys but preserves values", () => {
         const hook = new Hook({
             on: "user_message",

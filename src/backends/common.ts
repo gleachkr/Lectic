@@ -82,9 +82,9 @@ function parseHookOutput(text: string): { content: string, attributes: Record<st
     // Parse headers until blank line or non-header
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
-        const match = /^LECTIC:([A-Za-z0-9_-]+):(.*)$/.exec(line)
+        const match = /^LECTIC:([A-Za-z0-9_-]+)(?::(.*))?$/.exec(line)
         if (match) {
-            attributes[match[1].toLowerCase()] = match[2]
+            attributes[match[1].toLowerCase()] = match[2] ?? "true"
             headerEnd = i + 1
         } else {
             if (line.trim().length === 0 && Object.keys(attributes).length > 0) {
