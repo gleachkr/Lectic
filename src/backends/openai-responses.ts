@@ -10,7 +10,7 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
     emitUserMessageEvent} from './common.ts'
-import { inlineFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { inlineNotFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import { strictify } from '../types/schema.ts'
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
@@ -83,7 +83,7 @@ async function *handleToolUse(
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
     let currentHookRes = initialHookRes ?? []
 
-    while (currentHookRes.filter(inlineFinal).length > 0 || 
+    while (currentHookRes.filter(inlineNotFinal).length > 0 || 
            message.output.filter(output => output.type == "function_call").length > 0) {
         yield "\n\n"
         loopCount++
@@ -440,7 +440,7 @@ export class OpenAIResponsesBackend implements Backend {
              yield "\n\n"
         }
 
-        if (assistantHookRes.filter(inlineFinal).length > 0 || hasToolCalls) {
+        if (assistantHookRes.filter(inlineNotFinal).length > 0 || hasToolCalls) {
             yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes);
         }
     }

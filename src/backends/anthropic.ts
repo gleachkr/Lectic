@@ -12,7 +12,7 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
     emitUserMessageEvent} from "./common.ts"
-import { inlineFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { inlineNotFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream.mjs';
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
@@ -243,7 +243,7 @@ async function* handleToolUse(
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
     let currentHookRes = initialHookRes ?? []
 
-    while (message.stop_reason == "tool_use" || currentHookRes.filter(inlineFinal).length > 0) {
+    while (message.stop_reason == "tool_use" || currentHookRes.filter(inlineNotFinal).length > 0) {
         yield "\n\n"
         loopCount++
 
@@ -442,7 +442,7 @@ export class AnthropicBackend implements Backend {
              yield "\n\n"
         }
 
-        if (assistantHookRes.filter(inlineFinal).length > 0 || msg.stop_reason == "tool_use") {
+        if (assistantHookRes.filter(inlineNotFinal).length > 0 || msg.stop_reason == "tool_use") {
             yield* handleToolUse(msg, messages, lectic, this.client, model, assistantHookRes)
         }
     }

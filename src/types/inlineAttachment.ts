@@ -67,8 +67,8 @@ export function deserializeInlineAttachment(xml: string): InlineAttachment {
   return result
 }
 
-export function inlineFinal(inline : InlineAttachment) : boolean {
-    return !!inline.attributes && ("final" in inline.attributes)
+export function inlineNotFinal(inline : InlineAttachment) : boolean {
+    return !inline.attributes || !("final" in inline.attributes)
 }
 
 export function isSerializedInlineAttachment(s: string): boolean {

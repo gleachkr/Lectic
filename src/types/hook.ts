@@ -70,7 +70,8 @@ export class Hook {
         this.inline = spec.inline ?? false
     }
 
-    execute(env : Record<string, string | undefined> = {}, stdin? : string) : { output: string | undefined, exitCode: number } {
+    execute(env : Record<string, string | undefined> = {}, stdin? : string) 
+        : { output: string | undefined, exitCode: number } {
         if (this.do.split("\n").length > 1) {
             const result = execScriptFull(this.do, env, stdin ? new Blob([stdin]) : undefined)
             return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }

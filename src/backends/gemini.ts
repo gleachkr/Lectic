@@ -12,7 +12,7 @@ import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
     emitUserMessageEvent} from './common.ts'
-import { inlineFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
+import { inlineNotFinal, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 
 // Extract concatenated assistant text from a Gemini response.
 export function geminiAssistantText(
@@ -161,7 +161,7 @@ async function *handleToolUse(
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
     let currentHookRes = initialHookRes ?? []
 
-    while (currentHookRes.filter(inlineFinal).length > 0 || 
+    while (currentHookRes.filter(inlineNotFinal).length > 0 || 
            response.functionCalls && response.functionCalls.length > 0) {
         const calls = response.functionCalls ?? []
         yield "\n\n"
@@ -464,7 +464,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
              yield "\n\n"
       }
 
-      if (hasToolCalls || assistantHookRes.filter(inlineFinal).length > 0) {
+      if (hasToolCalls || assistantHookRes.filter(inlineNotFinal).length > 0) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })
           yield* handleToolUse(accumulatedResponse, messages, lectic, this.defaultModel, this.client, assistantHookRes);
       } else {
