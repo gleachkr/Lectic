@@ -61,9 +61,13 @@ export class AgentTool extends Tool {
 
     async call({ content }: { content: string }) : Promise<ToolCallResult[]> {
         this.validateArguments({ content });
+        const message = new UserMessage({ content })
+        if (message.containedDirectives().length > 0) {
+            throw Error("directives are not allowed in agent calls")
+        }
         const lectic = new Lectic({
             header: new LecticHeader({interlocutor: this.agent, interlocutors: this.interlocutors}),
-            body: new LecticBody({ messages: [new UserMessage({ content })], raw: content }),
+            body: new LecticBody({ messages: [message], raw: content }),
         })
 
         await lectic.header.initialize()
