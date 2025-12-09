@@ -74,12 +74,6 @@ OpenAI has two provider options:
 For a more detailed discussion of provider and model options, see
 [Providers and Models](../06_providers_and_models.qmd).
 
-### Context Management
-
-- `reminder`: A string that is invisibly added to the user's message on
-  every turn. Useful for reinforcing key instructions without cluttering the
-  conversation history.
-
 ### Tools
 
 - `tools`: A list of tool definitions that this interlocutor can use. The

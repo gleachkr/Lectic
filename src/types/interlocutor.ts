@@ -14,7 +14,6 @@ export type Interlocutor = {
     temperature? : number
     max_tokens? : number
     max_tool_use? : number
-    reminder? : string
     nocache? : boolean
     hooks? : HookSpec[]
     active_hooks?: Hook[]
@@ -47,9 +46,6 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
     } 
     if (("max_tool_use" in raw) && typeof raw.max_tool_use !== "number") {
         throw Error(Messages.interlocutor.maxToolUseType(raw.name))
-    } 
-    if (("reminder" in raw) && typeof raw.reminder !== "string") {
-        throw Error(Messages.interlocutor.reminderType(raw.name))
     } 
     if (("nocache" in raw) && typeof raw.nocache!== "boolean") {
         throw Error(Messages.interlocutor.nocacheType(raw.name))

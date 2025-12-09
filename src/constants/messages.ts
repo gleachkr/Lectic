@@ -17,8 +17,6 @@ export const Messages = {
       `The max_tokens for ${name} wasn't well-formed, it needs to be a number.`,
     maxToolUseType: (name: string) =>
       `The max_tool_use for ${name} wasn't well-formed, it needs to be a number.`,
-    reminderType: (name: string) =>
-      `The reminder for ${name} wasn't well-formed, it needs to be a string.`,
     nocacheType: (name: string) =>
       `The nocache option for ${name} wasn't well-formed, it needs to be a boolean.`,
     temperatureType: (name: string) =>

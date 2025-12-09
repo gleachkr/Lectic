@@ -8,7 +8,6 @@ export const INTERLOCUTOR_KEYS = [
   "max_tool_use",
   "thinking_effort",
   "thinking_budget",
-  "reminder",
   "tools",
   "nocache",
   "hooks",

@@ -34,7 +34,7 @@ Where completions come from
   - `interlocutor` / `interlocutors` blocks: top‑level interlocutor
     properties such as `name`, `prompt`, `provider`, `model`,
     `temperature`, `max_tokens`, `max_tool_use`, `thinking_effort`,
-    `thinking_budget`, `reminder`, `tools`, and `nocache`.
+    `thinking_budget`, `tools`, and `nocache`.
   - `model`: provider‑appropriate model names.
   - `tools` array items: tool kinds after a bare `-`.
   - `kit: ...`: merged kit names from system/workspace/header.

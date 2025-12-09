@@ -83,16 +83,6 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       })
     }
 
-    // reminder
-    if ("reminder" in raw && typeof raw["reminder"] !== "string") {
-      issues.push({
-        code: "interlocutor.reminder.type",
-        message: Messages.interlocutor.reminderType(nameVal),
-        path: [...pathBase, "reminder"],
-        severity: "error"
-      })
-    }
-
     // nocache
     if ("nocache" in raw && typeof raw["nocache"] !== "boolean") {
       issues.push({
