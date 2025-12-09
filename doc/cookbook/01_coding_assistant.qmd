@@ -1,0 +1,174 @@
+# Recipe: Coding Assistant
+
+This recipe shows how to set up an agentic coding assistant with shell
+tools, type checking, and a confirmation dialog before tool execution.
+
+## The Setup
+
+We'll give the assistant access to:
+
+- File reading and writing
+- Running TypeScript compiler and linter
+- Executing shell commands (with confirmation)
+
+### Configuration
+
+Create a `lectic.yaml` in your project root:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: |
+    You are a senior software engineer helping with this codebase.
+    
+    When making changes:
+    1. Read relevant files first to understand context
+    2. Make minimal, focused changes
+    3. Run tsc and eslint after edits to catch errors
+    4. Explain your reasoning
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  tools:
+    - exec: cat
+      name: read_file
+      usage: Read a file. Pass the file path as an argument.
+    - name: write_file
+      usage: Write content to a file. 
+      exec: |
+        #!/bin/bash
+        cat > "$FILE_PATH"
+      schema:
+        FILE_PATH: The path to write to.
+        CONTENT: The content to write (passed via stdin).
+    - exec: tsc --noEmit
+      name: typecheck
+      usage: Run the TypeScript compiler to check for type errors.
+    - exec: eslint
+      name: lint
+      usage: Run ESLint on files. Pass file paths as arguments.
+    - exec: bash -c
+      name: shell
+      usage: Run a shell command. Use for git, grep, find, etc.
+
+hooks:
+  - on: tool_use_pre
+    do: ~/.config/lectic/confirm.sh
+```
+
+### The Confirmation Script
+
+For graphical environments, create `~/.config/lectic/confirm.sh`:
+
+```bash
+#!/bin/bash
+# Requires: zenity (GTK) or kdialog (KDE)
+
+# Skip confirmation for read-only tools
+case "$TOOL_NAME" in
+  read_file|typecheck|lint)
+    exit 0
+    ;;
+esac
+
+# Show confirmation dialog
+zenity --question \
+  --title="Allow tool use?" \
+  --text="Tool: $TOOL_NAME\n\nArguments:\n$TOOL_ARGS" \
+  --width=400
+
+exit $?
+```
+
+Make it executable: `chmod +x ~/.config/lectic/confirm.sh`
+
+::: {.callout-note}
+
+The confirmation hook runs as a subprocess without access to a terminal,
+so interactive terminal prompts (like `read -p`) won't work. Use a GUI
+dialog tool like `zenity`, `kdialog`, or `osascript` on macOS.
+
+:::
+
+## Usage
+
+Create a conversation file in your project:
+
+```markdown
+---
+# Uses lectic.yaml from project root
+---
+
+I need to add input validation to the `processUser` function in 
+src/users.ts. It should reject empty names and invalid email formats.
+```
+
+Run it:
+
+```bash
+lectic -i task.lec
+```
+
+The assistant will:
+
+1. Read `src/users.ts` to understand the current implementation
+2. Propose changes (you'll see a confirmation dialog for writes)
+3. Run `tsc` and `eslint` to verify the changes
+4. Report results
+
+## Variations
+
+### Read-only assistant
+
+Remove write and shell tools for a safer setup that can only read and
+analyze:
+
+```yaml
+tools:
+  - exec: cat
+    name: read_file
+  - exec: rg --json
+    name: search
+    usage: Search with ripgrep. Pass pattern and optional path.
+  - exec: tsc --noEmit
+    name: typecheck
+```
+
+### With sandboxing
+
+For stronger isolation, use the bubblewrap sandbox included in the
+repository at `extra/sandbox/bwrap-sandbox.sh`:
+
+```yaml
+tools:
+  - exec: bash -c
+    name: shell
+    sandbox: ./extra/sandbox/bwrap-sandbox.sh
+```
+
+The sandbox script uses [Bubblewrap](https://github.com/containers/bubblewrap)
+to run commands in an isolated environment. It:
+
+- Creates a temporary home directory that's discarded after execution
+- Mounts the current working directory read-write
+- Provides read-only access to essential system paths (`/usr`, `/bin`, etc.)
+- Blocks network access by default
+
+You can copy the script to your config directory and modify it to suit
+your needs — for example, to allow network access or mount additional
+paths.
+
+### Notification on completion
+
+Add a hook to notify you when the assistant finishes working:
+
+```yaml
+hooks:
+  - on: tool_use_pre
+    do: ~/.config/lectic/confirm.sh
+  - on: assistant_message
+    do: |
+      #!/bin/bash
+      if [[ "$TOOL_USE_DONE" == "1" ]]; then
+        notify-send "Lectic" "Task complete"
+      fi
+```

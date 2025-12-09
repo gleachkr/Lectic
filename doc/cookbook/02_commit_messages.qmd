@@ -1,0 +1,166 @@
+# Recipe: Git Commit Messages
+
+This recipe creates a custom `lectic commit` subcommand that generates
+commit messages from your staged changes.
+
+## The Subcommand
+
+Lectic looks for executables named `lectic-<command>` in your config
+directory, data directory, or PATH. Create `~/.config/lectic/lectic-commit`:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Check for staged changes
+if git diff --cached --quiet; then
+  echo "No staged changes" >&2
+  exit 1
+fi
+
+lectic -f ~/.config/lectic/commit-prompt.lec -S
+```
+
+Make it executable:
+
+```bash
+chmod +x ~/.config/lectic/lectic-commit
+```
+
+## The Prompt Template
+
+Create `~/.config/lectic/commit-prompt.lec`:
+
+```markdown
+---
+interlocutor:
+  name: Assistant
+  prompt: |
+    You write git commit messages following the Conventional Commits
+    specification. Output ONLY the commit message, nothing else.
+    
+    Format:
+    <type>[optional scope]: <description>
+    
+    [optional body]
+    
+    Types: feat, fix, docs, style, refactor, perf, test, chore
+    
+    Rules:
+    - Subject line max 50 characters
+    - Use imperative mood ("add" not "added")
+    - Body wraps at 72 characters
+    - Explain what and why, not how
+  provider: anthropic
+  model: claude-3-haiku-20240307
+  max_tokens: 500
+---
+
+Write a commit message for this diff:
+
+:cmd[git diff --cached]
+```
+
+The `:cmd[git diff --cached]` directive runs `git diff --cached` and
+includes the output in the context sent to the LLM.
+
+## Usage
+
+Stage your changes and run:
+
+```bash
+git add -p
+lectic commit
+```
+
+Output:
+
+```
+feat(auth): add password strength validation
+
+Implement zxcvbn-based password strength checking during registration.
+Reject passwords scoring below 3 and display feedback to users.
+```
+
+### Pipe directly to git
+
+```bash
+lectic commit | git commit -F -
+```
+
+### Interactive edit before commit
+
+```bash
+lectic commit | git commit -eF -
+```
+
+## Variations
+
+### Include recent commits for context
+
+Modify the prompt to show recent history:
+
+```markdown
+Recent commits for context:
+:cmd[git log --oneline -5]
+
+Write a commit message for this diff:
+:cmd[git diff --cached]
+```
+
+### Different styles
+
+Create multiple prompt files for different projects:
+
+- `commit-prompt-conventional.lec` — Conventional Commits
+- `commit-prompt-gitmoji.lec` — Gitmoji style
+- `commit-prompt-simple.lec` — Plain descriptions
+
+Then modify the subcommand to accept an argument:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+STYLE="${1:-conventional}"
+PROMPT="$HOME/.config/lectic/commit-prompt-$STYLE.lec"
+
+if [[ ! -f "$PROMPT" ]]; then
+  echo "Unknown style: $STYLE" >&2
+  exit 1
+fi
+
+if git diff --cached --quiet; then
+  echo "No staged changes" >&2
+  exit 1
+fi
+
+lectic -f "$PROMPT" -S
+```
+
+Usage: `lectic commit gitmoji`
+
+### Batch mode for multiple commits
+
+Generate messages for each file separately:
+
+```bash
+#!/bin/bash
+for file in $(git diff --cached --name-only); do
+  echo "=== $file ==="
+  # Create a temporary prompt with just this file's diff
+  cat > /tmp/commit-single.lec << EOF
+---
+interlocutor:
+  name: Assistant
+  prompt: Write a conventional commit message for this change. Output only the message.
+  model: claude-3-haiku-20240307
+  max_tokens: 200
+---
+
+:cmd[git diff --cached -- "$file"]
+EOF
+  lectic -f /tmp/commit-single.lec -S
+  echo
+done
+```

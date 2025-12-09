@@ -122,25 +122,79 @@ You can load prompts from files or compute them with commands using
 
 :::
 
-## Editor integration
+## Troubleshooting
 
-The intended workflow is to wire Lectic into your editor so you can update a
-conversation with a single key press.
+Here are solutions to common issues when getting started.
 
-#### Neovim
+### "No API key found" or similar error
 
-A full‑featured plugin is available in `extra/lectic.nvim`. It provides
-syntax, folding, and one‑shot submission.
-
-#### VS Code
-
-An extension is available in `extra/lectic.vscode`.
-
-#### Other editors
-
-Most editors support sending the current buffer to an external command. You
-can configure yours to replace the buffer with the output of:
+Lectic needs at least one provider key in your environment. Make sure
+you've exported it in the same shell session:
 
 ```bash
-cat your_file.lec | lectic
+export ANTHROPIC_API_KEY="sk-ant-..."
+lectic -i my_convo.lec
 ```
+
+If you set the key in a config file (like `.bashrc`), you may need to
+restart your terminal or run `source ~/.bashrc`.
+
+### Response is empty or tool calls aren't working
+
+Check that your YAML header is valid. Common mistakes:
+
+- Indentation errors (YAML requires consistent spacing)
+- Missing colons after keys
+- Forgetting the closing `---` after the frontmatter
+
+The LSP server catches many of these. See
+[Editor Integration](./03_editor_integration.qmd) to set it up.
+
+### "Model not found" errors
+
+Model names vary by provider. Use `lectic models` to see what's available
+for your configured API keys. Some common model names:
+
+- Anthropic: `claude-sonnet-4-20250514`, `claude-3-haiku-20240307`
+- OpenAI: `gpt-4o`, `gpt-4o-mini`
+- Gemini: `gemini-2.5-flash`, `gemini-2.5-pro`
+
+The LSP server can autocomplete model names, so tab-complete is your friend here.
+
+### Tools aren't being called
+
+Make sure tools are defined under the `tools` key inside `interlocutor`,
+not at the top level:
+
+```yaml
+# Correct
+interlocutor:
+  name: Assistant
+  prompt: You are helpful.
+  tools:
+    - exec: date
+      name: get_date
+
+# Wrong - tools at top level
+interlocutor:
+  name: Assistant
+  prompt: You are helpful.
+tools:  # This won't work
+  - exec: date
+```
+
+## Next steps
+
+Now that you have Lectic working, you'll want to:
+
+1. **Set up your editor.** The intended workflow is to run Lectic with a
+   single keypress. See [Editor Integration](./03_editor_integration.qmd)
+   for Neovim, VS Code, and other editors.
+
+2. **Learn the configuration system.** You can set global defaults,
+   project-specific settings, and per-conversation overrides. See
+   [Configuration](./05_configuration.qmd).
+
+3. **Explore the cookbook.** The [Cookbook](./cookbook/index.qmd) has
+   ready-to-use recipes for common workflows like coding assistants,
+   commit message generation, and multi-perspective research.

@@ -1,0 +1,220 @@
+# Editor Integration
+
+Lectic is designed to work with your editor, not replace it. The core
+workflow is simple: edit a file, run `lectic`, get a response appended.
+But with proper editor integration, you can do this with a single
+keypress and get features like completions, diagnostics, and folding.
+
+## The LSP Server
+
+Lectic includes a Language Server Protocol (LSP) server that provides:
+
+- **Completions** for directives (`:cmd`, `:ask`, `:macro`, etc.),
+  interlocutor names, macro names, YAML header fields, and tool types
+- **Diagnostics** for missing or invalid configuration, duplicate names,
+  and broken file references
+- **Hover information** for directives, tool calls, and file links
+- **Go to definition** for macros and interlocutors
+- **Folding** for tool-call and inline-attachment blocks
+- **Document outline** showing conversation structure
+
+Start it with:
+
+```bash
+lectic lsp
+```
+
+The server uses stdio transport and works with any LSP-capable editor.
+
+## Neovim
+
+The repository includes a full-featured plugin at `extra/lectic.nvim`.
+
+### Installation
+
+**lazy.nvim:**
+
+```lua
+{
+  'gleachkr/lectic',
+  name = 'lectic.nvim',
+  config = function(plugin)
+    vim.opt.rtp:append(plugin.dir .. "/extra/lectic.nvim")
+  end
+}
+```
+
+**vim-plug:**
+
+```vim
+Plug 'gleachkr/lectic', { 'rtp': 'extra/lectic.nvim' }
+```
+
+### Features
+
+- **Filetype detection** for `.lec` and `.lectic` files
+- **Async submission** — send conversations without blocking
+- **Streaming responses** — watch the response appear in real-time
+- **Visual feedback** — spinner while processing
+- **Response highlighting** — distinguish LLM blocks from your text
+- **Tool call folding** — collapsed by default, showing tool name
+- **Selection explanation** — select text, ask for elaboration
+
+### Default Keybindings
+
+| Key | Mode | Action |
+|-----|------|--------|
+| `<localleader>l` | Normal | Submit conversation |
+| `<localleader>c` | Normal | Cancel generation |
+| `<localleader>e` | Visual | Explain selection |
+
+Customize with:
+
+```lua
+vim.g.lectic_key_submit = '<Leader>l'
+vim.g.lectic_key_cancel_submit = '<Leader>c'
+vim.g.lectic_key_explain = '<Leader>e'
+```
+
+### LSP Setup
+
+The plugin handles filetype detection. For LSP features, add:
+
+```lua
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "lectic", "markdown.lectic", "lectic.markdown" },
+  callback = function(args)
+    vim.lsp.start({
+      name = "lectic",
+      cmd = { "lectic", "lsp" },
+      root_dir = vim.fs.root(args.buf, { ".git", "lectic.yaml" })
+                 or vim.fn.getcwd(),
+      single_file_support = true,
+    })
+  end,
+})
+```
+
+For LSP-based folding:
+
+```lua
+vim.opt.foldexpr = 'vim.lsp.foldexpr()'
+```
+
+## VS Code
+
+An extension is available at `extra/lectic.vscode`. VSIX files are
+distributed with [releases](https://github.com/gleachkr/Lectic/releases/).
+
+### Features
+
+- **Generate Next Response** — stream LLM output into the editor
+- **Explain Selection** — rewrite selected text with more detail
+- **Block highlighting** — visual distinction for response blocks
+- **Tool call folding** — collapse verbose tool output
+- **LSP integration** — completions, diagnostics, and hovers
+
+### Default Keybindings
+
+| Key | Action |
+|-----|--------|
+| `Alt+L` (`Cmd+L` on macOS) | Generate next response |
+| `Alt+C` (`Cmd+C` on macOS) | Consolidate |
+| `Alt+E` (`Cmd+E` on macOS) | Explain selection |
+
+### Configuration
+
+- `lectic.executablePath`: Path to `lectic` if not in PATH
+- `lectic.blockBackgroundColor`: Background color for `:::` blocks
+
+## Other Editors
+
+Any editor that can run an external command on the current buffer works
+with Lectic. The basic pattern:
+
+```bash
+cat file.lec | lectic > file.lec
+```
+
+Or use `-i` for in-place updates:
+
+```bash
+lectic -i file.lec
+```
+
+### Emacs
+
+A minimal setup using `shell-command-on-region`:
+
+```elisp
+(defun lectic-submit ()
+  "Send the buffer to lectic and replace with output."
+  (interactive)
+  (shell-command-on-region
+   (point-min) (point-max)
+   "lectic"
+   nil t))
+
+(add-to-list 'auto-mode-alist '("\\.lec\\'" . markdown-mode))
+(add-hook 'markdown-mode-hook
+          (lambda ()
+            (when (string-match-p "\\.lec\\'" (buffer-file-name))
+              (local-set-key (kbd "C-c C-l") 'lectic-submit))))
+```
+
+For LSP support, use `eglot` or `lsp-mode`:
+
+```elisp
+;; With eglot
+(add-to-list 'eglot-server-programs
+             '((markdown-mode :language-id "lectic")
+               . ("lectic" "lsp")))
+```
+
+### Helix
+
+Add to `languages.toml`:
+
+```toml
+[[language]]
+name = "lectic"
+scope = "source.lectic"
+file-types = ["lec", "lectic"]
+language-servers = ["lectic-lsp"]
+grammar = "markdown"
+
+[language-server.lectic-lsp]
+command = "lectic"
+args = ["lsp"]
+```
+
+### Sublime Text
+
+Install the LSP package, then add to LSP settings:
+
+```json
+{
+  "clients": {
+    "lectic": {
+      "command": ["lectic", "lsp"],
+      "selector": "text.html.markdown",
+      "file_patterns": ["*.lec"]
+    }
+  }
+}
+```
+
+## Tips
+
+- **Working directory matters.** When you run `lectic -i file.lec`, tools
+  and file references resolve relative to the file's directory. Most
+  editor plugins handle this automatically.
+
+- **Use the LSP for header editing.** Completions for model names, tool
+  types, and interlocutor properties save time and catch typos.
+
+- **Fold tool calls.** Long tool outputs can obscure the conversation.
+  Both the Neovim and VS Code plugins fold these by default.
+
+- **Stream for long responses.** The `-s` flag outputs just the new
+  response, which editor plugins use to stream incrementally.

@@ -11,19 +11,23 @@ website:
         text: Introduction
       - href: ./02_getting_started.qmd
         text: Getting Started
-      - href: ./03_conversation_format.qmd
-        text: Conversation Format
-      - href: ./04_configuration.qmd
-        text: Configuration
-      - href: ./05_providers_and_models.qmd
-        text: Providers and Models
+      - href: ./03_editor_integration.qmd
+        text: Editor Integration
+      - section: Core Concepts
+        contents:
+          - text: Conversation Format
+            href: ./04_conversation_format.qmd
+          - text: Configuration
+            href: ./05_configuration.qmd
+          - text: Providers and Models
+            href: ./06_providers_and_models.qmd
       - section: Context Management
         contents:
           - text: External Content
             href: ./context_management/01_external_content.qmd
           - text: Conversation Control
             href: ./context_management/02_conversation_control.qmd
-          - text: External Prompts and Instructions
+          - text: External Prompts
             href: ./context_management/03_external_prompts.qmd
       - section: Tools
         contents:
@@ -45,14 +49,29 @@ website:
             href: ./automation/01_macros.qmd
           - text: Hooks
             href: ./automation/02_hooks.qmd
+      - section: Cookbook
+        contents:
+          - text: Overview
+            href: ./cookbook/index.qmd
+          - text: Coding Assistant
+            href: ./cookbook/01_coding_assistant.qmd
+          - text: Commit Messages
+            href: ./cookbook/02_commit_messages.qmd
+          - text: Research Perspectives
+            href: ./cookbook/03_research_perspectives.qmd
+          - text: Conversation Memory
+            href: ./cookbook/04_memory.qmd
+          - text: Context Compaction
+            href: ./cookbook/05_context_compaction.qmd
       - section: Reference
         contents:
-          - text: Cli
+          - text: CLI
             href: ./reference/01_cli.qmd
-          - text: Configuration
+          - text: Configuration Keys
             href: ./reference/02_configuration.qmd
-          - text: LSP Server (Experimental)
+          - text: LSP Server
             href: ./reference/03_lsp.qmd
+
 format:
   html:
     theme:
@@ -60,6 +79,3 @@ format:
       - brand
     css: styles.css
     toc: true
-
-
-

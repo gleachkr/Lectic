@@ -61,11 +61,32 @@ Some content.
 
 Markdown code fences inside assistant blocks can also use three backticks.
 
-Lectic may insert one or more inline attachment blocks. These are XML chunks
-beginning with `<inline-attachment ...>`. They are used to cache computed
-content from directives like `:cmd[...]`. When sending a request to the
-provider, these attachments are treated as if they were a user message that
-immediately precedes the assistant’s round.
+### Inline Attachments
+
+When you use directives like `:cmd[...]` in your message, Lectic executes
+them and caches the results as **inline attachments**. These within the
+assistant's response block as XML chunks:
+
+```xml
+<inline-attachment cmd="git diff --staged" type="text">
+┆diff --git a/src/main.ts b/src/main.ts
+┆...
+</inline-attachment>
+```
+
+Inline attachments serve two purposes:
+
+1. **Caching**: The results are stored in the file, so re-running Lectic
+   doesn't re-execute old commands. Only `:cmd` directives in the most
+   recent user message are executed.
+
+2. **Context positioning**: When sending the conversation to the provider,
+   attachments are treated as if they were a user message This keeps provider
+   caches stable and avoids token recomputation.
+
+You'll see inline attachments frequently when using `:cmd`. They're part
+of the conversation record and should generally be left alone. Editor
+plugins typically fold them by default to reduce visual clutter.
 
 ### Example
 

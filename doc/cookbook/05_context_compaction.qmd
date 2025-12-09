@@ -1,0 +1,201 @@
+# Recipe: Context Compaction
+
+This recipe shows how to automatically handle long conversations by
+summarizing and resetting context when token usage gets high.
+
+## The Problem
+
+Long conversations hit context limits. Before that happens, you want to:
+
+1. Summarize what's been discussed
+2. Reset the context window
+3. Continue with the summary as the new starting point
+
+## Automatic Compaction Hook
+
+This hook monitors token usage and triggers compaction when a threshold
+is reached:
+
+```yaml
+hooks:
+  - on: assistant_message
+    inline: true
+    do: |
+      #!/bin/bash
+      
+      # Configuration
+      LIMIT=80000        # Trigger compaction at this token count
+      
+      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      
+      if [[ $TOTAL -lt $LIMIT ]]; then
+        exit 0  # No output, no action
+      fi
+      
+      # The conversation body comes in on stdin.
+      # Indent it as a code block for the summarizer.
+      CONVERSATION=$(sed 's/^/    /')
+      
+      # Generate summary using a separate lectic call
+      SUMMARY=$(echo "$CONVERSATION" | lectic -f ~/.config/lectic/summarize.lec -S)
+      
+      # Output with reset header
+      echo "LECTIC:reset"
+      echo "LECTIC:final"
+      echo ""
+      echo "**Context compacted at $TOTAL tokens.**"
+      echo ""
+      echo "Summary of previous discussion:"
+      echo "$SUMMARY"
+```
+
+The `LECTIC:reset` header clears prior context. The `LECTIC:final` header
+prevents the assistant from responding to the compaction notice itself.
+
+## The Summarization Prompt
+
+Create `~/.config/lectic/summarize.lec`:
+
+```markdown
+---
+interlocutor:
+  name: Summarizer
+  prompt: |
+    Summarize the following conversation concisely. Include:
+    - Key decisions made
+    - Important information established
+    - Current task or question being addressed
+    - Any pending items or open threads
+    
+    Be thorough but concise. This summary will be the only context
+    available for continuing the conversation.
+  model: claude-3-haiku-20240307
+  max_tokens: 1000
+---
+
+Summarize this conversation:
+```
+
+The conversation text is piped to stdin and appended to the prompt file's
+content.
+
+## How It Works
+
+1. After each assistant message, the hook checks `LECTIC_TOKEN_USAGE_TOTAL`
+2. The conversation body so far is available on stdin
+3. If over the limit, the hook pipes the conversation to a separate lectic
+   instance for summarization
+4. The summary is output with the `reset` header, clearing old context
+5. The next turn starts fresh with only the summary as context
+
+## Variations
+
+### Manual compaction trigger
+
+Instead of automatic triggering, add a macro:
+
+```yaml
+macros:
+  - name: compact
+    expansion: |
+      exec:#!/bin/bash
+      echo ":reset[]"
+      echo ""
+      echo "Please summarize our conversation so far, focusing on key"
+      echo "decisions, important context, and any open questions."
+```
+
+Usage: `:macro[compact]`
+
+This asks the current assistant to summarize before resetting, rather
+than using a separate summarization call.
+
+### Archive before compacting
+
+Save the full conversation before resetting:
+
+```yaml
+hooks:
+  - on: assistant_message
+    inline: true
+    do: |
+      #!/bin/bash
+      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      LIMIT=80000
+      
+      if [[ $TOTAL -lt $LIMIT ]]; then
+        exit 0
+      fi
+      
+      # Archive the current conversation
+      ARCHIVE_DIR="${LECTIC_DATA}/archives"
+      mkdir -p "$ARCHIVE_DIR"
+      
+      TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+      BASE=$(basename "${LECTIC_FILE:-.lec}" .lec)
+      ARCHIVE_FILE="$ARCHIVE_DIR/$BASE-$TIMESTAMP.lec"
+      
+      # Save stdin (the conversation) to the archive
+      cat > "$ARCHIVE_FILE"
+      
+      # Now generate summary (re-read from archive since stdin is consumed)
+      SUMMARY=$(sed 's/^/    /' "$ARCHIVE_FILE" | \
+                lectic -f ~/.config/lectic/summarize.lec -S)
+      
+      echo "LECTIC:reset"
+      echo "LECTIC:final"
+      echo ""
+      echo "**Context compacted. Archived to: $ARCHIVE_FILE**"
+      echo ""
+      echo "Summary:"
+      echo "$SUMMARY"
+```
+
+### Warning before compaction
+
+Give a warning at 70% capacity, compact at 90%:
+
+```yaml
+hooks:
+  - on: assistant_message
+    inline: true
+    do: |
+      #!/bin/bash
+      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      WARN_LIMIT=70000
+      HARD_LIMIT=90000
+      
+      if [[ $TOTAL -gt $HARD_LIMIT ]]; then
+        # Full compaction
+        CONVERSATION=$(sed 's/^/    /')
+        SUMMARY=$(echo "$CONVERSATION" | \
+                  lectic -f ~/.config/lectic/summarize.lec -S)
+        echo "LECTIC:reset"
+        echo "LECTIC:final"
+        echo ""
+        echo "**Context limit reached. Compacted.**"
+        echo ""
+        echo "$SUMMARY"
+      elif [[ $TOTAL -gt $WARN_LIMIT ]]; then
+        # Just warn
+        cat > /dev/null  # Consume stdin
+        echo "LECTIC:final"
+        echo ""
+        echo "*Note: Context at ${TOTAL} tokens. Consider* :reset[] *soon.*"
+      fi
+```
+
+## Tips
+
+- **Test your summarizer.** A bad summary loses important context. Try it
+  manually on a few conversations first.
+
+- **Use a fast model for summarization.** Haiku or similar is fine for
+  summaries and keeps compaction quick.
+
+- **Consider what to preserve.** Code snippets, file paths, and specific
+  decisions are often more important than general discussion.
+
+- **Monitor compaction frequency.** If you're compacting every few
+  messages, your conversations might be too verbose or you might need a
+  larger context model.

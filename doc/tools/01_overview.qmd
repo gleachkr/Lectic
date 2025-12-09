@@ -3,49 +3,55 @@
 Tools let your LLM do things. Instead of stopping at text, it can run a
 command, query a database, call another agent, or reach out to a service.
 
+## Quick Reference
 
-In Lectic, you configure tools for each interlocutor in the YAML frontmatter
-describing that interlocutor. A tool call follows a four-step process:
+| Tool | Purpose | Minimal Config |
+|------|---------|----------------|
+| [`exec`](./02_exec.qmd) | Run commands and scripts | `exec: date` |
+| [`sqlite`](./03_sqlite.qmd) | Query SQLite databases | `sqlite: ./data.db` |
+| [`mcp`](./04_mcp.qmd) | Connect to MCP servers | `mcp_command: npx ...` |
+| [`agent`](./05_agent.qmd) | Call another interlocutor | `agent: OtherName` |
+| [`think`](./06_other_tools.qmd#the-think-tool) | Private reasoning scratchpad | `think_about: the problem` |
+| [`serve`](./06_other_tools.qmd#the-serve-tool) | Serve HTML to browser | `serve_on_port: 8080` |
+| [`native`](./06_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
 
-1.  **User Prompt**: You ask a question or give an instruction that requires
-    the use of a tool (e.g., "What is the current date?").
-2.  **LLM Tool Call**: The LLM, instead of answering directly, outputs a
-    special block of text indicating which tool it wants to use and with what
-    arguments.
-3.  **Lectic Executes**: Lectic detects this tool-use block, stops the LLM,
-    executes the specified tool, and captures its output.
-4.  **LLM Final Response**: Lectic sends the tool's output back to the LLM,
-    which then uses that information to formulate its final answer to you.
+## How Tool Calls Work
 
-## Tool call syntax
+In Lectic, you configure tools for each interlocutor in the YAML frontmatter.
+A tool call follows a four-step process:
 
-Lectic uses an XML block for tool calls. The opening tag names the tool, and
-the block contains two children: an `<arguments>` element and a `<results>`
-element.
+1. **User Prompt**: You ask something that requires a tool.
+2. **LLM Tool Call**: The LLM outputs a block indicating which tool to use.
+3. **Lectic Executes**: Lectic runs the tool and captures output.
+4. **LLM Response**: The tool output goes back to the LLM, which answers.
 
-- `<tool-call with="NAME">` starts the block.
-- `<arguments>` holds one element per parameter in the tool's schema. If a tool
-  takes no inputs, `<arguments>` can be empty.
-- `<results>` is filled by Lectic after execution. Each tool result is
-  serialized as a `<result>` element inside `<results>`.
-- `</tool-call>` closes the block.
+## Tool Call Syntax
 
-You will see these blocks in the assistant's container directive. Lectic
-writes the block once the model asks for a tool, then appends results after
-running it.
+Lectic uses XML blocks for tool calls:
+
+```xml
+<tool-call with="tool_name">
+<arguments>
+  <!-- one element per parameter -->
+</arguments>
+<results>
+  <!-- filled by Lectic after execution -->
+</results>
+</tool-call>
+```
+
+You'll see these in assistant blocks. Lectic writes the block when the model
+requests a tool, then appends results after running it.
 
 ### Example
 
-Here is a minimal configuration and a typical exchange. The tool returns the
-current date via the system date command.
+Configuration:
 
 ```yaml
 ---
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
-  provider: anthropic
-  model: claude-3-haiku-20240307
   tools:
     - exec: date
       name: get_date
@@ -54,96 +60,89 @@ interlocutor:
 What's the date today?
 ```
 
-And here is what the assistant block might look like after Lectic runs the
-call and records the result.
+Result:
 
 ````markdown
 :::Assistant
-
-I will call the date tool first.
 
 <tool-call with="get_date">
 <arguments><argv>[ ]</argv></arguments>
 <results>
 <result type="text">
-┆ <│stdout>Fri Mar 15 14:35:18 PDT 2024\n<│/stdout>
-</result>
-<result type="text">
-┆ <│exitCode>0<│/exitCode>
+┆<stdout>Fri Mar 15 14:35:18 PDT 2024</stdout>
 </result>
 </results>
 </tool-call>
 
-Today's date is March 15th, 2024.
+Today is March 15th, 2024.
 
 :::
 ````
 
-## Parallel Tool Execution
+## Parallel Execution
 
-Tool calls are executed in parallel. If an LLM decides to use multiple tools in 
-a single turn, Lectic will run all of them concurrently, rather than one after 
-another. This significantly speeds up complex tasks that involve gathering 
-information from multiple sources.
+When an LLM uses multiple tools in one turn, Lectic runs them concurrently.
+This speeds up tasks that gather information from several sources.
 
-## Tool kits
+## Tool Kits
 
-If you reuse the same set of tools across interlocutors, define a named
-kit once and reference it by name in each interlocutor. Kits are
-listed at the top level of the header.
-
-Example
+Reuse tool sets across interlocutors by defining named kits:
 
 ```yaml
 kits:
   - name: typescript_tools
     tools:
-      - exec: tsc
-        name: tsc
+      - exec: tsc --noEmit
+        name: typecheck
       - exec: eslint
-        name: eslint
+        name: lint
 
 interlocutor:
   name: Assistant
-  prompt: You are a helpful assistant.
+  prompt: You help with TypeScript.
   tools:
     - kit: typescript_tools
+    - exec: cat
+      name: read_file
 ```
-
-You can still mix regular tools alongside kit references.
 
 ## Hooks
 
-Tool calls will trigger `tool_use_pre` hook, which fire after the parameters
-have been supplied to the tool, but before the tool returns results. If the
-hook exits with non-zero exit status, the tool call will be blocked and the LLM
-will receive a "permission denied" error. For details see
-[Hooks](../automation/02_hooks.qmd). If you want to have a `tool_use_pre` hook
-that applies only to a certain tool, you can provided it as part of the YAML
-definition of the tool, writing for example:
+The `tool_use_pre` hook fires after parameters are collected but before
+execution. If the hook exits non-zero, the call is blocked:
 
 ```yaml
----
 interlocutor:
   tools:
-    - exec: clean_directory.sh
-      name: clean_directory
+    - exec: rm
+      name: delete
       hooks:
         - on: tool_use_pre
-          do: confirm.sh
----
+          do: ~/.config/lectic/confirm.sh
 ```
 
-## Available Tool Types
+See [Hooks](../automation/02_hooks.qmd) for details.
 
-Lectic supports a variety of tool types, each with its own capabilities and
-configuration options. Read the individual tool guides for usage details and best practices:
+## Tool Guides
 
-- **[Exec](./02_exec.qmd)**: Execute shell commands and scripts.
-- **[SQLite](./03_sqlite.qmd)**: Query SQLite databases.
-- **[MCP](./04_mcp.qmd)**: Connect to Model Context Protocol (MCP) servers.
-- **[Agent](./05_agent.qmd)**: Allow one interlocutor to call another as a tool.
-- **[Other Tools](./06_other_tools.qmd)**: Includes `think`, `serve`, and
-  native provider tools.
+Each tool type has its own detailed guide:
 
-Note that `native` tools do not support hooks.
+- **[Exec](./02_exec.qmd)**: Shell commands and scripts. The most versatile
+  tool — anything you can run from the command line, your LLM can run too.
+
+- **[SQLite](./03_sqlite.qmd)**: Direct database queries. Schema is
+  auto-introspected and provided to the LLM.
+
+- **[MCP](./04_mcp.qmd)**: Model Context Protocol servers. Connect to a
+  growing ecosystem of pre-built tools and services.
+
+- **[Agent](./05_agent.qmd)**: Multi-LLM workflows. One interlocutor can
+  delegate to another, enabling specialized agents.
+
+- **[Other Tools](./06_other_tools.qmd)**: The `think` tool for reasoning,
+  `serve` for rendering HTML, and `native` for provider built-ins like
+  web search.
+
+::: {.callout-note}
+Native tools (`native: search`, `native: code`) do not support hooks.
+:::

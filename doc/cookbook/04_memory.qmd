@@ -1,0 +1,198 @@
+# Recipe: Conversation Memory
+
+This recipe shows two approaches to giving your assistant memory across
+conversations: explicit recall via a tool, and automatic context via
+hooks. These serve different purposes and have different tradeoffs.
+
+## Approach 1: Memory as a Tool
+
+In this approach, everything is recorded automatically, but the assistant
+must explicitly search for relevant memories. This keeps the prompt lean
+and preserves cache efficiency.
+
+### The Recording Hook
+
+Add this hook to save every message:
+
+```yaml
+hooks:
+  - on: [user_message, assistant_message]
+    do: |
+      #!/bin/bash
+      set -euo pipefail
+      
+      DB="${LECTIC_DATA}/memory.sqlite3"
+      
+      # Initialize database if needed
+      sqlite3 "$DB" <<'SQL'
+      CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY,
+        timestamp TEXT NOT NULL,
+        role TEXT NOT NULL,
+        interlocutor TEXT,
+        file TEXT,
+        content TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_timestamp ON messages(timestamp);
+      SQL
+      
+      # Determine role and content
+      if [[ -n "${ASSISTANT_MESSAGE:-}" ]]; then
+        ROLE="assistant"
+        CONTENT="$ASSISTANT_MESSAGE"
+        NAME="${LECTIC_INTERLOCUTOR:-}"
+      else
+        ROLE="user"
+        CONTENT="${USER_MESSAGE:-}"
+        NAME=""
+      fi
+      
+      # Escape single quotes for SQL
+      CONTENT_ESC="${CONTENT//\'/\'\'}"
+      NAME_ESC="${NAME//\'/\'\'}"
+      FILE_ESC="${LECTIC_FILE//\'/\'\'}"
+      
+      sqlite3 "$DB" <<SQL
+      INSERT INTO messages (timestamp, role, interlocutor, file, content)
+      VALUES (datetime('now'), '$ROLE', '$NAME_ESC', '$FILE_ESC', '$CONTENT_ESC');
+      SQL
+```
+
+### The Search Tool
+
+Give the assistant a tool to search memory:
+
+```yaml
+tools:
+  - name: search_memory
+    usage: |
+      Search past conversation history. Use this when the user
+      references something from a previous conversation or when
+      context from past discussions would be helpful.
+    exec: |
+      #!/bin/bash
+      sqlite3 "${LECTIC_DATA}/memory.sqlite3" <<SQL
+      SELECT printf('[%s] %s: %s', timestamp, role, content)
+      FROM messages
+      WHERE content LIKE '%${QUERY}%'
+      ORDER BY timestamp DESC
+      LIMIT 10;
+      SQL
+    schema:
+      QUERY: The search term to look for in past messages.
+```
+
+### When to Use This
+
+- Long-running assistants where most turns don't need memory
+- When you want the assistant to decide what's relevant
+- When cache efficiency matters (the prompt stays constant)
+
+## Approach 2: Automatic Context Injection
+
+In this approach, relevant memories are automatically injected into
+every prompt. Nothing is recorded automatically — instead, the assistant
+has a tool to explicitly remember things.
+
+### The Remember Tool
+
+```yaml
+tools:
+  - name: remember
+    usage: |
+      Store important information for future reference. Use this when
+      the user shares preferences, makes decisions, or provides context
+      that should persist across conversations.
+    exec: |
+      #!/bin/bash
+      set -euo pipefail
+      
+      DB="${LECTIC_DATA}/memory.sqlite3"
+      
+      sqlite3 "$DB" <<'SQL'
+      CREATE TABLE IF NOT EXISTS memories (
+        id INTEGER PRIMARY KEY,
+        timestamp TEXT NOT NULL,
+        content TEXT NOT NULL
+      );
+      SQL
+      
+      CONTENT_ESC="${CONTENT//\'/\'\'}"
+      
+      sqlite3 "$DB" <<SQL
+      INSERT INTO memories (timestamp, content)
+      VALUES (datetime('now'), '$CONTENT_ESC');
+      SQL
+      
+      echo "Remembered."
+    schema:
+      CONTENT: The information to remember.
+```
+
+### The Prompt with Memory
+
+Use an `exec:` prompt to inject stored memories:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: |
+    exec:#!/bin/bash
+    cat <<'PROMPT'
+    You are a helpful assistant with access to stored memories.
+    
+    Things you've been asked to remember:
+    PROMPT
+    
+    DB="${LECTIC_DATA}/memory.sqlite3"
+    if [[ -f "$DB" ]]; then
+      sqlite3 "$DB" <<'SQL'
+      SELECT printf('- %s', content)
+      FROM memories
+      ORDER BY timestamp DESC
+      LIMIT 20;
+      SQL
+    else
+      echo "(No memories yet)"
+    fi
+    
+    echo ""
+    echo "Use the remember tool to store new information."
+```
+
+### When to Use This
+
+- When you want explicit control over what's remembered
+- For preferences and decisions rather than conversation history
+- When memories are small and frequently relevant
+
+## Tips
+
+- **Don't mix these approaches carelessly.** Recording everything *and*
+  injecting it into the prompt will bloat your context and hurt cache
+  performance.
+
+- **Be selective about what you store.** Tool call results and verbose
+  outputs can bloat the database quickly.
+
+- **Consider privacy.** Memory persists across sessions. Don't store
+  sensitive information you wouldn't want retrieved later.
+
+- **Monitor database size.** Add a periodic cleanup job or a `forget`
+  tool for manual pruning.
+
+### A Simple Forget Tool
+
+```yaml
+tools:
+  - name: forget
+    usage: Remove a specific memory by its content.
+    exec: |
+      #!/bin/bash
+      sqlite3 "${LECTIC_DATA}/memory.sqlite3" <<SQL
+      DELETE FROM memories WHERE content LIKE '%${PATTERN}%';
+      SELECT 'Deleted ' || changes() || ' memories';
+      SQL
+    schema:
+      PATTERN: Pattern to match memories to delete.
+```

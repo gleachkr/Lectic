@@ -1,0 +1,157 @@
+# Recipe: Research with Multiple Perspectives
+
+This recipe shows how to use multiple interlocutors to explore a topic
+from different angles. One interlocutor does research, another provides
+critique, and you can quickly get second opinions without derailing the
+main conversation.
+
+## The Setup
+
+```yaml
+---
+interlocutors:
+  - name: Researcher
+    prompt: |
+      You are a thorough researcher. When exploring a topic:
+      - Consider multiple sources and viewpoints
+      - Note uncertainties and limitations
+      - Suggest follow-up questions
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    tools:
+      - native: search
+      - think_about: >
+          What are the key questions here? What might I be missing?
+          What assumptions am I making?
+
+  - name: Critic  
+    prompt: |
+      You are a skeptical critic. Your job is to:
+      - Challenge assumptions and weak arguments
+      - Point out missing evidence or alternative explanations
+      - Steelman opposing viewpoints
+      Be constructive but rigorous.
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+
+  - name: Synthesizer
+    prompt: |
+      You synthesize discussions into clear summaries. Focus on:
+      - Key points of agreement and disagreement
+      - Open questions that remain
+      - Actionable conclusions
+    provider: anthropic
+    model: claude-3-haiku-20240307
+---
+```
+
+## Usage
+
+### Start with research
+
+```markdown
+:ask[Researcher] I'm trying to understand the tradeoffs between
+microservices and monolithic architectures for a team of 5 developers
+building a B2B SaaS product.
+```
+
+The Researcher will explore the topic, potentially using web search and
+their thinking tool.
+
+### Get a quick critique
+
+Use `:aside` to get feedback without switching the main conversation:
+
+```markdown
+:aside[Critic] What's wrong with this analysis?
+```
+
+The Critic responds, then the next message goes back to the Researcher
+automatically.
+
+### Permanently switch for deeper critique
+
+```markdown
+:ask[Critic] Let's dig into the claim about "complexity tax." What's
+the actual evidence here?
+```
+
+Now you're in a conversation with the Critic until you switch again.
+
+### Synthesize at the end
+
+```markdown
+:ask[Synthesizer] Summarize this discussion. What did we learn? What
+should we do next?
+```
+
+## Variations
+
+### Domain-specific experts
+
+```yaml
+interlocutors:
+  - name: Legal
+    prompt: You are a legal expert. Focus on regulatory compliance...
+  - name: Technical
+    prompt: You are a senior engineer. Focus on implementation...
+  - name: Business
+    prompt: You are a business strategist. Focus on market fit...
+```
+
+### Agent delegation
+
+Have one interlocutor call another as a tool:
+
+```yaml
+interlocutors:
+  - name: Lead
+    prompt: You coordinate research. Delegate to specialists.
+    tools:
+      - agent: Researcher
+        name: research
+        usage: Get detailed research on a specific topic.
+      - agent: Critic
+        name: critique
+        usage: Get critical analysis of a claim or argument.
+  
+  - name: Researcher
+    prompt: ...
+    tools:
+      - native: search
+  
+  - name: Critic
+    prompt: ...
+```
+
+Now the Lead can autonomously decide when to delegate:
+
+```markdown
+:ask[Lead] Evaluate whether we should migrate from PostgreSQL to
+CockroachDB for our multi-region deployment.
+```
+
+### Different models for different roles
+
+Use cheaper/faster models for quick checks:
+
+```yaml
+interlocutors:
+  - name: Deep
+    model: claude-sonnet-4-20250514  # For complex analysis
+    
+  - name: Quick
+    model: claude-3-haiku-20240307  # For quick sanity checks
+```
+
+## Tips
+
+- **Use `:aside` liberally.** It's cheap to get a second opinion without
+  losing your place in the main conversation.
+
+- **Give each interlocutor a distinct voice.** The prompts should produce
+  noticeably different responses, otherwise there's no point in having
+  multiple speakers.
+
+- **Use `:reset[]` when switching topics.** If you're starting a new line
+  of inquiry, reset context to avoid confusion from earlier discussion.
