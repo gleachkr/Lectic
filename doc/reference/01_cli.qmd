@@ -7,7 +7,7 @@ result is printed or saved.
 ## Usage
 
 ```bash
-lectic [FLAGS] [OPTIONS]
+lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 ```
 
 ## Subcommands
@@ -27,6 +27,35 @@ lectic [FLAGS] [OPTIONS]
 - `lectic models`
   List available models for providers with detected API keys. Only
   providers with API keys in the environment are queried.
+
+## Custom Subcommands
+
+Lectic supports git-style custom subcommands. If you invoke `lectic <command>`,
+Lectic will look for an executable named `lectic-<command>` in the following
+locations (in order):
+
+1. The Lectic configuration directory (e.g., `~/.config/lectic/` on Linux).
+2. The Lectic data directory (e.g., `~/.local/share/lectic/` on Linux).
+3. Your system `PATH`.
+
+When a custom subcommand is found, it is executed with the remaining arguments.
+The subprocess inherits standard input, output, and error streams, and receives
+standard Lectic environment variables (like `LECTIC_CONFIG` and `LECTIC_DATA`).
+
+For example, if you create a script named `lectic-hello` in your path:
+
+```bash
+#!/bin/bash
+echo "Hello from a custom subcommand!"
+```
+
+You can run it via:
+
+```bash
+lectic hello
+```
+
+This mechanism allows you to extend Lectic with your own tools and workflows.
 
 ## Flags and options
 

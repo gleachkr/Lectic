@@ -13,9 +13,12 @@ import { startLsp } from "./lsp/server"
 import { completions } from "./completionCmd"
 import { listModels } from "./modelCmd"
 import { parseCmd } from "./parseCmd"
+import { tryRunSubcommand } from "./subcommandCmd"
 
 program
 .name('lectic')
+.enablePositionalOptions()
+.passThroughOptions()
 .option('-s, --short', 'Only emit a new message rather than the full updated lectic')
 .option('-S, --Short', 'Only emit a new message rather than the full updated lectic. Only including the message text')
 .option('-H, --header',  'Emit only the YAML header of the lectic')
@@ -24,7 +27,15 @@ program
 .option('-i, --inplace <lectic>',  'Lectic to read from and update in place' )
 .option('-l, --log <logfile>',  'Log debugging information')
 .option('-v, --version',  'Print version information')
-.action(completions)
+.argument('[subcommand]', 'Subcommand to run')
+.argument('[args...]', 'Arguments for subcommand')
+.action(async (subcommand, args) => {
+    if (subcommand) {
+        await tryRunSubcommand(subcommand, args || [])
+    } else {
+        await completions()
+    }
+})
 
 program
 .command('lsp')
