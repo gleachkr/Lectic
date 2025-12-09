@@ -107,13 +107,18 @@ echo ""
 echo "System check complete. One issue found."
 ```
 
-Currently, only one header affects control flow:
+Two headers affect control flow:
 
 - `final`: When an inline hook generates output, Lectic normally continues the
   tool calling loop so that the assistant can see and respond to the new
   information. If the `final` header is present, Lectic prevents this extra
   pass, allowing the conversation turn to end immediately (unless the assistant
   explicitly called a tool).
+- `reset`: When present, this header clears the conversation context up to the
+  current message. The accumulated history sent to the provider is discarded,
+  and the context effectively restarts from the message containing the hook
+  output. This is useful for implementing custom context compaction or
+  archival strategies when token limits are reached.
 
 ## Example: Human-in-the-loop tool confirmation
 
@@ -190,7 +195,7 @@ Notes:
   streaming from stdin.
 - Adjust the table schema to suit your use case.
 
-## Example: Injecting context
+## Example: Automatically Injecting context
 
 This example automatically runs `date` before every user message and
 injects the output into the context. This allows the LLM to always know the
@@ -226,3 +231,26 @@ hooks:
 
 This is especially useful for long-running agentic tasks where you want
 to step away and be alerted when the assistant is done.
+
+## Example: Reset context on token limit
+
+This example checks the total token usage and, if it exceeds a limit,
+resets the conversation context. It also uses the `final` header to stop
+the assistant from responding to the reset message immediately.
+
+```yaml
+hooks:
+  - on: assistant_message
+    inline: true
+    do: |
+      #!/usr/bin/env bash
+      LIMIT=100000
+      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      
+      if [ "$TOTAL" -gt "$LIMIT" ]; then
+        echo "LECTIC:reset"
+        echo "LECTIC:final"
+        echo ""
+        echo "**Context cleared (usage: $TOTAL tokens).**"
+      fi
+```
