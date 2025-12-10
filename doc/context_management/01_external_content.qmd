@@ -47,7 +47,9 @@ Lectic supports several URI schemes for referencing content:
 - **Amazon S3**: `s3://` for referencing objects in S3 buckets. This
   requires AWS credentials to be configured in your environment.
 - **MCP Resources**: You can reference resources provided by an MCP server
-  using a custom scheme, like `github+repo://...`.
+  using a custom scheme, like `github+repo://...`, where `github` is the name
+  of the MCP server (provided in the tool specification), and the rest is the
+  resource URL.
 
 A few convenience rules apply:
 
