@@ -51,8 +51,9 @@ tools:
   and `exec:` sources. See
   [External Prompts](../context_management/03_external_prompts.qmd)
   for semantics.
-- `sandbox`: A path to a sandboxing script. See safety below. Overrides any
-  interlocutor-level sandbox.
+- `sandbox`: A command string to wrap execution (e.g. `/path/to/script.sh`
+  or `wrapper.sh arg1`). See safety below. Overrides any interlocutor-level
+  sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the tool
@@ -185,10 +186,12 @@ See [Hooks](../automation/02_hooks.qmd) for examples.
 
 ### Sandboxing (`sandbox`)
 
-When a `sandbox` script is configured, a command call will actually execute the
-`sandbox` script, which will receive the command and the LLM provided
+When a `sandbox` is configured, a tool call will actually execute the
+`sandbox` command, which will receive the original command and the LLM provided
 parameters as arguments. The wrapper is responsible for creating a controlled
 environment to run the command.
+
+You can include arguments in the sandbox string (e.g. `bwrap.sh --net`).
 
 For example, `extra/sandbox/bwrap-sandbox.sh` uses Bubblewrap to create a
 minimal, isolated environment with a temporary home directory.

@@ -119,4 +119,40 @@ describe("ExecTool (async)", () => {
       expect(out).toContain("<stdout>second\nred\n</stdout>");
     },
   );
+
+  it("sandbox with arguments wraps execution", async () => {
+      const tool = new ExecTool(
+          { 
+              exec: "echo original", 
+              name: "sandboxed",
+              sandbox: "sh -c 'echo WRAPPED $@' --"
+          }, 
+          "Interlocutor_Name"
+      )
+      const res = await tool.call({ argv: [] })
+      const out = texts(res).join("\n")
+      // sh -c 'echo WRAPPED $@' -- echo original
+      // Output: WRAPPED echo original
+      expect(out).toContain("<stdout>WRAPPED echo original\n</stdout>")
+  })
+
+  it("sandbox works with script execution", async () => {
+    // For a script, we write a temp file.
+    // The sandbox should receive the script path as an argument.
+    // Sandbox: sh -c 'echo WRAPPED_SCRIPT $2' --
+    // Note: $1 is the interpreter (/bin/bash), $2 is the script path
+    const script = `#!/bin/bash\necho "INSIDE_SCRIPT"`
+    const tool = new ExecTool(
+        {
+            exec: script,
+            name: "sandboxed-script",
+            sandbox: "sh -c 'echo WRAPPED_SCRIPT $2' --"
+        },
+        "Interlocutor_Name"
+    )
+    const res = await tool.call({ argv: [] })
+    const out = texts(res).join("\n")
+    // Output should be WRAPPED_SCRIPT /path/to/script
+    expect(out).toContain("WRAPPED_SCRIPT ./.lectic_script-")
+  })
 });

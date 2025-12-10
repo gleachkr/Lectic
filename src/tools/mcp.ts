@@ -1,3 +1,4 @@
+import { parseCommandToArgv } from "../utils/execHelpers";
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema, ObjectSchema } from "../types/schema"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -319,21 +320,32 @@ export class MCPTool extends Tool {
             MCPTool.clientByHash[hash] = client
             MCPTool.clientByName[prefix] = client
 
-            const transport = "mcp_command" in spec
-                ? new StdioClientTransport(spec.sandbox ? {
-                    command: expandEnv(spec.sandbox), 
-                    args: [spec.mcp_command, ...((spec.args || []) as string[]) ],
-                    env: {...getDefaultEnvironment(), ...spec.env}
-                } : { 
-                    command: spec.mcp_command, 
-                    args: spec.args,
-                    env: {...getDefaultEnvironment(), ...spec.env}
-                })
-                : "mcp_sse" in spec
-                ? new SSEClientTransport(new URL(spec.mcp_sse))
-                : "mcp_ws" in spec
-                ? new WebSocketClientTransport(new URL(spec.mcp_ws))
-                : new StreamableHTTPClientTransport(new URL(spec.mcp_shttp))
+            let transport
+            if ("mcp_command" in spec) {
+                 if (spec.sandbox) {
+                    const sandboxParts = parseCommandToArgv(expandEnv(spec.sandbox))
+                    if (sandboxParts.length === 0) {
+                        throw new Error("Sandbox command cannot be empty")
+                    }
+                    transport = new StdioClientTransport({
+                        command: sandboxParts[0], 
+                        args: [...sandboxParts.slice(1), spec.mcp_command, ...((spec.args || []) as string[]) ],
+                        env: {...getDefaultEnvironment(), ...spec.env}
+                    })
+                 } else { 
+                    transport = new StdioClientTransport({ 
+                        command: spec.mcp_command, 
+                        args: spec.args,
+                        env: {...getDefaultEnvironment(), ...spec.env}
+                    })
+                }
+            }
+            else if ("mcp_sse" in spec)
+                transport = new SSEClientTransport(new URL(spec.mcp_sse))
+            else if ("mcp_ws" in spec)
+                transport = new WebSocketClientTransport(new URL(spec.mcp_ws))
+            else 
+                transport = new StreamableHTTPClientTransport(new URL(spec.mcp_shttp))
 
 
             if (spec.roots) {

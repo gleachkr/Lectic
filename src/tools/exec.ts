@@ -79,8 +79,9 @@ async function spawnScript(
     env: Record<string, string>
 ) {
     const { path, shebangArgs, cleanup } = await writeTempShebangScriptAsync(script)
+    const sandboxParts = sandbox ? parseCommandToArgv(sandbox) : []
     const proc = Bun.spawn([
-        ...(sandbox ? [sandbox] : []),
+        ...sandboxParts,
         ...shebangArgs,
         path,
         ...args
@@ -104,8 +105,9 @@ function spawnCommand(
         throw Error(`Could not read command ${command}`)
     }
 
+    const sandboxParts = sandbox ? parseCommandToArgv(sandbox) : []
     const proc = Bun.spawn([
-        ...(sandbox ? [sandbox] : []),
+        ...sandboxParts,
         ...parts,
         ...args
     ], {

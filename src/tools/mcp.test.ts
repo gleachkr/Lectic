@@ -8,8 +8,12 @@ const origListTools = (Client.prototype as any).listTools;
 const origCallTool = (Client.prototype as any).callTool;
 const origSpawnSync = Bun.spawnSync;
 
+let lastTransport: any = undefined;
+
 function stubClient(toolNames: string[]) {
-  (Client.prototype as any).connect = async () => {};
+  (Client.prototype as any).connect = async (transport: any) => {
+      lastTransport = transport;
+  };
   (Client.prototype as any).listTools = async () => ({
     tools: toolNames.map((n) => ({
       name: n,
@@ -104,6 +108,30 @@ describe("Identity keys include roots and sandbox", () => {
     const clientB = (b.find((t: any) => t.name === "b_search") as any).client;
     expect(clientA).not.toBe(clientB);
   });
+
+  it("sandbox with arguments configures transport correctly", async () => {
+      lastTransport = undefined
+      await MCPTool.fromSpec({
+          mcp_command: "server-cmd",
+          args: ["server-arg"],
+          name: "sandboxed-mcp",
+          sandbox: "wrapper --flag"
+      } as any)
+      
+      expect(lastTransport).toBeDefined()
+      // StdioClientTransport stores config in _serverConfig or similar, but
+      // we can check public properties if they exist?
+      // Actually StdioClientTransport does not expose config publicly easily.
+      // But we can check if it constructed.
+      
+      // Let's rely on inspection of the internal state if possible, or just
+      // assume if it didn't throw and matched the other tests logic, it worked.
+      // Better: we can inspect the `_serverParams` property by casting to any
+      const config = (lastTransport as any)._serverParams
+      expect(config).toBeDefined()
+      expect(config.command).toBe("wrapper")
+      expect(config.args).toEqual(["--flag", "server-cmd", "server-arg"])
+  })
 });
 
 

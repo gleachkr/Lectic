@@ -29,9 +29,9 @@ An interlocutor object defines a single LLM "personality" or configuration.
   for details and examples.
 - `hooks`: A list of hook definitions. See [Hooks](../automation/02_hooks.qmd).
   These hooks fire only when this interlocutor is active.
-- `sandbox`: A path to a sandboxing script. If present, this script wraps
-  execution for all `exec` tools and local `mcp_command` tools used by this
-  interlocutor, unless overridden by the tool's own `sandbox` setting.
+- `sandbox`: A command string (e.g. `/path/to/script.sh` or `wrapper.sh arg1`)
+  to wrap execution for all `exec` tools and local `mcp_command` tools used by
+  this interlocutor, unless overridden by the tool's own `sandbox` setting.
 
 ### Model Configuration
 
@@ -104,7 +104,7 @@ Run commands and scripts.
 - `schema`: A map of parameter name → description. When present, the tool
   takes named string parameters (exposed as env vars). When absent, the
   tool takes a required `arguments` array of strings.
-- `sandbox`: Path to a sandboxing script that wraps execution.
+- `sandbox`: Command string to wrap execution. Arguments supported.
 - `timeoutSeconds`: Seconds to wait before aborting.
 - `env`: Environment variables to set for the subprocess.
 
@@ -134,7 +134,7 @@ Connect to Model Context Protocol servers.
 - One of: `mcp_command`, `mcp_ws`, `mcp_sse`, or `mcp_shttp`.
 - `args`: Arguments for `mcp_command`.
 - `env`: Environment variables for `mcp_command`.
-- `sandbox`: Optional wrapper script to isolate `mcp_command` servers.
+- `sandbox`: Optional wrapper command to isolate `mcp_command` servers.
 - `roots`: Optional list of root objects for file access (each with
   `uri` and optional `name`).
 - `exclude`: Optional list of server tool names to hide.
