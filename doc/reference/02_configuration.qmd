@@ -29,6 +29,9 @@ An interlocutor object defines a single LLM "personality" or configuration.
   for details and examples.
 - `hooks`: A list of hook definitions. See [Hooks](../automation/02_hooks.qmd).
   These hooks fire only when this interlocutor is active.
+- `sandbox`: A path to a sandboxing script. If present, this script wraps
+  execution for all `exec` tools and local `mcp_command` tools used by this
+  interlocutor, unless overridden by the tool's own `sandbox` setting.
 
 ### Model Configuration
 

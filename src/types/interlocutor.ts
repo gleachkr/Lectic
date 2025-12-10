@@ -19,6 +19,7 @@ export type Interlocutor = {
     active_hooks?: Hook[]
     thinking_budget?: number
     thinking_effort?: "none" | "low" | "medium" | "high"
+    sandbox?: string
 }
 
 export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
@@ -60,6 +61,9 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
         (raw.thinking_effort !== "high")) {
         throw Error(Messages.interlocutor.thinkingEffortType(raw.name))
     } 
+    if (("sandbox" in raw) && typeof raw.sandbox !== "string") {
+        throw Error(Messages.interlocutor.sandboxType(raw.name))
+    }
     if (("temperature" in raw)) {
         if (typeof raw.temperature !== "number") {
             throw Error(Messages.interlocutor.temperatureType(raw.name))

@@ -27,6 +27,8 @@ export const Messages = {
       `The thinking budget for ${name} wasn't well-formed, it needs to be a whole number.`,
     thinkingEffortType: (name: string) =>
       `The thinking effort for ${name} wasn't well-formed, it needs to be one of 'none', 'low', 'medium' or 'high'.`,
+    sandboxType: (name: string) =>
+      `The sandbox for ${name} wasn't well-formed, it needs to be a string.`,
     toolsType: (name: string) =>
       `The tools for ${name} need to be given in an array.`,
     toolsItems: (name: string) =>

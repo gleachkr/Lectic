@@ -104,3 +104,6 @@ isolated environment, limiting its access to your system.
 
 See the documentation for the [Exec Tool](./02_exec.qmd) for more details on
 how sandboxing scripts work.
+
+You can also set a default `sandbox` on the `interlocutor` object. If set,
+it applies to all local MCP tools that don't specify their own.

@@ -51,7 +51,8 @@ tools:
   and `exec:` sources. See
   [External Prompts](../context_management/03_external_prompts.qmd)
   for semantics.
-- `sandbox`: A path to a sandboxing script. See safety below.
+- `sandbox`: A path to a sandboxing script. See safety below. Overrides any
+  interlocutor-level sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the tool
@@ -191,3 +192,6 @@ environment to run the command.
 
 For example, `extra/sandbox/bwrap-sandbox.sh` uses Bubblewrap to create a
 minimal, isolated environment with a temporary home directory.
+
+You can also set a default `sandbox` on the `interlocutor` object. If set,
+it applies to all `exec` tools that don't specify their own.

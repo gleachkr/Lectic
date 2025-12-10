@@ -11,6 +11,7 @@ export const INTERLOCUTOR_KEYS = [
   "tools",
   "nocache",
   "hooks",
+  "sandbox",
 ] as const
 
 export type InterlocutorKey = typeof INTERLOCUTOR_KEYS[number]

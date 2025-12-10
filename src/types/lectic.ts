@@ -164,6 +164,8 @@ export class LecticHeader {
                 // if the YAML uses &* references
                 const loadedSpec: ExecToolSpec = { ...spec }
                 loadedSpec.usage = await loadFrom(spec.usage)
+                loadedSpec.sandbox = this.interlocutor.sandbox ?? loadedSpec.sandbox
+
                 register(new ExecTool(loadedSpec, this.interlocutor.name))
             } else if (isSQLiteToolSpec(spec)) {
                 const loadedSpec: SQLiteToolSpec = { ...spec }
@@ -178,7 +180,11 @@ export class LecticHeader {
                 loadedSpec.usage = await loadFrom(spec.usage)
                 register(new AgentTool(loadedSpec, this.interlocutors))
             } else if (isMCPSpec(spec)) {
-                (await MCPTool.fromSpec(spec)).map(register)
+                const loadedSpec = { ...spec }
+                if ("mcp_command" in loadedSpec) {
+                     loadedSpec.sandbox = this.interlocutor.sandbox ?? loadedSpec.sandbox
+                }
+                (await MCPTool.fromSpec(loadedSpec)).map(register)
             } else if (isNativeTool(spec)) {
                // do nothing 
             } else {
