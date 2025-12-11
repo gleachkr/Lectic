@@ -7,7 +7,13 @@ export async function tryRunSubcommand(command: string, args: string[]) {
     
     // XXX: undefined searches PATH
     for (const dir of [...searchDirs, undefined]) {
-        const pathExe = Bun.which(`lectic-${command}`, { PATH : dir });
+        const cmdGlob = new Bun.Glob(`lectic-${command}{,.*}`)
+        const matches = [... cmdGlob.scanSync({ cwd: dir })]
+        if (matches.length > 1) {
+            Logger.write(`multiple commands available: \n ${matches}\n`);
+            break
+        } 
+        const pathExe = Bun.which(matches[0], { PATH : dir });
         if (pathExe) {
             await runExecutable(pathExe, args);
             return;
@@ -15,7 +21,7 @@ export async function tryRunSubcommand(command: string, args: string[]) {
     }
 
     // Not found
-    Logger.write(`error: unknown command '${command}'\n`);
+    Logger.write(`error: couldn't identify command '${command}'\n`);
     process.exit(1);
 }
 
