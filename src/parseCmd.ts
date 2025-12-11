@@ -57,7 +57,7 @@ async function handleParse(opts: any) {
     
     const lecticString = await getLecticString(opts)
     const rawHeaderYaml = getYaml(lecticString)
-    const header = rawHeaderYaml ? YAML.parse(rawHeaderYaml) : {}
+    const header = rawHeaderYaml ? {raw : rawHeaderYaml, ...YAML.parse(rawHeaderYaml)} : {}
     
     // We use the standard parseLectic logic (including system configs) to get
     // the Lectic object, which ensures we have a valid header and can identify
