@@ -21,7 +21,6 @@ program
 .passThroughOptions()
 .option('-s, --short', 'Only emit a new message rather than the full updated lectic')
 .option('-S, --Short', 'Only emit a new message rather than the full updated lectic. Only including the message text')
-.option('-H, --header',  'Emit only the YAML header of the lectic')
 .option('-f, --file <lectic>',  'Lectic to read from')
 .option('-q, --quiet', 'Don’t print response')
 .option('-i, --inplace <lectic>',  'Lectic to read from and update in place' )

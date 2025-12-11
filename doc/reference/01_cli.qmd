@@ -78,11 +78,6 @@ This mechanism allows you to extend Lectic with your own tools and workflows.
   Like `--short`, but emits only the raw message text (without the
   `:::Speaker` wrapper).
 
-- `-H`, `--header`
-  Emit only the YAML frontmatter of the input. With `--inplace`, this will
-  overwrite the file to contain only the header (effectively resetting the
-  conversation).
-
 - `-l`, `--log <PATH>`
   Write detailed debug logs to the given file.
 
@@ -95,7 +90,6 @@ This mechanism allows you to extend Lectic with your own tools and workflows.
 ## Constraints
 
 - --inplace cannot be combined with --file.
-- --header cannot be combined with --short or --Short.
 - --quiet cannot be combined with --short or --Short.
 
 ## Common examples

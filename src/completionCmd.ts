@@ -11,16 +11,6 @@ import { program, type OptionValues } from 'commander'
 import { getIncludes, getLecticString } from "./utils/cli"
 
 function validateOptions(opts : OptionValues) {
-    if (opts["header"]) {
-        if (opts["short"]) {
-            Logger.write("You can't combine --short and --header ");
-            process.exit(1)
-        }
-        if (opts["Short"]) {
-            Logger.write("You can't combine --Short and --header ");
-            process.exit(1)
-        }
-    }
     if (opts["quiet"]) {
         if (opts["short"]) {
             Logger.write("You can't combine --short and --quiet");
@@ -59,7 +49,7 @@ export async function completions() {
 
     if (opts["quiet"]) Logger.outfile = createWriteStream('/dev/null')
 
-    if (!(opts["Short"] || opts["short"] || opts["header"])) {
+    if (!(opts["Short"] || opts["short"])) {
         await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
@@ -71,67 +61,58 @@ export async function completions() {
 
         lectic = await parseLectic(lecticString, includes)
 
-        if (opts["header"]) {
-            const newHeader = `---\n${getYaml(lecticString) ?? ""}\n---`
-            await Logger.write(newHeader)
-            if (opts["inplace"]) {
-                Logger.outfile = createWriteStream(opts["inplace"])
-                await Logger.write(newHeader)
+        // TODO this should be a lectic method
+        for (const message of lectic.body.messages) {
+            if (message instanceof UserMessage) {
+                await message.expandMacros(lectic.header.macros)
             }
-        } else {
+        }
 
-            for (const message of lectic.body.messages) {
-                if (message instanceof UserMessage) {
-                    await message.expandMacros(lectic.header.macros)
+        // we handle directives, which may update header fields
+        lectic.handleDirectives()
+
+        // we initialize, starting MCP servers for the active interlocutor
+        await lectic.header.initialize()
+
+        const backend = getBackend(lectic.header.interlocutor)
+        const header = `:::${lectic.header.interlocutor.name}\n\n`
+        const footer = `\n\n:::`
+        lectic.body.raw = `${lectic.body.raw.trim()}\n\n` + header
+
+        if (!program.opts()["Short"]) {
+            await Logger.write(header)
+            headerPrinted = true
+            const closeHeader = () => { 
+                // no point in updating lectic.body.raw, we're exiting.
+                Logger.write(footer).then(() => process.exit(0)) 
+            }
+            process.on('SIGTERM', closeHeader)
+            process.on('SIGINT', closeHeader)
+        }
+
+        const recordingStream = (async function* () {
+            for await (const chunk of backend.evaluate(lectic)) {
+                // Only append text strings to the raw body, ignore non-string return values
+                if (typeof chunk === 'string') {
+                    lectic.body.raw += chunk
                 }
+                yield chunk
             }
+        })()
 
-            // we handle directives, which may update header fields
-            lectic.handleDirectives()
+        const result = Logger.fromStream(recordingStream)
+        await Logger.write(result.chunks)
+        await result.rest
 
-            // we initialize, starting MCP servers for the active interlocutor
-            await lectic.header.initialize()
+        if (!program.opts()["Short"]) { await Logger.write(footer) }
+        if (lectic) lectic.body.raw += footer
 
-            const backend = getBackend(lectic.header.interlocutor)
-            const header = `:::${lectic.header.interlocutor.name}\n\n`
-            const footer = `\n\n:::`
-            lectic.body.raw = `${lectic.body.raw.trim()}\n\n` + header
-
-            if (!program.opts()["Short"]) {
-                await Logger.write(header)
-                headerPrinted = true
-                const closeHeader = () => { 
-                    // no point in updating lectic.body.raw, we're exiting.
-                    Logger.write(footer).then(() => process.exit(0)) 
-                }
-                process.on('SIGTERM', closeHeader)
-                process.on('SIGINT', closeHeader)
-            }
-
-            const recordingStream = (async function* () {
-                for await (const chunk of backend.evaluate(lectic)) {
-                    // Only append text strings to the raw body, ignore non-string return values
-                    if (typeof chunk === 'string') {
-                        lectic.body.raw += chunk
-                    }
-                    yield chunk
-                }
-            })()
-
-            const result = Logger.fromStream(recordingStream)
-            await Logger.write(result.chunks)
-            await result.rest
-
-            if (!program.opts()["Short"]) { await Logger.write(footer) }
-            if (lectic) lectic.body.raw += footer
-
-            if (opts["inplace"]) {
-                Logger.outfile = createWriteStream(opts["inplace"])
-                await Logger.write(`${lecticString.trim()}\n\n`)
-                await Logger.write(header)
-                await result.string.then(string => Logger.write(string))
-                await Logger.write(footer)
-            }
+        if (opts["inplace"]) {
+            Logger.outfile = createWriteStream(opts["inplace"])
+            await Logger.write(`${lecticString.trim()}\n\n`)
+            await Logger.write(header)
+            await result.string.then(string => Logger.write(string))
+            await Logger.write(footer)
         }
         process.exit(0)
     } catch (error) {
