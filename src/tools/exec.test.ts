@@ -153,6 +153,7 @@ describe("ExecTool (async)", () => {
     const res = await tool.call({ argv: [] })
     const out = texts(res).join("\n")
     // Output should be WRAPPED_SCRIPT /path/to/script
-    expect(out).toContain("WRAPPED_SCRIPT ./.lectic_script-")
+    expect(out).toContain("WRAPPED_SCRIPT ")
+    expect(out).toContain("/.lectic_script-")
   })
 });

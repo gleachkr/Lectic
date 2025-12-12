@@ -29,7 +29,14 @@ function shebangArgs(script: string): string[] {
 
 export function writeTempShebangScriptSync(script: string) {
   ensureShebang(script)
-  const tmpName = `./.lectic_script-${Bun.randomUUIDv7()}`
+
+  // Sandboxes may change the working directory before executing argv.
+  // If we write scripts to a relative path like ./.lectic_script-*, the
+  // sandboxed process may fail to find it.
+  //
+  // Use an absolute path so argv is stable even when PWD changes.
+  const tmpName = `${fs.realpathSync(".")}/.lectic_script-${Bun.randomUUIDv7()}`
+
   const cleanup = () => fs.existsSync(tmpName) && fs.unlinkSync(tmpName)
   process.on('exit', cleanup)
   fs.writeFileSync(tmpName, script)
@@ -38,7 +45,10 @@ export function writeTempShebangScriptSync(script: string) {
 
 export async function writeTempShebangScriptAsync(script: string) {
   ensureShebang(script)
-  const tmpName = `./.lectic_script-${Bun.randomUUIDv7()}`
+
+  // See writeTempShebangScriptSync for why this must be absolute.
+  const tmpName = `${fs.realpathSync(".")}/.lectic_script-${Bun.randomUUIDv7()}`
+
   const cleanup = () => fs.existsSync(tmpName) && fs.unlinkSync(tmpName)
   process.on('exit', cleanup)
   await Bun.write(tmpName, script)
