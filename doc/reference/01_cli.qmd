@@ -28,6 +28,24 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   List available models for providers with detected API keys. Only
   providers with API keys in the environment are queried.
 
+- `lectic script`
+  Run an ES module file as a Lectic subcommand.
+
+  You can export a default function, which will be called with no arguments;
+  script arguments can be called via `process.argv`.
+
+  Usage:
+  ```bash
+  lectic script <module-path> [args...]
+  ```
+
+  Example:
+  ```js
+  export default function () {
+    console.log("hello")
+  }
+  ```
+
 ## Custom Subcommands
 
 Lectic supports git-style custom subcommands. If you invoke `lectic <command>`,

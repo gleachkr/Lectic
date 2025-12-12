@@ -14,6 +14,7 @@ import { completions } from "./completionCmd"
 import { listModels } from "./modelCmd"
 import { parseCmd } from "./parseCmd"
 import { tryRunSubcommand } from "./subcommandCmd"
+import { scriptCmd } from "./scriptCmd"
 
 program
 .name('lectic')
@@ -45,6 +46,18 @@ program
 .command('models')
 .description('List available models for detected providers')
 .action(listModels)
+
+program
+.command('script')
+.description(
+    'Experimental: run a JS/TS module as a hashbang-style script. The module '
+    + 'must export a function named main().'
+)
+.allowExcessArguments(true)
+.argument('[args...]', 'Module path followed by any script args')
+.action(async (args: string[]) => {
+    await scriptCmd(args)
+})
 
 program
 .command('parse')
