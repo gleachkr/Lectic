@@ -128,7 +128,7 @@ describe("emitAssistantMessageEvent", () => {
         const hook = new Hook({
             on: "assistant_message",
             do: `#!/bin/bash
-echo "USAGE:\${LECTIC_TOKEN_USAGE_INPUT}:\${LECTIC_TOKEN_USAGE_OUTPUT}:\${LECTIC_TOKEN_USAGE_TOTAL}"`,
+echo "USAGE:\${TOKEN_USAGE_INPUT}:\${TOKEN_USAGE_CACHED}:\${TOKEN_USAGE_OUTPUT}:\${TOKEN_USAGE_TOTAL}"`,
             inline: true
         })
 
@@ -143,11 +143,11 @@ echo "USAGE:\${LECTIC_TOKEN_USAGE_INPUT}:\${LECTIC_TOKEN_USAGE_OUTPUT}:\${LECTIC
         } as any
 
         const results = emitAssistantMessageEvent("some response", mockLectic, {
-            usage: { input: 10, output: 20, total: 30 }
+            usage: { input: 10, cached: 15, output: 20, total: 30 }
         })
 
         expect(results).toHaveLength(1)
-        expect(results[0].content.trim()).toBe("USAGE:10:20:30")
+        expect(results[0].content.trim()).toBe("USAGE:10:15:20:30")
     })
 })
 

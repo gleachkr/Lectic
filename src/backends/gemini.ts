@@ -239,6 +239,7 @@ async function *handleToolUse(
         const usageMeta = accumulatedResponse.usageMetadata
         const usage = usageMeta ? {
             input: usageMeta.promptTokenCount ?? 0,
+            cached: usageMeta.cachedContentTokenCount ?? 0,
             output: usageMeta.candidatesTokenCount ?? 0,
             total: usageMeta.totalTokenCount ?? 0
         } : undefined
@@ -464,6 +465,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
       const usageMeta = accumulatedResponse.usageMetadata
       const usage = usageMeta ? {
           input: usageMeta.promptTokenCount ?? 0,
+          cached: usageMeta.cachedContentTokenCount ?? 0,
           output: usageMeta.candidatesTokenCount ?? 0,
           total: usageMeta.totalTokenCount ?? 0
       } : undefined

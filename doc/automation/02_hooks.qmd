@@ -68,12 +68,13 @@ passed. However, the hook may receive content via standard input.
       tools and is ready to conclude. Not set if there are pending tool
       calls. This lets inline hooks decide whether to inject follow-up
       content only when all work is complete.
-    - `LECTIC_TOKEN_USAGE_INPUT`: Count of input tokens used for this turn.
-    - `LECTIC_TOKEN_USAGE_OUTPUT`: Count of output tokens used for this turn.
-    - `LECTIC_TOKEN_USAGE_TOTAL`: Total tokens used for this turn.
-    - `LECTIC_LOOP_COUNT`: How many times the tool calling loop has run
+    - `TOKEN_USAGE_INPUT`: Count of total input tokens used for this turn.
+    - `TOKEN_USAGE_CACHED`: Count of cached input tokens used for this turn.
+    - `TOKEN_USAGE_OUTPUT`: Count of output tokens used for this turn.
+    - `TOKEN_USAGE_TOTAL`: Total tokens used for this turn.
+    - `LOOP_COUNT`: How many times the tool calling loop has run
       (0-indexed).
-    - `LECTIC_FINAL_PASS_COUNT`: How many times the assistant has
+    - `FINAL_PASS_COUNT`: How many times the assistant has
       finished work but was kept alive by an inline hook.
     - Standard Lectic variables as above.
   - When: Immediately after the assistant's message is streamed.
@@ -245,7 +246,7 @@ hooks:
     do: |
       #!/usr/bin/env bash
       LIMIT=100000
-      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      TOTAL="${TOKEN_USAGE_TOTAL:-0}"
       
       if [ "$TOTAL" -gt "$LIMIT" ]; then
         echo "LECTIC:reset"

@@ -189,6 +189,7 @@ async function *handleToolUse(
         const usageData = completion.usage
         const usage = usageData ? {
             input: usageData.prompt_tokens,
+            cached: usageData.prompt_tokens_details?.cached_tokens ?? 0,
             output: usageData.completion_tokens,
             total: usageData.total_tokens
         } : undefined
@@ -443,6 +444,7 @@ export class OpenAIBackend implements Backend {
         const usageData = completion.usage
         const usage = usageData ? {
             input: usageData.prompt_tokens,
+            cached: usageData.prompt_tokens_details?.cached_tokens ?? 0,
             output: usageData.completion_tokens,
             total: usageData.total_tokens
         } : undefined

@@ -26,7 +26,7 @@ hooks:
       # Configuration
       LIMIT=80000        # Trigger compaction at this token count
       
-      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      TOTAL="${TOKEN_USAGE_TOTAL:-0}"
       
       if [[ $TOTAL -lt $LIMIT ]]; then
         exit 0  # No output, no action
@@ -81,7 +81,7 @@ content.
 
 ## How It Works
 
-1. After each assistant message, the hook checks `LECTIC_TOKEN_USAGE_TOTAL`
+1. After each assistant message, the hook checks `TOKEN_USAGE_TOTAL`
 2. The conversation body so far is available on stdin
 3. If over the limit, the hook pipes the conversation to a separate lectic
    instance for summarization
@@ -120,7 +120,7 @@ hooks:
     inline: true
     do: |
       #!/bin/bash
-      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      TOTAL="${TOKEN_USAGE_TOTAL:-0}"
       LIMIT=80000
       
       if [[ $TOTAL -lt $LIMIT ]]; then
@@ -161,7 +161,7 @@ hooks:
     inline: true
     do: |
       #!/bin/bash
-      TOTAL="${LECTIC_TOKEN_USAGE_TOTAL:-0}"
+      TOTAL="${TOKEN_USAGE_TOTAL:-0}"
       WARN_LIMIT=70000
       HARD_LIMIT=90000
       

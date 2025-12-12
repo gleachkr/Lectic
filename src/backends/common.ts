@@ -133,7 +133,7 @@ export function emitAssistantMessageEvent(
     lectic: Lectic,
     opt?: { 
         toolUseDone?: boolean, 
-        usage?: { input: number, output: number, total: number },
+        usage?: { input: number, cached: number, output: number, total: number },
         loopCount?: number,
         finalPassCount?: number
     }
@@ -145,15 +145,16 @@ export function emitAssistantMessageEvent(
     if (text) { baseEnv["ASSISTANT_MESSAGE"] = text }
     if (opt?.toolUseDone) { baseEnv["TOOL_USE_DONE"] = "1" }
     if (opt?.usage) {
-        baseEnv["LECTIC_TOKEN_USAGE_INPUT"] = opt.usage.input.toString()
-        baseEnv["LECTIC_TOKEN_USAGE_OUTPUT"] = opt.usage.output.toString()
-        baseEnv["LECTIC_TOKEN_USAGE_TOTAL"] = opt.usage.total.toString()
+        baseEnv["TOKEN_USAGE_INPUT"] = opt.usage.input.toString()
+        baseEnv["TOKEN_USAGE_OUTPUT"] = opt.usage.output.toString()
+        baseEnv["TOKEN_USAGE_TOTAL"] = opt.usage.total.toString()
+        baseEnv["TOKEN_USAGE_CACHED"] = opt.usage.cached.toString()
     }
     if (opt?.loopCount !== undefined) {
-        baseEnv["LECTIC_LOOP_COUNT"] = opt.loopCount.toString()
+        baseEnv["LOOP_COUNT"] = opt.loopCount.toString()
     }
     if (opt?.finalPassCount !== undefined) {
-        baseEnv["LECTIC_FINAL_PASS_COUNT"] = opt.finalPassCount.toString()
+        baseEnv["FINAL_PASS_COUNT"] = opt.finalPassCount.toString()
     }
 
     const all_hooks = lectic.header.hooks.concat(lectic.header.interlocutor.active_hooks ?? [])

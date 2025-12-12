@@ -341,6 +341,7 @@ async function* handleToolUse(
         const toolUseDone = message.stop_reason !== "tool_use"
         const usage = {
             input: message.usage.input_tokens,
+            cached: message.usage.cache_read_input_tokens ?? 0,
             output: message.usage.output_tokens,
             total: message.usage.input_tokens + message.usage.output_tokens
         }
@@ -446,6 +447,7 @@ export class AnthropicBackend implements Backend {
         const toolUseDone = msg.stop_reason !== "tool_use"
         const usage = {
             input: msg.usage.input_tokens,
+            cached: msg.usage.cache_read_input_tokens ?? 0,
             output: msg.usage.output_tokens,
             total: msg.usage.input_tokens + msg.usage.output_tokens
         }
