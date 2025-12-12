@@ -29,21 +29,14 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   providers with API keys in the environment are queried.
 
 - `lectic script`
-  Run an ES module file as a Lectic subcommand.
+  Run an ES module file using Lectic's internal Bun JS runtime. Works as
+  a hashbang interpreter, useful for writing subcommands (see below), 
+  [hooks](../automation/02_hooks.qmd), and [exec tools](../tools/02_exec.qmd).
+  For example:
 
-  You can export a default function, which will be called with no arguments;
-  script arguments can be called via `process.argv`.
-
-  Usage:
   ```bash
-  lectic script <module-path> [args...]
-  ```
-
-  Example:
-  ```js
-  export default function () {
-    console.log("hello")
-  }
+  #!/bin/env -S lectic script
+  console.log("Hello from a lectic script!")
   ```
 
 ## Custom Subcommands
