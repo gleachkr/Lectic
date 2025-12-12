@@ -25,8 +25,7 @@ Usage:
 
 Options:
   -n, --name NAME
-      Interlocutor name used to namespace the worktree. Defaults to the
-      INTERLOCUTOR_NAME environment variable.
+      Name used to namespace the worktree. Defaults to "Assistant".
 
   -r, --root DIR
       Worktrees root directory. Default: .worktrees
@@ -55,8 +54,7 @@ Options:
       Show this help.
 
 Examples:
-  INTERLOCUTOR_NAME=Assistant \
-    lectic-worktree.sh -- git status
+  lectic-worktree.sh -n Assistant -- git status
 
   lectic-worktree.sh -n Researcher --base-ref main -- \
     bash -lc 'rg -n "TODO" .'
@@ -90,7 +88,8 @@ sanitize_name() {
 require_cmd bwrap
 require_cmd git
 
-NAME="${INTERLOCUTOR_NAME:-}"
+NAME=""
+DEFAULT_NAME="Assistant"
 WORKTREES_ROOT=".worktrees"
 BRANCH_NAME=""
 BASE_REF="HEAD"
@@ -154,7 +153,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "$NAME" ]] || die "no name provided (set INTERLOCUTOR_NAME or --name)"
+if [[ -z "$NAME" ]]; then
+  NAME="$DEFAULT_NAME"
+fi
 
 SAFE_NAME=$(sanitize_name "$NAME")
 TARGET_DIR="${WORKTREES_ROOT}/${SAFE_NAME}"
@@ -174,9 +175,6 @@ fi
 # current working directory.
 WORKTREES_ROOT="${REPO_ROOT}/${WORKTREES_ROOT}"
 TARGET_DIR="${WORKTREES_ROOT}/${SAFE_NAME}"
-
-# Need absolute path for bwrap binding and chdir.
-ABS_TARGET_DIR=$(cd "$TARGET_DIR" 2>/dev/null && pwd -P || true)
 
 mkdir -p "$WORKTREES_ROOT"
 
@@ -204,6 +202,10 @@ ensure_worktree() {
 
 ensure_worktree
 
+# Need absolute path for bwrap binding and chdir.
+ABS_TARGET_DIR=$(cd "$TARGET_DIR" && pwd -P)
+[[ -d "$ABS_TARGET_DIR" ]] || die "worktree dir missing: $ABS_TARGET_DIR"
+
 if [[ "$REMOVE_WORKTREE" -eq 1 ]]; then
   git worktree remove -f "$TARGET_DIR"
   exit 0
@@ -219,13 +221,17 @@ fi
 # Execution ------------------------------------------------------------------
 
 # bwrap setup:
-# - ro-bind / /      : read-only system
-# - bind worktree    : rw access to the worktree only
-# - tmpfs /tmp,...   : writable temp areas
-# - unshare pid      : isolate process tree
+# - ro-bind / /            : read-only system
+# - bind worktree          : rw access to the worktree only
+# - bind repo git dir (ro) : lets git operations work inside the worktree
+# - tmpfs /tmp,...         : writable temp areas
+# - unshare pid            : isolate process tree
 #
 # NOTE: This still inherits your network namespace. If you want to block
 # networking, add something like: --unshare-net
+
+ABS_REPO_ROOT=$(cd "$REPO_ROOT" && pwd -P)
+ABS_GIT_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
 
 BWRAP_ARGS=(
   --ro-bind / /
@@ -234,6 +240,10 @@ BWRAP_ARGS=(
   --tmpfs /tmp
   --tmpfs /var/tmp
   --bind "$ABS_TARGET_DIR" "$ABS_TARGET_DIR"
+  --ro-bind "$ABS_GIT_DIR" "$ABS_GIT_DIR"
+  --setenv GIT_DIR "$ABS_GIT_DIR"
+  --setenv GIT_COMMON_DIR "$ABS_GIT_DIR"
+  --setenv GIT_WORK_TREE "$ABS_TARGET_DIR"
   --chdir "$ABS_TARGET_DIR"
   --unshare-pid
   --new-session
