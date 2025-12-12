@@ -295,21 +295,21 @@ async function handleMessage(
             }
 
             if (interaction.calls.length > 0) {
-            const attachParts = await collectAttachmentPartsFromCalls(
-            interaction.calls,
-            partToContent,
-            )
-            if (attachParts.length > 0) {
-            results.push({ role: 'user', content: attachParts })
-            }
+                const attachParts = await collectAttachmentPartsFromCalls(
+                    interaction.calls,
+                    partToContent,
+                )
+                if (attachParts.length > 0) {
+                    results.push({ role: 'user', content: attachParts })
+                }
             }
             
             for (const { id, call } of callsWithIds) {
-            results.push({
-            type: "function_call_output",
-            call_id: id,
-            output: JSON.stringify(call.results.filter(r => !isAttachmentMime(r.mimetype)))
-            })
+                results.push({
+                    type: "function_call_output",
+                    call_id: id,
+                    output: JSON.stringify(call.results.filter(r => !isAttachmentMime(r.mimetype)))
+                })
             }
         }
         return { messages: results, reset }
