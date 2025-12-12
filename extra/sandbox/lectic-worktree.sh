@@ -231,7 +231,10 @@ fi
 # networking, add something like: --unshare-net
 
 ABS_REPO_ROOT=$(cd "$REPO_ROOT" && pwd -P)
-ABS_GIT_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+ABS_GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+ABS_GIT_DIR=$(
+  cd "$ABS_TARGET_DIR" && git rev-parse --git-dir
+)
 
 BWRAP_ARGS=(
   --ro-bind / /
@@ -240,9 +243,9 @@ BWRAP_ARGS=(
   --tmpfs /tmp
   --tmpfs /var/tmp
   --bind "$ABS_TARGET_DIR" "$ABS_TARGET_DIR"
-  --ro-bind "$ABS_GIT_DIR" "$ABS_GIT_DIR"
+  --bind "$ABS_GIT_COMMON_DIR" "$ABS_GIT_COMMON_DIR"
   --setenv GIT_DIR "$ABS_GIT_DIR"
-  --setenv GIT_COMMON_DIR "$ABS_GIT_DIR"
+  --setenv GIT_COMMON_DIR "$ABS_GIT_COMMON_DIR"
   --setenv GIT_WORK_TREE "$ABS_TARGET_DIR"
   --chdir "$ABS_TARGET_DIR"
   --unshare-pid
