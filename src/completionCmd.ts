@@ -1,5 +1,5 @@
 import { createWriteStream } from "fs"
-import { parseLectic, getYaml } from "./parsing/parse"
+import { parseLectic } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
 import { runHooks } from "./backends/common"
