@@ -5,7 +5,6 @@ import { getBackend } from "./backends/util"
 import { runHooks } from "./backends/common"
 import { version } from "../package.json"
 import { lecticEnv } from "./utils/xdg";
-import { UserMessage } from "./types/message"
 import { Lectic } from "./types/lectic"
 import { program, type OptionValues } from 'commander'
 import { getIncludes, getLecticString } from "./utils/cli"
@@ -61,17 +60,13 @@ export async function completions() {
 
         lectic = await parseLectic(lecticString, includes)
 
-        // TODO this should be a lectic method
-        for (const message of lectic.body.messages) {
-            if (message instanceof UserMessage) {
-                await message.expandMacros(lectic.header.macros)
-            }
-        }
+        // expands macros in user messages
+        await lectic.expandMacros()
 
-        // we handle directives, which may update header fields
+        // handle directives, which may update header fields
         lectic.handleDirectives()
 
-        // we initialize, starting MCP servers for the active interlocutor
+        // initialize, starting MCP servers for the active interlocutor
         await lectic.header.initialize()
 
         const backend = getBackend(lectic.header.interlocutor)

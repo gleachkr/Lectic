@@ -4,7 +4,7 @@ import { Tool } from "./tool"
 import { validateInterlocutor, type Interlocutor } from "./interlocutor"
 import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
 import { validateHookSpec, Hook, type HookSpec } from "./hook"
-import { isMessage } from "./message"
+import { isMessage, UserMessage } from "./message"
 import { isExecToolSpec, ExecTool, type ExecToolSpec } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool, type SQLiteToolSpec } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
@@ -258,6 +258,7 @@ export class LecticBody {
         this.raw = raw
     }
 
+
     snapshot(opt: { closeBlock?: boolean } = {}): string {
         if (opt.closeBlock) {
              return `${this.raw}\n\n:::`
@@ -283,6 +284,14 @@ export class Lectic {
     constructor({ header, body } : {header : LecticHeader, body : LecticBody }) {
         this.header = header
         this.body = body
+    }
+
+    async expandMacros() {
+        for (const message of this.body.messages) {
+            if (message instanceof UserMessage) {
+                await message.expandMacros(this.header.macros)
+            }
+        }
     }
 
     handleDirectives() {
