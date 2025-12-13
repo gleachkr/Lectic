@@ -10,7 +10,7 @@ globalThis.fetch = Object.assign(
 
 import { program } from 'commander'
 import { startLsp } from "./lsp/server"
-import { completions } from "./completionCmd"
+import { generate } from "./generateCmd"
 import { listModels } from "./modelCmd"
 import { parseCmd } from "./parseCmd"
 import { tryRunSubcommand } from "./subcommandCmd"
@@ -33,7 +33,7 @@ program
     if (subcommand) {
         await tryRunSubcommand(subcommand, args || [])
     } else {
-        await completions()
+        await generate()
     }
 })
 

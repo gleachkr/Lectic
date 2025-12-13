@@ -30,7 +30,7 @@ function validateOptions(opts : OptionValues) {
     }
 }
 
-export async function completions() {
+export async function generate() {
 
     const opts = program.opts()
 
