@@ -100,7 +100,9 @@ function spawnCommand(
     env: Record<string, string>
 ) {
 
-    const parts = parseCommandToArgv(command)
+    // First split THEN expand, in case variables contain quotes
+    const parts = parseCommandToArgv(command).map(part => expandEnv(part, env))
+
     if (parts.length === 0) {
         throw Error(`Could not read command ${command}`)
     }
@@ -191,7 +193,7 @@ export class ExecTool extends Tool {
         if (this.isScript) {
             ({proc, cleanup} = await spawnScript(this.exec, args, this.sandbox, env))
         } else {
-            proc = spawnCommand(expandEnv(this.exec, env), args, this.sandbox, env)
+            proc = spawnCommand(this.exec, args, this.sandbox, env)
         }
 
         const collected = { stdout: "", stderr: "" }
