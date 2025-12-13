@@ -50,6 +50,10 @@ Options:
   --remove
       Remove the worktree and exit (runs: git worktree remove -f).
 
+  -d, --delete
+      Delete the worktree directory AND its associated branch.
+      If the branch contains unmerged commits, ask for confirmation.
+
   -h, --help
       Show this help.
 
@@ -97,6 +101,7 @@ NO_BRANCH=0
 BWRAP_EXTRA=""
 PRINT_WORKTREE=0
 REMOVE_WORKTREE=0
+DELETE_WORKTREE=0
 
 ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -136,6 +141,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --remove)
       REMOVE_WORKTREE=1
+      shift
+      ;;
+    -d|--delete)
+      DELETE_WORKTREE=1
       shift
       ;;
     -h|--help)
@@ -208,6 +217,55 @@ ABS_TARGET_DIR=$(cd "$TARGET_DIR" && pwd -P)
 
 if [[ "$REMOVE_WORKTREE" -eq 1 ]]; then
   git worktree remove -f "$TARGET_DIR"
+  exit 0
+fi
+
+confirm_delete_branch_if_needed() {
+  local branch="$1"
+
+  if [[ "$NO_BRANCH" -eq 1 ]]; then
+    die "--delete cannot be used with --no-branch"
+  fi
+
+  if ! git show-ref --verify --quiet "refs/heads/${branch}"; then
+    return 0
+  fi
+
+  local default_base_branch
+  if git show-ref --verify --quiet refs/heads/main; then
+    default_base_branch="main"
+  elif git show-ref --verify --quiet refs/heads/master; then
+    default_base_branch="master"
+  else
+    default_base_branch=""
+  fi
+
+  if [[ -n "$default_base_branch" ]]; then
+    if git merge-base --is-ancestor "$branch" "$default_base_branch"; then
+      return 0
+    fi
+
+    echo "Branch '${branch}' contains commits not merged into" \
+      "${default_base_branch}." >&2
+    read -r -p "Delete branch anyway? [y/N] " ans
+    case "$ans" in
+      y|Y|yes|YES)
+        return 0
+        ;;
+      *)
+        echo "Aborting." >&2
+        exit 1
+        ;;
+    esac
+  fi
+}
+
+if [[ "$DELETE_WORKTREE" -eq 1 ]]; then
+  confirm_delete_branch_if_needed "$BRANCH_NAME"
+  git worktree remove -f "$TARGET_DIR" || true
+  if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
+    git branch -D "$BRANCH_NAME"
+  fi
   exit 0
 fi
 
