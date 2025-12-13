@@ -9,6 +9,7 @@ import remarkDirective from 'remark-directive'
 import * as YAML from 'yaml'
 import type { RootContent, Root } from 'mdast'
 import { Logger } from './logging/logger'
+import { isObjectRecord } from './types/guards'
 
 type ToolCallNode = {
     type: 'tool-call'
@@ -33,12 +34,16 @@ type ParsedLectic = {
     messages: ParsedMessage[]
 }
 
-function isToolCallNode(node: any): node is ToolCallNode {
-    return node && node.type === 'tool-call' && typeof node.value === 'string'
+function isToolCallNode(node: unknown ): node is ToolCallNode {
+    return isObjectRecord(node) && 
+        node["type"] === 'tool-call' && 
+        typeof node["value"] === 'string'
 }
 
-function isInlineAttachmentNode(node: any): node is InlineAttachmentNode {
-    return node && node.type === 'inline-attachment' && typeof node.value === 'string'
+function isInlineAttachmentNode(node: unknown): node is InlineAttachmentNode {
+    return isObjectRecord(node) && 
+        node["type"] === 'inline-attachment' && 
+        typeof node["value"] === 'string'
 }
 
 export async function parseCmd(cmdOpts: { yaml?: boolean, reverse?: boolean }) {
