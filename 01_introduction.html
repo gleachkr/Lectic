@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -121,31 +156,48 @@ ul.task-list li input[type="checkbox"] {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./03_conversation_format.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Conversation Format</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./04_configuration.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Configuration</span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./05_providers_and_models.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Providers and Models</span></a>
+  <a href="./03_editor_integration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Editor Integration</span></a>
   </div>
 </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
             <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
- <span class="menu-text">Context Management</span></a>
+ <span class="menu-text">Core Concepts</span></a>
           <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
       <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./04_conversation_format.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Conversation Format</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./05_configuration.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Configuration</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./06_providers_and_models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Providers and Models</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Context Management</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./context_management/01_external_content.html" class="sidebar-item-text sidebar-link">
@@ -161,20 +213,20 @@ ul.task-list li input[type="checkbox"] {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./context_management/03_external_prompts.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">External Prompts and Instructions</span></a>
+ <span class="menu-text">External Prompts</span></a>
   </div>
 </li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
  <span class="menu-text">Tools</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./tools/01_overview.html" class="sidebar-item-text sidebar-link">
@@ -215,13 +267,13 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
  <span class="menu-text">Automation</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./automation/01_macros.html" class="sidebar-item-text sidebar-link">
@@ -238,29 +290,76 @@ ul.task-list li input[type="checkbox"] {
   </li>
         <li class="sidebar-item sidebar-item-section">
       <div class="sidebar-item-container"> 
-            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
- <span class="menu-text">Reference</span></a>
-          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Cookbook</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
             <i class="bi bi-chevron-right ms-2"></i>
           </a> 
       </div>
-      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/01_coding_assistant.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Coding Assistant</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/02_commit_messages.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Commit Messages</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/03_research_perspectives.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Research Perspectives</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/04_memory.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Conversation Memory</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/05_context_compaction.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Context Compaction</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Reference</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/01_cli.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Cli</span></a>
+ <span class="menu-text">CLI</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/02_configuration.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Configuration</span></a>
+ <span class="menu-text">Configuration Keys</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./reference/03_lsp.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">LSP Server (Experimental)</span></a>
+ <span class="menu-text">LSP Server</span></a>
   </div>
 </li>
       </ul>
@@ -277,8 +376,15 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#introduction-to-lectic" id="toc-introduction-to-lectic" class="nav-link active" data-scroll-target="#introduction-to-lectic">Introduction to Lectic</a>
   <ul class="collapse">
-  <li><a href="#the-power-of-plain-text" id="toc-the-power-of-plain-text" class="nav-link" data-scroll-target="#the-power-of-plain-text">The Power of Plain Text</a></li>
-  <li><a href="#who-is-lectic-for" id="toc-who-is-lectic-for" class="nav-link" data-scroll-target="#who-is-lectic-for">Who is Lectic For?</a></li>
+  <li><a href="#core-principles" id="toc-core-principles" class="nav-link" data-scroll-target="#core-principles">Core Principles</a>
+  <ul class="collapse">
+  <li><a href="#plain-text-all-the-way-down" id="toc-plain-text-all-the-way-down" class="nav-link" data-scroll-target="#plain-text-all-the-way-down">Plain text all the way down</a></li>
+  <li><a href="#bring-your-own-editor" id="toc-bring-your-own-editor" class="nav-link" data-scroll-target="#bring-your-own-editor">Bring your own editor</a></li>
+  <li><a href="#bring-your-own-language" id="toc-bring-your-own-language" class="nav-link" data-scroll-target="#bring-your-own-language">Bring your own language</a></li>
+  <li><a href="#composable-primitives" id="toc-composable-primitives" class="nav-link" data-scroll-target="#composable-primitives">Composable primitives</a></li>
+  </ul></li>
+  <li><a href="#quick-example" id="toc-quick-example" class="nav-link" data-scroll-target="#quick-example">Quick Example</a></li>
+  <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps">Next Steps</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -291,26 +397,84 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="introduction-to-lectic" class="level1">
 <h1>Introduction to Lectic</h1>
-<p>Lectic is a conversational LLM client designed for users who are most comfortable working with text files and command-line tools. It treats every conversation as a simple markdown file, a design choice that unlocks a surprising number of benefits.</p>
-<section id="the-power-of-plain-text" class="level2">
-<h2 class="anchored" data-anchor-id="the-power-of-plain-text">The Power of Plain Text</h2>
-<p>By making conversations plain text, Lectic ensures they are:</p>
+<p>Lectic is a unixy LLM toolbox. It treats conversations as plain text files, which means you can version control them, grep them, pipe them, email them, and edit them in whatever editor you like.</p>
+<section id="core-principles" class="level2">
+<h2 class="anchored" data-anchor-id="core-principles">Core Principles</h2>
+<section id="plain-text-all-the-way-down" class="level3">
+<h3 class="anchored" data-anchor-id="plain-text-all-the-way-down">Plain text all the way down</h3>
+<p>Every conversation is a markdown file (<code>.lec</code>). Because your conversations are files, you can do anything with them that you can do with files:</p>
 <ul>
-<li><strong>Persistent by Default</strong>: Your conversations are saved just like any other document. There is no proprietary database or cloud service.</li>
-<li><strong>Version Controllable</strong>: You can use <code>git</code> and other version control systems to track the history of a conversation, branch off new ideas, and merge different lines of thought.</li>
-<li><strong>Searchable and Portable</strong>: Standard tools like <code>grep</code>, <code>sed</code>, and <code>awk</code> can be used to search, analyze, and modify your conversations. They are easy to back up, sync, and move between machines.</li>
-<li><strong>Private</strong>: Your conversations can stay entirely on your local machine if you are using a local LLM provider like Ollama.</li>
+<li><strong>Version control</strong>: Track changes with git, branch experiments, diff conversations.</li>
+<li><strong>Search</strong>: <code>grep</code> across your conversation history.</li>
+<li><strong>Process</strong>: Pipe conversations through other tools. Combine lectic with <code>sed</code>, <code>pandoc</code>, or anything else.</li>
+<li><strong>Back up</strong>: Copy files. Sync with rsync. Store wherever you want.</li>
 </ul>
 </section>
-<section id="who-is-lectic-for" class="level2">
-<h2 class="anchored" data-anchor-id="who-is-lectic-for">Who is Lectic For?</h2>
-<p>Lectic is built to support deep, thoughtful work. It is for anyone who wants to use LLMs as a tool for:</p>
+<section id="bring-your-own-editor" class="level3">
+<h3 class="anchored" data-anchor-id="bring-your-own-editor">Bring your own editor</h3>
+<p>Lectic includes an LSP server that provides completions, diagnostics, hover information, go-to-definition, and folding for <code>.lec</code> files. You can use lectic with Neovim, VS Code, or any editor that speaks LSP.</p>
+<p>For editors without LSP support, the basic workflow still works: edit a file, run <code>lectic -i file.lec</code>, and the response is appended.</p>
+</section>
+<section id="bring-your-own-language" class="level3">
+<h3 class="anchored" data-anchor-id="bring-your-own-language">Bring your own language</h3>
+<p>Tools, hooks, and macros are executables. Write them in whatever language you prefer. If it can read environment variables and write to stdout, it works with Lectic.</p>
+<p>This means you’re not locked into a plugin ecosystem or a specific scripting language. Your existing scripts and tools integrate directly.</p>
+</section>
+<section id="composable-primitives" class="level3">
+<h3 class="anchored" data-anchor-id="composable-primitives">Composable primitives</h3>
+<p>Lectic provides a small set of building blocks:</p>
 <ul>
-<li><strong>Research and Analysis</strong>: Integrate data, run analyses, and discuss the results with an LLM, all within a single, reproducible document.</li>
-<li><strong>Reflection and Self-Study</strong>: Keep a running journal of your thoughts and explorations on a topic, using an LLM as a Socratic partner.</li>
-<li><strong>Design and Engineering</strong>: Draft code, review diffs, and document your process in a way that can be committed directly into your project’s repository.</li>
+<li><strong><code>:cmd</code></strong>: Run a command and include its output.</li>
+<li><strong><code>:ask</code> / <code>:aside</code></strong>: Switch between interlocutors.</li>
+<li><strong><code>:reset</code></strong>: Clear conversation context.</li>
+<li><strong>Macros</strong>: Reusable text expansions.</li>
+<li><strong>Hooks</strong>: Run code on events (message sent, tool called, etc.).</li>
+<li><strong>Tools</strong>: Give the LLM capabilities (shell, database, MCP servers).</li>
 </ul>
-<p>Lectic makes it easy to manage conversational context using content references, integrate with external tools (for search, computation, database access, and more), and include multiple LLMs in a single conversation to bring a variety of perspectives to bear on a problem.</p>
+<p>You can put these together to build all sorts of AI applications: coding assistants, reseach and analysis workflows, orchestrated multi-agent swarms, or simple one-shot command line text processing tools. Take a look at the <a href="./cookbook/index.html">Cookbook</a> for some detailed recipes.</p>
+</section>
+</section>
+<section id="quick-example" class="level2">
+<h2 class="anchored" data-anchor-id="quick-example">Quick Example</h2>
+<p>A minimal conversation:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">interlocutor:</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">  name: Assistant</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">  prompt: You are a helpful assistant.</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>What's 2 + 2?</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>:::Assistant</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>4</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A more interesting one:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a code reviewer.</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> cat</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">name</span><span class="kw">:</span><span class="at"> read_file</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> rg --json</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">name</span><span class="kw">:</span><span class="at"> search</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Review the error handling in src/main.ts. Are there any uncaught</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>exceptions?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The assistant can read files and search the codebase to answer.</p>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">Next Steps</h2>
+<ul>
+<li><a href="./02_getting_started.html">Getting Started</a>: Install Lectic and run your first conversation.</li>
+<li><a href="./03_editor_integration.html">Editor Integration</a>: Set up your editor for the best experience.</li>
+<li><a href="./05_configuration.html">Configuration</a>: Learn about the configuration system.</li>
+<li><a href="./tools/01_overview.html">Tools</a>: Give your LLM capabilities.</li>
+<li><a href="./cookbook/index.html">Cookbook</a>: Ready-to-use recipes for common workflows.</li>
+</ul>
+<p>All of the documentation concatinated into a single markdown file can be found <a href="./llms-full.md">here</a></p>
 
 
 </section>
