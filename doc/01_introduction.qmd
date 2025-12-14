@@ -109,3 +109,5 @@ The assistant can read files and search the codebase to answer.
 - [Tools](./tools/01_overview.qmd): Give your LLM capabilities.
 - [Cookbook](./cookbook/index.qmd): Ready-to-use recipes for common
   workflows.
+
+All of the documentation concatinated into a single markdown file can be found [here](./llms-full.md)
