@@ -20,6 +20,9 @@ extra/lectic.vscode/*.vsix
 # Neovim test plugin artifacts
 extra/lectic.nvim/lua/lectic_test/
 
+# Generated documentation
+doc/_site/
+
 # macOS
 .DS_Store
 

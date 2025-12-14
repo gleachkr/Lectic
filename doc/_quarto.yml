@@ -1,5 +1,7 @@
 project:
   type: website
+  post-render:
+    - ./post_render.sh
 
 website:
   title: "Lectic Documentation"
