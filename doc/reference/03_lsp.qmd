@@ -17,19 +17,24 @@ Overview
   - Directives use snippets and place the cursor inside brackets (or at
     the end for reset):
     `:cmd[${0:command}]`, `:ask[$0]`,
-    `:aside[$0]`, `:macro[$0]`, `:reset[]$0`.
+    `:aside[$0]`, `:reset[]$0`.
+  - Macro names are suggested on `:` and insert as directives:
+    `:name[]$0`.
   - Inside brackets of `:ask[...]` and `:aside[...]`, only interlocutor
-    names are offered. Inside `:macro[...]`, only macro names are
-    offered.
+    names are offered.
 - Matching: case‑insensitive; typed prefix after `:` or inside `[` is
   respected.
 - Fences: no suggestions inside `::` or `:::` runs
-- Trigger filtering: only `:ask[`/`:aside[`/`:macro[` produce bracket
-  completions
+- Trigger filtering: only `:ask[`/`:aside[` produce bracket completions
 
 Where completions come from
-- Directives: built‑in suggestions for `:cmd`, `:ask`, `:aside`,
-  `:macro`, and `:reset`.
+- Directives: built‑in suggestions for `:cmd`, `:ask`, `:aside`, and
+  `:reset`.
+- Macro names: merged from the same places and precedence as the CLI
+  (higher wins):
+  1) System config: `${LECTIC_CONFIG}/lectic.yaml`
+  2) Workspace config: `lectic.yaml` in the document directory
+  3) The document’s YAML header
 - YAML header fields:
   - `interlocutor` / `interlocutors` blocks: top‑level interlocutor
     properties such as `name`, `prompt`, `provider`, `model`,
@@ -40,11 +45,6 @@ Where completions come from
   - `kit: ...`: merged kit names from system/workspace/header.
   - `agent: ...`: merged interlocutor names.
   - `native: ...`: supported native types (`search`, `code`).
-- Macros: merged from the same places and precedence as the CLI (higher
-  wins):
-  1) System config: `${LECTIC_CONFIG}/lectic.yaml`
-  2) Workspace config: `lectic.yaml` in the document directory
-  3) The document’s YAML header
 - Interlocutors: collected from the merged header as above, combining
   `interlocutor` and `interlocutors`.
 - De‑duplication is case‑insensitive on name. Higher‑precedence entry
@@ -54,18 +54,16 @@ Where completions come from
 Behavior examples
 - Type `-` on a line inside `tools:` → suggestions for tool kinds
   (exec, sqlite, mcp_*, native, kit, ...).
-- Type `:` → suggestions for directives.
-- Type `:ma` → `macro` appears and inserts `:macro[$0]`.
-- Type `:macro[` → invoke completion to see macro names; select one to
-  fill the bracket content.
+- Type `:` → suggestions for directives and macro names.
+- Type `:su` (with a `summarize` macro defined) → `summarize` appears
+  and inserts `:summarize[]$0`.
 - Type `:ask[` or `:aside[` → invoke completion to see interlocutor
   names; selecting a name replaces only the text inside the `[`...`]`.
 - Type `::` or `:::` → no suggestions (reserved for directive fences).
-- Place the cursor inside `:macro[name]` or `:ask[Name]` and invoke
-  “Go to Definition” to jump to the YAML name in the document header.
-  If not present locally, the LSP will jump to the name in the nearest
-  config (`lectic.yaml` in the document directory, then the system
-  config).
+- Place the cursor on `:name[]` and invoke “Go to Definition” to jump
+  to the YAML name in the document header. If not present locally, the
+  LSP will jump to the name in the nearest config (`lectic.yaml` in the
+  document directory, then the system config).
 
 Neovim setup (vim.lsp.start)
 - Minimal startup for the current buffer:
@@ -102,41 +100,10 @@ vim.api.nvim_create_autocmd("FileType", {
   - Inside brackets, invoke completion manually (`Ctrl‑x Ctrl‑o`) if your
     setup is not configured to trigger automatically.
 
-- Troubleshooting
-  - Ensure `lectic` is on PATH inside Neovim.
-  - Ensure the buffer contains macros in the header or that a
-    `lectic.yaml` is present in the working root.
-  - Directive completion only triggers on a single `:` (not `::` or
-    `:::`). Tool‑kind completion triggers on the first line of a tools
-    item after `-`.
-
 VS Code setup
 - The server is an external stdio LSP. You can connect to it from a
   VS Code extension. The repository includes `extra/lectic.vscode` for a
   ready‑made extension.
-- Minimal client snippet (TypeScript) for an extension:
-
-```ts
-import * as vscode from 'vscode'
-import { LanguageClient, TransportKind } from 'vscode-languageclient/node'
-
-let client: LanguageClient
-export function activate(context: vscode.ExtensionContext) {
-  const serverOptions = {
-    command: 'lectic',
-    args: ['lsp'],
-    options: { stdio: 'pipe' } // stdio only
-  }
-  const clientOptions = {
-    documentSelector: [ { scheme: 'file', language: 'markdown' },
-                        { scheme: 'file', pattern: '**/*.lec' } ],
-  }
-  client = new LanguageClient(
-    'lectic', 'Lectic LSP', serverOptions as any, clientOptions
-  )
-  context.subscriptions.push(client.start())
-}
-```
 
 Diagnostics
 - The server publishes diagnostics on open/change.
@@ -149,69 +116,17 @@ Diagnostics
 - Duplicates originating only from included configs may be reported with
   a coarse header-range warning.
 
-Code actions
-- When a document lacks YAML frontmatter, the server offers an “Add
-  header” action that inserts a minimal header block.
-- A variety of other simple code actions are provided.
-
-Document symbols (outline)
-- The outline shows a "Header" section with "Interlocutors" and
-  "Macros" (local definitions only), and a "Body" section with user
-  chunks and assistant blocks (e.g., "Assistant: Name").
-- Included items from workspace/system configs do not appear in the
-  current document’s symbols.
-- Workspace symbol search is also provided in clients that support it.
-
 Folding
 - The LSP provides folding ranges for tool‑call and inline‑attachment
   blocks. A block must be a serialized
   `<tool-call ...> ... </tool-call>` or
   `<inline-attachment ...> ... </inline-attachment>` that appears as a
   direct child of an interlocutor container directive (`:::Name`).
-- The folded range includes both the opening and closing tags. The
-  entire block is concealed when folded. The opening tag may be
-  indented; fenced code blocks are always ignored.
-- Editing or completions inside these XML blocks are not provided.
-- Client behavior:
-  - Neovim: set `foldexpr=vim.lsp.foldexpr()` to use LSP folding.
-  - VS Code: the bundled extension defers folding to the LSP and does
-    not register its own folding provider.
 
 Hovers
 - Hover over a directive (e.g., `:ask[...]`) to see a short description.
-- Hover anywhere inside a serialized `<tool-call>` block to preview all
-  argument and result contents. The server chooses a syntax highlighter
-  from the `contentMediaType` attribute on argument tags (for example,
-  `application/sql`) and from the `type` on `<result>`. JSON is
-  pretty‑printed. No files are read; the preview is derived from the
-  serialized content.
-- Hover anywhere inside a serialized `<inline-attachment>` block to see
-  the command and a preview of the content. The preview language is
-  chosen from the content’s `type` attribute when present (JSON is
-  pretty‑printed). No files are read; the preview is derived from the
-  serialized content.
-- Hover over a link destination to see the normalized absolute path. For
-  local text files, a small preview of the file head is shown. For
-  remote URLs, directories, missing files, non‑text files, or empty
-  files, the hover explains why no preview is available.
-
-Diagnostics
-- Link diagnostics surface local filesystem issues:
-  - Missing path
-  - Empty glob pattern
-  - file:// URLs must be absolute (use file://$PWD/... or file:///...)
-- Diagnostics are published on open and debounced during edits to reduce
-  churn while streaming.
-
-Architecture
-- The LSP parses markdown in a background worker. For each (uri,version),
-  the worker builds a compact “analysis bundle” and posts results in
-  order: folding ranges → bundle → diagnostics.
-- The server caches the bundle and waits for the current one before
-  answering completions, hovers, symbols, and code actions. Folding
-  already waits and remains first for UX.
-- No feature re‑parses markdown on the main thread. Unit tests build a
-  minimal bundle fixture instead of using ad‑hoc string scans.
+- Hover on a macro directive name (e.g., `:summarize[]`) to preview the
+  macro expansion.
 
 Notes
 - Completion previews are static; the server does not expand macros or

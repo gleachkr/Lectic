@@ -25,14 +25,17 @@ export async function resolveDefinition(
 
   // Try body directive first using mdast
   const dctx = directiveAtPosition(docText, pos)
-  if (dctx && dctx.insideBrackets) {
-    const name = dctx.innerText.trim()
-    if (name) {
-      if (dctx.key === "macro") {
-        const loc = defIndex.getMacro(name)
-        return loc ? [loc] : null
-      }
-      if (dctx.key === "ask" || dctx.key === "aside") {
+  if (dctx) {
+    // Macros: :name[] / :name[args]
+    {
+      const loc = defIndex.getMacro(dctx.key)
+      if (loc) return [loc]
+    }
+
+    // Interlocutor directives still use bracket content
+    if ((dctx.key === "ask" || dctx.key === "aside") && dctx.insideBrackets) {
+      const name = dctx.innerText.trim()
+      if (name) {
         const loc = defIndex.getInterlocutor(name)
         return loc ? [loc] : null
       }

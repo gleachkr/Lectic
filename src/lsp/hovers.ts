@@ -19,32 +19,31 @@ export async function computeHover(
   docDir: string | undefined,
   bundle: AnalysisBundle
 ): Promise<Hover | null> {
-  // 1) Directive hover (and macro name hover)
+  // 1) Directive hover (including macro name hover)
   const dctx = directiveAtPositionFromBundle(docText, pos, bundle)
   if (dctx && dctx.key) {
-    // Macro name hover inside brackets shows expansion preview
-    if (dctx.key === "macro" && dctx.insideBrackets) {
-      const name = dctx.innerText.trim()
-      if (name.length > 0) {
-        const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
-        if (isLecticHeaderSpec(specRes.spec)) {
-          const macros = buildMacroIndex(specRes.spec)
-          const found = macros.find(m => m.name === name)
-          if (found) {
-            const snippet = found.expansion
-              .slice(0, 500)
-              .replace(/`/g, "\u200b`")
-            return {
-              contents: {
-                kind: MarkupKind.Markdown,
-                value: `macro ${code(name)}\n\n${code(snippet)}`
-              },
-              range: LspRange.create(dctx.innerStart, dctx.innerEnd)
-            }
+    // Macros are invoked as :name[] or :name[args].
+    {
+      const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+      if (isLecticHeaderSpec(specRes.spec)) {
+        const macros = buildMacroIndex(specRes.spec)
+
+        const found = macros.find(
+          m => m.name.toLowerCase() === dctx.key.toLowerCase()
+        )
+        if (found) {
+          const snippet = found.expansion.slice(0, 500).replace(/`/g, "\u200b`")
+          return {
+            contents: {
+              kind: MarkupKind.Markdown,
+              value: `macro ${code(found.name)}\n\n${code(snippet)}`,
+            },
+            range: LspRange.create(dctx.nodeStart, dctx.nodeEnd),
           }
         }
       }
     }
+
     const info = directiveInfo(dctx.key)
     if (info) {
       return {
@@ -91,10 +90,6 @@ function directiveInfo(key: string): { key: string, title: string, body: string 
       title: "address one interlocutor for a single turn",
       body: "Temporarily switch interlocutor for just this user message."
     },
-    macro: {
-      title: "expand a named macro",
-      body: "Insert the expansion text of a macro defined in config or header."
-    }
   }
   const entry = map[key]
   return entry ? { key, ...entry } : null

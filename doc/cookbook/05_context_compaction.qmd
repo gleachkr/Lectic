@@ -105,7 +105,7 @@ macros:
       echo "decisions, important context, and any open questions."
 ```
 
-Usage: `:macro[compact]`
+Usage: `:compact[]`
 
 This asks the current assistant to summarize before resetting, rather
 than using a separate summarization call.

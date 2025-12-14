@@ -49,8 +49,12 @@ For full semantics of `file:` and `exec:`, see
 
 ## Using Macros
 
-To use a macro, you invoke it using a directive in your message:
-`:macro[macro_name]`.
+To use a macro, you invoke it by writing the macro name as the directive
+name:
+
+- `:name[]` expands the macro.
+- `:name[args]` expands the macro and also passes `args` to the expansion
+  as the `ARG` environment variable.
 
 When Lectic processes the file, it replaces the macro directive with the
 full text from its `expansion` field *before* processing any other
@@ -59,18 +63,31 @@ directives (like `:cmd`).
 ```markdown
 This was a long and productive discussion. Could you wrap it up?
 
-:macro[summarize]
+:summarize[]
 ```
+
+## Passing arguments to expansions (ARG)
+
+The text inside the directive brackets is passed to the macro expansion as
+the `ARG` environment variable.
+
+This works for both single-line `exec:` commands and multi-line `exec:`
+scripts.
+
+- `:name[hello]` sets `ARG=hello`.
+- If you explicitly set an `ARG` attribute, it overrides the bracket
+  content: `:name[hello]{ARG="override"}`.
 
 ## Passing environment variables to expansions
 
 You can pass environment variables to a macro's expansion by adding
-attributes to the `:macro[...]` directive. These attributes are injected into
-the environment of `exec:` expansions when they run.
+attributes to the macro directive. These attributes are injected into the
+environment of `exec:` expansions when they run.
 
-- `:macro[name]{FOO="bar"}` sets the variable `FOO` to `bar`.
-- `:macro[name]{EMPTY}` sets the variable `EMPTY` to be undefined.
-  If you need an empty string value, write `:macro[name]{EMPTY=""}`.
+- `:name[]{FOO="bar"}` sets the variable `FOO` to `bar`.
+- `:name[]{EMPTY}` sets the variable `EMPTY` to be undefined.
+  If you need an empty string value, write `:name[]{EMPTY=""}`.
+
 
 Notes:
 - Single‑line `exec:` commands are not run through a shell. If you need
@@ -91,8 +108,8 @@ macros:
 
 **Conversation:**
 ```markdown
-:macro[greet]{TARGET="World"}
+:greet[]{TARGET="World"}
 ```
 
-When Lectic processes this, the `:macro` directive will be replaced by the
-output of the `exec` command, which is "Hello, World!".
+When Lectic processes this, the directive will be replaced by the output
+of the `exec` command, which is "Hello, World!".

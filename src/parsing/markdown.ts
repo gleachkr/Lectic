@@ -59,7 +59,11 @@ export function directivesFromAst(ast: Root): TextDirective[] {
 
 export function replaceDirectives(
     raw: string,
-    replacer: (name: string, content: string) => string | null
+    replacer: (
+        name: string,
+        content: string,
+        attrs?: Record<string, string | null | undefined>
+    ) => string | null
 ) : string {
     const processor = remark().use(remarkDirective)
     const ast = processor.parse(raw)
@@ -67,7 +71,7 @@ export function replaceDirectives(
     let changed = false
     visit(ast, "textDirective", (node, index, parent) => {
         const contentRaw = nodeContentRaw(node, raw)
-        const replacement = replacer(node.name, contentRaw)
+        const replacement = replacer(node.name, contentRaw, node.attributes)
         if (replacement != null && parent && typeof index === 'number') {
             changed = true
             parent.children.splice(index, 1, {

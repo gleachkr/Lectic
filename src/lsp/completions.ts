@@ -401,9 +401,9 @@ export async function computeCompletions(
     }
   }
 
-  // 1) Inside :ask[...]/:aside[...]/:macro[...]
+  // 1) Inside :ask[...]/:aside[...]
   const dctx = bundle ? directiveAtPositionFromBundle(docText, pos, bundle) : null
-  if (dctx && dctx.insideBrackets && (dctx.key === "ask" || dctx.key === "aside" || dctx.key === "macro")) {
+  if (dctx && dctx.insideBrackets && (dctx.key === "ask" || dctx.key === "aside")) {
     const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
     const spec = specRes.spec
     if (!isLecticHeaderSpec(spec)) return items
@@ -430,57 +430,90 @@ export async function computeCompletions(
       return items
     }
 
-    if (dctx.key === "macro") {
-      const macros = buildMacroIndex(spec)
-      for (const m of macros) {
-        if (!m.name.toLowerCase().startsWith(innerText)) continue
-        const textEdit: TextEdit = {
-          range: RangeNS.create(dctx.innerStart, pos),
-          newText: m.name
-        }
-        items.push({
-          label: m.name,
-          kind: CompletionItemKind.Variable,
-          detail: previewMacro(m).detail,
-          documentation: previewMacro(m).documentation,
-          insertTextFormat: InsertTextFormat.PlainText,
-          textEdit
-        })
-      }
-      return items
+  }
+
+  // 2) Directive keywords on ':' (and macro names as directives)
+  if (colonStart === null) return []
+
+  type Dir = {
+    key: string,
+    label: string,
+    insert: string,
+    detail: string,
+    documentation: string,
+    sortText?: string,
+    deprecated?: boolean,
+  }
+
+  const prefix = lineText.slice(colonStart + 1, pos.character).toLowerCase()
+
+  const directives: Dir[] = [
+    {
+      key: "cmd",
+      label: "cmd",
+      insert: ":cmd[${0:command}]",
+      detail: ":cmd — run a shell command and insert stdout",
+      documentation:
+        "Execute a shell command using the Bun shell and inline its stdout " +
+        "into the message.",
+      sortText: "01_cmd",
+    },
+    {
+      key: "reset",
+      label: "reset",
+      insert: ":reset[]$0",
+      detail: ":reset — clear prior conversation context for this turn",
+      documentation: "Reset the context window so this turn starts fresh.",
+      sortText: "02_reset",
+    },
+    {
+      key: "ask",
+      label: "ask",
+      insert: ":ask[$0]",
+      detail: ":ask — switch interlocutor for subsequent turns",
+      documentation: "Switch the active interlocutor permanently.",
+      sortText: "03_ask",
+    },
+    {
+      key: "aside",
+      label: "aside",
+      insert: ":aside[$0]",
+      detail: ":aside — address one interlocutor for a single turn",
+      documentation: "Temporarily switch interlocutor for this turn only.",
+      sortText: "04_aside",
+    },
+  ]
+
+  // Add macro names as directive completions: :name[]
+  const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+  const spec = specRes.spec
+  if (isLecticHeaderSpec(spec)) {
+    const macros = buildMacroIndex(spec)
+    for (const m of macros) {
+      const key = m.name
+      if (!key.toLowerCase().startsWith(prefix)) continue
+      items.push({
+        label: key,
+        kind: CompletionItemKind.Snippet,
+        detail: `:${key} — macro`,
+        documentation: previewMacro(m).documentation,
+        insertTextFormat: InsertTextFormat.Snippet,
+        sortText: `50_macro_${key.toLowerCase()}`,
+        textEdit: {
+          range: computeReplaceRange(pos.line, colonStart, pos.character),
+          newText: `:${key}[]$0`,
+        },
+      })
     }
   }
 
-  // 2) Directive keywords on ':'
-  if (colonStart === null) return []
-
-  type Dir = { key: string, label: string, insert: string, detail: string, documentation: string }
-  const directives: Dir[] = [
-    { key: "cmd", label: "cmd", insert: ":cmd[${0:command}]",
-      detail: ":cmd — run a shell command and insert stdout",
-      documentation: "Execute a shell command using the Bun shell and inline its stdout into the message." },
-    { key: "reset", label: "reset", insert: ":reset[]$0",
-      detail: ":reset — clear prior conversation context for this turn",
-      documentation: "Reset the context window so this turn starts fresh." },
-    { key: "ask", label: "ask", insert: ":ask[$0]",
-      detail: ":ask — switch interlocutor for subsequent turns",
-      documentation: "Switch the active interlocutor permanently." },
-    { key: "aside", label: "aside", insert: ":aside[$0]",
-      detail: ":aside — address one interlocutor for a single turn",
-      documentation: "Temporarily switch interlocutor for this turn only." },
-    { key: "macro", label: "macro", insert: ":macro[$0]",
-      detail: ":macro — expand a named macro",
-      documentation: "Insert a macro expansion by name." },
-  ]
-
-  const prefix = lineText.slice(colonStart + 1, pos.character).toLowerCase()
   for (const d of directives) {
     if (!d.key.startsWith(prefix)) continue
     const textEdit: TextEdit = {
       range: computeReplaceRange(pos.line, colonStart, pos.character),
-      newText: d.insert
+      newText: d.insert,
     }
-    const triggerSuggest = (d.key === "ask" || d.key === "aside" || d.key === "macro")
+    const triggerSuggest = (d.key === "ask" || d.key === "aside")
       ? { title: "trigger suggest", command: "editor.action.triggerSuggest" }
       : undefined
     items.push({
@@ -490,7 +523,9 @@ export async function computeCompletions(
       documentation: d.documentation,
       insertTextFormat: InsertTextFormat.Snippet,
       textEdit,
-      command: triggerSuggest
+      command: triggerSuggest,
+      sortText: d.sortText,
+      deprecated: d.deprecated,
     })
   }
 

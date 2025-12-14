@@ -9,7 +9,7 @@ keypress and get features like completions, diagnostics, and folding.
 
 Lectic includes a Language Server Protocol (LSP) server that provides:
 
-- **Completions** for directives (`:cmd`, `:ask`, `:macro`, etc.),
+- **Completions** for directives (`:cmd`, `:ask`, `:reset`, etc.),
   interlocutor names, macro names, YAML header fields, and tool types
 - **Diagnostics** for missing or invalid configuration, duplicate names,
   and broken file references

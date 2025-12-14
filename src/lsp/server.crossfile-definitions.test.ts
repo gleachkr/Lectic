@@ -68,7 +68,7 @@ describe("cross-file definitions", () => {
         capabilities: {}
       }))
 
-      const lec = `---\nmacros:\n - name: plan\n   expansion: exec:echo hi\n---\n:macro[plan]`
+      const lec = `---\nmacros:\n - name: plan\n   expansion: exec:echo hi\n---\n:plan[]`
       const path = join(dir, "doc.lec"); writeFileSync(path, lec)
       const uri = `file://${path}`
       openDoc(client, uri, lec)

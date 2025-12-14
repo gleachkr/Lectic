@@ -80,20 +80,26 @@ describe('UserMessage', () => {
             new Macro({ name: 'bye', expansion: 'Goodbye!' })
         ];
 
-        it('should expand a single macro', async () => {
-            const message = new UserMessage({ content: 'A message with :macro[greet].' });
+        it('should expand a single macro (legacy form)', async () => {
+            const message = new UserMessage({ content: 'A message with :greet[].' });
+            await message.expandMacros(macros);
+            expect(message.content).toBe('A message with Hello, World!.');
+        });
+
+        it('should expand a single macro (new form)', async () => {
+            const message = new UserMessage({ content: 'A message with :greet[].' });
             await message.expandMacros(macros);
             expect(message.content).toBe('A message with Hello, World!.');
         });
 
         it('should expand multiple different macros', async () => {
-            const message = new UserMessage({ content: ':macro[greet] and :macro[bye]' });
+            const message = new UserMessage({ content: ':greet[] and :bye[]' });
             await message.expandMacros(macros);
             expect(message.content).toBe('Hello, World! and Goodbye!');
         });
 
         it('should expand multiple instances of the same macro', async () => {
-            const message = new UserMessage({ content: ':macro[greet], I say :macro[greet]!' });
+            const message = new UserMessage({ content: ':greet[], I say :greet[]!' });
             await message.expandMacros(macros);
             expect(message.content).toBe('Hello, World!, I say Hello, World!!');
         });
@@ -105,19 +111,23 @@ describe('UserMessage', () => {
         });
 
         it('should not expand an undefined macro', async () => {
-            const message = new UserMessage({ content: 'A message with :macro[unknown].' });
+            const message = new UserMessage({
+                content: 'A message with :unknown[] and :macro[greet].'
+            });
             await message.expandMacros(macros);
-            expect(message.content).toBe('A message with :macro[unknown].');
+            expect(message.content).toBe(
+                'A message with :unknown[] and :macro[greet].'
+            );
         });
 
         it('should not expand a macro in a code block', async () => {
-            const message = new UserMessage({ content: 'A message with :macro[greet] `:macro[greet]`.' });
+            const message = new UserMessage({ content: 'A message with :greet[] `:greet[]`.' });
             await message.expandMacros(macros);
-            expect(message.content).toBe('A message with Hello, World! `:macro[greet]`.');
+            expect(message.content).toBe('A message with Hello, World! `:greet[]`.');
         });
 
         it('should leave non-macro directives untouched during expansion', async () => {
-            const message = new UserMessage({ content: 'Before :cmd[ls] and :macro[greet] after' });
+            const message = new UserMessage({ content: 'Before :cmd[ls] and :greet[] after' });
             await message.expandMacros(macros);
             expect(message.content).toBe('Before :cmd[ls] and Hello, World! after');
         });
@@ -126,11 +136,11 @@ describe('UserMessage', () => {
             const withNL = new Macro({ name: 'with_nl', expansion: 'X\n' });
             const noNL = new Macro({ name: 'no_nl', expansion: 'Y' });
 
-            const msg1 = new UserMessage({ content: ':macro[with_nl]' });
+            const msg1 = new UserMessage({ content: ':with_nl[]' });
             await msg1.expandMacros([withNL]);
             expect(msg1.content.endsWith('\n')).toBe(false);
 
-            const msg2 = new UserMessage({ content: ':macro[no_nl]' });
+            const msg2 = new UserMessage({ content: ':no_nl[]' });
             await msg2.expandMacros([noNL]);
             expect(msg2.content.endsWith('\n')).toBe(false);
         });
@@ -142,10 +152,44 @@ describe('UserMessage', () => {
                 expansion: 'exec: bash -lc "printf %s $FOO"'
             });
             const message = new UserMessage({
-                content: 'Value: :macro[env_cmd]{FOO="bar"}'
+                content: 'Value: :env_cmd[]{FOO="bar"}'
             });
             await message.expandMacros([envMacro]);
             expect(message.content).toBe('Value: bar');
+        });
+
+        it('passes directive args as ARG to exec expansions', async () => {
+            const script = [
+                '#!/usr/bin/env bash',
+                'printf "%s" "$ARG"',
+                ''
+            ].join('\n');
+            const macro = new Macro({
+                name: 'arg_echo',
+                expansion: `exec: ${script}`
+            });
+            const message = new UserMessage({
+                content: 'Arg: :arg_echo[hello]'
+            });
+            await message.expandMacros([macro]);
+            expect(message.content).toBe('Arg: hello');
+        });
+
+        it('ARG attribute overrides directive bracket args', async () => {
+            const script = [
+                '#!/usr/bin/env bash',
+                'printf "%s" "$ARG"',
+                ''
+            ].join('\n');
+            const macro = new Macro({
+                name: 'arg_override',
+                expansion: `exec: ${script}`
+            });
+            const message = new UserMessage({
+                content: 'Arg: :arg_override[hello]{ARG="override"}'
+            });
+            await message.expandMacros([macro]);
+            expect(message.content).toBe('Arg: override');
         });
 
         it('passes directive attributes as env to exec script expansions', async () => {
@@ -159,7 +203,7 @@ describe('UserMessage', () => {
                 expansion: `exec: ${script}`
             });
             const message = new UserMessage({
-                content: 'Script value: :macro[env_script]{FOO="baz"}'
+                content: 'Script value: :env_script[]{FOO="baz"}'
             });
             await message.expandMacros([envScriptMacro]);
             expect(message.content).toBe('Script value: baz');
@@ -171,7 +215,7 @@ describe('UserMessage', () => {
                 expansion: 'exec: bash -lc "printf %s \"$EMPTY\""'
             });
             const message = new UserMessage({
-                content: 'Empty: :macro[env_empty]{EMPTY}'
+                content: 'Empty: :env_empty[]{EMPTY}'
             });
             await message.expandMacros([emptyMacro]);
             expect(message.content).toBe('Empty: ');
@@ -193,7 +237,7 @@ describe('UserMessage', () => {
                 expansion: `exec: ${script}`
             });
             const message = new UserMessage({
-                content: 'Status: :macro[env_empty_set]{EMPTY}'
+                content: 'Status: :env_empty_set[]{EMPTY}'
             });
             await message.expandMacros([macro]);
             expect(message.content).toBe('Status: set:');

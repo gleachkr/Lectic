@@ -52,33 +52,97 @@ export class UserMessage {
     async expandMacros(macros : Macro[]) {
         if (macros.length === 0) return
 
-        const expansionMap : { [macroName : string] : string } = {}
+        const reserved = new Set(["cmd", "ask", "aside", "reset"]) 
 
-        // We run the expansions in parallel
+        // The directive's bracket content is passed into the expansion as
+        // the special variable ARG.
+        const macroByName = new Map<string, Macro>()
+        for (const m of macros) {
+            macroByName.set(m.name.trim().toLowerCase(), m)
+        }
+
+        // Map from (directive name, args, attributes) -> expansion so that the
+        // replacement pass is constant-time.
+        type ExpansionEntry = { expansion: string, args: string }
+        const expansions = new Map<string, ExpansionEntry>()
+
+        const makeKey = (
+            nameLower: string,
+            args: string,
+            attrs: Record<string, string | undefined>
+        ) => {
+            const parts: string[] = []
+            for (const k of Object.keys(attrs).sort()) {
+                const v = attrs[k]
+                parts.push(`${k}=${v === undefined ? "<unset>" : v}`)
+            }
+            return `${nameLower}\n${args}\n${parts.join("\n")}`
+        }
+
+        // We run the expansions in parallel.
         await Promise.all(
             parseDirectives(this.content)
-                .filter(directive => directive.name === "macro")
+                .filter(directive => {
+                    const keyLower = String(directive.name ?? "")
+                        .trim()
+                        .toLowerCase()
+                    if (keyLower.length === 0) return false
+                    if (reserved.has(keyLower)) return false
+                    return macroByName.has(keyLower)
+                })
                 .map(async directive => {
-                    const macroName = nodeContentRaw(directive, this.content).trim()
-                    const matched = macros.find(macro => macro.name.trim() === macroName)
-                    const attributes : Record<string, string | undefined>= {}
+                    const directiveKey = String(directive.name ?? "").trim()
+                    const nameLower = directiveKey.toLowerCase()
+
+                    const matched = macroByName.get(nameLower)
+                    if (!matched) return
+
+                    const attributes: Record<string, string | undefined> = {}
                     for (const key in directive.attributes) {
-                        if (directive.attributes[key] === null) { 
-                            attributes[key] = undefined 
+                        if (directive.attributes[key] === null) {
+                            attributes[key] = undefined
                         } else {
                             attributes[key] = directive.attributes[key]
                         }
                     }
-                    const expansion = await matched?.expand(attributes)
-                    if (typeof expansion === 'string') expansionMap[macroName] = expansion
+
+                    // Args come from the directive's bracket contents.
+                    const args = nodeContentRaw(directive, this.content)
+
+                    // Provide args as ARG, but allow explicit overrides.
+                    if (!Object.prototype.hasOwnProperty.call(attributes, "ARG")) {
+                        attributes["ARG"] = args
+                    }
+
+                    const expansion = await matched.expand(attributes)
+                    if (typeof expansion !== "string") return
+
+                    const key = makeKey(nameLower, args, attributes)
+                    expansions.set(key, { expansion, args })
                 })
         )
 
-        const replacer = (name: string, content:string) => {
-            if (name !== "macro") return null
-            const key = content.trim()
-            if (!(key in expansionMap)) return null
-            return expansionMap[key]
+        const replacer = (
+            name: string,
+            content: string,
+            attrs?: Record<string, string | null | undefined>
+        ) => {
+            const nameLower = String(name ?? "").trim().toLowerCase()
+            if (nameLower.length === 0) return null
+            if (reserved.has(nameLower)) return null
+            if (!macroByName.has(nameLower)) return null
+
+            const attributes: Record<string, string | undefined> = {}
+            for (const key in attrs ?? {}) {
+                if (attrs?.[key] === null) attributes[key] = undefined
+                else attributes[key] = attrs?.[key] as string | undefined
+            }
+            if (!Object.prototype.hasOwnProperty.call(attributes, "ARG")) {
+                attributes.ARG = content
+            }
+
+            const key = makeKey(nameLower, content, attributes)
+            return expansions.get(key)?.expansion ?? null
         }
 
         this.content = replaceDirectives(this.content, replacer)

@@ -8,7 +8,7 @@ import { startLspWithStreams } from "./server"
 async function collect<T>(p: Promise<T>) { return await p }
 
 describe("LSP integration", () => {
-  test("completion on ':' includes directive snippets; macro is a directive", async () => {
+  test("completion on ':' includes directive snippets", async () => {
     // Client<->Server streams
     const c2s = new PassThrough()
     const s2c = new PassThrough()
@@ -75,10 +75,10 @@ describe("LSP integration", () => {
     expect(labels.has("reset")).toBeTrue()
     expect(labels.has("ask")).toBeTrue()
     expect(labels.has("aside")).toBeTrue()
-    expect(labels.has("macro")).toBeTrue()
+    expect(labels.has("macro")).toBeFalse()
 
-    const macroItem = items.find((x: any) => x.label === "macro")
-    expect(macroItem.textEdit.newText).toBe(":macro[$0]")
+    const cmdItem = items.find((x: any) => x.label === "cmd")
+    expect(cmdItem.textEdit.newText).toBe(":cmd[${0:command}]")
 
     client.dispose()
   })
@@ -132,7 +132,7 @@ describe("LSP integration", () => {
     client.dispose()
   })
 
-  test("inside brackets: :macro[...] suggests only macros and replaces inner text", async () => {
+  test("does not suggest macros inside legacy :macro[...] brackets", async () => {
     const c2s = new PassThrough()
     const s2c = new PassThrough()
 
@@ -171,15 +171,13 @@ describe("LSP integration", () => {
 
     const items = Array.isArray(result) ? result : (result?.items ?? [])
     const labels = new Set(items.map((x: any) => x.label))
-    expect(labels.has("summarize")).toBeTrue()
-    // No interlocutor names for :macro[...]
+    // With Phase 4 complete, :macro[...] is not special, so no macro
+    // completion should happen inside its brackets.
+    expect(labels.has("summarize")).toBeFalse()
     expect(labels.has("Boggle")).toBeFalse()
 
     const one = items.find((x: any) => x.label === "summarize")
-    // Replacement should start just after '['
-    const openIdx = lineText.lastIndexOf('[')
-    expect(one.textEdit.range.start.character).toBe(openIdx + 1)
-    expect(one.textEdit.range.end.character).toBe(innerPosChar)
+    expect(one).toBeUndefined()
 
     client.dispose()
   })
@@ -225,6 +223,48 @@ describe("LSP integration", () => {
     expect(labels.has("Boggle")).toBeTrue()
     // Only names matching the typed prefix should appear
     expect(labels.has("summarize")).toBeFalse()
+
+    client.dispose()
+  })
+
+  test("macro directive completion prefers new syntax", async () => {
+    const c2s = new PassThrough()
+    const s2c = new PassThrough()
+
+    startLspWithStreams(
+      new StreamMessageReader(c2s),
+      new StreamMessageWriter(s2c)
+    )
+
+    const client = createMessageConnection(
+      new StreamMessageReader(s2c),
+      new StreamMessageWriter(c2s)
+    )
+    client.listen()
+
+    await collect(client.sendRequest("initialize", {
+      processId: null, clientInfo: { name: "test" }, rootUri: null,
+      capabilities: {}
+    }))
+
+    const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\nBody\n:su`;
+    const path = "/tmp/test-doc.lec"
+    const uri = `file://${path}`
+    client.sendNotification("textDocument/didOpen", {
+      textDocument: { uri, languageId: "markdown", version: 1, text }
+    })
+
+    const line = text.split(/\r?\n/).length - 1
+    const posChar = 3 // after ":su"
+    const result: any = await collect(client.sendRequest(
+      "textDocument/completion",
+      { textDocument: { uri }, position: { line, character: posChar } }
+    ))
+
+    const items = Array.isArray(result) ? result : (result?.items ?? [])
+    const one = items.find((x: any) => x.label === "summarize")
+    expect(Boolean(one)).toBeTrue()
+    expect(one.textEdit.newText).toBe(":summarize[]$0")
 
     client.dispose()
   })

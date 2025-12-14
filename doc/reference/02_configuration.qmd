@@ -158,7 +158,7 @@ in a key name.
 ## The `macro` Object
 
 - `name`: (Required) The name of the macro, used when invoking it with
-  `:macro[name]`.
+  `:name[]` or `:name[args]`.
 - `expansion`: (Required) The content to be expanded. Can be a string, or
   loaded via `file:` or `exec:`. See
   [External Prompts](../context_management/03_external_prompts.qmd)

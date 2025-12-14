@@ -3,6 +3,7 @@ import { computeCompletions } from "./completions"
 import { buildTestBundle } from "./utils/testHelpers"
 import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
 import { LLMProvider } from "../types/provider"
+import { InsertTextFormat } from "vscode-languageserver/node"
 import { mkdtemp, writeFile, rm } from "fs/promises"
 import { tmpdir } from "os"
 import { join } from "path"
@@ -23,7 +24,7 @@ describe("completions (unit)", () => {
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     expect(hasLabel(arr, "cmd")).toBeTrue()
-    expect(hasLabel(arr, "macro")).toBeTrue()
+    expect(hasLabel(arr, "macro")).toBeFalse()
   })
 
   test("tools array suggests tool kinds after '-' with no key yet", async () => {
@@ -199,7 +200,7 @@ describe("completions (unit)", () => {
     expect(labels.has("code")).toBeTrue()
   })
 
-  test("inside :macro[...] suggests macro names only", async () => {
+  test("does not suggest macro names inside legacy :macro[...]", async () => {
     const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n  - name: plan\n    expansion: file:./p\n---\n:macro[su]`
     const line = text.split(/\r?\n/).length - 1
     const char = text.split(/\r?\n/)[line].length - 1
@@ -212,8 +213,29 @@ describe("completions (unit)", () => {
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     const labels = new Set(arr.map((x: any) => x.label))
-    expect(labels.has("summarize")).toBeTrue()
+    expect(labels.has("summarize")).toBeFalse()
     expect(labels.has("plan")).toBeFalse()
+  })
+
+  test("after ':' suggests macros as directives (new form)", async () => {
+    const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\n:su`
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const char = lines[line].length
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const summarize = arr.find((x: any) => x.label === "summarize")
+    expect(Boolean(summarize)).toBeTrue()
+    expect(summarize.insertTextFormat).toBe(InsertTextFormat.Snippet)
+    expect(summarize.textEdit.newText).toBe(":summarize[]$0")
   })
 
   test("inside :ask[...] suggests interlocutor names only", async () => {
@@ -233,7 +255,7 @@ describe("completions (unit)", () => {
     expect(labels.has("Oggle")).toBeFalse()
   })
 
-  test("inside :macro[] with empty prefix suggests all macros", async () => {
+  test("does not suggest macro names inside legacy :macro[]", async () => {
     const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n  - name: plan\n    expansion: file:./p\n---\n:macro[]`
     const lines = text.split(/\r?\n/)
     const line = lines.length - 1
@@ -247,8 +269,8 @@ describe("completions (unit)", () => {
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     const labels = new Set(arr.map((x: any) => x.label))
-    expect(labels.has("summarize")).toBeTrue()
-    expect(labels.has("plan")).toBeTrue()
+    expect(labels.has("summarize")).toBeFalse()
+    expect(labels.has("plan")).toBeFalse()
   })
 
   test("inside :ask[] with empty prefix suggests all interlocutors", async () => {

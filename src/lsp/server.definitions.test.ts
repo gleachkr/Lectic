@@ -13,7 +13,7 @@ function openDoc(client: any, uri: string, text: string) {
 }
 
 describe("definitions", () => {
-  test("go to definition for :macro[name]", async () => {
+  test("go to definition for :name[] (macro)", async () => {
     const c2s = new PassThrough()
     const s2c = new PassThrough()
     startLspWithStreams(new StreamMessageReader(c2s), new StreamMessageWriter(s2c))
@@ -25,7 +25,7 @@ describe("definitions", () => {
       capabilities: {}
     }))
 
-    const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\nBody\n:macro[summarize]`;
+    const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\nBody\n:summarize[]`;
     const path = "/tmp/def-macro.lec"
     const uri = `file://${path}`
     openDoc(client, uri, text)
@@ -42,6 +42,40 @@ describe("definitions", () => {
     const loc = defs[0]
     expect(loc.uri).toBe(uri)
     // Should point inside the YAML header (after the --- line)
+    expect(loc.range.start.line).toBeGreaterThan(0)
+
+    client.dispose()
+  })
+
+  test("go to definition for :name[] (macro)", async () => {
+    const c2s = new PassThrough()
+    const s2c = new PassThrough()
+    startLspWithStreams(new StreamMessageReader(c2s), new StreamMessageWriter(s2c))
+    const client = createMessageConnection(new StreamMessageReader(s2c), new StreamMessageWriter(c2s))
+    client.listen()
+
+    await collect(client.sendRequest("initialize", {
+      processId: null, clientInfo: { name: "test" }, rootUri: null,
+      capabilities: {}
+    }))
+
+    const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\nBody\n:summarize[]`;
+    const path = "/tmp/def-macro2.lec"
+    const uri = `file://${path}`
+    openDoc(client, uri, text)
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const char = lines[line].indexOf(":summarize") + 3
+
+    const defs: any = await collect(client.sendRequest("textDocument/definition", {
+      textDocument: { uri }, position: { line, character: char }
+    }))
+
+    expect(Array.isArray(defs)).toBeTrue()
+    expect(defs.length).toBeGreaterThan(0)
+    const loc = defs[0]
+    expect(loc.uri).toBe(uri)
     expect(loc.range.start.line).toBeGreaterThan(0)
 
     client.dispose()
