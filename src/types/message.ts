@@ -54,17 +54,10 @@ export class UserMessage {
 
         const reserved = new Set(["cmd", "ask", "aside", "reset"]) 
 
-        // The directive's bracket content is passed into the expansion as
-        // the special variable ARG.
-        const macroByName = new Map<string, Macro>()
-        for (const m of macros) {
-            macroByName.set(m.name.trim().toLowerCase(), m)
-        }
+        const macroByName = new Map<string, Macro>
+        macros.forEach(m => macroByName.set(m.name.trim().toLowerCase(), m))
 
-        // Map from (directive name, args, attributes) -> expansion so that the
-        // replacement pass is constant-time.
-        type ExpansionEntry = { expansion: string, args: string }
-        const expansions = new Map<string, ExpansionEntry>()
+        const expansions = new Map<string, { expansion: string, args: string }>
 
         const makeKey = (
             nameLower: string,
@@ -83,15 +76,13 @@ export class UserMessage {
         await Promise.all(
             parseDirectives(this.content)
                 .filter(directive => {
-                    const keyLower = String(directive.name ?? "")
-                        .trim()
-                        .toLowerCase()
+                    const keyLower = directive.name.trim().toLowerCase()
                     if (keyLower.length === 0) return false
                     if (reserved.has(keyLower)) return false
                     return macroByName.has(keyLower)
                 })
                 .map(async directive => {
-                    const directiveKey = String(directive.name ?? "").trim()
+                    const directiveKey = directive.name.trim()
                     const nameLower = directiveKey.toLowerCase()
 
                     const matched = macroByName.get(nameLower)
@@ -99,11 +90,7 @@ export class UserMessage {
 
                     const attributes: Record<string, string | undefined> = {}
                     for (const key in directive.attributes) {
-                        if (directive.attributes[key] === null) {
-                            attributes[key] = undefined
-                        } else {
-                            attributes[key] = directive.attributes[key]
-                        }
+                        attributes[key] = directive.attributes[key] ?? undefined
                     }
 
                     // Args come from the directive's bracket contents.
@@ -135,10 +122,10 @@ export class UserMessage {
             const attributes: Record<string, string | undefined> = {}
             for (const key in attrs ?? {}) {
                 if (attrs?.[key] === null) attributes[key] = undefined
-                else attributes[key] = attrs?.[key] as string | undefined
+                else attributes[key] = attrs?.[key]
             }
             if (!Object.prototype.hasOwnProperty.call(attributes, "ARG")) {
-                attributes.ARG = content
+                attributes["ARG"] = content
             }
 
             const key = makeKey(nameLower, content, attributes)
