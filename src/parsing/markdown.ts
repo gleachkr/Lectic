@@ -71,7 +71,7 @@ export function replaceDirectives(
     let changed = false
     visit(ast, "textDirective", (node, index, parent) => {
         const contentRaw = nodeContentRaw(node, raw)
-        const replacement = replacer(node.name, contentRaw, node.attributes)
+        const replacement = replacer(node.name, contentRaw, node.attributes ?? undefined)
         if (replacement != null && parent && typeof index === 'number') {
             changed = true
             parent.children.splice(index, 1, {

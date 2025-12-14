@@ -1,4 +1,4 @@
-import { program } from 'commander'
+import { program, type OptionValues } from 'commander'
 import { parseLectic, getYaml } from './parsing/parse'
 import { getLecticString, getIncludes } from './utils/cli'
 import { UserMessage, AssistantMessage } from './types/message'
@@ -46,10 +46,17 @@ function isInlineAttachmentNode(node: unknown): node is InlineAttachmentNode {
         typeof node["value"] === 'string'
 }
 
-export async function parseCmd(cmdOpts: { yaml?: boolean, reverse?: boolean }) {
+type ParseOpts = OptionValues & { yaml?: boolean, reverse?: boolean }
+
+type ParseCmdOpts = Partial<OptionValues> & {
+    yaml?: boolean
+    reverse?: boolean
+}
+
+export async function parseCmd(cmdOpts: ParseCmdOpts = {}) {
     const globalOpts = program.opts()
     // Merge options, prioritizing command options
-    const opts = { ...globalOpts, ...cmdOpts }
+    const opts = { ...globalOpts, ...cmdOpts } as ParseOpts
 
     if (opts.reverse) {
         await handleReverse(opts)
@@ -58,7 +65,7 @@ export async function parseCmd(cmdOpts: { yaml?: boolean, reverse?: boolean }) {
     }
 }
 
-async function handleParse(opts: any) {
+async function handleParse(opts: ParseOpts) {
     
     const lecticString = await getLecticString(opts)
     const rawHeaderYaml = getYaml(lecticString)
@@ -112,7 +119,7 @@ async function handleParse(opts: any) {
     }
 }
 
-async function handleReverse(opts: any) {
+async function handleReverse(opts: ParseOpts) {
 
     const inputString = await getLecticString(opts)
     
