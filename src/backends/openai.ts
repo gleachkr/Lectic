@@ -79,6 +79,7 @@ async function *handleToolUse(
 
         if (loopCount > max_tool_use + 2) {
             yield "<error>Runaway tool use!</error>"
+            return
         }
 
         const resetAttachments = currentHookRes.filter(inlineReset)
