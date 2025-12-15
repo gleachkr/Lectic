@@ -74,6 +74,8 @@ export function strictify(schema : JSONSchema) : JSONSchema {
         case "object":
             return {
                 ...schema,
+                properties: Object.fromEntries(
+                    Object.entries(schema.properties).map(([k,v]) => [k, strictify(v)])),
                 required: Object.keys(schema.properties),
                 additionalProperties: false,
             }
