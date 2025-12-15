@@ -200,7 +200,7 @@ async function *handleToolUse(
         currentHookRes = emitAssistantMessageEvent(assistant, lectic, 
             { toolUseDone, usage, loopCount, finalPassCount })
         if (currentHookRes.length > 0) {
-             if (currentHookRes.some(h => h.attributes?.['reset'] === "true")) {
+             if (currentHookRes.some(h => inlineReset(h))) {
                  messages.length = 0
              }
              if (toolUseDone) finalPassCount++
