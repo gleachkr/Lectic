@@ -26,19 +26,6 @@ const SUPPORTS_PROMPT_CACHE_RETENTION = [
 function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[] {
     const tools : OpenAI.Chat.Completions.ChatCompletionTool[] = []
     for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
-        // https://platform.openai.com/docs/guides/structured-outputs/supported-schemas#supported-schemas
-        // - defaults aren't supported
-        // https://platform.openai.com/docs/guides/function-calling#strict-mode
-        // in strict mode
-        // - additionalProperties must be false on all objects
-        // - all properties of each object must be required
-
-        for (const key in tool.parameters) {
-            if ("default" in tool.parameters[key]) {
-                delete tool.parameters[key].default
-            }
-            tool.parameters[key] = strictify(tool.parameters[key])
-        }
 
         tools.push({
             type: "function",
@@ -46,13 +33,10 @@ function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[
                 name : tool.name,
                 description : tool.description,
                 strict: true,
-                parameters: {
+                parameters: strictify({
                     "type" : "object",
                     "properties" : tool.parameters,
-                    // OPENAI API always wants every key to be required?
-                    "required" : Object.keys(tool.parameters),
-                    "additionalProperties" : false,
-                }
+                })
             }
         })
     }

@@ -129,6 +129,7 @@ function getTools(lectic : Lectic) : Gemini.FunctionDeclaration[] {
     for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
         const properties = tool.parameters
         const required = tool.required ?? []
+        // required by gemini <= 2.0
         const propertyOrdering = Object.keys(properties)
         const parametersJsonSchema = {
             type: "object",

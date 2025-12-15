@@ -29,30 +29,15 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
         .map(tool => tool.native)
     for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
 
-        // the OPENAI API rejects default values for parameters. These are
-        // hints about what happens when a value is missing, but they can
-        // probably be safely scrubbed
-        //
-        // c.f. https://json-schema.org/understanding-json-schema/reference/annotations
-        for (const key in tool.parameters) {
-            if ("default" in tool.parameters[key]) {
-                delete tool.parameters[key].default
-            }
-            tool.parameters[key] = strictify(tool.parameters[key])
-        }
-
-
         tools.push({
             type: "function",
             name : tool.name,
             description : tool.description,
             strict: true,
-            parameters: {
+            parameters: strictify({
                 "type" : "object",
                 "properties" : tool.parameters,
-                "required" : Object.keys(tool.parameters),
-                "additionalProperties" : false,
-            }
+            })
         })
     }
 

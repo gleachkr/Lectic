@@ -2,19 +2,19 @@ import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml
 
 type StringSchema = {
     type: "string",
-    description: string
+    description?: string
     enum? : string[]
     contentMediaType?: string
 }
 
 type BooleanSchema = {
     type: "boolean",
-    description: string
+    description?: string
 }
 
 type NumberSchema = {
     type: "number",
-    description: string
+    description?: string
     enum? : unknown[] // provider enums are sometimes untyped; validate at runtime
     minimum? : number 
     maximum? : number
@@ -22,7 +22,7 @@ type NumberSchema = {
 
 type IntegerSchema = {
     type: "integer",
-    description: string
+    description?: string
     enum? : unknown[] // provider enums are sometimes untyped; validate at runtime
     minimum? : number 
     maximum? : number
@@ -30,7 +30,7 @@ type IntegerSchema = {
 
 type ArraySchema = {
     type: "array",
-    description: string
+    description?: string
     items: JSONSchema
 }
 
@@ -40,7 +40,7 @@ type NullSchema = {
 
 export type ObjectSchema = {
     type: "object",
-    description: string
+    description?: string
     required?: string[]
     properties: Record<string, JSONSchema>
     additionalProperties?: boolean
@@ -52,36 +52,49 @@ type AnyOfSchema = {
 }
 
 // rewrites schema for compatibility with OAI strict mode
+// https://platform.openai.com/docs/guides/structured-outputs/supported-schemas#supported-schemas
+// - defaults aren't supported
+// https://platform.openai.com/docs/guides/function-calling#strict-mode
+// in strict mode
+// - additionalProperties must be false on all objects
+// - all properties of each object must be required
 export function strictify(schema : JSONSchema) : JSONSchema {
+    let rslt : JSONSchema
     if (!("type" in schema)) {
-        return {
+        rslt = {
             ...schema,
             anyOf: schema.anyOf.map(strictify), 
         }
+    } else {
+        switch (schema.type) {
+            case "string": 
+            case "number":
+            case "integer":
+            case "boolean":
+            case "null" : 
+                rslt = schema
+                break
+            case "array": 
+                rslt = {
+                    ...schema,
+                    items: strictify(schema.items)
+                }
+                break
+            case "object":
+                rslt = {
+                    ...schema,
+                    properties: Object.fromEntries(
+                        Object.entries(schema.properties).map(([k,v]) => [k, strictify(v)])),
+                    required: Object.keys(schema.properties),
+                    additionalProperties: false,
+                }
+                break
+            default:
+                throw Error("unrecognized schema type in strictify")
+        }
     }
-    switch (schema.type) {
-        case "string": 
-        case "number":
-        case "integer":
-        case "boolean":
-        case "null" : 
-            return schema
-        case "array": 
-            return {
-                ...schema,
-                items: strictify(schema.items)
-            }
-        case "object":
-            return {
-                ...schema,
-                properties: Object.fromEntries(
-                    Object.entries(schema.properties).map(([k,v]) => [k, strictify(v)])),
-                required: Object.keys(schema.properties),
-                additionalProperties: false,
-            }
-        default:
-            throw Error("unrecognized schema type in strictify")
-    }
+    if ("default" in rslt) delete rslt.default
+    return rslt
 }
 
 export type JSONSchema = StringSchema 
