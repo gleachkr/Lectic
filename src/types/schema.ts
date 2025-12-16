@@ -1,4 +1,5 @@
 import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
+import { isObjectRecord } from "./guards.ts"
 
 type StringSchema = {
     type: "string",
@@ -58,6 +59,9 @@ type AnyOfSchema = {
 // in strict mode
 // - additionalProperties must be false on all objects
 // - all properties of each object must be required
+//
+// OAI suggests emulating optional fields by making them nullable:
+// anyOf: [<schema>, { type: "null" }]
 export function strictify(schema : JSONSchema) : JSONSchema {
     let rslt : JSONSchema
     if (!("type" in schema)) {
@@ -80,21 +84,135 @@ export function strictify(schema : JSONSchema) : JSONSchema {
                     items: strictify(schema.items)
                 }
                 break
-            case "object":
+            case "object": {
+                const strictProps = Object.fromEntries(
+                    Object.entries(schema.properties).map(([k, v]) => {
+                        let prop = strictify(v)
+                        if (!schema.required?.includes(k)) {
+                            prop = makeNullable(prop)
+                        }
+                        return [k, prop]
+                    })
+                )
+
                 rslt = {
                     ...schema,
-                    properties: Object.fromEntries(
-                        Object.entries(schema.properties).map(([k,v]) => [k, strictify(v)])),
+                    properties: strictProps,
                     required: Object.keys(schema.properties),
                     additionalProperties: false,
                 }
                 break
+            }
             default:
                 throw Error("unrecognized schema type in strictify")
         }
     }
     if ("default" in rslt) delete rslt.default
     return rslt
+}
+
+function isNullSchema(schema: JSONSchema): boolean {
+    return "type" in schema && schema.type === "null"
+}
+
+function isNullable(schema: JSONSchema): boolean {
+    if (isNullSchema(schema)) return true
+    if (isAnyOf(schema)) return schema.anyOf.some(isNullable)
+    return false
+}
+
+function makeNullable(schema: JSONSchema): JSONSchema {
+    if (isNullable(schema)) return schema
+
+    if (isAnyOf(schema)) {
+        return {
+            ...schema,
+            anyOf: [...schema.anyOf, { type: "null" }],
+        }
+    }
+
+    const desc = "description" in schema ? schema.description : undefined
+    return {
+        anyOf: [schema, { type: "null" }],
+        ...(desc ? { description: desc } : {}),
+    }
+}
+
+function pickAnyOfOption(value: unknown, anyOf: JSONSchema[]): JSONSchema {
+    if (value === null) {
+        return anyOf.find(isNullSchema) ?? anyOf[0]
+    }
+
+    if (Array.isArray(value)) {
+        return anyOf.find((s) => "type" in s && s.type === "array") ?? anyOf[0]
+    }
+
+    if (isObjectRecord(value)) {
+        return anyOf.find((s) => "type" in s && s.type === "object") ?? anyOf[0]
+    }
+
+    switch (typeof value) {
+        case "string":
+            return anyOf.find((s) => "type" in s && s.type === "string")
+                ?? anyOf[0]
+        case "boolean":
+            return anyOf.find((s) => "type" in s && s.type === "boolean")
+                ?? anyOf[0]
+        case "number": {
+            const want = Number.isInteger(value) ? "integer" : "number"
+            const exact = anyOf.find((s) => "type" in s && s.type === want)
+            const fallback = anyOf.find(
+                (s) => "type" in s && (s.type === "integer" || s.type === "number")
+            )
+            return exact ?? fallback ?? anyOf[0]
+        }
+        default:
+            return anyOf[0]
+    }
+}
+
+// Post-process a value returned by OAI strict mode.
+//
+// When strictifying we make optional object properties nullable, and also
+// mark all object properties as required. The model may then return `null`
+// for an omitted optional property. This function removes those `null`
+// properties (based on the schema's `required` list) so that downstream
+// tool validation sees the original shape.
+export function destrictify(value: unknown, schema: JSONSchema): unknown {
+    if (isAnyOf(schema)) {
+        const option = pickAnyOfOption(value, schema.anyOf)
+        return destrictify(value, option)
+    }
+
+    switch (schema.type) {
+        case "object": {
+            if (!isObjectRecord(value)) return value
+            const required = new Set(schema.required ?? [])
+            const out: Record<string, unknown> = {}
+
+            for (const [k, v] of Object.entries(value)) {
+                const propSchema = schema.properties[k]
+                if (!propSchema) {
+                    out[k] = v
+                    continue
+                }
+
+                if (v === null && !required.has(k)) {
+                    continue
+                }
+
+                out[k] = destrictify(v, propSchema)
+            }
+
+            return out
+        }
+        case "array": {
+            if (!Array.isArray(value)) return value
+            return value.map((v) => destrictify(v, schema.items))
+        }
+        default:
+            return value
+    }
 }
 
 export type JSONSchema = StringSchema 

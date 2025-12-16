@@ -1,5 +1,11 @@
 import type { JSONSchema } from './schema';
-import { serialize, deserialize, validateAgainstSchema } from './schema';
+import {
+    serialize,
+    deserialize,
+    validateAgainstSchema,
+    strictify,
+    destrictify,
+} from './schema';
 import { expect, it, describe } from "bun:test"
 
 describe('serialize function', () => {
@@ -632,3 +638,88 @@ describe('Round-trip serialization/deserialization tests', () => {
     });
 
 });
+
+describe('oai strictify/destrictify', () => {
+    it('strictify makes optional properties nullable and required', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "root",
+            properties: {
+                a: { type: "string", description: "a" },
+                b: { type: "string", description: "b" },
+            },
+            required: ["a"],
+        }
+
+        const strict = strictify(schema)
+        expect(strict).toMatchObject({
+            type: "object",
+            required: ["a", "b"],
+            additionalProperties: false,
+        })
+
+        const b = (strict as any).properties.b
+        expect(Array.isArray(b.anyOf)).toBe(true)
+        expect((b.anyOf as any[]).some((s: any) => s.type === "null"))
+            .toBe(true)
+    })
+
+    it('strictify does not double-wrap already nullable properties', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "root",
+            properties: {
+                a: { type: "string", description: "a" },
+                b: {
+                    anyOf: [
+                        { type: "string", description: "b" },
+                        { type: "null" },
+                    ],
+                },
+            },
+            required: ["a"],
+        }
+
+        const strict = strictify(schema) as any
+        const b = strict.properties.b
+        expect(Array.isArray(b.anyOf)).toBe(true)
+        expect((b.anyOf as any[]).filter((s: any) => s.type === "null").length)
+            .toBe(1)
+    })
+
+    it('destrictify removes null optional properties', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "root",
+            properties: {
+                a: { type: "string", description: "a" },
+                b: { type: "string", description: "b" },
+            },
+            required: ["a"],
+        }
+
+        const value = { a: "x", b: null }
+        expect(destrictify(value, schema)).toEqual({ a: "x" })
+    })
+
+    it('destrictify removes nulls in nested optional object properties', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            description: "root",
+            properties: {
+                nested: {
+                    type: "object",
+                    description: "nested",
+                    properties: {
+                        x: { type: "string", description: "x" },
+                    },
+                    required: [],
+                },
+            },
+            required: ["nested"],
+        }
+
+        const value = { nested: { x: null } }
+        expect(destrictify(value, schema)).toEqual({ nested: {} })
+    })
+})

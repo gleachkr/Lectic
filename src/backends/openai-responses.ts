@@ -9,7 +9,8 @@ import { serializeCall } from "../types/tool"
 import { systemPrompt, wrapText, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
-    emitUserMessageEvent} from './common.ts'
+    emitUserMessageEvent,
+    destrictifyToolResults} from './common.ts'
 import { inlineNotFinal, inlineReset, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import { strictify } from '../types/schema.ts'
 
@@ -35,8 +36,9 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
             description : tool.description,
             strict: true,
             parameters: strictify({
-                "type" : "object",
-                "properties" : tool.parameters,
+                type : "object",
+                properties : tool.parameters,
+                required: tool.required
             })
         })
     }
@@ -98,12 +100,13 @@ async function *handleToolUse(
         const entries = message.output
             .filter(o => o.type === 'function_call')
             .map(o => {
-                let args: unknown
-                try { args = JSON.parse(o.arguments) } catch { args = undefined }
+                const tool = registry?.[o.name] ?? null
+                const args = destrictifyToolResults(tool, o.arguments)
                 return { id: o.call_id, name: o.name, args }
             })
-        const realized = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
-
+        const realized = await resolveToolCalls(entries, registry, { 
+            limitExceeded: loopCount > max_tool_use, lectic 
+        })
         // Echo prior assistant output
         for (const o of message.output) {
             // patch calls explicably have different input/output shapes in the type system

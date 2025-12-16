@@ -9,7 +9,8 @@ import { serializeCall, ToolCallResults, type ToolCallResult } from "../types/to
 import { systemPrompt, pdfFragment, emitAssistantMessageEvent,
     resolveToolCalls, collectAttachmentPartsFromCalls,
     gatherMessageAttachmentParts, computeCmdAttachments, isAttachmentMime, 
-    emitUserMessageEvent} from './common.ts'
+    emitUserMessageEvent,
+    destrictifyToolResults} from './common.ts'
 import { inlineNotFinal, inlineReset, serializeInlineAttachment, type InlineAttachment } from "../types/inlineAttachment"
 import { strictify } from '../types/schema.ts'
 
@@ -34,8 +35,9 @@ function getTools(lectic : Lectic) : OpenAI.Chat.Completions.ChatCompletionTool[
                 description : tool.description,
                 strict: true,
                 parameters: strictify({
-                    "type" : "object",
-                    "properties" : tool.parameters,
+                    type : "object",
+                    properties : tool.parameters,
+                    required: tool.required
                 })
             }
         })
@@ -85,11 +87,13 @@ async function *handleToolUse(
         const entries = (message.tool_calls ?? [])
             .filter(call => call.type === "function")
             .map(call => {
-                let args: unknown
-                try { args = JSON.parse(call.function.arguments) } catch { args = undefined }
+                const tool = registry?.[call.function.name] ??  null
+                const args = destrictifyToolResults(tool, call.function.arguments)
                 return { id: call.id, name: call.function.name, args }
             })
-        const realizedFunction = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
+        const realizedFunction = await resolveToolCalls(entries, registry, { 
+            limitExceeded: loopCount > max_tool_use, lectic 
+        })
         const realizedUnsupported = (message.tool_calls ?? [])
             .filter(call => call.type !== "function")
             .map(call => ({
@@ -97,7 +101,9 @@ async function *handleToolUse(
                 args: {},
                 id: call.id,
                 isError: true,
-                results: ToolCallResults("<error>Unrecognized tool. non-function custom tools are not currently supported.</error>")
+                results: ToolCallResults(
+                    "<error>Unrecognized tool. non-function custom tools are not currently supported.</error>"
+                )
             }))
         const realized = [ ...realizedFunction, ...realizedUnsupported ]
 
@@ -109,7 +115,7 @@ async function *handleToolUse(
                     : null
                 yield serializeCall(theTool, {
                     name: call.function.name,
-                    args: JSON.parse(call.function.arguments), 
+                    args: realizedCall.args,
                     id: call.id,
                     isError: realizedCall.isError,
                     results: realizedCall.results

@@ -10,6 +10,7 @@ import { MessageAttachment, type MessageAttachmentPart } from "../types/attachme
 import type { UserMessage } from "../types/message"
 import { MessageCommand } from "../types/directive.ts"
 import type { InlineAttachment } from "../types/inlineAttachment"
+import { destrictify, type JSONSchema } from "../types/schema.ts";
 
 export function wrapText({text, name} : { text : string, name: string}) {
     return `<speaker name="${name}">${text}</speaker>`
@@ -321,4 +322,18 @@ export async function computeCmdAttachments(msg: UserMessage): Promise<{
     }
   }
   return { textBlocks, inline }
+}
+
+export function destrictifyToolResults(tool : Tool | null, values : string) : unknown {
+    let args: unknown
+    if (tool) {
+        try { args = JSON.parse(values) } catch { args = undefined }
+        const toolSchema: JSONSchema = {
+            type: "object",
+            properties: tool.parameters,
+            required: tool.required,
+        }
+        args = destrictify(args, toolSchema)
+    } 
+    return args
 }
