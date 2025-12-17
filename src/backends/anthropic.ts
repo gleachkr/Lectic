@@ -239,7 +239,6 @@ async function* handleToolUse(
     messages : Anthropic.Messages.MessageParam[],
     lectic : Lectic,
     client : Anthropic | AnthropicBedrock,
-    model : string,
     initialHookRes? : InlineAttachment[]
 ) : AsyncGenerator<string | Message> {
 
@@ -247,7 +246,10 @@ async function* handleToolUse(
     let finalPassCount = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+    // model is assigned at this point
+    const model = lectic.header.interlocutor.model as string
     let currentHookRes = initialHookRes ?? []
+
 
     while (message.stop_reason == "tool_use" || currentHookRes.filter(inlineNotFinal).length > 0) {
         yield "\n\n"
@@ -460,7 +462,7 @@ export class AnthropicBackend implements Backend {
         }
 
         if (assistantHookRes.filter(inlineNotFinal).length > 0 || msg.stop_reason == "tool_use") {
-            yield* handleToolUse(msg, messages, lectic, this.client, model, assistantHookRes)
+            yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes)
         }
     }
 }

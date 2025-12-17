@@ -58,7 +58,9 @@ function initResponse() : GenerateContentResponse & { candidates: [Candidate,...
       return response as GenerateContentResponse & { candidates: [Candidate,...Candidate[]] }
 }
 
-async function getResult(lectic: Lectic, client: GoogleGenAI, model : string, messages: ContentListUnion) {
+async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentListUnion) {
+    // model has been set at this point
+    const model = lectic.header.interlocutor.model as string
     const nativeTools = (lectic.header.interlocutor.tools || [])
     .filter(tool => "native" in tool)
     .map(tool => tool.native)
@@ -73,8 +75,9 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, model : string, me
       default: thinkingConfig = { includeThoughts: true, thinkingBudget: lectic.header.interlocutor.thinking_budget ?? -1 }
     }
 
+
     return await client.models.generateContentStream({
-        model: lectic.header.interlocutor.model ?? model,
+        model,
         contents: messages,
         config: {
             systemInstruction: systemPrompt(lectic),
@@ -152,7 +155,6 @@ async function *handleToolUse(
     response : GenerateContentResponse, 
     messages : Content[], 
     lectic : Lectic,
-    model : string,
     client : GoogleGenAI,
     initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
 
@@ -232,7 +234,7 @@ async function *handleToolUse(
 
         const accumulatedResponse = initResponse()
 
-        const result = await getResult(lectic, client, model, messages)
+        const result = await getResult(lectic, client, messages)
 
         yield* accumulateStream(result, accumulatedResponse)
 
@@ -450,7 +452,9 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       Logger.debug("gemini - messages", messages)
 
-      const result = await getResult(lectic, this.client, this.defaultModel, messages)
+      lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
+
+      const result = await getResult(lectic, this.client, messages)
 
       const accumulatedResponse = initResponse()
 
@@ -484,7 +488,7 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
 
       if (hasToolCalls || assistantHookRes.filter(inlineNotFinal).length > 0) {
           Logger.debug("gemini - reply (tool)", { accumulatedResponse })
-          yield* handleToolUse(accumulatedResponse, messages, lectic, this.defaultModel, this.client, assistantHookRes);
+          yield* handleToolUse(accumulatedResponse, messages, lectic, this.client, assistantHookRes);
       } else {
           Logger.debug("gemini - reply", { accumulatedResponse })
       }

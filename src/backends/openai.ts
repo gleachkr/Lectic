@@ -57,6 +57,8 @@ async function *handleToolUse(
     let finalPassCount = 0
     const registry = lectic.header.interlocutor.registry ?? {}
     const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
+    // model has been set at this point
+    const model = lectic.header.interlocutor.model as string
     let currentHookRes = initialHookRes ?? []
 
     while (currentHookRes.filter(inlineNotFinal).length > 0 || message.tool_calls) {
@@ -154,8 +156,6 @@ async function *handleToolUse(
 
         Logger.debug("openai - messages (tool)", messages)
 
-        // model has been set at this point
-        const model = lectic.header.interlocutor.model as string
 
         const stream = client.chat.completions.stream({
             messages: [developerMessage(lectic), ...messages],
