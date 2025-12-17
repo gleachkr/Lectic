@@ -78,7 +78,8 @@ class Tokens:
 
     @property
     def total(self) -> int:
-        return self.input + self.output + self.cached
+        # cached tokens are a subset of input
+        return self.input + self.output
 
 
 def _bump_model(models: Dict[str, Any], model: str, inc: Tokens) -> None:
@@ -244,8 +245,8 @@ def _print_graph(db: Dict[str, Any], granularity: str, units: int) -> int:
         # Show the three shades in the legend for each model
         legend_items.append(f"{color}█▓░{RESET} {m}")
     print("Legend: " + "  ".join(legend_items))
-    print("        " + "█ Output  ▓ Input  ░ Cached")
-    print("-" * 78)
+    print("        " + "█ Output  ▓ Uncached Input  ░ Cached")
+    print("─" * 78)
 
     width = 40
     for key in sorted_keys:
@@ -286,9 +287,9 @@ def _print_graph(db: Dict[str, Any], granularity: str, units: int) -> int:
             bar_str += "░" * cached_len
             bar_str += f"{RESET}"
 
-        print(f"{key:<16} | {bar_str} {_fmt_int(total)}")
+        print(f"{key:<16} │ {bar_str} {_fmt_int(total)}")
 
-    print("-" * 78)
+    print("─" * 78)
     return 0
 
 
