@@ -7,17 +7,17 @@ export async function tryRunSubcommand(command: string, args: string[]) {
     
     // XXX: undefined searches PATH
     for (const dir of [...searchDirs, undefined]) {
-        const cmdGlob = new Bun.Glob(`lectic-${command}{,[a-z]*}`)
+        const cmdGlob = new Bun.Glob(`lectic-${command}{,.*}`)
         const matches = [... cmdGlob.scanSync({ cwd: dir })]
+            .map(file => Bun.which(file, { PATH : dir }))
+            .filter(file => file !== null)
         if (matches.length > 1) {
             Logger.write(`multiple commands available: \n ${matches}\n`);
             break
         } 
-        const pathExe = Bun.which(matches[0], { PATH : dir });
-        if (pathExe) {
-            await runExecutable(pathExe, args);
-            return;
-        }
+        if (matches.length < 1) continue
+        await runExecutable(matches[0], args);
+        return;
     }
 
     // Not found
