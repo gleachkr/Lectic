@@ -68,6 +68,43 @@ lectic hello
 
 This mechanism allows you to extend Lectic with your own tools and workflows.
 
+## Bash completion
+
+The repository includes a bash completion script at:
+
+- `extra/tab_complete/lectic_completion.bash`
+
+Source it from your `~/.bashrc`:
+
+```bash
+source /path/to/lectic_completion.bash
+```
+
+### Custom completion functions for custom subcommands
+
+You can attach a completion function to a custom subcommand by creating a
+plugin file. Plugins are sourced when the completion script is loaded.
+
+Supported locations:
+
+- `${XDG_CONFIG_HOME:-$HOME/.config}/lectic/completions/*.bash`
+- `${XDG_DATA_HOME:-$HOME/.local/share}/lectic/completions/*.bash`
+- Next to the subcommand executable as: `lectic-<cmd>.completion.bash`
+
+A plugin should define a completion function and register it:
+
+```bash
+_lectic_complete_foo() {
+  local cur
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  COMPREPLY=( $(compgen -W "--help --verbose" -- "${cur}") )
+}
+
+lectic_register_completion foo _lectic_complete_foo
+```
+
+The repository includes an example completion plugin for the `worktree`
+subcommand at `extra/sandbox/lectic-worktree.completion.bash`.
 ## Flags and options
 
 - `-v`, `--version`
