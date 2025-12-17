@@ -7,7 +7,7 @@ export async function tryRunSubcommand(command: string, args: string[]) {
     
     // XXX: undefined searches PATH
     for (const dir of [...searchDirs, undefined]) {
-        const cmdGlob = new Bun.Glob(`lectic-${command}{,.*}`)
+        const cmdGlob = new Bun.Glob(`lectic-${command}{,[a-z]*}`)
         const matches = [... cmdGlob.scanSync({ cwd: dir })]
         if (matches.length > 1) {
             Logger.write(`multiple commands available: \n ${matches}\n`);
