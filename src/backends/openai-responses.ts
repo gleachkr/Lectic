@@ -57,102 +57,35 @@ function getTools(lectic : Lectic) : OpenAI.Responses.Tool[] {
 }
 
 
-async function *handleToolUse(
-    message : OpenAI.Responses.Response, 
-    messages : OpenAI.Responses.ResponseInput, 
-    lectic : Lectic,
-    client : OpenAI,
-    initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
+async function *runConversationLoop(
+    opt: {
+        messages: OpenAI.Responses.ResponseInput
+        lectic: Lectic
+        client: OpenAI
+        inlinePreface: InlineAttachment[]
+    }
+) : AsyncGenerator<string | Message> {
+
+    const messages = opt.messages
+    const lectic = opt.lectic
+    const client = opt.client
+
+    const registry = lectic.header.interlocutor.registry ?? {}
+    const maxToolUse = lectic.header.interlocutor.max_tool_use ?? 10
 
     let loopCount = 0
     let finalPassCount = 0
-    const registry = lectic.header.interlocutor.registry ?? {}
-    const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
-    let currentHookRes = initialHookRes ?? []
 
-    while (currentHookRes.filter(inlineNotFinal).length > 0 || 
-           message.output.filter(output => output.type == "function_call").length > 0) {
-        yield "\n\n"
-        loopCount++
+    // Preface inline attachments at the top of the assistant block.
+    if (opt.inlinePreface.length > 0) {
+        yield opt.inlinePreface.map(serializeInlineAttachment).join("\n\n")
+            + "\n\n"
+    }
 
-        if (loopCount > max_tool_use + 2) {
-            yield "<error>Runaway tool use!</error>"
-            return
-        }
+    let pendingHookRes: InlineAttachment[] = []
 
-        const resetAttachments = currentHookRes.filter(inlineReset)
-        if (resetAttachments.length > 0) {
-            messages.length = 0
-            messages.push({
-                role: "user",
-                content: resetAttachments.map(h => ({ type: "input_text", text: h.content }))
-            })
-        }
-
-        // Clean streaming leftovers that break the API
-        for (const output of message.output) {
-            if (output.type === "function_call" && 'parsed_arguments' in output) {
-                delete output.parsed_arguments
-            }
-        }
-
-        // Resolve calls to ToolCall[]
-        const entries = message.output
-            .filter(o => o.type === 'function_call')
-            .map(o => {
-                const tool = registry?.[o.name] ?? null
-                const args = destrictifyToolResults(tool, o.arguments)
-                return { id: o.call_id, name: o.name, args }
-            })
-        const realized = await resolveToolCalls(entries, registry, { 
-            limitExceeded: loopCount > max_tool_use, lectic 
-        })
-        // Echo prior assistant output
-        for (const o of message.output) {
-            // patch calls explicably have different input/output shapes in the type system
-            // Fix if we ever add the patch tool
-            if (o.type == "apply_patch_call_output" || 
-                o.type == "apply_patch_call") continue
-            messages.push(o)
-        }
-
-        // Emit transcript entries for realized tool calls
-        for (const call of realized) {
-            const theTool = call.name in registry ? registry[call.name] : null
-            yield serializeCall(theTool, {
-                name: call.name,
-                args: call.args,
-                id: call.id,
-                isError: call.isError,
-                results: call.results
-            })
-            yield "\n\n"
-        }
-
-        // Attach any non-text results via a user message with attachments
-        const attachParts = await collectAttachmentPartsFromCalls(
-            realized,
-            partToContent,
-        )
-
-        for (const h of currentHookRes.filter(h => !inlineReset(h))) {
-            attachParts.push({ type: "input_text", text: h.content })
-        }
-
-        if (attachParts.length > 0) {
-            messages.push({ role: 'user', content: attachParts })
-        }
-
-        // Provide outputs for each call
-        for (const call of realized) {
-            messages.push({
-                type: 'function_call_output',
-                call_id: call.id ?? "undefined",
-                output: JSON.stringify(call.results.filter(r => !isAttachmentMime(r.mimetype))),
-            })
-        }
-
-        Logger.debug("openai - messages (tool)", messages)
+    for (;;) {
+        Logger.debug("openai - messages", messages)
 
         const stream = client.responses.stream({
             instructions: systemPrompt(lectic),
@@ -168,12 +101,12 @@ async function *handleToolUse(
                 : undefined,
             temperature: lectic.header.interlocutor.temperature,
             max_output_tokens: lectic.header.interlocutor.max_tokens,
-            tools: getTools(lectic),
             reasoning: lectic.header.interlocutor.thinking_effort ? {
                 effort: lectic.header.interlocutor.thinking_effort
             } : undefined,
+            tools: getTools(lectic)
         })
-    
+
         let assistant = ""
         for await (const event of stream) {
             if (event.type == "response.output_text.delta") {
@@ -183,26 +116,126 @@ async function *handleToolUse(
             }
         }
 
-        message = await stream.finalResponse()
-        const usageData = message.usage
+        const msg = await stream.finalResponse()
+        const usageData = msg.usage
         const usage = usageData ? {
             input: usageData.input_tokens,
-            cached: usageData.input_tokens_details.cached_tokens,
+            cached: usageData.input_tokens_details.cached_tokens ?? 0,
             output: usageData.output_tokens,
             total: usageData.total_tokens
         } : undefined
 
-        Logger.debug("openai - reply (tool)", message)
-        const hasMoreToolCalls = message.output.some(o => o.type === "function_call")
-        currentHookRes = emitAssistantMessageEvent(assistant, lectic, 
-            { toolUseDone: !hasMoreToolCalls, usage, loopCount, finalPassCount })
-        if (currentHookRes.length > 0) {
-             if (!hasMoreToolCalls) finalPassCount++
-             yield "\n\n"
-             yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
-             yield "\n\n"
+        Logger.debug("openai - reply", msg)
+
+        const hasToolCalls = msg.output.some(o => o.type === "function_call")
+        pendingHookRes = emitAssistantMessageEvent(assistant, lectic, {
+            toolUseDone: !hasToolCalls,
+            usage,
+            loopCount,
+            finalPassCount,
+        })
+
+        if (pendingHookRes.length > 0) {
+            if (!hasToolCalls) finalPassCount++
+            yield "\n\n"
+            yield pendingHookRes.map(serializeInlineAttachment).join("\n\n")
+            yield "\n\n"
         }
 
+        const needsFollowUp =
+            hasToolCalls || pendingHookRes.filter(inlineNotFinal).length > 0
+
+        if (!needsFollowUp) return
+
+        yield "\n\n"
+        loopCount++
+        if (loopCount > maxToolUse + 2) {
+            yield "<error>Runaway tool use!</error>"
+            return
+        }
+
+        const resetAttachments = pendingHookRes.filter(inlineReset)
+        if (resetAttachments.length > 0) {
+            messages.length = 0
+            messages.push({
+                role: "user",
+                content: resetAttachments.map(h => ({
+                    type: "input_text",
+                    text: h.content
+                }))
+            })
+        }
+
+        // Clean streaming leftovers that break the API.
+        for (const output of msg.output) {
+            if (output.type === "function_call" && 'parsed_arguments' in output) {
+                delete output.parsed_arguments
+            }
+        }
+
+        // Resolve calls to ToolCall[].
+        const entries = msg.output
+            .filter(o => o.type === 'function_call')
+            .map(o => {
+                const tool = registry?.[o.name] ?? null
+                const args = destrictifyToolResults(tool, o.arguments)
+                return { id: o.call_id, name: o.name, args }
+            })
+
+        const realized = await resolveToolCalls(entries, registry, {
+            limitExceeded: loopCount > maxToolUse,
+            lectic
+        })
+
+        // Echo prior assistant output.
+        for (const o of msg.output) {
+            // Patch calls have different shapes in the type system.
+            if (o.type == "apply_patch_call_output" ||
+                o.type == "apply_patch_call") {
+                continue
+            }
+            messages.push(o)
+        }
+
+        // Emit transcript entries for realized tool calls.
+        for (const call of realized) {
+            const theTool = call.name in registry ? registry[call.name] : null
+            yield serializeCall(theTool, {
+                name: call.name,
+                args: call.args,
+                id: call.id,
+                isError: call.isError,
+                results: call.results
+            })
+            yield "\n\n"
+        }
+
+        // Attach any non-text results via a user message with attachments.
+        const attachParts = await collectAttachmentPartsFromCalls(
+            realized,
+            partToContent,
+        )
+
+        for (const h of pendingHookRes.filter(h => !inlineReset(h))) {
+            attachParts.push({ type: "input_text", text: h.content })
+        }
+
+        if (attachParts.length > 0) {
+            messages.push({ role: 'user', content: attachParts })
+        }
+
+        // Provide outputs for each call.
+        for (const call of realized) {
+            messages.push({
+                type: 'function_call_output',
+                call_id: call.id ?? "undefined",
+                output: JSON.stringify(
+                    call.results.filter(r => !isAttachmentMime(r.mimetype))
+                ),
+            })
+        }
+
+        // Loop continues with updated messages.
     }
 }
 
@@ -382,7 +415,9 @@ export class OpenAIResponsesBackend implements Backend {
             const m = lectic.body.messages[i]
             if (m.role === "user" && lastIsUser && i === lastIdx) {
                 inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
-                const { messages: newMsgs } = await handleMessage(m, lectic, { inlineAttachments, })
+                const { messages: newMsgs } = await handleMessage(m, lectic, {
+                    inlineAttachments,
+                })
                 messages.push(...newMsgs)
             } else {
                 const { messages: newMsgs, reset } = await handleMessage(m, lectic)
@@ -391,66 +426,15 @@ export class OpenAIResponsesBackend implements Backend {
             }
         }
 
-        Logger.debug("openai - messages", messages)
+        lectic.header.interlocutor.model =
+            lectic.header.interlocutor.model ?? this.defaultModel
 
-        lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
-
-        const stream = this.client.responses.stream({
-            instructions: systemPrompt(lectic),
-            input: messages,
-            model: lectic.header.interlocutor.model,
-            include: [
-                'reasoning.encrypted_content',
-                'code_interpreter_call.outputs'
-            ],
-            prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION
-                .includes(lectic.header.interlocutor.model)
-                ? "24h"
-                : undefined,
-            temperature: lectic.header.interlocutor.temperature,
-            max_output_tokens: lectic.header.interlocutor.max_tokens,
-            reasoning: lectic.header.interlocutor.thinking_effort ? {
-                effort: lectic.header.interlocutor.thinking_effort
-            } : undefined,
-            tools: getTools(lectic)
-        });
-
-        // Emit cached inline attachments at the top of the assistant block
-        if (inlineAttachments.length > 0) {
-            yield inlineAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
-        }
-
-        let assistant = ""
-        for await (const event of stream) {
-            if (event.type == "response.output_text.delta") {
-                const text = event.delta || ""
-                yield text
-                assistant += text
-            }
-        }
-
-        const msg = await stream.finalResponse()
-        const usageData = msg.usage
-        const usage = usageData ? {
-            input: usageData.input_tokens,
-            cached: usageData.input_tokens_details.cached_tokens ?? 0,
-            output: usageData.output_tokens,
-            total: usageData.total_tokens
-        } : undefined
-
-        Logger.debug(`${this.provider} - reply`, msg)
-        const hasToolCalls = msg.output.some(o => o.type === "function_call")
-        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone: !hasToolCalls, usage, loopCount: 0, finalPassCount: 0 })
-        if (assistantHookRes.length > 0) {
-             if (assistantHookRes.some(inlineReset)) messages.length = 0
-             yield "\n\n"
-             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
-             yield "\n\n"
-        }
-
-        if (assistantHookRes.filter(inlineNotFinal).length > 0 || hasToolCalls) {
-            yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes);
-        }
+        yield* runConversationLoop({
+            messages,
+            lectic,
+            client: this.client,
+            inlinePreface: inlineAttachments,
+        })
     }
 
 

@@ -234,101 +234,54 @@ function getTools(lectic : Lectic) : Anthropic.Messages.ToolUnion[] {
     return tools
 }
 
-async function* handleToolUse(
-    message: Anthropic.Messages.Message,
-    messages : Anthropic.Messages.MessageParam[],
-    lectic : Lectic,
-    client : Anthropic | AnthropicBedrock,
-    initialHookRes? : InlineAttachment[]
+async function* runConversationLoop(
+    opt: {
+        messages: Anthropic.Messages.MessageParam[]
+        lectic: Lectic
+        client: Anthropic | AnthropicBedrock
+        inlinePreface: InlineAttachment[]
+    }
 ) : AsyncGenerator<string | Message> {
+
+    const messages = opt.messages
+    const lectic = opt.lectic
+    const client = opt.client
+    // model has been set at this point
+    const model = opt.lectic.header.interlocutor.model as string
+
+    const registry = lectic.header.interlocutor.registry ?? {}
+    const maxToolUse = lectic.header.interlocutor.max_tool_use ?? 10
 
     let loopCount = 0
     let finalPassCount = 0
-    const registry = lectic.header.interlocutor.registry ?? {}
-    const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
-    // model is assigned at this point
-    const model = lectic.header.interlocutor.model as string
-    let currentHookRes = initialHookRes ?? []
 
+    // Preface inline attachments at the top of the assistant block.
+    if (opt.inlinePreface.length > 0) {
+        const preface = opt.inlinePreface
+            .map(serializeInlineAttachment)
+            .join("\n\n") + "\n\n"
+        yield preface
+    }
 
-    while (message.stop_reason == "tool_use" || currentHookRes.filter(inlineNotFinal).length > 0) {
-        yield "\n\n"
-        loopCount++
+    let pendingHookRes: InlineAttachment[] = []
 
-        if (loopCount > max_tool_use + 2) {
-            yield "<error>Runaway tool use!</error>"
-            return
-        }
-
-        const resetAttachments = currentHookRes.filter(inlineReset)
-        if (resetAttachments.length > 0) {
-            messages.length = 0
-            messages.push({
-                role: "user",
-                content: resetAttachments.map(h => ({ type: "text" as const, text: h.content }))
-            })
-        }
-
-        messages.push({
-            role: "assistant",
-            content: message.content
-        })
-
-        const tool_uses = message.content.filter(block => block.type == "tool_use")
-        const entries = tool_uses.map(block => ({ id: block.id, name: block.name, args: block.input }))
-        const realized: ToolCall[] = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
-
-        // convert to anthropic blocks for the API
-        const content: Anthropic.Messages.ContentBlockParam[] = realized.map((call: ToolCall) => ({
-            type: "tool_result" as const,
-            tool_use_id: call.id ?? "",
-            is_error: call.isError,
-            content: call.results
-                .filter((r: ToolCallResult) => !isAttachmentMime(r.mimetype))
-                .map((r: ToolCallResult) => ({ type: "text" as const, text: r.toBlock().text }))
-        }))
-
-        // yield results to the transcript, preserving mimetypes
-        for (const block of tool_uses) {
-            const call = realized.find((c: ToolCall) => c.id === block.id)
-            if (call && block.input instanceof Object) {
-                const theTool = block.name in registry ? registry[block.name] : null
-                yield serializeCall(theTool, {
-                    name: block.name,
-                    args: block.input as Record<string,unknown>,
-                    id: block.id,
-                    isError: call.isError,
-                    results: call.results
-                }) + "\n\n"
-            }
-        }
-
-        // Merge attachments after tool_result blocks in the same
-        // user message to satisfy Anthropic's ordering rule.
-        const attach = await collectAttachmentPartsFromCalls(realized, partToContent)
-        content.push(...attach)
-
-        for (const h of currentHookRes.filter(h => !inlineReset(h))) {
-             content.push({ type: "text", text: h.content })
-        }
-
-        if (content.length > 0) messages.push({ role: "user", content })
-
+    for (;;) {
         if (!lectic.header.interlocutor.nocache) updateCache(messages)
 
-        Logger.debug("anthropic - messages (tool)", messages)
+        Logger.debug("anthropic - messages", messages)
 
         const stream = client.messages.stream({
             max_tokens: lectic.header.interlocutor.max_tokens || 2048,
             system: systemPrompt(lectic),
             messages: messages,
             model,
+            temperature: lectic.header.interlocutor.temperature,
             tools: getTools(lectic),
             thinking: lectic.header.interlocutor.thinking_budget !== undefined ? {
                 type: 'enabled',
                 budget_tokens: lectic.header.interlocutor.thinking_budget
             } : undefined
-        });
+        })
 
         let assistant = ""
         for await (const text of anthropicTextChunks(stream)) {
@@ -336,26 +289,115 @@ async function* handleToolUse(
             assistant += text
         }
 
-        message = await stream.finalMessage()
+        const msg = await stream.finalMessage()
 
-        Logger.debug("anthropic - reply (tool)", message)
+        Logger.debug("anthropic - reply", msg)
 
-        const toolUseDone = message.stop_reason !== "tool_use"
+        const toolUseDone = msg.stop_reason !== "tool_use"
         const usage = {
-            input: message.usage.input_tokens,
-            cached: message.usage.cache_read_input_tokens ?? 0,
-            output: message.usage.output_tokens,
-            total: message.usage.input_tokens + message.usage.output_tokens
+            input: msg.usage.input_tokens,
+            cached: msg.usage.cache_read_input_tokens ?? 0,
+            output: msg.usage.output_tokens,
+            total: msg.usage.input_tokens + msg.usage.output_tokens
         }
-        currentHookRes = emitAssistantMessageEvent(assistant, lectic, {
-            toolUseDone, usage, loopCount, finalPassCount })
-        if (currentHookRes.length > 0) {
+
+        pendingHookRes = emitAssistantMessageEvent(assistant, lectic, {
+            toolUseDone,
+            usage,
+            loopCount,
+            finalPassCount,
+        })
+
+        if (pendingHookRes.length > 0) {
             if (toolUseDone) finalPassCount++
             yield "\n\n"
-            yield currentHookRes.map(serializeInlineAttachment).join("\n\n")
+            yield pendingHookRes.map(serializeInlineAttachment).join("\n\n")
             yield "\n\n"
         }
 
+        const needsFollowUp =
+            msg.stop_reason == "tool_use" ||
+            pendingHookRes.filter(inlineNotFinal).length > 0
+
+        if (!needsFollowUp) return
+
+        yield "\n\n"
+        loopCount++
+
+        if (loopCount > maxToolUse + 2) {
+            yield "<error>Runaway tool use!</error>"
+            return
+        }
+
+        const resetAttachments = pendingHookRes.filter(inlineReset)
+        if (resetAttachments.length > 0) {
+            messages.length = 0
+            messages.push({
+                role: "user",
+                content: resetAttachments.map(h => ({
+                    type: "text" as const,
+                    text: h.content
+                }))
+            })
+        }
+
+        messages.push({
+            role: "assistant",
+            content: msg.content
+        })
+
+        const toolUses = msg.content.filter(block => block.type == "tool_use")
+        const entries = toolUses.map(block => ({
+            id: block.id,
+            name: block.name,
+            args: block.input,
+        }))
+
+        const realized: ToolCall[] = await resolveToolCalls(entries, registry, {
+            limitExceeded: loopCount > maxToolUse,
+            lectic
+        })
+
+        // Convert to Anthropic blocks for the API.
+        const content: Anthropic.Messages.ContentBlockParam[] = realized.map(
+            (call: ToolCall) => ({
+                type: "tool_result" as const,
+                tool_use_id: call.id ?? "",
+                is_error: call.isError,
+                content: call.results
+                    .filter((r: ToolCallResult) => !isAttachmentMime(r.mimetype))
+                    .map((r: ToolCallResult) => ({
+                        type: "text" as const,
+                        text: r.toBlock().text
+                    }))
+            })
+        )
+
+        // Yield results to the transcript, preserving mimetypes.
+        for (const block of toolUses) {
+            const call = realized.find((c: ToolCall) => c.id === block.id)
+            if (call && block.input instanceof Object) {
+                const theTool = block.name in registry ? registry[block.name] : null
+                yield serializeCall(theTool, {
+                    name: block.name,
+                    args: block.input as Record<string, unknown>,
+                    id: block.id,
+                    isError: call.isError,
+                    results: call.results
+                }) + "\n\n"
+            }
+        }
+
+        // Merge attachments after tool_result blocks in the same user message.
+        content.push(...await collectAttachmentPartsFromCalls(realized, partToContent))
+
+        for (const h of pendingHookRes.filter(h => !inlineReset(h))) {
+            content.push({ type: "text", text: h.content })
+        }
+
+        if (content.length > 0) messages.push({ role: "user", content })
+
+        // Loop continues with updated messages.
     }
 }
 
@@ -392,14 +434,16 @@ export class AnthropicBackend implements Backend {
 
         const messages : Anthropic.Messages.MessageParam[] = []
 
+        // Execute :cmd only if the last message is a user message
+        const lastIdx = lectic.body.messages.length - 1
+        const lastIsUser = lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
+
         const inlineAttachments : InlineAttachment[] = []
 
         for (let i = 0; i < lectic.body.messages.length; i++) {
             const m = lectic.body.messages[i]
-            if (m.role === "user" && i === lectic.body.messages.length - 1) {
-                
-                const hookResults = emitUserMessageEvent(m.content, lectic)
-                inlineAttachments.push(...hookResults)
+            if (m.role === "user" && lastIsUser && i === lastIdx) {
+                inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
 
                 const { messages: newMsgs } = await handleMessage(m, lectic, {
                     inlineAttachments,
@@ -412,58 +456,15 @@ export class AnthropicBackend implements Backend {
             }
         }
 
-        if (!lectic.header.interlocutor.nocache) updateCache(messages)
+        lectic.header.interlocutor.model =
+            lectic.header.interlocutor.model ?? this.defaultModel
 
-        Logger.debug("anthropic - messages", messages)
-
-        const model = lectic.header.interlocutor.model ?? this.defaultModel
-
-        const stream = this.client.messages.stream({
-            system: systemPrompt(lectic),
-            messages: messages,
-            model,
-            temperature: lectic.header.interlocutor.temperature,
-            max_tokens: lectic.header.interlocutor.max_tokens || 2048,
-            tools: getTools(lectic),
-            thinking: lectic.header.interlocutor.thinking_budget !== undefined ? {
-                type: 'enabled',
-                budget_tokens: lectic.header.interlocutor.thinking_budget
-            } : undefined
-        });
-
-        // Emit cached inline attachments at the top of the assistant block
-        if (inlineAttachments.length > 0) {
-            const preface = inlineAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
-            yield preface
-        }
-
-        let assistant = ""
-        for await (const text of anthropicTextChunks(stream)) {
-            yield text
-            assistant += text
-        }
-
-        const msg = await stream.finalMessage()
-
-        Logger.debug("anthropic - reply", msg)
-        const toolUseDone = msg.stop_reason !== "tool_use"
-        const usage = {
-            input: msg.usage.input_tokens,
-            cached: msg.usage.cache_read_input_tokens ?? 0,
-            output: msg.usage.output_tokens,
-            total: msg.usage.input_tokens + msg.usage.output_tokens
-        }
-        const assistantHookRes = emitAssistantMessageEvent(assistant, lectic, { toolUseDone, usage, loopCount: 0, finalPassCount: 0 })
-        if (assistantHookRes.length > 0) {
-             if (assistantHookRes.some(inlineReset)) messages.length = 0
-             yield "\n\n"
-             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n")
-             yield "\n\n"
-        }
-
-        if (assistantHookRes.filter(inlineNotFinal).length > 0 || msg.stop_reason == "tool_use") {
-            yield* handleToolUse(msg, messages, lectic, this.client, assistantHookRes)
-        }
+        yield* runConversationLoop({
+            messages,
+            lectic,
+            client: this.client,
+            inlinePreface: inlineAttachments,
+        })
     }
 }
 

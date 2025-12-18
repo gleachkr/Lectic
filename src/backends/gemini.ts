@@ -58,9 +58,7 @@ function initResponse() : GenerateContentResponse & { candidates: [Candidate,...
       return response as GenerateContentResponse & { candidates: [Candidate,...Candidate[]] }
 }
 
-async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentListUnion) {
-    // model has been set at this point
-    const model = lectic.header.interlocutor.model as string
+async function getResult(lectic: Lectic, client: GoogleGenAI, model : string, messages: ContentListUnion) {
     const nativeTools = (lectic.header.interlocutor.tools || [])
     .filter(tool => "native" in tool)
     .map(tool => tool.native)
@@ -75,9 +73,8 @@ async function getResult(lectic: Lectic, client: GoogleGenAI, messages: ContentL
       default: thinkingConfig = { includeThoughts: true, thinkingBudget: lectic.header.interlocutor.thinking_budget ?? -1 }
     }
 
-
     return await client.models.generateContentStream({
-        model,
+        model: lectic.header.interlocutor.model ?? model,
         contents: messages,
         config: {
             systemInstruction: systemPrompt(lectic),
@@ -151,47 +148,110 @@ function getTools(lectic : Lectic) : Gemini.FunctionDeclaration[] {
 }
 
 
-async function *handleToolUse(
-    response : GenerateContentResponse, 
-    messages : Content[], 
-    lectic : Lectic,
-    client : GoogleGenAI,
-    initialHookRes? : InlineAttachment[]) : AsyncGenerator<string | Message> {
+async function *runConversationLoop(
+    opt: {
+        messages: Content[]
+        lectic: Lectic
+        model: string
+        client: GoogleGenAI
+        inlinePreface: InlineAttachment[]
+    }
+) : AsyncGenerator<string | Message> {
+
+    const messages = opt.messages
+    const lectic = opt.lectic
+    const client = opt.client
+    // model has been set at this point
+    const model = lectic.header.interlocutor.model as string
+
+    const registry = lectic.header.interlocutor.registry ?? {}
+    const maxToolUse = lectic.header.interlocutor.max_tool_use ?? 10
 
     let loopCount = 0
     let finalPassCount = 0
-    const registry = lectic.header.interlocutor.registry ?? {}
-    const max_tool_use = lectic.header.interlocutor.max_tool_use ?? 10
-    let currentHookRes = initialHookRes ?? []
 
-    while (currentHookRes.filter(inlineNotFinal).length > 0 || 
-           response.functionCalls && response.functionCalls.length > 0) {
-        const calls = response.functionCalls ?? []
+    // Preface inline attachments at the top of the assistant block.
+    if (opt.inlinePreface.length > 0) {
+        const preface = opt.inlinePreface
+            .map(serializeInlineAttachment)
+            .join("\n\n") + "\n\n"
+        yield preface
+    }
+
+    let pendingHookRes: InlineAttachment[] = []
+
+    for (;;) {
+        Logger.debug("gemini - messages", messages)
+
+        const accumulatedResponse = initResponse()
+        const result = await getResult(lectic, client, model, messages)
+        yield* accumulateStream(result, accumulatedResponse)
+
+        const hasToolCalls = (accumulatedResponse.functionCalls?.length ?? 0) > 0
+        const usageMeta = accumulatedResponse.usageMetadata
+        const usage = usageMeta ? {
+            input: usageMeta.promptTokenCount ?? 0,
+            cached: usageMeta.cachedContentTokenCount ?? 0,
+            output: usageMeta.candidatesTokenCount ?? 0,
+            total: usageMeta.totalTokenCount ?? 0
+        } : undefined
+
+        pendingHookRes = emitAssistantMessageEvent(
+            geminiAssistantText(accumulatedResponse),
+            lectic,
+            { toolUseDone: !hasToolCalls, usage, loopCount, finalPassCount }
+        )
+
+        if (pendingHookRes.length > 0) {
+            if (!hasToolCalls) finalPassCount++
+            yield "\n\n"
+            yield pendingHookRes.map(serializeInlineAttachment).join("\n\n")
+            yield "\n\n"
+        }
+
+        const needsFollowUp =
+            hasToolCalls || pendingHookRes.filter(inlineNotFinal).length > 0
+
+        if (!needsFollowUp) return
+
         yield "\n\n"
         loopCount++
 
-        if (loopCount > max_tool_use + 2) {
+        if (loopCount > maxToolUse + 2) {
             yield "<error>Runaway tool use!</error>"
             return
         }
 
-        const resetAttachments = currentHookRes.filter(inlineReset)
+        const resetAttachments = pendingHookRes.filter(inlineReset)
         if (resetAttachments.length > 0) {
             messages.length = 0
-            messages.push({ role: "user", parts: resetAttachments.map(h => ({ text: h.content })) })
+            messages.push({
+                role: "user",
+                parts: resetAttachments.map(h => ({ text: h.content }))
+            })
         }
 
         messages.push({
             role: "model",
-            parts: response.candidates?.[0].content?.parts
+            parts: accumulatedResponse.candidates?.[0].content?.parts
         })
+
+        const calls = accumulatedResponse.functionCalls ?? []
 
         // Normalize missing id
         for (const call of calls) call.id = call.id ?? Bun.randomUUIDv7()
 
         // Resolve via shared helper
-        const entries = calls.map(call => ({ id: call.id, name: call.name ?? "", args: call.args }))
-        const realized = await resolveToolCalls(entries, registry, { limitExceeded: loopCount > max_tool_use, lectic })
+        const entries = calls.map(call => ({
+            id: call.id,
+            name: call.name ?? "",
+            args: call.args,
+        }))
+
+        const realized = await resolveToolCalls(entries, registry, {
+            limitExceeded: loopCount > maxToolUse,
+            lectic
+        })
 
         // Convert to provider FunctionResponse parts
         const parts: FunctionResponse[] = realized.map(call => ({
@@ -210,10 +270,8 @@ async function *handleToolUse(
             ...await collectAttachmentPartsFromCalls(realized, partToContent)
         ]
 
-        if (currentHookRes && currentHookRes.length > 0) {
-             for (const h of currentHookRes.filter(h => !inlineReset(h))) {
-                 userParts.push({ text: h.content })
-             }
+        for (const h of pendingHookRes.filter(h => !inlineReset(h))) {
+            userParts.push({ text: h.content })
         }
 
         // yield results
@@ -230,42 +288,8 @@ async function *handleToolUse(
 
         messages.push({ role: "user", parts: userParts })
 
-        Logger.debug("gemini - messages (tool)", messages)
-
-        const accumulatedResponse = initResponse()
-
-        const result = await getResult(lectic, client, messages)
-
-        yield* accumulateStream(result, accumulatedResponse)
-
-        const hasMoreToolCalls = (accumulatedResponse.functionCalls?.length ?? 0) > 0
-        const usageMeta = accumulatedResponse.usageMetadata
-        const usage = usageMeta ? {
-            input: usageMeta.promptTokenCount ?? 0,
-            cached: usageMeta.cachedContentTokenCount ?? 0,
-            output: usageMeta.candidatesTokenCount ?? 0,
-            total: usageMeta.totalTokenCount ?? 0
-        } : undefined
-        currentHookRes = emitAssistantMessageEvent(
-            geminiAssistantText(accumulatedResponse), lectic, 
-            { toolUseDone: !hasMoreToolCalls, usage, loopCount, finalPassCount }
-        )
-
-        if (currentHookRes.length > 0) {
-             if (!hasMoreToolCalls) finalPassCount++
-             yield "\n\n"
-             yield currentHookRes.map(serializeInlineAttachment).join("\n\n") 
-             yield "\n\n"
-        }
-
-        Logger.debug("gemini - reply (tool)", {
-            accumulatedResponse
-        })
-
-        response = accumulatedResponse
-
+        // Loop continues with updated messages.
     }
-
 }
 
 async function partToContent(part : MessageAttachmentPart) 
@@ -450,48 +474,15 @@ export const GeminiBackend : Backend & { client : GoogleGenAI} = {
           }
       }
 
-      Logger.debug("gemini - messages", messages)
+      lectic.header.interlocutor.model =
+          lectic.header.interlocutor.model ?? this.defaultModel
 
-      lectic.header.interlocutor.model = lectic.header.interlocutor.model ?? this.defaultModel
-
-      const result = await getResult(lectic, this.client, messages)
-
-      const accumulatedResponse = initResponse()
-
-      // Emit cached inline attachments at the top of the assistant block
-      if (inlineAttachments.length > 0) {
-          const preface = inlineAttachments.map(serializeInlineAttachment).join("\n\n") + "\n\n"
-          yield preface
-      }
-
-      yield* accumulateStream(result, accumulatedResponse)
-
-      const hasToolCalls = (accumulatedResponse.functionCalls?.length ?? 0) > 0
-      const usageMeta = accumulatedResponse.usageMetadata
-      const usage = usageMeta ? {
-          input: usageMeta.promptTokenCount ?? 0,
-          cached: usageMeta.cachedContentTokenCount ?? 0,
-          output: usageMeta.candidatesTokenCount ?? 0,
-          total: usageMeta.totalTokenCount ?? 0
-      } : undefined
-      const assistantHookRes = emitAssistantMessageEvent(
-          geminiAssistantText(accumulatedResponse), 
+      yield* runConversationLoop({
+          messages,
           lectic,
-          { toolUseDone: !hasToolCalls, usage, loopCount: 0, finalPassCount: 0 }
-      )
-      if (assistantHookRes.length > 0) {
-             if (assistantHookRes.some(inlineReset)) messages.length = 0
-             yield "\n\n"
-             yield assistantHookRes.map(serializeInlineAttachment).join("\n\n") 
-             yield "\n\n"
-      }
-
-      if (hasToolCalls || assistantHookRes.filter(inlineNotFinal).length > 0) {
-          Logger.debug("gemini - reply (tool)", { accumulatedResponse })
-          yield* handleToolUse(accumulatedResponse, messages, lectic, this.client, assistantHookRes);
-      } else {
-          Logger.debug("gemini - reply", { accumulatedResponse })
-      }
+          client: this.client,
+          inlinePreface: inlineAttachments,
+      })
 
     },
 
