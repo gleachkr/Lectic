@@ -6,6 +6,7 @@ import argparse
 import collections
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -176,11 +177,23 @@ def _get_bucket_key(dt: datetime, granularity: str) -> str:
     return str(dt)
 
 
-def _print_graph(db: Dict[str, Any], granularity: str, units: int) -> int:
+def _print_graph(
+    db: Dict[str, Any],
+    granularity: str,
+    units: int,
+    model_filter: Optional[str] = None,
+) -> int:
     hourly = db.get("hourly", {})
     if not isinstance(hourly, dict) or not hourly:
         print("No usage recorded.")
         return 0
+
+    filter_re = None
+    if model_filter:
+        try:
+            filter_re = re.compile(model_filter)
+        except re.error as exc:
+            raise ValueError(f"Invalid filter regex: {exc}") from exc
 
     buckets: Dict[str, Dict[str, Tokens]] = collections.defaultdict(
         lambda: collections.defaultdict(lambda: Tokens(0, 0, 0))
@@ -201,6 +214,9 @@ def _print_graph(db: Dict[str, Any], granularity: str, units: int) -> int:
 
         for model, usage in models.items():
             if not isinstance(usage, dict):
+                continue
+
+            if filter_re and not filter_re.search(model):
                 continue
             
             t_inc = Tokens(
@@ -309,16 +325,23 @@ def main(argv: List[str]) -> int:
         ),
     )
     parser.add_argument(
+        "-g",
         "--granularity",
         choices=["hour", "day", "week", "month"],
         default="day",
         help="Time granularity for the graph (default: day)",
     )
     parser.add_argument(
+        "-u",
         "--units",
         type=int,
         default=14,
         help="Number of time units to show (default: 14)",
+    )
+    parser.add_argument(
+        "-f",
+        "--filter",
+        help="Regex to filter models displayed in the graph",
     )
 
     args = parser.parse_args(argv)
@@ -329,7 +352,7 @@ def main(argv: List[str]) -> int:
 
         path = _usage_path()
         db = _load_json(path)
-        return _print_graph(db, args.granularity, args.units)
+        return _print_graph(db, args.granularity, args.units, args.filter)
     except Exception as exc:  # noqa: BLE001
         print(f"lectic usage: {exc}", file=sys.stderr)
         return 1
