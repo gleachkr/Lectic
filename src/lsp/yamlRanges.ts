@@ -17,6 +17,7 @@ export type HeaderRangeIndex = {
   headerContentStartOffset: number,
   interlocutorNameRanges: Array<{ name: string, range: Range }>,
   macroNameRanges: Array<{ name: string, range: Range }>,
+  kitNameRanges: Array<{ name: string, range: Range }>,
   agentTargetRanges: Array<{ target: string, range: Range }>,
   kitTargetRanges: Array<{ target: string, range: Range }>,
   nativeTypeRanges: Array<{ type: string, range: Range }>,
@@ -41,6 +42,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
 
   const interlocutorNameRanges: Array<{ name: string, range: Range }> = []
   const macroNameRanges: Array<{ name: string, range: Range }> = []
+  const kitNameRanges: Array<{ name: string, range: Range }> = []
   const agentTargetRanges: Array<{ target: string, range: Range }> = []
   const kitTargetRanges: Array<{ target: string, range: Range }> = []
   const nativeTypeRanges: Array<{ type: string, range: Range }> = []
@@ -160,6 +162,25 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     }
   })
 
+  // kits list
+  const kitsVal = getPair(root, 'kits')?.value
+  if (kitsVal) pushField(['kits'], kitsVal)
+  const kitItems = itemsOf(kitsVal)
+  kitItems.forEach((kMap, i) => {
+    if (isObjectRecord(kMap)) {
+      pushField(['kits', i], kMap)
+      const val = getValue(kMap, 'name')
+      const name = stringOf(val)
+      if (name) {
+        const r = nodeAbsRange(docText, val, contentStart)
+        if (r) kitNameRanges.push({ name, range: r })
+        pushField(['kits', i, 'name'], val)
+      }
+      const kt = getValue(kMap, 'tools')
+      if (kt) indexTools(kt, ['kits', i])
+    }
+  })
+
   // hooks list
   const hooksVal = getPair(root, 'hooks')?.value
   if (hooksVal) pushField(['hooks'], hooksVal)
@@ -180,6 +201,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     headerContentStartOffset: contentStart,
     interlocutorNameRanges,
     macroNameRanges,
+    kitNameRanges,
     agentTargetRanges,
     kitTargetRanges,
     nativeTypeRanges,

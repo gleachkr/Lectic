@@ -28,16 +28,16 @@ export async function resolveDefinition(
   if (dctx) {
     // Macros: :name[] / :name[args]
     {
-      const loc = defIndex.getMacro(dctx.key)
-      if (loc) return [loc]
+      const locs = defIndex.getMacros(dctx.key)
+      if (locs.length > 0) return locs
     }
 
     // Interlocutor directives still use bracket content
     if ((dctx.key === "ask" || dctx.key === "aside") && dctx.insideBrackets) {
       const name = dctx.innerText.trim()
       if (name) {
-        const loc = defIndex.getInterlocutor(name)
-        return loc ? [loc] : null
+        const locs = defIndex.getInterlocutors(name)
+        return locs.length > 0 ? locs : null
       }
     }
   }
@@ -46,8 +46,39 @@ export async function resolveDefinition(
   if (idx) {
     for (const a of idx.agentTargetRanges) {
       if (inRange(pos, a.range)) {
-        const loc = defIndex.getInterlocutor(a.target)
-        return loc ? [loc] : null
+        const locs = defIndex.getInterlocutors(a.target)
+        return locs.length > 0 ? locs : null
+      }
+    }
+
+    for (const n of idx.interlocutorNameRanges) {
+      if (inRange(pos, n.range)) {
+        const locs = defIndex.getInterlocutors(n.name)
+          .filter(l => l.uri !== uri)
+        return locs.length > 0 ? locs : null
+      }
+    }
+
+    for (const m of idx.macroNameRanges) {
+      if (inRange(pos, m.range)) {
+        const locs = defIndex.getMacros(m.name)
+          .filter(l => l.uri !== uri)
+        return locs.length > 0 ? locs : null
+      }
+    }
+
+    for (const k of idx.kitTargetRanges) {
+      if (inRange(pos, k.range)) {
+        const locs = defIndex.getKits(k.target)
+        return locs.length > 0 ? locs : null
+      }
+    }
+
+    for (const kn of idx.kitNameRanges) {
+      if (inRange(pos, kn.range)) {
+        const locs = defIndex.getKits(kn.name)
+          .filter(l => l.uri !== uri)
+        return locs.length > 0 ? locs : null
       }
     }
   }
