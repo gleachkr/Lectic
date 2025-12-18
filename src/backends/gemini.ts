@@ -152,7 +152,6 @@ async function *runConversationLoop(
     opt: {
         messages: Content[]
         lectic: Lectic
-        model: string
         client: GoogleGenAI
         inlinePreface: InlineAttachment[]
     }
