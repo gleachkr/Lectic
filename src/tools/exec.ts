@@ -123,6 +123,7 @@ function spawnCommand(
 export class ExecTool extends Tool {
 
     name: string
+    kind = "exec"
     exec: string
     isScript: boolean
     sandbox?: string

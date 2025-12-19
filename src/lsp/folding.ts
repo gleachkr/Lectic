@@ -1,5 +1,5 @@
 import type { FoldingRange as LspFoldingRange } from "vscode-languageserver"
-import { FoldingRange as LspFR, FoldingRangeKind } from "vscode-languageserver/node"
+import { FoldingRangeKind } from "vscode-languageserver/node"
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
 import { nodeRaw } from "../parsing/markdown"
@@ -25,12 +25,59 @@ export function buildFoldingRangesFromAst(ast: Root, docText: string): LspFoldin
       const startLine =  Math.max(0, (pos.start.line ?? 1) - 1)
       const endLine =  Math.max(0, (pos.end.line ?? 1) - 1)
       if (endLine > startLine) {
-        out.push(LspFR.create(startLine, endLine, FoldingRangeKind.Region))
+        const collapsedText = getCollapsedText(raw)
+        out.push({ 
+            startLine, 
+            endLine, 
+            kind: FoldingRangeKind.Region,
+            collapsedText
+        })
       }
     }
   }
 
   return out
+}
+
+function getCollapsedText(raw: string): string {
+  const useNerdFont = process.env["NERD_FONT"] === "1"
+  const line = raw.split("\n")[0].trim()
+
+  if (line.startsWith("<tool-call")) {
+    const nameMatch = /with="([^"]*)"/.exec(line)
+    const kindMatch = /kind="([^"]*)"/.exec(line)
+    const name = nameMatch ? nameMatch[1] : "tool"
+    const kind = kindMatch ? kindMatch[1] : ""
+
+    if (useNerdFont) {
+      let icon = " "
+      switch (kind) {
+        case "sqlite": icon = " "; break
+        case "exec": icon = " "; break
+        case "mcp": icon = " "; break
+        case "think": icon = " "; break
+        case "serve": icon = "󰖟 "; break
+        case "agent": icon = "󰚩 "; break
+      }
+      return `${icon} ${name}`
+    } else {
+      const label = kind ? `${kind} tool` : "tool"
+      return `[${label}: ${name}]`
+    }
+  }
+
+  if (line.startsWith("<inline-attachment")) {
+    const kindMatch = /kind="([^"]*)"/.exec(line)
+    const kind = kindMatch ? kindMatch[1] : "cmd"
+
+    if (useNerdFont) {
+      return kind === "hook" ? "󱐋 hook" : "  cmd"
+    } else {
+      return `[${kind}]`
+    }
+  }
+
+  return "..."
 }
 
 export async function buildFoldingRanges(docText: string): Promise<LspFoldingRange[]> {

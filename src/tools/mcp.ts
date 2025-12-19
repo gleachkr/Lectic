@@ -163,6 +163,7 @@ function isMediaContent(raw: unknown): raw is {
 class MCPListResources extends Tool {
 
     server_name: string
+    kind = "mcp"
     description: string
     name : string
     client: Client
@@ -205,6 +206,7 @@ class MCPListResources extends Tool {
 
 export class MCPTool extends Tool {
     name: string
+    kind = "mcp"
     server_tool_name: string
     server_name: string
     description: string

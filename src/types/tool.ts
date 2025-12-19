@@ -47,6 +47,7 @@ export abstract class Tool {
     abstract description: string
     abstract parameters: { [_ : string] : JSONSchema }
     abstract required : string[]
+    abstract kind: string
     hooks: Hook[]
 
     constructor(hooks?: HookSpec[]) {
@@ -104,14 +105,15 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
 
     const idstring = id ? ` id="${id}"` : ""
     const errorstring = isError !== undefined ? ` is-error="${isError}"` : ""
+    const kindstring = tool ? ` kind="${tool.kind}"` : ""
 
-    return `<tool-call with="${name}"${idstring}${errorstring}>\n` +
+    return `<tool-call with="${name}"${idstring}${errorstring}${kindstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
         `<results>${results.map(r => r.toXml()).join("\n")}</results>\n` +
     `</tool-call>`
 }
 
-const toolCallRegex = /^<tool-call\s+with="(.*?)"(\s+id="(.*?)")?(\s+is-error="(.*?)")?\s*>([\s\S]*)<\/tool-call>$/
+const toolCallRegex = /^<tool-call\b([^>]*)>([\s\S]*)<\/tool-call>$/
 
 export function deserializeCall(tool: Tool | null, serialized : string) 
     : ToolCall | null {
@@ -119,7 +121,22 @@ export function deserializeCall(tool: Tool | null, serialized : string)
     const match = toolCallRegex.exec(serialized.trim())
     if (!match) return null
 
-    const [,name,, id,, isErrorStr, inner] = match
+    const attrsStr = match[1]
+    const inner = match[2]
+
+    const attributes: Record<string, string> = {}
+    const re = /([a-zA-Z0-9_:-]+)="([^"]*)"/g
+    let m
+    while ((m = re.exec(attrsStr)) !== null) {
+        attributes[m[1]] = m[2].replace(/&quot;/g, '"')
+    }
+
+    const name = attributes["with"]
+    const id = attributes["id"]
+    const isErrorStr = attributes["is-error"]
+
+    if (!name) return null
+
     const [argstring, results] = extractElements(inner)
 
     let args: Record<string, unknown> = {}
@@ -141,8 +158,10 @@ export function deserializeCall(tool: Tool | null, serialized : string)
 }
 
 export function getSerializedCallName(call : string) : string | null {
-    const result = toolCallRegex.exec(call.trim())
-    return result && result[1]
+    const match = toolCallRegex.exec(call.trim())
+    if (!match) return null
+    const nameMatch = /with="([^"]*)"/.exec(match[1])
+    return nameMatch ? nameMatch[1] : null
 }
 
 export function isSerializedCall(call : string) : boolean {

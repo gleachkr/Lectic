@@ -25,6 +25,7 @@ export function isAgentToolSpec(raw : unknown) : raw is AgentToolSpec {
 export class AgentTool extends Tool {
 
     name: string
+    kind = "agent"
     agent: Interlocutor
     interlocutors: Interlocutor[]
     description: string

@@ -45,6 +45,7 @@ Each tool call is handled atomically: changes are rolled back if any error occur
 export class SQLiteTool extends Tool {
 
     name: string
+    kind = "sqlite"
     details: string | undefined
     limit: number | undefined
     db: Database
