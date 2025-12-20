@@ -29,9 +29,9 @@
         name = "lectic-full";
         src = ./.;
         buildPhase = ''
-          mkdir $out
-          cp ${lectic}/bin/lectic $out
-          find $src/extra -type f -name "lectic-*" -exec cp {} $out \;
+          mkdir -p $out/bin
+          cp ${lectic}/bin/lectic $out/bin
+          find $src/extra -type f -name "lectic-*" -exec cp {} $out/bin \;
         '';
       };
 

@@ -1,16 +1,21 @@
 import { lecticConfigDir, lecticDataDir, lecticEnv } from "./utils/xdg";
 import { Logger } from "./logging/logger";
+import { delimiter } from "node:path"
+import { existsSync, statSync, realpathSync, constants } from "node:fs"
 
 export async function tryRunSubcommand(command: string, args: string[]) {
-    // Directories to search in order: Config, Data
-    const searchDirs = [lecticConfigDir(), lecticDataDir()];
+    // Directories to search in order: Config, Data, PATH
+    const path = (process.env["PATH"] || "").split(delimiter)
+    const searchDirs = [lecticConfigDir(), lecticDataDir(), ...path];
     
-    // XXX: undefined searches PATH
-    for (const dir of [...searchDirs, undefined]) {
+    for (const dir of searchDirs) {
+        if (!existsSync(dir) || !statSync(dir).isDirectory()) continue
         const cmdGlob = new Bun.Glob(`lectic-${command}{,.*}`)
-        const matches = [... cmdGlob.scanSync({ cwd: dir })]
-            .map(file => Bun.which(file, { PATH : dir }))
-            .filter(file => file !== null)
+        const matches = [... cmdGlob.scanSync({ cwd: dir, onlyFiles: false })]
+            // resolve symlinks
+            .map(file => realpathSync(`${dir}/${file}`))
+            // filter to executables
+            .filter(file => statSync(file).mode & constants.S_IXUSR)
         if (matches.length > 1) {
             Logger.write(`multiple commands available: \n ${matches}\n`);
             break
