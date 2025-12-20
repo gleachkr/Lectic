@@ -22,7 +22,7 @@ _lectic_complete_usage() {
   esac
 
   local opts
-  opts="--hook -g --granularity -u --units -f --filter -h --help"
+  opts="--hook -g --granularity -u --units -f --filter -p --price --refresh-prices -h --help"
 
   COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
 

@@ -40,6 +40,17 @@ def _usage_path() -> Path:
     return Path(data) / "usage.json"
 
 
+def _prices_path() -> Path:
+    data = os.environ.get("LECTIC_DATA")
+    if not data:
+        raise RuntimeError(
+            "LECTIC_DATA is not set. Run via 'lectic usage' or set "
+            "LECTIC_DATA explicitly."
+        )
+
+    return Path(data) / "prices.json"
+
+
 def _parse_int_env(name: str) -> int:
     raw = os.environ.get(name)
     if raw is None or raw == "":
@@ -155,8 +166,33 @@ def _record_hook_usage() -> int:
     return 0
 
 
+def _refresh_prices() -> int:
+    import urllib.request
+
+    url = "https://www.llm-prices.com/current-v1.json"
+    path = _prices_path()
+    print(f"Refreshing prices from {url}...")
+    try:
+        with urllib.request.urlopen(url) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            _atomic_write_json(path, data)
+            print(f"Prices saved to {path}")
+            return 0
+    except Exception as e:
+        print(f"Error refreshing prices: {e}", file=sys.stderr)
+        return 1
+
+
 def _fmt_int(n: int) -> str:
     return f"{n:,}"
+
+
+def _fmt_money(amount: float) -> str:
+    if amount == 0:
+        return "$0.00"
+    if amount < 0.01:
+        return f"${amount:,.4f}"
+    return f"${amount:,.2f}"
 
 
 def _get_color(index: int) -> str:
@@ -182,6 +218,7 @@ def _print_graph(
     granularity: str,
     units: int,
     model_filter: Optional[str] = None,
+    show_price: bool = False,
 ) -> int:
     hourly = db.get("hourly", {})
     if not isinstance(hourly, dict) or not hourly:
@@ -195,8 +232,43 @@ def _print_graph(
         except re.error as exc:
             raise ValueError(f"Invalid filter regex: {exc}") from exc
 
+    price_map: Dict[str, Dict[str, float]] = {}
+    if show_price:
+        path = _prices_path()
+        if not path.exists():
+            print(
+                "Warning: prices.json not found. Run with --refresh-prices "
+                "to download it.",
+                file=sys.stderr,
+            )
+        else:
+            prices_data = _load_json(path)
+            for item in prices_data.get("prices", []):
+                p_id = item.get("id")
+                if not p_id:
+                    continue
+                price_map[p_id] = {
+                    "input": float(item.get("input", 0) or 0),
+                    "output": float(item.get("output", 0) or 0),
+                    "input_cached": float(
+                        item.get("input_cached")
+                        if item.get("input_cached") is not None
+                        else item.get("input", 0) or 0
+                    ),
+                }
+
     buckets: Dict[str, Dict[str, Tokens]] = collections.defaultdict(
         lambda: collections.defaultdict(lambda: Tokens(0, 0, 0))
+    )
+
+    # If showing price, we also want to track costs in the same structure
+    # but we'll use a float for the values.
+    costs: Dict[str, Dict[str, float]] = collections.defaultdict(
+        lambda: collections.defaultdict(float)
+    )
+    # We'll also need sub-costs for the stacked bar
+    sub_costs: Dict[str, Dict[str, Dict[str, float]]] = collections.defaultdict(
+        lambda: collections.defaultdict(lambda: {"input": 0.0, "output": 0.0, "cached": 0.0})
     )
 
     for time_str, data in hourly.items():
@@ -218,17 +290,33 @@ def _print_graph(
 
             if filter_re and not filter_re.search(model):
                 continue
-            
+
             t_inc = Tokens(
                 input=int(usage.get("input_tokens", 0)),
                 output=int(usage.get("output_tokens", 0)),
                 cached=int(usage.get("cached_tokens", 0)),
             )
-            
+
             current = buckets[key][model]
             current.input += t_inc.input
             current.output += t_inc.output
             current.cached += t_inc.cached
+
+            if show_price:
+                p = price_map.get(model)
+                if p:
+                    uncached = t_inc.input - t_inc.cached
+                    c_in = (uncached * p["input"]) / 1_000_000
+                    c_cached = (t_inc.cached * p["input_cached"]) / 1_000_000
+                    c_out = (t_inc.output * p["output"]) / 1_000_000
+                    
+                    costs[key][model] += (c_in + c_cached + c_out)
+                    sub_costs[key][model]["input"] += c_in
+                    sub_costs[key][model]["cached"] += c_cached
+                    sub_costs[key][model]["output"] += c_out
+                else:
+                    # Model not found in price map, remains 0.0
+                    pass
 
     sorted_keys = sorted(buckets.keys())
     if units > 0:
@@ -239,19 +327,28 @@ def _print_graph(
         return 0
 
     # Calculate scaling
-    max_total = 0
+    max_total = 0.0
     all_models = set()
     for key in sorted_keys:
-        models_usage = buckets[key]
-        total = sum(t.total for t in models_usage.values())
+        if show_price:
+            models_cost = costs[key]
+            total = sum(models_cost.values())
+            all_models.update(models_cost.keys())
+        else:
+            models_usage = buckets[key]
+            total = float(sum(t.total for t in models_usage.values()))
+            all_models.update(models_usage.keys())
+        
         if total > max_total:
             max_total = total
-        all_models.update(models_usage.keys())
 
     sorted_models = sorted(list(all_models))
     model_colors = {m: _get_color(i) for i, m in enumerate(sorted_models)}
 
-    print(f"Usage by {granularity} (Tokens)")
+    if show_price:
+        print(f"Usage by {granularity} (USD)")
+    else:
+        print(f"Usage by {granularity} (Tokens)")
     print("")
 
     # Legend
@@ -266,10 +363,14 @@ def _print_graph(
 
     width = 40
     for key in sorted_keys:
-        models_usage = buckets[key]
-        total = sum(t.total for t in models_usage.values())
-
         bar_str = ""
+        if show_price:
+            models_cost = costs[key]
+            total = sum(models_cost.values())
+        else:
+            models_usage = buckets[key]
+            total = float(sum(t.total for t in models_usage.values()))
+
         if max_total > 0:
             bar_len = int((total / max_total) * width)
         else:
@@ -277,24 +378,34 @@ def _print_graph(
 
         # Sort models to keep color order consistent in the bar
         for m in sorted_models:
-            val = models_usage.get(m)
-            if not val or val.total == 0:
-                continue
+            if show_price:
+                val_cost = costs[key].get(m, 0.0)
+                if val_cost == 0:
+                    continue
+                
+                # Calculate segment length for this model
+                model_seg_len = int((val_cost / total) * bar_len) if total > 0 else 0
+                if model_seg_len == 0:
+                    continue
+                
+                sc = sub_costs[key][m]
+                out_len = int((sc["output"] / val_cost) * model_seg_len)
+                cached_len = int((sc["cached"] / val_cost) * model_seg_len)
+                inp_len = model_seg_len - out_len - cached_len
+            else:
+                val = buckets[key].get(m)
+                if not val or val.total == 0:
+                    continue
 
-            # Calculate segment length for this model
-            model_seg_len = int((val.total / total) * bar_len) if total > 0 else 0
-            if model_seg_len == 0:
-                continue
-            
-            # Now distribute model_seg_len into output, input, cached
-            # Output (Full block)
-            out_len = int((val.output / val.total) * model_seg_len)
-            
-            # Cached (Light shade)
-            cached_len = int((val.cached / val.total) * model_seg_len)
-            
-            # Input (Dark shade) - gets the remainder to ensure sum equals model_seg_len
-            inp_len = model_seg_len - out_len - cached_len
+                # Calculate segment length for this model
+                model_seg_len = int((val.total / total) * bar_len) if total > 0 else 0
+                if model_seg_len == 0:
+                    continue
+                
+                # Now distribute model_seg_len into output, input, cached
+                out_len = int((val.output / val.total) * model_seg_len)
+                cached_len = int((val.cached / val.total) * model_seg_len)
+                inp_len = model_seg_len - out_len - cached_len
             
             color = model_colors[m]
             bar_str += f"{color}"
@@ -303,7 +414,8 @@ def _print_graph(
             bar_str += "░" * cached_len
             bar_str += f"{RESET}"
 
-        print(f"{key:<16} │ {bar_str} {_fmt_int(total)}")
+        total_fmt = _fmt_money(total) if show_price else _fmt_int(int(total))
+        print(f"{key:<16} │ {bar_str} {total_fmt}")
 
     print("─" * 78)
     return 0
@@ -343,16 +455,36 @@ def main(argv: List[str]) -> int:
         "--filter",
         help="Regex to filter models displayed in the graph",
     )
+    parser.add_argument(
+        "-p",
+        "--price",
+        action="store_true",
+        help="Show usage in USD instead of tokens",
+    )
+    parser.add_argument(
+        "--refresh-prices",
+        action="store_true",
+        help="Download fresh pricing data from llm-prices.com",
+    )
 
     args = parser.parse_args(argv)
 
     try:
+        if args.refresh_prices:
+            return _refresh_prices()
+
         if args.hook:
             return _record_hook_usage()
 
         path = _usage_path()
         db = _load_json(path)
-        return _print_graph(db, args.granularity, args.units, args.filter)
+        return _print_graph(
+            db,
+            args.granularity,
+            args.units,
+            args.filter,
+            show_price=args.price,
+        )
     except Exception as exc:  # noqa: BLE001
         print(f"lectic usage: {exc}", file=sys.stderr)
         return 1
