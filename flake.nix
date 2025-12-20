@@ -21,9 +21,19 @@
         inherit sqlite-vec-repo; 
       };
 
-      packages.default = lectic;
+      packages.default = self.packages.${system}.lectic-core;
 
-      packages.lectic = lectic;
+      packages.lectic-core = lectic;
+
+      packages.lectic-full = with pkgs; stdenvNoCC.mkDerivation {
+        name = "lectic-full";
+        src = ./.;
+        buildPhase = ''
+          mkdir $out
+          cp ${lectic}/bin/lectic $out
+          find $src/extra -type f -name "lectic-*" -exec cp {} $out \;
+        '';
+      };
 
       packages.lectic-appimage = nix-appimage.bundlers.${system}.default lectic;
 
