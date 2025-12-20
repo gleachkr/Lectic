@@ -66,35 +66,35 @@ describe("folding ranges (inline-attachment)", () => {
 })
 
 describe("folding ranges (collapsedText)", () => {
-  let originalNerdFont = process.env.NERD_FONT
+  const originalNerdFont = process.env["NERD_FONT"]
 
   afterAll(() => {
-    process.env.NERD_FONT = originalNerdFont
+    process.env["NERD_FONT"] = originalNerdFont
   })
 
   test("tool-call shows icon and name when NERD_FONT=1", async () => {
-    process.env.NERD_FONT = "1"
+    process.env["NERD_FONT"] = "1"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with="my_db" kind="sqlite">\n<results>\n</results>\n</tool-call>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges[0].collapsedText).toBe("  my_db")
   })
 
   test("tool-call shows text and name when NERD_FONT is not 1", async () => {
-    process.env.NERD_FONT = "0"
+    process.env["NERD_FONT"] = "0"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with="my_db" kind="sqlite">\n<results>\n</results>\n</tool-call>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges[0].collapsedText).toBe("[sqlite tool: my_db]")
   })
 
   test("inline-attachment shows cmd icon when NERD_FONT=1", async () => {
-    process.env.NERD_FONT = "1"
+    process.env["NERD_FONT"] = "1"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="cmd">\n<command>ls</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges[0].collapsedText).toBe("  cmd")
   })
 
   test("inline-attachment shows hook icon when NERD_FONT=1", async () => {
-    process.env.NERD_FONT = "1"
+    process.env["NERD_FONT"] = "1"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="hook">\n<command>hook.sh</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges[0].collapsedText).toBe("󱐋 hook")
