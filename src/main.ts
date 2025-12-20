@@ -51,7 +51,7 @@ program
 .command('script')
 .description(
     'Experimental: run a JS/TS module as a hashbang-style script. The module '
-    + 'must export a function named main().'
+    + 'may export a default function to be executed.'
 )
 .allowExcessArguments(true)
 .argument('[args...]', 'Module path followed by any script args')
