@@ -379,7 +379,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a></li>
   <li><a href="#subcommands" id="toc-subcommands" class="nav-link" data-scroll-target="#subcommands">Subcommands</a></li>
   <li><a href="#custom-subcommands" id="toc-custom-subcommands" class="nav-link" data-scroll-target="#custom-subcommands">Custom Subcommands</a></li>
-  <li><a href="#flags-and-options" id="toc-flags-and-options" class="nav-link" data-scroll-target="#flags-and-options">Flags and options</a></li>
+  <li><a href="#bash-completion" id="toc-bash-completion" class="nav-link" data-scroll-target="#bash-completion">Bash completion</a>
+  <ul class="collapse">
+  <li><a href="#custom-completion-functions-for-custom-subcommands" id="toc-custom-completion-functions-for-custom-subcommands" class="nav-link" data-scroll-target="#custom-completion-functions-for-custom-subcommands">Custom completion functions for custom subcommands</a></li>
+  </ul></li>
   <li><a href="#constraints" id="toc-constraints" class="nav-link" data-scroll-target="#constraints">Constraints</a></li>
   <li><a href="#common-examples" id="toc-common-examples" class="nav-link" data-scroll-target="#common-examples">Common examples</a></li>
   </ul></li>
@@ -431,8 +434,32 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> hello</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This mechanism allows you to extend Lectic with your own tools and workflows.</p>
 </section>
-<section id="flags-and-options" class="level2">
-<h2 class="anchored" data-anchor-id="flags-and-options">Flags and options</h2>
+<section id="bash-completion" class="level2">
+<h2 class="anchored" data-anchor-id="bash-completion">Bash completion</h2>
+<p>The repository includes a bash completion script at:</p>
+<ul>
+<li><code>extra/tab_complete/lectic_completion.bash</code></li>
+</ul>
+<p>Source it from your <code>~/.bashrc</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> /path/to/lectic_completion.bash</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="custom-completion-functions-for-custom-subcommands" class="level3">
+<h3 class="anchored" data-anchor-id="custom-completion-functions-for-custom-subcommands">Custom completion functions for custom subcommands</h3>
+<p>You can attach a completion function to a custom subcommand by creating a plugin file. Plugins are sourced when the completion script is loaded.</p>
+<p>Supported locations:</p>
+<ul>
+<li><code>${XDG_CONFIG_HOME:-$HOME/.config}/lectic/completions/*.bash</code></li>
+<li><code>${XDG_DATA_HOME:-$HOME/.local/share}/lectic/completions/*.bash</code></li>
+<li>Next to the subcommand executable as: <code>lectic-&lt;cmd&gt;.completion.bash</code></li>
+</ul>
+<p>A plugin should define a completion function and register it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">_lectic_complete_foo()</span> <span class="kw">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">cur</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">cur</span><span class="op">=</span><span class="st">"</span><span class="va">${COMP_WORDS</span><span class="op">[</span>COMP_CWORD<span class="op">]</span><span class="va">}</span><span class="st">"</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">COMPREPLY</span><span class="op">=</span><span class="va">(</span> <span class="va">$(</span><span class="bu">compgen</span> <span class="at">-W</span> <span class="st">"--help --verbose"</span> <span class="at">--</span> <span class="st">"</span><span class="va">${cur}</span><span class="st">"</span><span class="va">)</span> <span class="va">)</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic_register_completion</span> foo _lectic_complete_foo</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The repository includes an example completion plugin for the <code>worktree</code> subcommand at <code>extra/sandbox/lectic-worktree.completion.bash</code>. ## Flags and options</p>
 <ul>
 <li><p><code>-v</code>, <code>--version</code> Prints the version string.</p></li>
 <li><p><code>-f</code>, <code>--file &lt;PATH&gt;</code> Path to the conversation file (<code>.lec</code>) to process. If omitted, Lectic reads from standard input.</p></li>
@@ -443,6 +470,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><code>-q</code>, <code>--quiet</code> Suppress printing the assistant’s response to stdout.</p></li>
 <li><p><code>-h</code>, <code>--help</code> Show help for all flags and options.</p></li>
 </ul>
+</section>
 </section>
 <section id="constraints" class="level2">
 <h2 class="anchored" data-anchor-id="constraints">Constraints</h2>
@@ -455,21 +483,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="common-examples">Common examples</h2>
 <ul>
 <li><p>Generate the next message in a file and update it in place:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Read from stdin and write the full result to stdout:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Stream just the new assistant message:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-s</span> <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-s</span> <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Add a message from the command line and update the file:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"This is a new message."</span> <span class="kw">|</span> <span class="ex">lectic</span> <span class="at">-i</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"This is a new message."</span> <span class="kw">|</span> <span class="ex">lectic</span> <span class="at">-i</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>List available models for detected providers:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> models</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> models</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Start the LSP server (stdio transport):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> lsp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> lsp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Parse a file to JSON:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Round-trip a file through parsing and reconstruction:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span> parse <span class="at">--reverse</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span> parse <span class="at">--reverse</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 </ul>
 
 

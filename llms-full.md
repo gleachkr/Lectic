@@ -2651,7 +2651,44 @@ lectic hello
 This mechanism allows you to extend Lectic with your own tools and
 workflows.
 
-## Flags and options
+## Bash completion
+
+The repository includes a bash completion script at:
+
+- `extra/tab_complete/lectic_completion.bash`
+
+Source it from your `~/.bashrc`:
+
+``` bash
+source /path/to/lectic_completion.bash
+```
+
+### Custom completion functions for custom subcommands
+
+You can attach a completion function to a custom subcommand by creating
+a plugin file. Plugins are sourced when the completion script is loaded.
+
+Supported locations:
+
+- `${XDG_CONFIG_HOME:-$HOME/.config}/lectic/completions/*.bash`
+- `${XDG_DATA_HOME:-$HOME/.local/share}/lectic/completions/*.bash`
+- Next to the subcommand executable as: `lectic-<cmd>.completion.bash`
+
+A plugin should define a completion function and register it:
+
+``` bash
+_lectic_complete_foo() {
+  local cur
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  COMPREPLY=( $(compgen -W "--help --verbose" -- "${cur}") )
+}
+
+lectic_register_completion foo _lectic_complete_foo
+```
+
+The repository includes an example completion plugin for the `worktree`
+subcommand at `extra/sandbox/lectic-worktree.completion.bash`. \## Flags
+and options
 
 - `-v`, `--version` Prints the version string.
 
@@ -2961,10 +2998,12 @@ suggestions for directives and macro names. - Type `:su` (with a
 `:summarize[]$0`. - Type `:ask[` or `:aside[` → invoke completion to see
 interlocutor names; selecting a name replaces only the text inside the
 `[`…`]`. - Type `::` or `:::` → no suggestions (reserved for directive
-fences). - Place the cursor on `:name[]` and invoke “Go to Definition”
-to jump to the YAML name in the document header. If not present locally,
-the LSP will jump to the name in the nearest config (`lectic.yaml` in
-the document directory, then the system config).
+fences). - Place the cursor on a directive (e.g., `:name[]`,
+`:ask[Name]`) or a name field in the YAML header (e.g.,
+`name: Assistant`) and invoke “Go to Definition” to jump to the relevant
+definition. If multiple definitions exist (e.g., a local override of a
+workspace or system interlocutor), the LSP returns all locations,
+prioritized by proximity (local \> workspace \> system).
 
 Neovim setup (vim.lsp.start) - Minimal startup for the current buffer:
 
