@@ -104,7 +104,9 @@ isolated environment, limiting its access to your system. Arguments are
 supported (e.g. `sandbox: wrapper.sh --strict`).
 
 See the documentation for the [Exec Tool](./02_exec.qmd) for more details on
-how sandboxing scripts work.
+how sandboxing scripts work, and the
+[Custom Sandboxing](../cookbook/06_custom_sandboxing.qmd) recipe for
+examples.
 
 You can also set a default `sandbox` on the `interlocutor` object. If set,
 it applies to all local MCP tools that don't specify their own.

@@ -1,0 +1,198 @@
+# Recipe: Custom Sandboxing
+
+Giving an LLM access to `exec` tools is powerful, but it carries risk. While
+Lectic provides a `sandbox` configuration option, it doesn't enforce a specific
+technology. Instead, it delegates execution to a script you control.
+
+This recipe walks you through the sandbox script mechanism and helps you write
+wrappers to isolate tool execution.
+
+## The Sandbox Protocol
+
+When you configure a `sandbox` in your `lectic.yaml`, Lectic wraps the
+execution of `exec` tools and local `mcp_command` tools. Instead of executing
+the tool directly, it executes your sandbox script and passes the tool's
+command and arguments as arguments to that script.
+
+**An exec tool without sandbox:**
+Lectic runs: `ls -la`
+
+**With `sandbox: ./wrapper.sh`:**
+Lectic runs: `./wrapper.sh ls -la`
+
+The command to launch an MCP server is wrapped by the sandbox script in
+a similar way.
+
+Your sandbox script is responsible for:
+
+1.  Setting up the environment.
+2.  Executing the command (passed in `$@`).
+3.  Cleaning up.
+4.  Returning the exit code.
+
+## Level 1: Observability Wrapper
+
+Before trying to isolate the filesystem, let's make a wrapper that simply
+logs every command the assistant tries to run. This is useful for auditing.
+
+Create `~/.config/lectic/audit.sh`:
+
+```bash
+#!/bin/bash
+# Append timestamp and command to a log file
+echo "[$(date)] Executing: $*" >> "$HOME/.lectic_audit_log"
+
+# Run the actual command
+exec "$@"
+```
+
+Make it executable:
+
+```bash
+chmod +x ~/.config/lectic/audit.sh
+```
+
+Configure it in `lectic.yaml`:
+
+```yaml
+interlocutor:
+  name: Assistant
+  # Apply to all exec/local MCP tools for this interlocutor
+  sandbox: ~/.config/lectic/audit.sh
+  tools:
+    - exec: ls
+```
+
+## Level 2: Filesystem Isolation (Bubblewrap)
+
+For actual safety, we can use [Bubblewrap](https://github.com/containers/bubblewrap)
+(`bwrap`). This tool creates a new namespace for the process, allowing you to
+control exactly which parts of your filesystem the assistant can see or write
+to.
+
+Here is a simplified version of the `lectic-bwrap` script found in the
+Lectic repository. It creates a read-only view of the system but gives the
+assistant a temporary, empty home directory.
+
+Create `~/.config/lectic/safe-run.sh`:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# Create a temporary directory for the assistant's "home"
+FAKE_HOME=$(mktemp -d)
+
+# Ensure we clean up the temp dir when the script exits
+trap 'rm -rf "$FAKE_HOME"' EXIT
+
+# Run bwrap with specific permissions
+bwrap \
+  --ro-bind / / \                 # Mount the root as read-only
+  --dev /dev \                    # legitimate devices
+  --proc /proc \                  # legitimate processes
+  --bind "$PWD" "$PWD" \          # Allow read-write access to current project
+  --bind "$FAKE_HOME" "$HOME" \   # Fake the home directory
+  --unshare-net \                 # Disable network access (optional)
+  --die-with-parent \             # Kill process if lectic dies
+  "$@"
+```
+
+### How this protects you
+
+1.  **Read-only Root**: The assistant cannot modify system files (`/usr`,
+    `/bin`, etc.).
+2.  **Fake Home**: If the assistant runs `rm -rf ~`, it only deletes the
+    temporary directory, not your actual home folder.
+3.  **Project Access**: The script explicitly binds `$PWD`, so the assistant
+    can still read and write files in the directory where you ran Lectic.
+4.  **No Network**: The `--unshare-net` flag prevents the assistant from
+    making outbound connections (remove this if you want it to use `curl` or
+    something similar).
+
+## Level 3: Stateful Isolation (The "Shadow Workspace")
+
+Isolating the filesystem by copying the project to a temporary directory is
+a great way to protect your work. However, simple scripts that create a new
+directory for every command will break stateful workflows (e.g., `git init`
+followed by `git commit` won't work if they run in different directories).
+
+To fix this, we need a **stateful sandbox** that persists across tool calls.
+We can use environment variables provided by Lectic to identify the session.
+
+Create `~/.config/lectic/shadow-run.sh`:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+# 1. Generate a stable path for this project + interlocutor
+# Using a hash of the current directory ensures we get a unique sandbox per project
+PROJ_HASH=$(echo -n "$PWD" | md5sum | awk '{print $1}')
+SANDBOX_ROOT="${TMPDIR:-/tmp}/lectic-sandbox-${PROJ_HASH}"
+# LECTIC_INTERLOCUTOR is provided by Lectic
+SANDBOX_DIR="$SANDBOX_ROOT/${LECTIC_INTERLOCUTOR:-default}"
+
+# 2. Initialize the sandbox if it's new
+if [[ ! -d "$SANDBOX_DIR" ]]; then
+  echo "Initializing sandbox at $SANDBOX_DIR..." >&2
+  mkdir -p "$SANDBOX_DIR"
+  # Copy the project to the sandbox
+  cp -r . "$SANDBOX_DIR"
+fi
+
+cd "$SANDBOX_DIR"
+
+# 3. Run the command
+"$@"
+```
+
+This script creates a "shadow" copy of your project that persists as long as
+you don't delete the temporary directory. The assistant can make changes,
+run builds, and edit files without affecting your real project. If you like
+the results, you can manually copy them back.
+
+## Configuration Usage
+
+You can apply sandboxes globally to an interlocutor or to specific tools.
+
+**Global (Recommended):**
+This ensures every `exec` tool the assistant uses is wrapped.
+
+```yaml
+interlocutor:
+  name: Assistant
+  sandbox: ~/.config/lectic/safe-run.sh
+  tools:
+    - exec: bash
+    - exec: python3
+```
+
+**Per-Tool:**
+Useful if you have a specific "dangerous" tool that needs isolation while
+others (like `ls`) can run natively.
+
+```yaml
+tools:
+  - exec: rm
+    name: delete_files
+    sandbox: ~/.config/lectic/safe-run.sh
+  - exec: ls
+    name: list_files
+    # No sandbox
+```
+
+## Tips
+
+- **Environment Variables**: Lectic passes environment variables (like
+  `LECTIC_INTERLOCUTOR`) to your sandbox script. You can use these to create
+  per-interlocutor isolation directories. See the full list in the
+  Environment](../tools/02_exec.qmd#execution-environment) and [Configuration
+  [Configuration Reference](../reference/02_configuration.qmd#overriding-default-directories).
+  for lists of available variables.
+- **Complex Arguments**: If your sandbox script needs its own arguments, just
+  add them in the config string: `sandbox: ./wrapper.sh --allow-net`.
+- **High-Latency Sandboxes**: Tools are often called frequently in a loop.
+  Heavy isolation methods like `docker run` can introduce significant latency
+  per turn. If using Docker, prefer `docker exec` into an already-running
+  container over spinning up a new container for every command.

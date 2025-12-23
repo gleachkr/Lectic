@@ -16,3 +16,5 @@ can be adapted to your needs.
   SQLite and retrieving relevant context.
 - [Context Compaction](./05_context_compaction.qmd): Automatically
   summarizing and resetting context when token limits approach.
+- [Custom Sandboxing](./06_custom_sandboxing.qmd): Isolate tool execution
+  using wrapper scripts like Bubblewrap.

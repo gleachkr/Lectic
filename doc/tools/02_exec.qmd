@@ -193,6 +193,9 @@ environment to run the command.
 
 You can include arguments in the sandbox string (e.g. `bwrap.sh --net`).
 
+See the [Custom Sandboxing](../cookbook/06_custom_sandboxing.qmd) cookbook
+recipe for a detailed guide on writing your own sandbox scripts.
+
 For example, `extra/sandbox/bwrap-sandbox.sh` uses Bubblewrap to create a
 minimal, isolated environment with a temporary home directory.
 
