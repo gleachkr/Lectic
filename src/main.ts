@@ -54,6 +54,8 @@ program
     + 'may export a default function to be executed.'
 )
 .allowExcessArguments(true)
+.passThroughOptions()
+.helpOption(false)
 .argument('[args...]', 'Module path followed by any script args')
 .action(async (args: string[]) => {
     await scriptCmd(args)

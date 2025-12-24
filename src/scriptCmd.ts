@@ -13,10 +13,10 @@ function usage(): string {
 }
 
 export async function scriptCmd(args: string[]) {
-    if (args.length === 0) {
-        Logger.write("error: script requires a module path\n")
+    if (args.length === 0 || (args.length === 1 && (args[0] === '-h' || args[0] === '--help'))) {
+        if (args.length === 0) Logger.write("error: script requires a module path\n")
         Logger.write(usage())
-        process.exit(1)
+        process.exit(args.length === 0 ? 1 : 0)
     }
 
     const scriptPathRaw = args[0]

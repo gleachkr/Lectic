@@ -28,6 +28,8 @@
       packages.lectic-full = with pkgs; stdenvNoCC.mkDerivation {
         name = "lectic-full";
         src = ./.;
+        #don't attempt to patch shebangs of lectic subcommands
+        dontFixup = true;
         buildPhase = ''
           mkdir -p $out/bin
           cp ${lectic}/bin/lectic $out/bin
