@@ -1,9 +1,9 @@
 import type { Content, Part, ContentListUnion, Candidate, Model, Pager } from '@google/genai'
 import type * as Gemini from '@google/genai' 
-import { GoogleGenAI, GenerateContentResponse, ThinkingLevel } from '@google/genai'
+import { GoogleGenAI, GenerateContentResponse, ThinkingLevel, FunctionResponse } from '@google/genai'
 import type { Message } from "../types/message"
 import type { Lectic } from "../types/lectic"
-import { serializeCall, type ToolCallResult } from "../types/tool"
+import { serializeCall } from "../types/tool"
 import { LLMProvider } from "../types/provider"
 import type { Backend } from "../types/backend"
 import { MessageAttachmentPart } from "../types/attachment"
@@ -21,15 +21,6 @@ export function geminiAssistantText(
     const first = response.candidates && response.candidates[0]
     const parts = first?.content?.parts || []
     return parts.map(p => p.text || "").join("")
-}
-
-type FunctionResponse = Part & { 
-    functionResponse : { 
-        id: string, 
-        name: string, 
-        response: {output: ToolCallResult[], error?: ToolCallResult[] } | 
-                  {error : ToolCallResult[], output?: ToolCallResult[]} 
-    } 
 }
 
 function consolidateText(response : GenerateContentResponse) {
@@ -253,19 +244,17 @@ async function *runConversationLoop(
         })
 
         // Convert to provider FunctionResponse parts
-        const parts: FunctionResponse[] = realized.map(call => ({
-            functionResponse: {
-                id: call.id ?? "",
-                name: call.name,
-                response: call.isError
-                    ? { error: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
-                    : { output: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
-            }
+        const functionResponses : FunctionResponse[] = realized.map(call => ({
+            id: call.id ?? "",
+            name: call.name,
+            response: call.isError
+                ? { error: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
+                : { output: call.results.filter(r => !isAttachmentMime(r.mimetype)) }
         }))
 
         // Attach any non-text results by merging into the same user message
         const userParts: Part[] = [
-            ...parts,
+            ...functionResponses.map(response => ({ functionResponse : response})),
             ...await collectAttachmentPartsFromCalls(realized, partToContent)
         ]
 
