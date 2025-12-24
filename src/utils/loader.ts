@@ -1,4 +1,4 @@
-import { expandEnv} from "./replace";
+import { expandEnv } from "./replace";
 import { execScript, execCmd} from "./exec";
 
 export async function loadFrom<T>(something: T, env: Record<string, string | undefined> = {}): Promise<T | string> {
@@ -17,7 +17,7 @@ export async function loadFrom<T>(something: T, env: Record<string, string | und
             }
             return command.split("\n").length > 1 
                 ? execScript(command, env)
-                : execCmd(expandEnv(command), env)
+                : execCmd(expandEnv(command, env), env)
         } else {
             return something;
         }
