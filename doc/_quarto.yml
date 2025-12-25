@@ -51,6 +51,8 @@ website:
             href: ./automation/01_macros.qmd
           - text: Hooks
             href: ./automation/02_hooks.qmd
+          - text: Subcommands
+            href: ./automation/03_custom_subcommands.qmd
       - section: Cookbook
         contents:
           - text: Overview

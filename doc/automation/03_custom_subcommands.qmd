@@ -1,0 +1,143 @@
+# Automation: Custom Subcommands
+
+Lectic's CLI is extensible through "git-style" custom subcommands. If you
+create an executable named `lectic-<command>`, or
+`lectic-<command>.<file-extension>`  and place it in your configuration
+directory, data directory, or PATH, you can invoke it as `lectic <command>`.
+
+This allows you to wrap common workflows, build project-specific tools, and
+create shortcuts for complex Lectic invocations.
+
+## How It Works
+
+When you run `lectic foo args...`, Lectic searches for an executable named
+`lectic-foo` or `lectic-foo.*` in the following locations, in order:
+
+1. **Configuration Directory**: `$LECTIC_CONFIG` (defaults to `~/.config/lectic` on Linux)
+2. **Data Directory**: `$LECTIC_DATA` (defaults to `~/.local/share/lectic` on Linux)
+3. **System PATH**: Any directory in your `$PATH`.
+
+The first match found is executed. The subprocess receives the remaining arguments,
+inherits the standard input, output, and error streams, and has access to
+Lectic's environment variables.
+
+## Examples
+
+### Bash Script
+
+Create a file named `lectic-hello` in `~/.config/lectic/`:
+
+```bash
+#!/bin/bash
+echo "Hello from a custom subcommand!"
+echo "My config dir is: $LECTIC_CONFIG"
+```
+
+Make it executable: `chmod +x ~/.config/lectic/lectic-hello`
+
+Run it:
+```bash
+lectic hello
+```
+
+### Javascript via `lectic script`
+
+Lectic includes a built-in bun runtime for running JavaScript and TypeScript files via
+`lectic script`. You can use this to write subcommands in JS or TS even if you
+don't have bun installed globally.
+
+Create `~/.config/lectic/lectic-calc`:
+
+```javascript
+#!/usr/bin/env -S lectic script
+
+const args = process.argv.slice(2);
+if (args.length === 0) {
+  console.error("Usage: lectic calc <expression>");
+  process.exit(1);
+}
+
+// Access standard Lectic environment variables
+const configDir = process.env.LECTIC_CONFIG;
+
+try {
+  console.log(eval(args.join(" ")));
+} catch (e) {
+  console.error("Error:", e.message);
+}
+```
+
+Make it executable and run:
+```bash
+lectic calc 1 + 2
+```
+
+Bun has built in support for [all sorts of things](https://bun.com/docs),
+including YAML parsing and serialization, running simple webservers,
+interfacing with databases, rich networking primitives, and lots more. All
+these are accessible via `lectic script`.
+
+## Environment Variables
+
+Subcommands receive the standard set of Lectic environment variables:
+
+- `LECTIC_CONFIG`: Path to the configuration directory.
+- `LECTIC_DATA`: Path to the data directory.
+- `LECTIC_CACHE`: Path to the cache directory.
+- `LECTIC_STATE`: Path to the state directory.
+- `LECTIC_TEMP`: Path to the temporary directory.
+
+These ensure your subcommands respect the user's directory configuration.
+
+## Tab Completion
+
+You can add tab completion for your custom subcommands. The completion system
+supports plugging in custom completion functions.
+
+### Installation
+
+First, ensure you have enabled tab completion by sourcing the completion script
+in your shell configuration (e.g., `~/.bashrc`):
+
+```bash
+source /path/to/lectic/extra/tab_complete/lectic_completion.bash
+```
+
+(The path depends on how you installed Lectic. If you installed via Nix or an
+AppImage, you may need to locate this file in the repository or extract it.)
+
+### Adding Completions
+
+To provide completions for a subcommand `lectic-foo`, create a bash script that
+defines a completion function and registers it.
+
+The script can be placed in:
+1. `~/.config/lectic/completions/`
+2. `~/.local/share/lectic/completions/`
+3. Or alongside the executable itself, named `lectic-foo.completion.bash`.
+
+**Example:**
+
+Create `~/.config/lectic/completions/foo.bash`:
+
+```bash
+_lectic_complete_foo() {
+  local cur
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  # Suggest 'bar' and 'baz'
+  COMPREPLY=( $(compgen -W "bar baz" -- "${cur}") )
+}
+
+# Register the function for the 'foo' subcommand
+lectic_register_completion foo _lectic_complete_foo
+```
+
+Now, typing `lectic foo <TAB>` will suggest `bar` and `baz`.
+
+::: {.callout-tip}
+
+For performance, define completions in a separate `.completion.bash` file rather
+than inside the subcommand script itself. This allows the shell to load completions
+without executing the subcommand.
+
+:::

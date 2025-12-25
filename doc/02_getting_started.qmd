@@ -38,6 +38,22 @@ lectic --version
 
 If you see a version number, you are ready to go.
 
+## Tab completion (optional)
+
+Lectic has an extensible tab completion system that supports standard flags
+and [Custom Subcommands](../automation/03_custom_subcommands.qmd).
+
+To enable it, source the completion script in your shell configuration (e.g.,
+`~/.bashrc`):
+
+```bash
+# Adjust path to where you cloned/extracted Lectic
+source /path/to/lectic/extra/tab_complete/lectic_completion.bash
+```
+
+or place the script in `~/.local/share/bash-completion/completions/` or one of
+the other standard locations for completion scripts.
+
 ## Your first conversation
 
 #### Set up an API key
