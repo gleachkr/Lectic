@@ -286,6 +286,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Hooks</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../automation/03_custom_subcommands.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Subcommands</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -540,6 +546,7 @@ Warning
 <h3 class="anchored" data-anchor-id="sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</h3>
 <p>When a <code>sandbox</code> is configured, a tool call will actually execute the <code>sandbox</code> command, which will receive the original command and the LLM provided parameters as arguments. The wrapper is responsible for creating a controlled environment to run the command.</p>
 <p>You can include arguments in the sandbox string (e.g.&nbsp;<code>bwrap.sh --net</code>).</p>
+<p>See the <a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a> cookbook recipe for a detailed guide on writing your own sandbox scripts.</p>
 <p>For example, <code>extra/sandbox/bwrap-sandbox.sh</code> uses Bubblewrap to create a minimal, isolated environment with a temporary home directory.</p>
 <p>You can also set a default <code>sandbox</code> on the <code>interlocutor</code> object. If set, it applies to all <code>exec</code> tools that don’t specify their own.</p>
 

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>index – Lectic Documentation</title>
+<title>custom_sandboxing – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -19,6 +19,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -82,7 +117,9 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/index.html">Overview</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">
+      Lectic Documentation
+      </li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -270,7 +307,7 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../cookbook/index.html" class="sidebar-item-text sidebar-link active">
+  <a href="../cookbook/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
   </div>
 </li>
@@ -345,31 +382,153 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#cookbook" id="toc-cookbook" class="nav-link active" data-scroll-target="#cookbook">Cookbook</a>
+  <li><a href="#recipe-custom-sandboxing" id="toc-recipe-custom-sandboxing" class="nav-link active" data-scroll-target="#recipe-custom-sandboxing">Recipe: Custom Sandboxing</a>
   <ul class="collapse">
-  <li><a href="#recipes" id="toc-recipes" class="nav-link" data-scroll-target="#recipes">Recipes</a></li>
+  <li><a href="#the-sandbox-protocol" id="toc-the-sandbox-protocol" class="nav-link" data-scroll-target="#the-sandbox-protocol">The Sandbox Protocol</a></li>
+  <li><a href="#level-1-observability-wrapper" id="toc-level-1-observability-wrapper" class="nav-link" data-scroll-target="#level-1-observability-wrapper">Level 1: Observability Wrapper</a></li>
+  <li><a href="#level-2-filesystem-isolation-bubblewrap" id="toc-level-2-filesystem-isolation-bubblewrap" class="nav-link" data-scroll-target="#level-2-filesystem-isolation-bubblewrap">Level 2: Filesystem Isolation (Bubblewrap)</a>
+  <ul class="collapse">
+  <li><a href="#how-this-protects-you" id="toc-how-this-protects-you" class="nav-link" data-scroll-target="#how-this-protects-you">How this protects you</a></li>
+  </ul></li>
+  <li><a href="#level-3-stateful-isolation-the-shadow-workspace" id="toc-level-3-stateful-isolation-the-shadow-workspace" class="nav-link" data-scroll-target="#level-3-stateful-isolation-the-shadow-workspace">Level 3: Stateful Isolation (The “Shadow Workspace”)</a></li>
+  <li><a href="#configuration-usage" id="toc-configuration-usage" class="nav-link" data-scroll-target="#configuration-usage">Configuration Usage</a></li>
+  <li><a href="#tips" id="toc-tips" class="nav-link" data-scroll-target="#tips">Tips</a></li>
   </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/index.html">Overview</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
 
 
 
-<section id="cookbook" class="level1">
-<h1>Cookbook</h1>
-<p>This section contains practical recipes showing how to combine Lectic’s primitives to build useful workflows. Each recipe is self-contained and can be adapted to your needs.</p>
-<section id="recipes" class="level2">
-<h2 class="anchored" data-anchor-id="recipes">Recipes</h2>
+<section id="recipe-custom-sandboxing" class="level1">
+<h1>Recipe: Custom Sandboxing</h1>
+<p>Giving an LLM access to <code>exec</code> tools is powerful, but it carries risk. While Lectic provides a <code>sandbox</code> configuration option, it doesn’t enforce a specific technology. Instead, it delegates execution to a script you control.</p>
+<p>This recipe walks you through the sandbox script mechanism and helps you write wrappers to isolate tool execution.</p>
+<section id="the-sandbox-protocol" class="level2">
+<h2 class="anchored" data-anchor-id="the-sandbox-protocol">The Sandbox Protocol</h2>
+<p>When you configure a <code>sandbox</code> in your <code>lectic.yaml</code>, Lectic wraps the execution of <code>exec</code> tools and local <code>mcp_command</code> tools. Instead of executing the tool directly, it executes your sandbox script and passes the tool’s command and arguments as arguments to that script.</p>
+<p><strong>An exec tool without sandbox:</strong> Lectic runs: <code>ls -la</code></p>
+<p><strong>With <code>sandbox: ./wrapper.sh</code>:</strong> Lectic runs: <code>./wrapper.sh ls -la</code></p>
+<p>The command to launch an MCP server is wrapped by the sandbox script in a similar way.</p>
+<p>Your sandbox script is responsible for:</p>
+<ol type="1">
+<li>Setting up the environment.</li>
+<li>Executing the command (passed in <code>$@</code>).</li>
+<li>Cleaning up.</li>
+<li>Returning the exit code.</li>
+</ol>
+</section>
+<section id="level-1-observability-wrapper" class="level2">
+<h2 class="anchored" data-anchor-id="level-1-observability-wrapper">Level 1: Observability Wrapper</h2>
+<p>Before trying to isolate the filesystem, let’s make a wrapper that simply logs every command the assistant tries to run. This is useful for auditing.</p>
+<p>Create <code>~/.config/lectic/audit.sh</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Append timestamp and command to a log file</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"[</span><span class="va">$(</span><span class="fu">date</span><span class="va">)</span><span class="st">] Executing: </span><span class="va">$*</span><span class="st">"</span> <span class="op">&gt;&gt;</span> <span class="st">"</span><span class="va">$HOME</span><span class="st">/.lectic_audit_log"</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the actual command</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">exec</span> <span class="st">"</span><span class="va">$@</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Make it executable:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> +x ~/.config/lectic/audit.sh</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Configure it in <code>lectic.yaml</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">  # Apply to all exec/local MCP tools for this interlocutor</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">sandbox</span><span class="kw">:</span><span class="at"> ~/.config/lectic/audit.sh</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> ls</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="level-2-filesystem-isolation-bubblewrap" class="level2">
+<h2 class="anchored" data-anchor-id="level-2-filesystem-isolation-bubblewrap">Level 2: Filesystem Isolation (Bubblewrap)</h2>
+<p>For actual safety, we can use <a href="https://github.com/containers/bubblewrap">Bubblewrap</a> (<code>bwrap</code>). This tool creates a new namespace for the process, allowing you to control exactly which parts of your filesystem the assistant can see or write to.</p>
+<p>Here is a simplified version of the <code>lectic-bwrap</code> script found in the Lectic repository. It creates a read-only view of the system but gives the assistant a temporary, empty home directory.</p>
+<p>Create <code>~/.config/lectic/safe-run.sh</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-euo</span> pipefail</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a temporary directory for the assistant's "home"</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="va">FAKE_HOME</span><span class="op">=</span><span class="va">$(</span><span class="fu">mktemp</span> <span class="at">-d</span><span class="va">)</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Ensure we clean up the temp dir when the script exits</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="bu">trap</span> <span class="st">'rm -rf "$FAKE_HOME"'</span> EXIT</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Run bwrap with specific permissions</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">bwrap</span> <span class="dt">\</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--ro-bind</span> / / <span class="dt">\ </span>                <span class="co"># Mount the root as read-only</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="ex">--dev</span> /dev <span class="dt">\ </span>                   <span class="co"># legitimate devices</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="ex">--proc</span> /proc <span class="dt">\ </span>                 <span class="co"># legitimate processes</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="ex">--bind</span> <span class="st">"</span><span class="va">$PWD</span><span class="st">"</span> <span class="st">"</span><span class="va">$PWD</span><span class="st">"</span> <span class="dt">\ </span>         <span class="co"># Allow read-write access to current project</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="ex">--bind</span> <span class="st">"</span><span class="va">$FAKE_HOME</span><span class="st">"</span> <span class="st">"</span><span class="va">$HOME</span><span class="st">"</span> <span class="dt">\ </span>  <span class="co"># Fake the home directory</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="ex">--unshare-net</span> <span class="dt">\ </span>                <span class="co"># Disable network access (optional)</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="ex">--die-with-parent</span> <span class="dt">\ </span>            <span class="co"># Kill process if lectic dies</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="st">"</span><span class="va">$@</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="how-this-protects-you" class="level3">
+<h3 class="anchored" data-anchor-id="how-this-protects-you">How this protects you</h3>
+<ol type="1">
+<li><strong>Read-only Root</strong>: The assistant cannot modify system files (<code>/usr</code>, <code>/bin</code>, etc.).</li>
+<li><strong>Fake Home</strong>: If the assistant runs <code>rm -rf ~</code>, it only deletes the temporary directory, not your actual home folder.</li>
+<li><strong>Project Access</strong>: The script explicitly binds <code>$PWD</code>, so the assistant can still read and write files in the directory where you ran Lectic.</li>
+<li><strong>No Network</strong>: The <code>--unshare-net</code> flag prevents the assistant from making outbound connections (remove this if you want it to use <code>curl</code> or something similar).</li>
+</ol>
+</section>
+</section>
+<section id="level-3-stateful-isolation-the-shadow-workspace" class="level2">
+<h2 class="anchored" data-anchor-id="level-3-stateful-isolation-the-shadow-workspace">Level 3: Stateful Isolation (The “Shadow Workspace”)</h2>
+<p>Isolating the filesystem by copying the project to a temporary directory is a great way to protect your work. However, simple scripts that create a new directory for every command will break stateful workflows (e.g., <code>git init</code> followed by <code>git commit</code> won’t work if they run in different directories).</p>
+<p>To fix this, we need a <strong>stateful sandbox</strong> that persists across tool calls. We can use environment variables provided by Lectic to identify the session.</p>
+<p>Create <code>~/.config/lectic/shadow-run.sh</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">set</span> <span class="at">-euo</span> pipefail</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Generate a stable path for this project + interlocutor</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Using a hash of the current directory ensures we get a unique sandbox per project</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="va">PROJ_HASH</span><span class="op">=</span><span class="va">$(</span><span class="bu">echo</span> <span class="at">-n</span> <span class="st">"</span><span class="va">$PWD</span><span class="st">"</span> <span class="kw">|</span> <span class="fu">md5sum</span> <span class="kw">|</span> <span class="fu">awk</span> <span class="st">'{print $1}'</span><span class="va">)</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="va">SANDBOX_ROOT</span><span class="op">=</span><span class="st">"</span><span class="va">${TMPDIR</span><span class="op">:-</span>/tmp<span class="va">}</span><span class="st">/lectic-sandbox-</span><span class="va">${PROJ_HASH}</span><span class="st">"</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># LECTIC_INTERLOCUTOR is provided by Lectic</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="va">SANDBOX_DIR</span><span class="op">=</span><span class="st">"</span><span class="va">$SANDBOX_ROOT</span><span class="st">/</span><span class="va">${LECTIC_INTERLOCUTOR</span><span class="op">:-</span>default<span class="va">}</span><span class="st">"</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Initialize the sandbox if it's new</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">[[</span> <span class="ot">!</span> <span class="ot">-d</span> <span class="st">"</span><span class="va">$SANDBOX_DIR</span><span class="st">"</span> <span class="kw">]];</span> <span class="cf">then</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="bu">echo</span> <span class="st">"Initializing sandbox at </span><span class="va">$SANDBOX_DIR</span><span class="st">..."</span> <span class="op">&gt;&amp;</span><span class="dv">2</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mkdir</span> <span class="at">-p</span> <span class="st">"</span><span class="va">$SANDBOX_DIR</span><span class="st">"</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Copy the project to the sandbox</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cp</span> <span class="at">-r</span> . <span class="st">"</span><span class="va">$SANDBOX_DIR</span><span class="st">"</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> <span class="st">"</span><span class="va">$SANDBOX_DIR</span><span class="st">"</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Run the command</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="st">"</span><span class="va">$@</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This script creates a “shadow” copy of your project that persists as long as you don’t delete the temporary directory. The assistant can make changes, run builds, and edit files without affecting your real project. If you like the results, you can manually copy them back.</p>
+</section>
+<section id="configuration-usage" class="level2">
+<h2 class="anchored" data-anchor-id="configuration-usage">Configuration Usage</h2>
+<p>You can apply sandboxes globally to an interlocutor or to specific tools.</p>
+<p><strong>Global (Recommended):</strong> This ensures every <code>exec</code> tool the assistant uses is wrapped.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">sandbox</span><span class="kw">:</span><span class="at"> ~/.config/lectic/safe-run.sh</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> bash</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> python3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Per-Tool:</strong> Useful if you have a specific “dangerous” tool that needs isolation while others (like <code>ls</code>) can run natively.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> rm</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> delete_files</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">sandbox</span><span class="kw">:</span><span class="at"> ~/.config/lectic/safe-run.sh</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> ls</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> list_files</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">    # No sandbox</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="tips" class="level2">
+<h2 class="anchored" data-anchor-id="tips">Tips</h2>
 <ul>
-<li><a href="../cookbook/01_coding_assistant.html">Coding Assistant</a>: An agentic setup with shell tools, TypeScript checking, and human-in-the-loop confirmation.</li>
-<li><a href="../cookbook/02_commit_messages.html">Git Commit Messages</a>: A custom subcommand that generates commit messages from staged changes.</li>
-<li><a href="../cookbook/03_research_perspectives.html">Research with Multiple Perspectives</a>: Using multiple interlocutors to get different viewpoints on a problem.</li>
-<li><a href="../cookbook/04_memory.html">Conversation Memory</a>: Persisting conversations to SQLite and retrieving relevant context.</li>
-<li><a href="../cookbook/05_context_compaction.html">Context Compaction</a>: Automatically summarizing and resetting context when token limits approach.</li>
-<li><a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a>: Isolate tool execution using wrapper scripts like Bubblewrap.</li>
+<li><strong>Environment Variables</strong>: Lectic passes environment variables (like <code>LECTIC_INTERLOCUTOR</code>) to your sandbox script. You can use these to create per-interlocutor isolation directories. See the full list in the Environment](../tools/02_exec.qmd#execution-environment) and [Configuration <a href="../reference/02_configuration.html#overriding-default-directories">Configuration Reference</a>. for lists of available variables.</li>
+<li><strong>Complex Arguments</strong>: If your sandbox script needs its own arguments, just add them in the config string: <code>sandbox: ./wrapper.sh --allow-net</code>.</li>
+<li><strong>High-Latency Sandboxes</strong>: Tools are often called frequently in a loop. Heavy isolation methods like <code>docker run</code> can introduce significant latency per turn. If using Docker, prefer <code>docker exec</code> into an already-running container over spinning up a new container for every command.</li>
 </ul>
 
 

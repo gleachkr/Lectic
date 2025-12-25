@@ -156,6 +156,22 @@ lectic --version
 
 If you see a version number, you are ready to go.
 
+## Tab completion (optional)
+
+Lectic has an extensible tab completion system that supports standard
+flags and [Custom Subcommands](../automation/03_custom_subcommands.qmd).
+
+To enable it, source the completion script in your shell configuration
+(e.g., `~/.bashrc`):
+
+``` bash
+# Adjust path to where you cloned/extracted Lectic
+source /path/to/lectic/extra/tab_complete/lectic_completion.bash
+```
+
+or place the script in `~/.local/share/bash-completion/completions/` or
+one of the other standard locations for completion scripts.
+
 ## Your first conversation
 
 #### Set up an API key
@@ -1285,6 +1301,157 @@ hooks:
         echo "**Context cleared (usage: $TOTAL tokens).**"
       fi
 ```
+
+
+
+# Automation: Custom Subcommands
+
+Lectic’s CLI is extensible through “git-style” custom subcommands. If
+you create an executable named `lectic-<command>`, or
+`lectic-<command>.<file-extension>` and place it in your configuration
+directory, data directory, or PATH, you can invoke it as
+`lectic <command>`.
+
+This allows you to wrap common workflows, build project-specific tools,
+and create shortcuts for complex Lectic invocations.
+
+## How It Works
+
+When you run `lectic foo args...`, Lectic searches for an executable
+named `lectic-foo` or `lectic-foo.*` in the following locations, in
+order:
+
+1.  **Configuration Directory**: `$LECTIC_CONFIG` (defaults to
+    `~/.config/lectic` on Linux)
+2.  **Data Directory**: `$LECTIC_DATA` (defaults to
+    `~/.local/share/lectic` on Linux)
+3.  **System PATH**: Any directory in your `$PATH`.
+
+The first match found is executed. The subprocess receives the remaining
+arguments, inherits the standard input, output, and error streams, and
+has access to Lectic’s environment variables.
+
+## Examples
+
+### Bash Script
+
+Create a file named `lectic-hello` in `~/.config/lectic/`:
+
+``` bash
+#!/bin/bash
+echo "Hello from a custom subcommand!"
+echo "My config dir is: $LECTIC_CONFIG"
+```
+
+Make it executable: `chmod +x ~/.config/lectic/lectic-hello`
+
+Run it:
+
+``` bash
+lectic hello
+```
+
+### Javascript via `lectic script`
+
+Lectic includes a built-in bun runtime for running JavaScript and
+TypeScript files via `lectic script`. You can use this to write
+subcommands in JS or TS even if you don’t have bun installed globally.
+
+Create `~/.config/lectic/lectic-calc`:
+
+``` javascript
+#!/usr/bin/env -S lectic script
+
+const args = process.argv.slice(2);
+if (args.length === 0) {
+  console.error("Usage: lectic calc <expression>");
+  process.exit(1);
+}
+
+// Access standard Lectic environment variables
+const configDir = process.env.LECTIC_CONFIG;
+
+try {
+  console.log(eval(args.join(" ")));
+} catch (e) {
+  console.error("Error:", e.message);
+}
+```
+
+Make it executable and run:
+
+``` bash
+lectic calc 1 + 2
+```
+
+Bun has built in support for [all sorts of
+things](https://bun.com/docs), including YAML parsing and serialization,
+running simple webservers, interfacing with databases, rich networking
+primitives, and lots more. All these are accessible via `lectic script`.
+
+## Environment Variables
+
+Subcommands receive the standard set of Lectic environment variables:
+
+- `LECTIC_CONFIG`: Path to the configuration directory.
+- `LECTIC_DATA`: Path to the data directory.
+- `LECTIC_CACHE`: Path to the cache directory.
+- `LECTIC_STATE`: Path to the state directory.
+- `LECTIC_TEMP`: Path to the temporary directory.
+
+These ensure your subcommands respect the user’s directory
+configuration.
+
+## Tab Completion
+
+You can add tab completion for your custom subcommands. The completion
+system supports plugging in custom completion functions.
+
+### Installation
+
+First, ensure you have enabled tab completion by sourcing the completion
+script in your shell configuration (e.g., `~/.bashrc`):
+
+``` bash
+source /path/to/lectic/extra/tab_complete/lectic_completion.bash
+```
+
+(The path depends on how you installed Lectic. If you installed via Nix
+or an AppImage, you may need to locate this file in the repository or
+extract it.)
+
+### Adding Completions
+
+To provide completions for a subcommand `lectic-foo`, create a bash
+script that defines a completion function and registers it.
+
+The script can be placed in: 1. `~/.config/lectic/completions/` 2.
+`~/.local/share/lectic/completions/` 3. Or alongside the executable
+itself, named `lectic-foo.completion.bash`.
+
+**Example:**
+
+Create `~/.config/lectic/completions/foo.bash`:
+
+``` bash
+_lectic_complete_foo() {
+  local cur
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  # Suggest 'bar' and 'baz'
+  COMPREPLY=( $(compgen -W "bar baz" -- "${cur}") )
+}
+
+# Register the function for the 'foo' subcommand
+lectic_register_completion foo _lectic_complete_foo
+```
+
+Now, typing `lectic foo <TAB>` will suggest `bar` and `baz`.
+
+> [!TIP]
+>
+> For performance, define completions in a separate `.completion.bash`
+> file rather than inside the subcommand script itself. This allows the
+> shell to load completions without executing the subcommand.
 
 
 
@@ -2559,6 +2726,214 @@ hooks:
 
 
 
+# Recipe: Custom Sandboxing
+
+Giving an LLM access to `exec` tools is powerful, but it carries risk.
+While Lectic provides a `sandbox` configuration option, it doesn’t
+enforce a specific technology. Instead, it delegates execution to a
+script you control.
+
+This recipe walks you through the sandbox script mechanism and helps you
+write wrappers to isolate tool execution.
+
+## The Sandbox Protocol
+
+When you configure a `sandbox` in your `lectic.yaml`, Lectic wraps the
+execution of `exec` tools and local `mcp_command` tools. Instead of
+executing the tool directly, it executes your sandbox script and passes
+the tool’s command and arguments as arguments to that script.
+
+**An exec tool without sandbox:** Lectic runs: `ls -la`
+
+**With `sandbox: ./wrapper.sh`:** Lectic runs: `./wrapper.sh ls -la`
+
+The command to launch an MCP server is wrapped by the sandbox script in
+a similar way.
+
+Your sandbox script is responsible for:
+
+1.  Setting up the environment.
+2.  Executing the command (passed in `$@`).
+3.  Cleaning up.
+4.  Returning the exit code.
+
+## Level 1: Observability Wrapper
+
+Before trying to isolate the filesystem, let’s make a wrapper that
+simply logs every command the assistant tries to run. This is useful for
+auditing.
+
+Create `~/.config/lectic/audit.sh`:
+
+``` bash
+#!/bin/bash
+# Append timestamp and command to a log file
+echo "[$(date)] Executing: $*" >> "$HOME/.lectic_audit_log"
+
+# Run the actual command
+exec "$@"
+```
+
+Make it executable:
+
+``` bash
+chmod +x ~/.config/lectic/audit.sh
+```
+
+Configure it in `lectic.yaml`:
+
+``` yaml
+interlocutor:
+  name: Assistant
+  # Apply to all exec/local MCP tools for this interlocutor
+  sandbox: ~/.config/lectic/audit.sh
+  tools:
+    - exec: ls
+```
+
+## Level 2: Filesystem Isolation (Bubblewrap)
+
+For actual safety, we can use
+[Bubblewrap](https://github.com/containers/bubblewrap) (`bwrap`). This
+tool creates a new namespace for the process, allowing you to control
+exactly which parts of your filesystem the assistant can see or write
+to.
+
+Here is a simplified version of the `lectic-bwrap` script found in the
+Lectic repository. It creates a read-only view of the system but gives
+the assistant a temporary, empty home directory.
+
+Create `~/.config/lectic/safe-run.sh`:
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+# Create a temporary directory for the assistant's "home"
+FAKE_HOME=$(mktemp -d)
+
+# Ensure we clean up the temp dir when the script exits
+trap 'rm -rf "$FAKE_HOME"' EXIT
+
+# Run bwrap with specific permissions
+bwrap \
+  --ro-bind / / \                 # Mount the root as read-only
+  --dev /dev \                    # legitimate devices
+  --proc /proc \                  # legitimate processes
+  --bind "$PWD" "$PWD" \          # Allow read-write access to current project
+  --bind "$FAKE_HOME" "$HOME" \   # Fake the home directory
+  --unshare-net \                 # Disable network access (optional)
+  --die-with-parent \             # Kill process if lectic dies
+  "$@"
+```
+
+### How this protects you
+
+1.  **Read-only Root**: The assistant cannot modify system files
+    (`/usr`, `/bin`, etc.).
+2.  **Fake Home**: If the assistant runs `rm -rf ~`, it only deletes the
+    temporary directory, not your actual home folder.
+3.  **Project Access**: The script explicitly binds `$PWD`, so the
+    assistant can still read and write files in the directory where you
+    ran Lectic.
+4.  **No Network**: The `--unshare-net` flag prevents the assistant from
+    making outbound connections (remove this if you want it to use
+    `curl` or something similar).
+
+## Level 3: Stateful Isolation (The “Shadow Workspace”)
+
+Isolating the filesystem by copying the project to a temporary directory
+is a great way to protect your work. However, simple scripts that create
+a new directory for every command will break stateful workflows (e.g.,
+`git init` followed by `git commit` won’t work if they run in different
+directories).
+
+To fix this, we need a **stateful sandbox** that persists across tool
+calls. We can use environment variables provided by Lectic to identify
+the session.
+
+Create `~/.config/lectic/shadow-run.sh`:
+
+``` bash
+#!/bin/bash
+set -euo pipefail
+
+# 1. Generate a stable path for this project + interlocutor
+# Using a hash of the current directory ensures we get a unique sandbox per project
+PROJ_HASH=$(echo -n "$PWD" | md5sum | awk '{print $1}')
+SANDBOX_ROOT="${TMPDIR:-/tmp}/lectic-sandbox-${PROJ_HASH}"
+# LECTIC_INTERLOCUTOR is provided by Lectic
+SANDBOX_DIR="$SANDBOX_ROOT/${LECTIC_INTERLOCUTOR:-default}"
+
+# 2. Initialize the sandbox if it's new
+if [[ ! -d "$SANDBOX_DIR" ]]; then
+  echo "Initializing sandbox at $SANDBOX_DIR..." >&2
+  mkdir -p "$SANDBOX_DIR"
+  # Copy the project to the sandbox
+  cp -r . "$SANDBOX_DIR"
+fi
+
+cd "$SANDBOX_DIR"
+
+# 3. Run the command
+"$@"
+```
+
+This script creates a “shadow” copy of your project that persists as
+long as you don’t delete the temporary directory. The assistant can make
+changes, run builds, and edit files without affecting your real project.
+If you like the results, you can manually copy them back.
+
+## Configuration Usage
+
+You can apply sandboxes globally to an interlocutor or to specific
+tools.
+
+**Global (Recommended):** This ensures every `exec` tool the assistant
+uses is wrapped.
+
+``` yaml
+interlocutor:
+  name: Assistant
+  sandbox: ~/.config/lectic/safe-run.sh
+  tools:
+    - exec: bash
+    - exec: python3
+```
+
+**Per-Tool:** Useful if you have a specific “dangerous” tool that needs
+isolation while others (like `ls`) can run natively.
+
+``` yaml
+tools:
+  - exec: rm
+    name: delete_files
+    sandbox: ~/.config/lectic/safe-run.sh
+  - exec: ls
+    name: list_files
+    # No sandbox
+```
+
+## Tips
+
+- **Environment Variables**: Lectic passes environment variables (like
+  `LECTIC_INTERLOCUTOR`) to your sandbox script. You can use these to
+  create per-interlocutor isolation directories. See the full list in
+  the Environment\](../tools/02_exec.qmd#execution-environment) and
+  \[Configuration [Configuration
+  Reference](../reference/02_configuration.qmd#overriding-default-directories).
+  for lists of available variables.
+- **Complex Arguments**: If your sandbox script needs its own arguments,
+  just add them in the config string:
+  `sandbox: ./wrapper.sh --allow-net`.
+- **High-Latency Sandboxes**: Tools are often called frequently in a
+  loop. Heavy isolation methods like `docker run` can introduce
+  significant latency per turn. If using Docker, prefer `docker exec`
+  into an already-running container over spinning up a new container for
+  every command.
+
+
+
 # Cookbook
 
 This section contains practical recipes showing how to combine Lectic’s
@@ -2577,6 +2952,8 @@ can be adapted to your needs.
   SQLite and retrieving relevant context.
 - [Context Compaction](./05_context_compaction.qmd): Automatically
   summarizing and resetting context when token limits approach.
+- [Custom Sandboxing](./06_custom_sandboxing.qmd): Isolate tool
+  execution using wrapper scripts like Bubblewrap.
 
 
 
@@ -2623,72 +3000,24 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 
 Lectic supports git-style custom subcommands. If you invoke
 `lectic <command>`, Lectic will look for an executable named
-`lectic-<command>` in the following locations (in order):
+`lectic-<command>` in your configuration directory, data directory, or
+PATH.
 
-1.  The Lectic configuration directory (e.g., `~/.config/lectic/` on
-    Linux).
-2.  The Lectic data directory (e.g., `~/.local/share/lectic/` on Linux).
-3.  Your system `PATH`.
-
-When a custom subcommand is found, it is executed with the remaining
-arguments. The subprocess inherits standard input, output, and error
-streams, and receives standard Lectic environment variables (like
-`LECTIC_CONFIG` and `LECTIC_DATA`).
-
-For example, if you create a script named `lectic-hello` in your path:
-
-``` bash
-#!/bin/bash
-echo "Hello from a custom subcommand!"
-```
-
-You can run it via:
-
-``` bash
-lectic hello
-```
-
-This mechanism allows you to extend Lectic with your own tools and
-workflows.
+See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a
+full guide on creating subcommands and adding tab completion for them.
 
 ## Bash completion
 
-The repository includes a bash completion script at:
+The repository includes a bash completion script. See [Getting
+Started](../02_getting_started.qmd#tab-completion-optional) for
+installation instructions.
 
-- `extra/tab_complete/lectic_completion.bash`
+The completion system is extensible. You can write plugins to provide
+completions for your custom subcommands. See the [Custom
+Subcommands](../automation/03_custom_subcommands.qmd#tab-completion)
+guide for details.
 
-Source it from your `~/.bashrc`:
-
-``` bash
-source /path/to/lectic_completion.bash
-```
-
-### Custom completion functions for custom subcommands
-
-You can attach a completion function to a custom subcommand by creating
-a plugin file. Plugins are sourced when the completion script is loaded.
-
-Supported locations:
-
-- `${XDG_CONFIG_HOME:-$HOME/.config}/lectic/completions/*.bash`
-- `${XDG_DATA_HOME:-$HOME/.local/share}/lectic/completions/*.bash`
-- Next to the subcommand executable as: `lectic-<cmd>.completion.bash`
-
-A plugin should define a completion function and register it:
-
-``` bash
-_lectic_complete_foo() {
-  local cur
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  COMPREPLY=( $(compgen -W "--help --verbose" -- "${cur}") )
-}
-
-lectic_register_completion foo _lectic_complete_foo
-```
-
-The repository includes an example completion plugin for the `worktree`
-subcommand at `extra/sandbox/lectic-worktree.completion.bash`. \## Flags
-and options
+## Flags and options
 
 - `-v`, `--version` Prints the version string.
 
@@ -3419,6 +3748,10 @@ creating a controlled environment to run the command.
 
 You can include arguments in the sandbox string (e.g. `bwrap.sh --net`).
 
+See the [Custom Sandboxing](../cookbook/06_custom_sandboxing.qmd)
+cookbook recipe for a detailed guide on writing your own sandbox
+scripts.
+
 For example, `extra/sandbox/bwrap-sandbox.sh` uses Bubblewrap to create
 a minimal, isolated environment with a temporary home directory.
 
@@ -3659,7 +3992,8 @@ and isolated environment, limiting its access to your system. Arguments
 are supported (e.g. `sandbox: wrapper.sh --strict`).
 
 See the documentation for the [Exec Tool](./02_exec.qmd) for more
-details on how sandboxing scripts work.
+details on how sandboxing scripts work, and the [Custom
+Sandboxing](../cookbook/06_custom_sandboxing.qmd) recipe for examples.
 
 You can also set a default `sandbox` on the `interlocutor` object. If
 set, it applies to all local MCP tools that don’t specify their own.

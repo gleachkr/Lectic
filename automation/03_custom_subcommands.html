@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>index – Lectic Documentation</title>
+<title>custom_subcommands – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -19,6 +19,41 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -82,7 +117,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/index.html">Overview</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../automation/01_macros.html">Automation</a></li><li class="breadcrumb-item"><a href="../automation/03_custom_subcommands.html">Subcommands</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -253,7 +288,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../automation/03_custom_subcommands.html" class="sidebar-item-text sidebar-link">
+  <a href="../automation/03_custom_subcommands.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Subcommands</span></a>
   </div>
 </li>
@@ -270,7 +305,7 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../cookbook/index.html" class="sidebar-item-text sidebar-link active">
+  <a href="../cookbook/index.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Overview</span></a>
   </div>
 </li>
@@ -345,34 +380,134 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#cookbook" id="toc-cookbook" class="nav-link active" data-scroll-target="#cookbook">Cookbook</a>
+  <li><a href="#automation-custom-subcommands" id="toc-automation-custom-subcommands" class="nav-link active" data-scroll-target="#automation-custom-subcommands">Automation: Custom Subcommands</a>
   <ul class="collapse">
-  <li><a href="#recipes" id="toc-recipes" class="nav-link" data-scroll-target="#recipes">Recipes</a></li>
+  <li><a href="#how-it-works" id="toc-how-it-works" class="nav-link" data-scroll-target="#how-it-works">How It Works</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a>
+  <ul class="collapse">
+  <li><a href="#bash-script" id="toc-bash-script" class="nav-link" data-scroll-target="#bash-script">Bash Script</a></li>
+  <li><a href="#javascript-via-lectic-script" id="toc-javascript-via-lectic-script" class="nav-link" data-scroll-target="#javascript-via-lectic-script">Javascript via <code>lectic script</code></a></li>
+  </ul></li>
+  <li><a href="#environment-variables" id="toc-environment-variables" class="nav-link" data-scroll-target="#environment-variables">Environment Variables</a></li>
+  <li><a href="#tab-completion" id="toc-tab-completion" class="nav-link" data-scroll-target="#tab-completion">Tab Completion</a>
+  <ul class="collapse">
+  <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
+  <li><a href="#adding-completions" id="toc-adding-completions" class="nav-link" data-scroll-target="#adding-completions">Adding Completions</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/index.html">Overview</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../automation/01_macros.html">Automation</a></li><li class="breadcrumb-item"><a href="../automation/03_custom_subcommands.html">Subcommands</a></li></ol></nav></header>
 
 
 
 
-<section id="cookbook" class="level1">
-<h1>Cookbook</h1>
-<p>This section contains practical recipes showing how to combine Lectic’s primitives to build useful workflows. Each recipe is self-contained and can be adapted to your needs.</p>
-<section id="recipes" class="level2">
-<h2 class="anchored" data-anchor-id="recipes">Recipes</h2>
+<section id="automation-custom-subcommands" class="level1">
+<h1>Automation: Custom Subcommands</h1>
+<p>Lectic’s CLI is extensible through “git-style” custom subcommands. If you create an executable named <code>lectic-&lt;command&gt;</code>, or <code>lectic-&lt;command&gt;.&lt;file-extension&gt;</code> and place it in your configuration directory, data directory, or PATH, you can invoke it as <code>lectic &lt;command&gt;</code>.</p>
+<p>This allows you to wrap common workflows, build project-specific tools, and create shortcuts for complex Lectic invocations.</p>
+<section id="how-it-works" class="level2">
+<h2 class="anchored" data-anchor-id="how-it-works">How It Works</h2>
+<p>When you run <code>lectic foo args...</code>, Lectic searches for an executable named <code>lectic-foo</code> or <code>lectic-foo.*</code> in the following locations, in order:</p>
+<ol type="1">
+<li><strong>Configuration Directory</strong>: <code>$LECTIC_CONFIG</code> (defaults to <code>~/.config/lectic</code> on Linux)</li>
+<li><strong>Data Directory</strong>: <code>$LECTIC_DATA</code> (defaults to <code>~/.local/share/lectic</code> on Linux)</li>
+<li><strong>System PATH</strong>: Any directory in your <code>$PATH</code>.</li>
+</ol>
+<p>The first match found is executed. The subprocess receives the remaining arguments, inherits the standard input, output, and error streams, and has access to Lectic’s environment variables.</p>
+</section>
+<section id="examples" class="level2">
+<h2 class="anchored" data-anchor-id="examples">Examples</h2>
+<section id="bash-script" class="level3">
+<h3 class="anchored" data-anchor-id="bash-script">Bash Script</h3>
+<p>Create a file named <code>lectic-hello</code> in <code>~/.config/lectic/</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"Hello from a custom subcommand!"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"My config dir is: </span><span class="va">$LECTIC_CONFIG</span><span class="st">"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Make it executable: <code>chmod +x ~/.config/lectic/lectic-hello</code></p>
+<p>Run it:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> hello</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="javascript-via-lectic-script" class="level3">
+<h3 class="anchored" data-anchor-id="javascript-via-lectic-script">Javascript via <code>lectic script</code></h3>
+<p>Lectic includes a built-in bun runtime for running JavaScript and TypeScript files via <code>lectic script</code>. You can use this to write subcommands in JS or TS even if you don’t have bun installed globally.</p>
+<p>Create <code>~/.config/lectic/lectic-calc</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env -S lectic script</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> args <span class="op">=</span> <span class="bu">process</span><span class="op">.</span><span class="at">argv</span><span class="op">.</span><span class="fu">slice</span>(<span class="dv">2</span>)<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (args<span class="op">.</span><span class="at">length</span> <span class="op">===</span> <span class="dv">0</span>) {</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="bu">console</span><span class="op">.</span><span class="fu">error</span>(<span class="st">"Usage: lectic calc &lt;expression&gt;"</span>)<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="bu">process</span><span class="op">.</span><span class="fu">exit</span>(<span class="dv">1</span>)<span class="op">;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Access standard Lectic environment variables</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> configDir <span class="op">=</span> <span class="bu">process</span><span class="op">.</span><span class="at">env</span><span class="op">.</span><span class="at">LECTIC_CONFIG</span><span class="op">;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="cf">try</span> {</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="pp">eval</span>(args<span class="op">.</span><span class="fu">join</span>(<span class="st">" "</span>)))<span class="op">;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>} <span class="cf">catch</span> (e) {</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="bu">console</span><span class="op">.</span><span class="fu">error</span>(<span class="st">"Error:"</span><span class="op">,</span> e<span class="op">.</span><span class="at">message</span>)<span class="op">;</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Make it executable and run:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> calc 1 + 2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Bun has built in support for <a href="https://bun.com/docs">all sorts of things</a>, including YAML parsing and serialization, running simple webservers, interfacing with databases, rich networking primitives, and lots more. All these are accessible via <code>lectic script</code>.</p>
+</section>
+</section>
+<section id="environment-variables" class="level2">
+<h2 class="anchored" data-anchor-id="environment-variables">Environment Variables</h2>
+<p>Subcommands receive the standard set of Lectic environment variables:</p>
 <ul>
-<li><a href="../cookbook/01_coding_assistant.html">Coding Assistant</a>: An agentic setup with shell tools, TypeScript checking, and human-in-the-loop confirmation.</li>
-<li><a href="../cookbook/02_commit_messages.html">Git Commit Messages</a>: A custom subcommand that generates commit messages from staged changes.</li>
-<li><a href="../cookbook/03_research_perspectives.html">Research with Multiple Perspectives</a>: Using multiple interlocutors to get different viewpoints on a problem.</li>
-<li><a href="../cookbook/04_memory.html">Conversation Memory</a>: Persisting conversations to SQLite and retrieving relevant context.</li>
-<li><a href="../cookbook/05_context_compaction.html">Context Compaction</a>: Automatically summarizing and resetting context when token limits approach.</li>
-<li><a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a>: Isolate tool execution using wrapper scripts like Bubblewrap.</li>
+<li><code>LECTIC_CONFIG</code>: Path to the configuration directory.</li>
+<li><code>LECTIC_DATA</code>: Path to the data directory.</li>
+<li><code>LECTIC_CACHE</code>: Path to the cache directory.</li>
+<li><code>LECTIC_STATE</code>: Path to the state directory.</li>
+<li><code>LECTIC_TEMP</code>: Path to the temporary directory.</li>
 </ul>
+<p>These ensure your subcommands respect the user’s directory configuration.</p>
+</section>
+<section id="tab-completion" class="level2">
+<h2 class="anchored" data-anchor-id="tab-completion">Tab Completion</h2>
+<p>You can add tab completion for your custom subcommands. The completion system supports plugging in custom completion functions.</p>
+<section id="installation" class="level3">
+<h3 class="anchored" data-anchor-id="installation">Installation</h3>
+<p>First, ensure you have enabled tab completion by sourcing the completion script in your shell configuration (e.g., <code>~/.bashrc</code>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> /path/to/lectic/extra/tab_complete/lectic_completion.bash</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>(The path depends on how you installed Lectic. If you installed via Nix or an AppImage, you may need to locate this file in the repository or extract it.)</p>
+</section>
+<section id="adding-completions" class="level3">
+<h3 class="anchored" data-anchor-id="adding-completions">Adding Completions</h3>
+<p>To provide completions for a subcommand <code>lectic-foo</code>, create a bash script that defines a completion function and registers it.</p>
+<p>The script can be placed in: 1. <code>~/.config/lectic/completions/</code> 2. <code>~/.local/share/lectic/completions/</code> 3. Or alongside the executable itself, named <code>lectic-foo.completion.bash</code>.</p>
+<p><strong>Example:</strong></p>
+<p>Create <code>~/.config/lectic/completions/foo.bash</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">_lectic_complete_foo()</span> <span class="kw">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="bu">local</span> <span class="va">cur</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">cur</span><span class="op">=</span><span class="st">"</span><span class="va">${COMP_WORDS</span><span class="op">[</span>COMP_CWORD<span class="op">]</span><span class="va">}</span><span class="st">"</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Suggest 'bar' and 'baz'</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="va">COMPREPLY</span><span class="op">=</span><span class="va">(</span> <span class="va">$(</span><span class="bu">compgen</span> <span class="at">-W</span> <span class="st">"bar baz"</span> <span class="at">--</span> <span class="st">"</span><span class="va">${cur}</span><span class="st">"</span><span class="va">)</span> <span class="va">)</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Register the function for the 'foo' subcommand</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic_register_completion</span> foo _lectic_complete_foo</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Now, typing <code>lectic foo &lt;TAB&gt;</code> will suggest <code>bar</code> and <code>baz</code>.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>For performance, define completions in a separate <code>.completion.bash</code> file rather than inside the subcommand script itself. This allows the shell to load completions without executing the subcommand.</p>
+</div>
+</div>
 
 
+</section>
 </section>
 </section>
 

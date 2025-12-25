@@ -286,6 +286,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Hooks</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../automation/03_custom_subcommands.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Subcommands</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -473,7 +479,7 @@ Warning
 <section id="sandboxing-sandbox" class="level3">
 <h3 class="anchored" data-anchor-id="sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</h3>
 <p>For local <code>mcp_command</code> tools, you can specify a <code>sandbox</code> command. This command will be used to launch the MCP server process in a controlled and isolated environment, limiting its access to your system. Arguments are supported (e.g.&nbsp;<code>sandbox: wrapper.sh --strict</code>).</p>
-<p>See the documentation for the <a href="../tools/02_exec.html">Exec Tool</a> for more details on how sandboxing scripts work.</p>
+<p>See the documentation for the <a href="../tools/02_exec.html">Exec Tool</a> for more details on how sandboxing scripts work, and the <a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a> recipe for examples.</p>
 <p>You can also set a default <code>sandbox</code> on the <code>interlocutor</code> object. If set, it applies to all local MCP tools that don’t specify their own.</p>
 
 
