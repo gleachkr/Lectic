@@ -159,10 +159,12 @@ in a key name.
 
 - `name`: (Required) The name of the macro, used when invoking it with
   `:name[]` or `:name[args]`.
-- `expansion`: (Required) The content to be expanded. Can be a string, or
-  loaded via `file:` or `exec:`. See
+- `expansion`: (Optional) The content to be expanded. Can be a string, or
+  loaded via `file:` or `exec:`. Equivalent to `post` if provided. See
   [External Prompts](../context_management/03_external_prompts.qmd)
-  for details.
+  for details about `file:` and `exec:`.
+- `pre`: (Optional) Expansion content for the pre-order phase.
+- `post`: (Optional) Expansion content for the post-order phase.
 
 ---
 

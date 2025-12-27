@@ -5,7 +5,7 @@ import { linkTargetAtPositionFromBundle } from "./linkTargets"
 import { offsetToPosition, positionToOffset } from "./positions"
 import { mergedHeaderSpecForDocDetailed } from "../parsing/parse"
 import { isLecticHeaderSpec } from "../types/lectic"
-import { buildMacroIndex } from "./macroIndex"
+import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./utils/path"
 import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
@@ -32,11 +32,12 @@ export async function computeHover(
           m => m.name.toLowerCase() === dctx.key.toLowerCase()
         )
         if (found) {
-          const snippet = found.expansion.slice(0, 500).replace(/`/g, "\u200b`")
+          const { detail, documentation } = previewMacro(found)
+          const snippet = documentation.slice(0, 500).replace(/`/g, "\u200b`")
           return {
             contents: {
               kind: MarkupKind.Markdown,
-              value: `macro ${code(found.name)}\n\n${code(snippet)}`,
+              value: `macro ${code(detail)}\n\n${code(snippet)}`,
             },
             range: LspRange.create(dctx.nodeStart, dctx.nodeEnd),
           }

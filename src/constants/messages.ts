@@ -49,9 +49,9 @@ export const Messages = {
   macro: {
     nameMissing: () => `Macro needs to be given with a "name" field.`,
     expansionMissing: () =>
-      `Macro needs to be given with an "expansion" field.`,
+      `Macro needs to be given with an "expansion", "pre", or "post" field.`,
     baseNeedsNameExpansion: (raw: unknown) =>
-      `Macro needs to be given with at least "name" and "expansion" fields. Got ${raw} instead.`,
+      `Macro needs to be given with "name" and at least one of "expansion", "pre", or "post". Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for macro`,
   },
 

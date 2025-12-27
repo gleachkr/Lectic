@@ -1,5 +1,6 @@
 import type { RootContent } from "mdast"
-import { parseReferences, parseDirectives, parseBlocks, replaceDirectives, nodeContentRaw, nodeRaw } from "../parsing/markdown"
+import { parseReferences, parseDirectives, parseBlocks, nodeContentRaw, nodeRaw } from "../parsing/markdown"
+import { expandMacros } from "../parsing/macro"
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
 import type { Interlocutor } from "./interlocutor"
@@ -52,87 +53,12 @@ export class UserMessage {
     async expandMacros(macros : Macro[]) {
         if (macros.length === 0) return
 
-        const reserved = new Set(["cmd", "ask", "aside", "reset"]) 
+        const macroByName: Record<string, Macro> = {}
+        macros.forEach(m => {
+            macroByName[m.name.trim().toLowerCase()] = m
+        })
 
-        const macroByName = new Map<string, Macro>
-        macros.forEach(m => macroByName.set(m.name.trim().toLowerCase(), m))
-
-        const expansions = new Map<string, { expansion: string, args: string }>
-
-        const makeKey = (
-            nameLower: string,
-            args: string,
-            attrs: Record<string, string | undefined>
-        ) => {
-            const parts: string[] = []
-            for (const k of Object.keys(attrs).sort()) {
-                const v = attrs[k]
-                parts.push(`${k}=${v === undefined ? "<unset>" : v}`)
-            }
-            return `${nameLower}\n${args}\n${parts.join("\n")}`
-        }
-
-        // We run the expansions in parallel.
-        await Promise.all(
-            parseDirectives(this.content)
-                .filter(directive => {
-                    const keyLower = directive.name.trim().toLowerCase()
-                    if (keyLower.length === 0) return false
-                    if (reserved.has(keyLower)) return false
-                    return macroByName.has(keyLower)
-                })
-                .map(async directive => {
-                    const directiveKey = directive.name.trim()
-                    const nameLower = directiveKey.toLowerCase()
-
-                    const matched = macroByName.get(nameLower)
-                    if (!matched) return
-
-                    const attributes: Record<string, string | undefined> = {}
-                    for (const key in directive.attributes) {
-                        attributes[key] = directive.attributes[key] ?? undefined
-                    }
-
-                    // Args come from the directive's bracket contents.
-                    const args = nodeContentRaw(directive, this.content)
-
-                    // Provide args as ARG, but allow explicit overrides.
-                    if (!Object.prototype.hasOwnProperty.call(attributes, "ARG")) {
-                        attributes["ARG"] = args
-                    }
-
-                    const expansion = await matched.expand(attributes)
-                    if (typeof expansion !== "string") return
-
-                    const key = makeKey(nameLower, args, attributes)
-                    expansions.set(key, { expansion, args })
-                })
-        )
-
-        const replacer = (
-            name: string,
-            content: string,
-            attrs?: Record<string, string | null | undefined>
-        ) => {
-            const nameLower = String(name ?? "").trim().toLowerCase()
-            if (nameLower.length === 0) return null
-            if (reserved.has(nameLower)) return null
-            if (!macroByName.has(nameLower)) return null
-
-            const attributes: Record<string, string | undefined> = {}
-            for (const key in attrs ?? {}) {
-                if (attrs?.[key] === null) attributes[key] = undefined
-                else attributes[key] = attrs?.[key]
-            }
-            if (!Object.prototype.hasOwnProperty.call(attributes, "ARG")) {
-                attributes["ARG"] = content
-            }
-
-            const key = makeKey(nameLower, content, attributes)
-            return expansions.get(key)?.expansion ?? null
-        }
-
-        this.content = replaceDirectives(this.content, replacer)
+        this.content = await expandMacros(this.content, macroByName)
     }
 }
 

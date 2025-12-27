@@ -113,3 +113,77 @@ macros:
 
 When Lectic processes this, the directive will be replaced by the output
 of the `exec` command, which is "Hello, World!".
+
+## Advanced Macros: Phases and Recursion
+
+Macros can interact with each other recursively. To support complex workflows,
+macros can define two separate expansion phases: `pre` and `post`.
+
+- **`pre`**: Expanded when the macro is first encountered (pre-order traversal).
+  If `pre` returns content, the expansion stops there: the macro is replaced
+  by the result of `pre` **and that result is then recursively expanded**.
+  The original children of the macro are discarded.
+- **`post`**: Expanded after the macro's children have been processed (post-order
+  traversal). The processed output of the children is passed to `post` as the
+  `ARG` variable.
+
+If you define a macro with just `expansion`, it is treated as a `post` phase
+macro.
+
+### Handling "No Operation" in Pre
+
+If the `pre` script runs but produces **no output** (an empty string), Lectic
+treats this as a "pass-through". The macro is NOT replaced; instead, Lectic
+proceeds to process the macro's children and then runs the `post` phase.
+
+This makes it easy to implement cache checks or conditional logic.
+
+::: {.callout-tip}
+If you explicitly want to **delete** a node during the `pre` phase (stopping
+recursion and producing no output), you cannot return an empty string.
+Instead, return an empty HTML comment: `<!-- -->`. This stops recursion
+and renders as nothing.
+:::
+
+### Example: Caching
+
+This design allows for powerful compositions, such as a caching macro that
+wraps expensive operations.
+
+```yaml
+macros:
+  - name: cache
+    # Check for cache hit. If found, cat the file.
+    # If not found, the script produces no output (empty string),
+    # so Lectic proceeds to expand the children.
+    pre: |
+      exec:#!/bin/bash
+      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)
+      if [ -f "/tmp/cache/$HASH" ]; then
+        cat "/tmp/cache/$HASH"
+      fi
+    # If we reached post, it means pre didn't return anything (cache miss).
+    # We now have the result of the children in ARG. Save it and output it.
+    post: |
+      exec:#!/bin/bash
+      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)
+      mkdir -p /tmp/cache
+      echo "$ARG" > "/tmp/cache/$HASH"
+      echo "$ARG"
+```
+
+Usage:
+
+```markdown
+:cache[:summarize[:cat[file.txt]]]
+```
+
+1. `:cache`'s `pre` runs. If the cache exists for the raw text of the
+   children, it returns the cached summary. Lectic replaces the `:cache`
+   block with this text and is done.
+2. If `pre` returns nothing (cache miss), Lectic enters the children.
+3. `:cat` expands to the file content.
+4. `:summarize` processes that content.
+5. Finally, `:cache`'s `post` runs. `ARG` contains the summary. It writes
+   `ARG` to the cache and outputs it.
+

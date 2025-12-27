@@ -1,0 +1,110 @@
+import { remark } from "remark"
+import remarkDirective from "remark-directive"
+import type { Root, RootContent, Parent, Text } from "mdast"
+import type { TextDirective } from "mdast-util-directive"
+import { Macro } from "../types/macro"
+
+const processor = remark().use(remarkDirective)
+
+function nodesToMarkdown(nodes: RootContent[]): string {
+    const root: Root = { type: 'root', children: nodes }
+    let out = processor.stringify(root)
+    // remark.stringify adds a trailing newline if there are children.
+    if (nodes.length > 0) {
+        out = out.replace(/\r?\n$/, "")
+    }
+    return out
+}
+
+const reserved = new Set(["cmd", "ask", "aside", "reset"])
+
+export async function expandMacros(
+    text: string,
+    macros: Record<string, Macro>
+): Promise<string> {
+    if (Object.keys(macros).length === 0) return text
+
+    const ast = processor.parse(text)
+    let changed = false
+
+    async function walk(node: RootContent, raw: string, depth: number = 0): Promise<RootContent[]> {
+        if (depth > 100) throw new Error("Macro recursion depth limit exceeded")
+
+        if (node.type === 'containerDirective') {
+            return [node]
+        }
+
+        if (node.type === 'textDirective') {
+            const nameLower = node.name.toLowerCase()
+            if (reserved.has(nameLower)) return [node]
+            const macro = macros[nameLower]
+            if (macro) {
+                changed = true
+                const env: Record<string, string | undefined> = {
+                    ...node.attributes,
+                    ARG: node.attributes?.['ARG'] ?? nodesToMarkdown(node.children)
+                }
+
+                const preResult = await macro.expandPre(env)
+                if (preResult !== undefined) {
+                    const parsed = processor.parse(preResult).children
+                    const processedResult: RootContent[] = []
+                    for (const n of parsed) {
+                        processedResult.push(...(await walk(n, preResult, depth + 1)))
+                    }
+                    if (processedResult.length > 0) return processedResult
+                    // If parsing returned no nodes (e.g. empty comment), return empty text node
+                    const empty: Text = { type: 'text', value: '' }
+                    return [empty]
+                }
+
+                // Pre didn't return (or returned empty), so process children
+                const newChildren: RootContent[] = []
+                for (const child of node.children) {
+                    newChildren.push(...(await walk(child, raw, depth + 1)))
+                }
+                const textDirective = node as TextDirective
+                textDirective.children = newChildren as any
+
+                // Update ARG with processed children
+                env['ARG'] = node.attributes?.['ARG'] ?? nodesToMarkdown(textDirective.children)
+                
+                const postResult = await macro.expandPost(env)
+                if (postResult !== undefined) {
+                    const parsed = processor.parse(postResult).children
+                    const processedResult: RootContent[] = []
+                    for (const n of parsed) {
+                        processedResult.push(...(await walk(n, postResult, depth + 1)))
+                    }
+                    if (processedResult.length > 0) return processedResult
+                    const empty: Text = { type: 'text', value: '' }
+                    return [empty]
+                }
+            }
+        }
+
+        if ('children' in node) {
+            const parent = node as Parent
+            const newChildren: RootContent[] = []
+            for (const child of parent.children) {
+                newChildren.push(...(await walk(child, raw, depth)))
+            }
+            parent.children = newChildren
+        }
+
+        return [node]
+    }
+
+    const newChildren: RootContent[] = []
+    for (const child of ast.children) {
+        newChildren.push(...(await walk(child, text)))
+    }
+    ast.children = newChildren
+
+    if (!changed) return text
+
+    let out = processor.stringify(ast)
+    const inputHasFinalNL = /\r?\n$/.test(text)
+    if (!inputHasFinalNL) out = out.replace(/\r?\n$/, "")
+    return out
+}
