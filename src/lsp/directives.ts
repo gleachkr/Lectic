@@ -73,6 +73,10 @@ export type DirectiveContext = {
    * LSP position of the directive end (end of the node).
    */
   nodeEnd: LspPosition
+  /**
+   * True when the directive has [...] brackets.
+   */
+  hasBrackets: boolean
 }
 
 export function directiveAtPosition(
@@ -107,16 +111,17 @@ export function directiveAtPosition(
     const raw = nodeRaw(d, body)
     const leftIdx = raw.indexOf("[")
     const rightIdx = raw.lastIndexOf("]")
+    const hasBrackets = leftIdx >= 0 && rightIdx >= 0 && rightIdx > leftIdx
 
-    const innerStartOff = s.offset + leftIdx + 1
-    const innerEndOff = s.offset + rightIdx
+    const innerStartOff = hasBrackets ? s.offset + leftIdx + 1 : e.offset
+    const innerEndOff = hasBrackets ? s.offset + rightIdx : e.offset
     const absInnerStartOff = prefixLen + innerStartOff
     const absInnerEndOff = prefixLen + innerEndOff
 
     const innerStart = offsetToPosition(docText, absInnerStartOff)
     const innerEnd = offsetToPosition(docText, absInnerEndOff)
 
-    const insideBrackets = posAbsOff >= absInnerStartOff && posAbsOff <= absInnerEndOff
+    const insideBrackets = hasBrackets && posAbsOff >= absInnerStartOff && posAbsOff <= absInnerEndOff
 
     const nodeStart = offsetToPosition(docText, absStartOff)
     const nodeEnd = offsetToPosition(docText, absEndOff)
@@ -134,6 +139,7 @@ export function directiveAtPosition(
       innerEnd,
       nodeStart,
       nodeEnd,
+      hasBrackets,
     }
   }
 
@@ -155,7 +161,7 @@ export function directiveAtPositionFromBundle(
     const innerText = docText.slice(d.innerStart, d.innerEnd)
     const typedLen = Math.max(0, Math.min(innerText.length, absPos - d.innerStart))
     const innerPrefix = innerText.slice(0, typedLen)
-    const insideBrackets = absPos >= d.innerStart && absPos <= d.innerEnd
+    const insideBrackets = d.hasBrackets && absPos >= d.innerStart && absPos <= d.innerEnd
     return {
       key: d.key,
       insideBrackets,
@@ -165,6 +171,7 @@ export function directiveAtPositionFromBundle(
       innerEnd,
       nodeStart,
       nodeEnd,
+      hasBrackets: d.hasBrackets,
     }
   }
   return null

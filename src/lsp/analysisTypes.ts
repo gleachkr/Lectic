@@ -7,6 +7,7 @@ export type DirectiveSpan = {
   absEnd: number
   innerStart: number
   innerEnd: number
+  hasBrackets: boolean
 }
 
 export type LinkSpan = {

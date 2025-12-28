@@ -37,15 +37,16 @@ export function buildBundleFromAst(
     const raw = nodeRaw(d, docText)
     const l = raw.indexOf("[")
     const r = raw.lastIndexOf("]")
-    if (l < 0 || r < 0 || r <= l) continue
-    const innerStart = s + l + 1
-    const innerEnd = s + r
+    const hasBrackets = l >= 0 && r >= 0 && r > l
+    const innerStart = hasBrackets ? s + l + 1 : e
+    const innerEnd = hasBrackets ? s + r : e
     directives.push({
       key: typeof d.name === 'string' ? d.name.toLowerCase() : '',
       absStart: s,
       absEnd: e,
       innerStart,
       innerEnd,
+      hasBrackets,
     })
   }
 

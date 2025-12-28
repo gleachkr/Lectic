@@ -29,13 +29,21 @@ function add(tok: Tok[], line: number, char: number, length: number) {
   tok.push({ line, char, length, typeIndex: 0, mods: 0 })
 }
 
-function highlightDirective(tok: Tok[], text: string, absStart: number, innerStart: number, innerEnd: number) {
-  // Highlight ":name[" as a single keyword span
-  const start = offsetToPosition(text, absStart)
-  add(tok, start.line, start.character, innerStart - absStart)
-  // Highlight the closing bracket "]" as keyword
-  const rbPos = offsetToPosition(text, innerEnd)
-  add(tok, rbPos.line, rbPos.character, 1)
+function highlightDirective(
+  tok: Tok[],
+  text: string,
+  d: DirectiveSpan
+) {
+  // Highlight ":name[" or ":name" as a single keyword span
+  const start = offsetToPosition(text, d.absStart)
+  const prefixLength = d.hasBrackets ? d.innerStart - d.absStart : d.absEnd - d.absStart
+  add(tok, start.line, start.character, prefixLength)
+
+  if (d.hasBrackets) {
+    // Highlight the closing bracket "]" as keyword
+    const rbPos = offsetToPosition(text, d.innerEnd)
+    add(tok, rbPos.line, rbPos.character, 1)
+  }
 }
 
 function isColon(ch: number) { return ch === 58 /* : */ }
@@ -89,7 +97,7 @@ export function buildSemanticTokens(
 
   // Directives in user chunks
   for (const d of bundle.directives) {
-    highlightDirective(tokens, text, d.absStart, d.innerStart, d.innerEnd)
+    highlightDirective(tokens, text, d)
   }
 
   // Assistant block headers and footers
