@@ -1,8 +1,8 @@
 # Lectic
 
-Lectic is a unixy LLM toolbox. It treats conversations as plain text files,
-which means you can version control them, grep them, pipe them, and edit
-them in whatever editor you like.
+Lectic is a unixy LLM toolbox. It treats conversations as ordinary 
+human-readable markdown files, so that you can version control them, grep them, 
+pipe them, edit them, and interact with LLMs in whatever editor you like.
 
 ```bash
 # Continue a conversation
@@ -25,8 +25,7 @@ LSP.
 Write them in Bash, Python, Rust — whatever you want.
 
 **Composable primitives.** A small set of building blocks (`:cmd`, `:ask`,
-`:reset`, macros, hooks, tool definitions) combine to handle a wide range
-of workflows.
+`:reset`, macros, hooks) combine to handle a wide range of workflows.
 
 **Plain text all the way down.** Conversations are markdown files. No
 databases, no proprietary formats, no lock-in.
@@ -174,8 +173,8 @@ Full documentation is at
 - [Getting Started](https://gleachkr.github.io/Lectic/02_getting_started.html)
 - [Configuration](https://gleachkr.github.io/Lectic/04_configuration.html)
 - [Tools](https://gleachkr.github.io/Lectic/tools/01_overview.html)
-- [Cookbook](https://gleachkr.github.io/Lectic/cookbook/index.html) — 
-  recipes for common workflows
+- [Cookbook](https://gleachkr.github.io/Lectic/cookbook/index.html) — recipes 
+  for using lectic in a variety of ways.
 
 ## License
 
