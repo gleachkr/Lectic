@@ -9,7 +9,7 @@ import type { Interlocutor } from "../types/interlocutor"
 export function getBackend(interlocutor : Interlocutor) : Backend {
     switch (interlocutor.provider || getDefaultProvider()) {
         case LLMProvider.OpenAI:  return new OpenAIBackend({
-            defaultModel: 'gpt-5',
+            defaultModel: 'gpt-5.2',
             apiKey: 'OPENAI_API_KEY',
             provider: LLMProvider.OpenAI,
         })
@@ -20,7 +20,7 @@ export function getBackend(interlocutor : Interlocutor) : Backend {
             url: 'https://openrouter.ai/api/v1'
         })
         case LLMProvider.OpenAIResponses: return new OpenAIResponsesBackend({
-            defaultModel: 'gpt-5',
+            defaultModel: 'gpt-5.2',
             apiKey: 'OPENAI_API_KEY',
             provider: LLMProvider.OpenAIResponses,
         })
