@@ -14,8 +14,6 @@ conversational LLM client.
     (`:::Name ... :::`).
 *   **Tool Call Folding:** Automatically folds `<tool-call>...</tool-call>`
     blocks generated during interaction, showing the tool name in the fold.
-*   **Selection Explanation:** Select text and ask `lectic` to explain it
-    in more detail, replacing the selection with the elaborated response.
 *   **Configurable Mappings:** Set your own keybindings for common actions.
 *   **Customizable Highlights:** Adjust the appearance of response blocks
     and the loading spinner.
@@ -59,8 +57,6 @@ and appearance by setting some global variables.
 vim.g.lectic_key_submit = '<Leader>l'
 -- Default: <localleader>c
 vim.g.lectic_key_cancel_submit = '<Leader>c'
--- Default: <localleader>e (Visual mode)
-vim.g.lectic_key_explain = '<Leader>e'
 ```
 
 **Highlights:**
@@ -97,11 +93,7 @@ vim.g.lectic_spinner_steps = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
     highlighted.
 6.  Tool calls within the response will appear folded, showing the tool
     name (e.g., `[ python ]`). Use standard fold commands (`za`, `zo`,
-    `zc`) to inspect them.
-7.  To elaborate on a part of the conversation:
-    *   Visually select the text you want explained.
-    *   Use the explain mapping (default `<localleader>e` in visual mode).
-    *   The selected text will be replaced by `lectic`'s explanation.
+    `zc`), or lsp hover (usually `K`) to inspect them.
 8.  To interrupt an LLM that's generating text, use the cancel submit mapping 
     (default `<localleader>c`).
 
@@ -119,4 +111,33 @@ the current Neovim process.
 
 *   `<localleader>l` (Normal mode): Submit buffer (`:Lectic`).
 *   `<localleader>c` (Normal mode): Interrupt text generation.
-*   `<localleader>e` (Visual mode): Explain selected text.
+
+## Hook Integration with Neovim
+
+When lectic runs from this plugin, the `NVIM` environment variable is set
+to Neovim's RPC server address. This allows 
+[hooks](https://gleachkr.github.io/Lectic/automation/02_hooks.html), [exec 
+tools](https://gleachkr.github.io/Lectic/tools/02_exec.qmd) to communicate back 
+to Neovim—for example, to send notifications when the assistant finishes a 
+long-running task, or give a coding agent the ability to call some Neovim 
+function.
+
+Here's an example hook that sends a Neovim notification when tool use
+completes:
+
+```yaml
+hooks:
+  - on: assistant_message
+    do: |
+      #!/usr/bin/env bash
+      if [[ "${TOOL_USE_DONE:-}" == "1" && -n "${NVIM:-}" ]]; then
+        nvim --server "$NVIM" --remote-expr \
+          "luaeval('vim.notify(\"Lectic: Assistant finished working\", vim.log.levels.INFO)')"
+      fi
+```
+
+You can use any Neovim Lua API this way, for example to play a sound,
+open a floating window, or trigger a custom autocmd. See the
+[hooks 
+documentation](https://gleachkr.github.io/Lectic/automation/02_hooks.html) for 
+more details on available hook events and environment variables.

@@ -233,6 +233,35 @@ hooks:
 This is especially useful for long-running agentic tasks where you want
 to step away and be alerted when the assistant is done.
 
+## Example: Neovim notification from hooks
+
+When using the [lectic.nvim](https://github.com/gleachkr/lectic/tree/main/extra/lectic.nvim)
+plugin, the `NVIM` environment variable is set to Neovim's RPC server
+address. This allows hooks to communicate directly with your editor—sending
+notifications, opening windows, or triggering any Neovim Lua API.
+
+This example sends a notification to Neovim when the assistant finishes
+working:
+
+```yaml
+hooks:
+  - on: assistant_message
+    do: |
+      #!/usr/bin/env bash
+      if [[ "${TOOL_USE_DONE:-}" == "1" && -n "${NVIM:-}" ]]; then
+        nvim --server "$NVIM" --remote-expr \
+          "luaeval('vim.notify(\"Lectic: Assistant finished working\", vim.log.levels.INFO)')"
+      fi
+```
+
+The pattern `nvim --server "$NVIM" --remote-expr "luaeval('...')"` lets
+you execute arbitrary Lua in the running Neovim instance. Some ideas:
+
+- Play a sound: `vim.fn.system('paplay /usr/share/sounds/...')`
+- Flash the screen: `vim.cmd('sleep 100m | redraw!')`
+- Update a status line variable
+- Trigger a custom autocommand: `vim.api.nvim_exec_autocmds('User', {pattern = 'LecticDone'})`
+
 ## Example: Reset context on token limit
 
 This example checks the total token usage and, if it exceeds a limit,
