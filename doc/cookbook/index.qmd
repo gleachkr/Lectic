@@ -18,3 +18,5 @@ can be adapted to your needs.
   summarizing and resetting context when token limits approach.
 - [Custom Sandboxing](./06_custom_sandboxing.qmd): Isolate tool execution
   using wrapper scripts like Bubblewrap.
+- [Control Flow with Macros](./07_control_flow_macros.qmd): Implement advanced
+  logic like loops, conditionals, and maps using recursive macros.

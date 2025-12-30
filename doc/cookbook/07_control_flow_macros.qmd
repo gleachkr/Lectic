@@ -1,0 +1,252 @@
+# Control Flow with Macros
+
+Because Lectic's macros support recursion and can execute scripts during the
+expansion phase, it is possible to build powerful control flow structures like
+conditionals, loops, and maps.
+
+This guide demonstrates how to implement these constructs. While complex logic
+is often better handled by writing a custom tool or script, these examples show
+the flexibility of the macro system.
+
+## The Mechanism: Recursion + `pre`
+
+The key to control flow is the `pre` phase of macro expansion.
+(See [Automation: Macros](../automation/01_macros.qmd#advanced-macros-phases-and-recursion)).
+
+Because the result of a `pre` expansion is itself recursively expanded, a
+macro can return a new instance of itself with different arguments, effectively
+creating a loop.
+
+Additionally, because `pre` expansions can run shell scripts (`exec:`), they
+can make decisions based on arguments or environment variables.
+
+## Recipe 1: Conditional (`:if`)
+
+A simple conditional macro evaluates a condition and outputs either its content
+(the "then" block) or an alternative (the "else" block).
+
+**Definition:**
+
+```yaml
+macros:
+  - name: if
+    post: |
+      exec:#!/bin/bash
+      if [ "$ARG" = "true" ]; then
+        echo "$THEN"
+      else
+        echo "$ELSE"
+      fi
+```
+
+**Usage:**
+
+```markdown
+:if[true]{THEN="This is displayed if true" ELSE="This is displayed if false"}
+:if[false]{THEN="This is hidden if not true" ELSE="This is shown instead"}
+:if[:some_check[]]{THEN="This is hidden if not true" ELSE="This is shown instead"}
+```
+## Recipe 2: Short-circuiting Conditional (`:when`)
+
+The previous example required passing the content as attributes (`THEN="..."`),
+which is clumsy for large blocks of text. More importantly, if we want to
+conditionally run a command, we need to prevent it from executing at all
+unless the condition is met.
+
+If we use the `post` phase, the children are expanded *before* the parent
+macro. To achieve "short-circuiting" (where the children are only expanded if
+the condition is true), we can use the `pre` phase of macro expansion. 
+
+**Definition:**
+
+```yaml
+macros:
+  - name: when
+    # In the 'pre' phase, ARG contains the raw, unexpanded body text.
+    pre: |
+      exec:#!/bin/bash
+      if [ "$CONDITION" = "true" ]; then
+        # Return the body to be expanded
+        echo "$ARG"
+      else
+        # Return a comment (effectively deleting the block)
+        echo "<!-- skipped -->"
+      fi
+```
+
+**Usage:**
+
+```markdown
+:when[
+  This content is only processed if the condition is met.
+  :cmd[echo "Expensive operation running..."]
+]{CONDITION="false"}
+```
+
+In this example the expensive `:cmd` is never expanded or executed.
+
+## Recipe 3: Recursion & Loops (`:countdown`)
+
+By having a macro call itself, we can create loops. We need a termination
+condition to stop the recursion (preventing an infinite loop).
+
+**Definition:**
+
+```yaml
+macros:
+  - name: countdown
+    pre: |
+      exec:#!/bin/bash
+      N=${ARG:-10}
+      if [ "$N" -gt 0 ]; then
+        echo "$N..."
+        # Recursive call with N-1
+        echo ":countdown[$((N-1))]"
+      else
+        echo "Liftoff!"
+      fi
+```
+
+**Usage:**
+
+```markdown
+:countdown[3]
+```
+
+**Output:**
+
+```text
+3...
+2...
+1...
+Liftoff!
+```
+
+## Recipe 4: Iteration (`:map`)
+
+We can iterate over a list of items and apply another macro to each one. This
+is useful for batch processing files, names, or data.
+
+This implementation assumes a space-separated list of items.
+
+**Definition:**
+
+```yaml
+macros:
+  - name: map
+    pre: |
+      exec:#!/bin/bash
+      # Split ARG into array (space separated)
+      items=($ARG)
+      
+      # Termination: if no items, stop
+      if [ ${#items[@]} -eq 0 ]; then
+          echo "<!-- -->"
+          exit 0
+      fi
+      
+      # Head: The first item
+      first=${items[0]}
+      
+      # Tail: The rest of the items
+      rest=${items[@]:1}
+      
+      # 1. Apply the target macro to the first item
+      echo ":$MACRO[$first]"
+      
+      # 2. Recurse on the rest (if any)
+      if [ -n "$rest" ]; then
+         echo ":map[$rest]{MACRO=$MACRO}"
+      fi
+```
+
+**Usage:**
+
+Suppose you have a macro `greet` defined:
+
+```yaml
+macros:
+  - name: greet
+    expansion: "Hello, $ARG! "
+```
+
+You can map it over a list of names:
+
+```markdown
+:map[Alice Bob Charlie]{MACRO="greet"}
+```
+
+**Output:**
+
+```text
+Hello, Alice! Hello, Bob! Hello, Charlie! 
+```
+
+## Fun Example: The "Launch Sequence"
+
+Let's combine these concepts into a "Launch Sequence" generator. We want to
+check a list of systems, and if they are all go, initiate a countdown.
+
+**Configuration:**
+
+```yaml
+macros:
+  - name: launch_sequence
+    expansion: |
+      # Check systems
+      :map[Propulsion Guidance Life-Support]{MACRO="check_system"}
+      
+      # Start countdown
+      :countdown[5]
+
+  - name: check_system
+    expansion: "Checking $ARG... OK.\n"
+
+  - name: map
+    pre: |
+      exec:#!/bin/bash
+      items=($ARG)
+      if [ ${#items[@]} -eq 0 ]; then echo "<!-- -->"; exit 0; fi
+      first=${items[0]}
+      rest=${items[@]:1}
+      echo ":$MACRO[$first]"
+      if [ -n "$rest" ]; then echo ":map[$rest]{MACRO=$MACRO}"; fi
+
+  - name: countdown
+    pre: |
+      exec:#!/bin/bash
+      N=${ARG:-10}
+      if [ "$N" -gt 0 ]; then
+        echo "$N..."
+        echo ":countdown[$((N-1))]"
+      else
+        echo "Liftoff!"
+      fi
+```
+
+**Usage:**
+
+```markdown
+:launch_sequence[]
+```
+
+**Output:**
+
+```text
+Checking Propulsion... OK.
+Checking Guidance... OK.
+Checking Life-Support... OK.
+5...
+4...
+3...
+2...
+1...
+Liftoff!
+```
+
+::: {.callout-note}
+### Recursion Limit
+Lectic has a recursion depth limit (default 100) to prevent infinite loops from
+crashing the process. If your loop needs to run more than 100 times, you should
+probably use an external script (`exec:`) instead of a recursive macro.
+:::
