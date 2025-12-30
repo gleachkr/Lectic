@@ -3,7 +3,7 @@ import type {
   SemanticTokensLegend,
   Range,
 } from "vscode-languageserver"
-import type { AnalysisBundle, BlockSpan } from "./analysisTypes"
+import type { AnalysisBundle, BlockSpan, DirectiveSpan } from "./analysisTypes"
 import { offsetToPosition } from "./positions"
 
 // Legend shared with server initialize
