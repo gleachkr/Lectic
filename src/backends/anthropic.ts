@@ -294,11 +294,14 @@ async function* runConversationLoop(
         Logger.debug("anthropic - reply", msg)
 
         const toolUseDone = msg.stop_reason !== "tool_use"
+        const input = msg.usage.input_tokens + 
+            (msg.usage.cache_read_input_tokens ?? 0) + 
+            (msg.usage.cache_creation_input_tokens ?? 0)
         const usage = {
-            input: msg.usage.input_tokens,
+            input,
             cached: msg.usage.cache_read_input_tokens ?? 0,
             output: msg.usage.output_tokens,
-            total: msg.usage.input_tokens + msg.usage.output_tokens
+            total: input + msg.usage.output_tokens
         }
 
         pendingHookRes = emitAssistantMessageEvent(assistant, lectic, {
