@@ -138,6 +138,5 @@ hooks:
 
 You can use any Neovim Lua API this way, for example to play a sound,
 open a floating window, or trigger a custom autocmd. See the
-[hooks 
-documentation](https://gleachkr.github.io/Lectic/automation/02_hooks.html) for 
+[hooks documentation](https://gleachkr.github.io/Lectic/automation/02_hooks.html) for 
 more details on available hook events and environment variables.
