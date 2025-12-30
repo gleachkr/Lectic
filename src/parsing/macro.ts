@@ -1,6 +1,6 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
-import type { Root, RootContent, Parent, Text } from "mdast"
+import type { Root, RootContent, Parent, Text, PhrasingContent } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 import { Macro } from "../types/macro"
 
@@ -64,7 +64,9 @@ export async function expandMacros(
                     newChildren.push(...(await walk(child, raw, depth + 1)))
                 }
                 const textDirective = node as TextDirective
-                textDirective.children = newChildren as any
+                // We need to cast here, since technically an inline
+                // directive's children must be phrasing content.
+                textDirective.children = newChildren as PhrasingContent[]
 
                 // Update ARG with processed children
                 env['ARG'] = node.attributes?.['ARG'] ?? nodesToMarkdown(textDirective.children)
