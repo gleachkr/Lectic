@@ -345,12 +345,6 @@ def _print_graph(
     sorted_models = sorted(list(all_models))
     model_colors = {m: _get_color(i) for i, m in enumerate(sorted_models)}
 
-    if show_price:
-        print(f"Usage by {granularity} (USD)")
-    else:
-        print(f"Usage by {granularity} (Tokens)")
-    print("")
-
     # Legend
     legend_items = []
     for m in sorted_models:
@@ -358,7 +352,7 @@ def _print_graph(
         # Show the three shades in the legend for each model
         legend_items.append(f"{color}█▓░{RESET} {m}")
     print("Legend: " + "  ".join(legend_items))
-    print("        " + "█ Output  ▓ Uncached Input  ░ Cached")
+    print("        " + "█▓░ Output/Input/Cache")
     print("─" * 78)
 
     width = 40
