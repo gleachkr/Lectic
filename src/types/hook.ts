@@ -21,6 +21,8 @@ export type HookSpec = {
     on: keyof HookEvents | (keyof HookEvents)[]
     do: string
     inline?: boolean
+    name?: string
+    env?: Record<string, string>
 }
 
 export function validateHookSpec (raw : unknown) : raw is HookSpec {
@@ -38,6 +40,12 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     }
     if (!("do" in raw) || typeof raw.do !== "string") {
         throw Error(Messages.hook.doMissing())
+    }
+    if ("name" in raw && typeof raw.name !== "string") {
+        throw Error(Messages.hook.nameType())
+    }
+    if ("env" in raw && (typeof raw.env !== "object" || raw.env === null)) {
+        throw Error(Messages.hook.envType())
     }
     const validOn = typeof raw.on === "string"
         ? hookTypes.includes(raw.on)
@@ -64,19 +72,25 @@ export class Hook {
     on : (keyof HookEvents)[]
     do : string
     inline : boolean
+    name? : string
+    env : Record<string, string>
+
     constructor(spec : HookSpec) {
         this.on = typeof spec.on === "string" ? [spec.on] : spec.on
         this.do = spec.do
         this.inline = spec.inline ?? false
+        this.name = spec.name
+        this.env = spec.env || {}
     }
 
     execute(env : Record<string, string | undefined> = {}, stdin? : string) 
         : { output: string | undefined, exitCode: number } {
+        const mergedEnv = { ...this.env, ...env }
         if (this.do.split("\n").length > 1) {
-            const result = execScriptFull(this.do, env, stdin ? new Blob([stdin]) : undefined)
+            const result = execScriptFull(this.do, mergedEnv, stdin ? new Blob([stdin]) : undefined)
             return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
         } else {
-            const result = execCmdFull(expandEnv(this.do, env), env, stdin ? new Blob([stdin]) : undefined)
+            const result = execCmdFull(expandEnv(this.do, mergedEnv), mergedEnv, stdin ? new Blob([stdin]) : undefined)
             return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
         }
     }

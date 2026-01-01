@@ -50,6 +50,7 @@ export const Messages = {
     nameMissing: () => `Macro needs to be given with a "name" field.`,
     expansionMissing: () =>
       `Macro needs to be given with an "expansion", "pre", or "post" field.`,
+    envType: () => `The "env" field of a macro must be an object.`,
     baseNeedsNameExpansion: (raw: unknown) =>
       `Macro needs to be given with "name" and at least one of "expansion", "pre", or "post". Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for macro`,
@@ -63,6 +64,8 @@ export const Messages = {
     onValue: (allowed: string[]) =>
       `Hook "on" needs to be one of ${allowed.join(", ")}.`,
     doMissing: () => `Hook needs to be given with a "do" field.`,
+    envType: () => `The "env" field of a hook must be an object.`,
+    nameType: () => `The "name" field of a hook must be a string.`,
     baseNeedsOnDo: (raw: unknown) =>
       `Hook needs to be given with at least "on" and "do" fields. Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for hook`,

@@ -11,7 +11,8 @@ header or in an included configuration file).
 ## Defining Macros
 
 Macros are defined under the `macros` key. Each macro must have a `name` and
-an `expansion`.
+an `expansion`. You can optionally provide an `env` map to set default
+environment variables for the expansion.
 
 ```yaml
 macros:
@@ -21,10 +22,10 @@ macros:
       conversation so far, focusing on the key decisions made and
       conclusions reached.
 
-  - name: commit_msg
-    expansion: |
-      Please write a Conventional Commit message for the following changes:
-      :cmd[git diff --staged]
+  - name: build
+    env:
+      BUILD_DIR: ./dist
+    expansion: exec:echo "Building in $BUILD_DIR"
 ```
 
 ### Expansion Sources

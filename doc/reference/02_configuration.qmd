@@ -165,6 +165,9 @@ in a key name.
   for details about `file:` and `exec:`.
 - `pre`: (Optional) Expansion content for the pre-order phase.
 - `post`: (Optional) Expansion content for the post-order phase.
+- `env`: (Optional) A dictionary of environment variables to be set during
+  the macro's execution. These are merged with any arguments provided at
+  the call site.
 
 ---
 
@@ -179,3 +182,7 @@ in a key name.
   for details.
 - `inline`: (Optional) Boolean. If `true`, the output of the hook is
   captured and injected into the conversation. Defaults to `false`.
+- `name`: (Optional) A name for the hook. Used for merging and overriding
+  hooks from different configuration sources.
+- `env`: (Optional) A dictionary of environment variables to be set when
+  the hook runs.

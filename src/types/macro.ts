@@ -7,6 +7,7 @@ export type MacroSpec = {
     expansion?: string
     pre?: string
     post?: string
+    env?: Record<string, string>
 }
 
 export function validateMacroSpec (raw : unknown) : raw is MacroSpec {
@@ -23,6 +24,10 @@ export function validateMacroSpec (raw : unknown) : raw is MacroSpec {
     const hasPre = "pre" in raw && typeof raw.pre === "string";
     const hasPost = "post" in raw && typeof raw.post === "string";
 
+    if ("env" in raw && (typeof raw.env !== "object" || raw.env === null)) {
+        throw Error(Messages.macro.envType())
+    }
+
     if (!hasExpansion && !hasPre && !hasPost) {
         throw Error(Messages.macro.expansionMissing())
     }
@@ -33,11 +38,13 @@ export class Macro {
     name : string
     pre? : string
     post? : string
+    env : Record<string, string>
 
-    constructor({name, expansion, pre, post} : MacroSpec) {
+    constructor({name, expansion, pre, post, env} : MacroSpec) {
         this.name = name
         this.pre = pre
         this.post = post || expansion
+        this.env = env || {}
     }
 
     get expansion() : string {
@@ -45,10 +52,11 @@ export class Macro {
     }
 
     async expandPre(env : Record<string, string | undefined> = {}) : Promise<string | undefined> {
+        const mergedEnv = { ...this.env, ...env }
         if (!this.pre) return undefined
-        const loaded = await loadFrom(this.pre, env)
+        const loaded = await loadFrom(this.pre, mergedEnv)
         if (typeof loaded === "string") {
-            const result = expandEnv(loaded, env)
+            const result = expandEnv(loaded, mergedEnv)
             // Empty string means "fallthrough" / "do nothing"
             return result === "" ? undefined : result
         }
@@ -56,8 +64,9 @@ export class Macro {
     }
 
     async expandPost(env : Record<string, string | undefined> = {}) : Promise<string | undefined> {
+        const mergedEnv = { ...this.env, ...env }
         if (!this.post) return undefined
-        const loaded = await loadFrom(this.post, env)
-        return typeof loaded === "string" ? expandEnv(loaded, env) : undefined
+        const loaded = await loadFrom(this.post, mergedEnv)
+        return typeof loaded === "string" ? expandEnv(loaded, mergedEnv) : undefined
     }
 }

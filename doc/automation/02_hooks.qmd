@@ -11,17 +11,26 @@ of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has three fields:
+A hook has five possible fields:
 
-- `on`: A single event name or a list of event names to listen for.
-- `do`: The command or inline script to run when the event fires.
+- `on`: (Required) A single event name or a list of event names to listen for.
+- `do`: (Required) The command or inline script to run when the event fires.
 - `inline`: (Optional) A boolean. If `true`, the standard output of the command
   is captured and injected into the conversation. Defaults to `false`. Only
   applicable to `assistant_message` and `user_message`.
+- `name`: (Optional) A string name for the hook. If multiple hooks have the
+  same name (e.g., one in your global config and one in a project config),
+  the one defined later (or with higher precedence) overrides the earlier
+  one. This allows you to replace default hooks with custom behavior.
+- `env`: (Optional) A map of environment variables to inject into the hook's
+  execution environment.
 
 ```yaml
 hooks:
-  - on: [assistant_message, user_message]
+  - name: logger
+    on: [assistant_message, user_message]
+    env:
+      LOG_FILE: /tmp/lectic.log
     do: ./log-activity.sh
 ```
 
