@@ -1,9 +1,13 @@
 import type { DocumentSymbol, Range } from "vscode-languageserver"
-import { Range as LspRange, SymbolKind as LspSymbolKind } from "vscode-languageserver/node"
+import {
+  Range as LspRange,
+  SymbolKind as LspSymbolKind,
+} from "vscode-languageserver/node"
 import { buildHeaderRangeIndex } from "./yamlRanges"
 import { getBody } from "../parsing/parse"
-import { offsetToPosition, positionToOffset } from "./positions"
+import { offsetToPosition } from "./positions"
 import type { AnalysisBundle } from "./analysisTypes"
+import { unescapeTags } from "../parsing/xml"
 
 function rangeContains(a: Range, b: Range): boolean {
   const aStart = a.start
@@ -43,6 +47,76 @@ function firstLineLen(text: string, startOff: number): number {
   const nl = text.indexOf("\n", startOff)
   if (nl === -1) return Math.min(80, text.length - startOff)
   return nl - startOff
+}
+
+function truncate(s: string, max = 60): string {
+  if (s.length <= max) return s
+  return s.slice(0, Math.max(0, max - 1)) + "…"
+}
+
+function collapseWhitespace(s: string): string {
+  return s.replace(/\s+/g, " ").trim()
+}
+
+function previewFromSpan(
+  docText: string,
+  fromOff: number,
+  toOff: number,
+  opts?: {
+    skipLeadingDirectiveLine?: boolean
+    skipXmlBlocks?: boolean
+    maxScanChars?: number
+    maxPreviewChars?: number
+  }
+): string {
+  const maxScan = opts?.maxScanChars ?? 4000
+  const maxPrev = opts?.maxPreviewChars ?? 60
+  const span = trimBlankSpan(docText, fromOff, toOff)
+  if (!span) return ""
+  const [s, e] = span
+
+  const snippet = docText.slice(s, Math.min(e, s + maxScan))
+  const lines = snippet.split(/\r?\n/)
+
+  let i = 0
+  if (opts?.skipLeadingDirectiveLine) i++
+
+  for (; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+
+    if (opts?.skipXmlBlocks) {
+      if (line.startsWith("<tool-call")) continue
+      if (line.startsWith("<inline-attachment")) continue
+    }
+
+    return truncate(collapseWhitespace(line), maxPrev)
+  }
+
+  return ""
+}
+
+function toolCallLabel(raw: string): string {
+  const firstLine = raw.split(/\r?\n/)[0]?.trim() ?? raw.trim()
+  const nameMatch = /with="([^"]*)"/.exec(firstLine)
+  const kindMatch = /kind="([^"]*)"/.exec(firstLine)
+  const name = nameMatch?.[1] ?? "tool"
+  const kind = kindMatch?.[1]
+  return kind ? `${kind}: ${name}` : `tool: ${name}`
+}
+
+function inlineAttachmentLabel(raw: string): string {
+  const firstLine = raw.split(/\r?\n/)[0]?.trim() ?? raw.trim()
+  const kindMatch = /kind="([^"]*)"/.exec(firstLine)
+  const kind = kindMatch?.[1] ?? "cmd"
+
+  // Try to pluck the <command> element (it's near the top).
+  const m = /<command>([\s\S]*?)<\/command>/.exec(raw)
+  const cmd = m ? unescapeTags(m[1]) : ""
+  const cmdLine = truncate(collapseWhitespace(cmd), 50)
+
+  if (cmdLine) return `${kind}: ${cmdLine}`
+  return `${kind} attachment`
 }
 
 function trimBlankSpan(text: string, fromOff: number, toOff: number): [number, number] | null {
@@ -113,7 +187,7 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
     if (headerChildren.length) {
       out.push({
         name: "Header",
-        kind: LspSymbolKind.Module,
+        kind: LspSymbolKind.Namespace,
         range: hdr.headerFullRange,
         selectionRange: hdr.headerFullRange,
         children: headerChildren,
@@ -121,56 +195,114 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
     }
   }
 
-  // Body groups (assistant containers and user chunks)
+  // Body groups (messages + nested tool calls / attachments)
   const body = getBody(docText)
   const bodyStartOff = docText.length - body.length
-  type Seg = { name: string, start: number, end: number }
-  const assistants: Seg[] = []
 
-  for (const b of bundle.blocks) {
-    if (b.kind === 'assistant') assistants.push({ name: b.name ?? 'Assistant', start: b.absStart, end: b.absEnd })
+  type ChildSpan = {
+    kind: 'tool-call' | 'inline-attachment'
+    absStart: number
+    absEnd: number
   }
 
-  assistants.sort((a, b) => a.start - b.start)
+  const childSpans: ChildSpan[] = [
+    ...bundle.toolCallBlocks.map(b => ({
+      kind: 'tool-call' as const,
+      absStart: b.absStart,
+      absEnd: b.absEnd,
+    })),
+    ...bundle.inlineAttachmentBlocks.map(b => ({
+      kind: 'inline-attachment' as const,
+      absStart: b.absStart,
+      absEnd: b.absEnd,
+    })),
+  ].sort((a, b) => a.absStart - b.absStart)
+
+  let childCursor = 0
 
   const bodyChildren: DocumentSymbol[] = []
 
-  let cursor = hdr ? positionToOffset(docText, hdr.headerFullRange.end) : 0
-  if (cursor < bodyStartOff) cursor = bodyStartOff
+  for (const block of bundle.blocks) {
+    const bs = Math.max(block.absStart, bodyStartOff)
+    const be = Math.max(bs, block.absEnd)
 
-  const pushUser = (from: number, to: number) => {
-    const span = trimBlankSpan(docText, from, to)
-    if (!span) return
-    const [s, e] = span
-    const line = offsetToPosition(docText, s).line + 1
-    const selLen = firstLineLen(docText, s)
+    if (block.kind === 'user') {
+      const span = trimBlankSpan(docText, bs, be)
+      if (!span) continue
+      const [s, e] = span
+      const selLen = firstLineLen(docText, s)
+      const preview = previewFromSpan(docText, s, e, { maxPreviewChars: 60 })
+      const name = preview ? `User: ${preview}` : "User"
+
+      bodyChildren.push({
+        name,
+        kind: LspSymbolKind.Event,
+        range: toRange(docText, s, e),
+        selectionRange: toRange(docText, s, s + selLen),
+      })
+      continue
+    }
+
+    // Assistant message block
+    const selLen = firstLineLen(docText, bs)
+    const preview = previewFromSpan(docText, bs, be, {
+      skipLeadingDirectiveLine: true,
+      skipXmlBlocks: true,
+      maxPreviewChars: 60,
+    })
+    const speaker = block.name ?? "Assistant"
+    const name = preview ? `${speaker}: ${preview}` : speaker
+
+    // Find child blocks contained by this assistant block.
+    while (childCursor < childSpans.length &&
+           childSpans[childCursor].absEnd <= bs) {
+      childCursor++
+    }
+
+    const children: DocumentSymbol[] = []
+    let i = childCursor
+    for (; i < childSpans.length; i++) {
+      const c = childSpans[i]
+      if (c.absStart >= be) break
+      if (c.absStart < bs || c.absEnd > be) continue
+
+      const cSelLen = firstLineLen(docText, c.absStart)
+      let cName = ""
+      let cKind = LspSymbolKind.Object
+      if (c.kind === 'tool-call') {
+        const raw = docText.slice(c.absStart, Math.min(c.absEnd, c.absStart + 400))
+        cName = toolCallLabel(raw)
+        cKind = LspSymbolKind.Function
+      } else {
+        const raw = docText.slice(c.absStart, Math.min(c.absEnd, c.absStart + 4000))
+        cName = inlineAttachmentLabel(raw)
+        cKind = LspSymbolKind.File
+      }
+
+      children.push({
+        name: cName,
+        kind: cKind,
+        range: toRange(docText, c.absStart, c.absEnd),
+        selectionRange: toRange(docText, c.absStart, c.absStart + cSelLen),
+      })
+    }
+    childCursor = i
+
     bodyChildren.push({
-      name: `User @ line ${line}`,
-      kind: LspSymbolKind.String,
-      range: toRange(docText, s, e),
-      selectionRange: toRange(docText, s, s + selLen),
+      name,
+      kind: LspSymbolKind.Event,
+      range: toRange(docText, bs, be),
+      selectionRange: toRange(docText, bs, bs + selLen),
+      children: children.length ? children : undefined,
     })
   }
-
-  for (const a of assistants) {
-    // User chunk before this assistant
-    pushUser(cursor, a.start)
-    // Assistant block
-    const selLen = firstLineLen(docText, a.start)
-    bodyChildren.push({
-      name: `Assistant: ${a.name}`,
-      kind: LspSymbolKind.Method,
-      range: toRange(docText, a.start, a.end),
-      selectionRange: toRange(docText, a.start, a.start + selLen),
-    })
-    cursor = a.end
-  }
-  // Trailing user chunk after the last assistant
-  pushUser(cursor, docText.length)
 
   if (bodyChildren.length) {
-    const first = bodyChildren[0]?.range.start ?? offsetToPosition(docText, bodyStartOff)
-    const last = bodyChildren[bodyChildren.length - 1]?.range.end ?? offsetToPosition(docText, docText.length)
+    const first = bodyChildren[0]?.range.start
+      ?? offsetToPosition(docText, bodyStartOff)
+    const last = bodyChildren[bodyChildren.length - 1]?.range.end
+      ?? offsetToPosition(docText, docText.length)
+
     out.push({
       name: "Body",
       kind: LspSymbolKind.Namespace,

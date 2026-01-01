@@ -351,7 +351,7 @@ describe("LSP integration", () => {
     expect(names.includes("Oggle")).toBeTrue()
     expect(names.includes("summarize")).toBeTrue()
     expect(names.includes("Body")).toBeTrue()
-    expect(names.some(n => n.startsWith("Assistant:"))).toBeTrue()
+    expect(names.some(n => n.startsWith("Oggle:"))).toBeTrue()
 
     client.dispose()
   })
