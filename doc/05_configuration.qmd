@@ -43,8 +43,11 @@ context as the main process.
 When combining settings from multiple configuration files, Lectic follows
 specific rules:
 
-- **Objects (Mappings)**: Merged recursively. If a key exists in multiple
-  sources, the value from the source with higher precedence wins.
+- **Objects (Mappings)**: If the higher precedence source has a `name`
+  attribute, and the name doesn't match the `name` attribute of the lower
+  precedence source, then the higher precedence source replaces the lower
+  precedence source. Otherwise, the objects are combined and matching keys
+  merged recursively.
 - **Arrays (Lists)**: Merged based on the `name` attribute of their
   elements. If two objects in an array share the same `name`, they are
   merged. Otherwise, the elements are simply combined. This is especially

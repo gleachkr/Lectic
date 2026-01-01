@@ -30,12 +30,16 @@ export function mergeValues(base: unknown, apply: unknown): unknown {
   }
 
   if (isObjectRecord(base) && isObjectRecord(apply)) {
-    const fresh: Record<string, unknown> = {}
-    const keys = new Set([...Object.keys(base), ...Object.keys(apply)])
-    for (const key of keys) {
-      fresh[key] = mergeValues(base[key], apply[key])
+    if ("name" in apply && apply["name"] !== base["name"]) {
+        return apply
+    } else {
+        const fresh: Record<string, unknown> = {}
+        const keys = new Set([...Object.keys(base), ...Object.keys(apply)])
+        for (const key of keys) {
+          fresh[key] = mergeValues(base[key], apply[key])
+        }
+        return fresh
     }
-    return fresh
   }
 
   return apply ?? base

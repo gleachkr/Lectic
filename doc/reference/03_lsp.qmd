@@ -1,5 +1,5 @@
 ---
-title: LSP Server (Experimental)
+title: LSP Server
 ---
 
 Lectic includes a small Language Server Protocol (LSP) server that
