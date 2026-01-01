@@ -44,12 +44,25 @@ status are ignored by Lectic. However, if you set `inline: true`, the standard
 output is captured and added to the conversation.
 
 - For `user_message` events, the output is injected as context for the LLM
-  before it generates a response. It also appears at the top of the assistant's
-  response block.
+  before it generates a response. It also appears at the top of the
+  assistant's response block.
 - For `assistant_message` events, the output is appended to the end of the
   assistant's response block. This will trigger another reply from the
   assistant, so be careful to only fire an inline hook when you want the
-  assisant to generate more content.
+  assistant to generate more content.
+
+In the `.lec` file, inline hook output is stored as an XML
+`<inline-attachment kind="hook">` block. The `<command>` element records the
+hook's `do` field so you can see what produced the output.
+
+```xml
+<inline-attachment kind="hook">
+<command>./my-hook.sh</command>
+<content type="text/plain">
+┆System check complete.
+</content>
+</inline-attachment>
+```
 
 ## Available events and environment
 
@@ -108,13 +121,24 @@ Hooks can pass metadata back to Lectic by including headers at the very
 beginning of their output. Headers follow the format `LECTIC:KEY:VALUE` or
 simply `LECTIC:KEY` (where the value defaults to "true") and must appear
 before any other content. The headers are stripped from the visible output
-and stored as attributes on the inline block.
+and stored as attributes on the inline attachment block.
 
 ```bash
 #!/usr/bin/env bash
 echo "LECTIC:final"
 echo ""
 echo "System check complete. One issue found."
+```
+
+This would be recorded roughly like this:
+
+```xml
+<inline-attachment kind="hook" final="true">
+<command>./my-hook.sh</command>
+<content type="text/plain">
+┆System check complete. One issue found.
+</content>
+</inline-attachment>
 ```
 
 Two headers affect control flow:

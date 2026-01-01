@@ -63,14 +63,36 @@ Markdown code fences inside assistant blocks can also use three backticks.
 
 ### Inline Attachments
 
-When you use directives like `:cmd[...]` in your message, Lectic executes
-them and caches the results as **inline attachments**. These within the
-assistant's response block as XML chunks:
+Lectic records some generated content directly into the transcript as
+**inline attachments**. This includes:
+
+- Output of `:cmd[...]` directives (`kind="cmd"`)
+- Output of inline hooks (`kind="hook"`)
+
+Inline attachments appear inside the assistant's response block as XML.
+They include a `<command>` field (the command that produced the content,
+or the hook's `do` value) and a `<content>` field.
+
+Example (`:cmd[...]`):
 
 ```xml
-<inline-attachment cmd="git diff --staged" type="text">
+<inline-attachment kind="cmd">
+<command>git diff --staged</command>
+<content type="text/plain">
 ┆diff --git a/src/main.ts b/src/main.ts
 ┆...
+</content>
+</inline-attachment>
+```
+
+Example (inline hook output):
+
+```xml
+<inline-attachment kind="hook" final="true">
+<command>~/.config/lectic/my-hook.sh</command>
+<content type="text/plain">
+┆System check complete.
+</content>
 </inline-attachment>
 ```
 
