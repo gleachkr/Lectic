@@ -240,7 +240,8 @@ async function *runConversationLoop(
 
         const realized = await resolveToolCalls(entries, registry, {
             limitExceeded: loopCount > maxToolUse,
-            lectic
+            lectic,
+            usage
         })
 
         // Convert to provider FunctionResponse parts

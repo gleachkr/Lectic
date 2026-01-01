@@ -358,7 +358,8 @@ async function* runConversationLoop(
 
         const realized: ToolCall[] = await resolveToolCalls(entries, registry, {
             limitExceeded: loopCount > maxToolUse,
-            lectic
+            lectic,
+            usage
         })
 
         // Convert to Anthropic blocks for the API.

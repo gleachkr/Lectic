@@ -187,7 +187,11 @@ export type ToolCallEntry = { id?: string, name: string, args: unknown }
 export async function resolveToolCalls(
     entries: ToolCallEntry[],
     registry: ToolRegistry,
-    opt?: { limitExceeded?: boolean, lectic?: Lectic }
+    opt?: { 
+        limitExceeded?: boolean, 
+        lectic?: Lectic,
+        usage?: { input: number, cached: number, output: number, total: number } 
+    }
 ): Promise<ToolCall[]> {
     const limitMsg = "Tool usage limit exceeded, no further tool calls will be allowed"
     const invalidArgsMsg = "The tool input isn't the right type. Tool inputs need to be returned as objects."
@@ -213,9 +217,15 @@ export async function resolveToolCalls(
                 if (hooks) {
                      const activeHooks = hooks.filter(h => h.on.includes("tool_use_pre"))
                      for (const hook of activeHooks) {
-                         const hookEnv = {
+                         const hookEnv : Record<string, string> = {
                              TOOL_NAME: name,
                              TOOL_ARGS: JSON.stringify(args)
+                         }
+                         if (opt?.usage) {
+                             hookEnv["TOKEN_USAGE_INPUT"] = opt.usage.input.toString()
+                             hookEnv["TOKEN_USAGE_OUTPUT"] = opt.usage.output.toString()
+                             hookEnv["TOKEN_USAGE_TOTAL"] = opt.usage.total.toString()
+                             hookEnv["TOKEN_USAGE_CACHED"] = opt.usage.cached.toString()
                          }
                          const { exitCode } = hook.execute(hookEnv)
                          if (exitCode !== 0) {

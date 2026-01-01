@@ -167,6 +167,7 @@ async function *runConversationLoop(
         const realizedFunction = await resolveToolCalls(entries, registry, {
             limitExceeded: loopCount > maxToolUse,
             lectic,
+            usage
         })
 
         const realizedUnsupported = (msg.tool_calls ?? [])
