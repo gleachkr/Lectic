@@ -37,4 +37,31 @@ describe("document symbols (unit)", () => {
     expect(allNames.includes("exec: get_date")).toBeTrue()
     expect(allNames.includes("cmd: date")).toBeTrue()
   })
+
+  test("interleaved text and tool calls", () => {
+    const text = `
+:::Assistant
+Let me check the time.
+
+<tool-call with="date" kind="exec">
+<arguments></arguments>
+<results></results>
+</tool-call>
+
+Okay, I checked the time.
+:::
+`
+    const symbols = buildDocumentSymbols(text, buildTestBundle(text))
+    // Drill down to Assistant block
+    const body = symbols.find(s => s.name === "Body")
+    const assistant = body?.children?.find(s => s.name.startsWith("Assistant:"))
+    
+    expect(assistant).toBeDefined()
+    const children = assistant!.children!
+    expect(children.length).toBe(3)
+    expect(children[0].name).toBe("Let me check the time.")
+    expect(children[0].kind).toBe(15) // String
+    expect(children[1].name).toBe("exec: date")
+    expect(children[2].name).toBe("Okay, I checked the time.")
+  })
 })

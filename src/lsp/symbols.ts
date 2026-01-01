@@ -62,15 +62,9 @@ function previewFromSpan(
   docText: string,
   fromOff: number,
   toOff: number,
-  opts?: {
-    skipLeadingDirectiveLine?: boolean
-    skipXmlBlocks?: boolean
-    maxScanChars?: number
-    maxPreviewChars?: number
-  }
 ): string {
-  const maxScan = opts?.maxScanChars ?? 4000
-  const maxPrev = opts?.maxPreviewChars ?? 60
+  const maxScan = 4000
+  const maxPrev = 60
   const span = trimBlankSpan(docText, fromOff, toOff)
   if (!span) return ""
   const [s, e] = span
@@ -79,16 +73,10 @@ function previewFromSpan(
   const lines = snippet.split(/\r?\n/)
 
   let i = 0
-  if (opts?.skipLeadingDirectiveLine) i++
 
   for (; i < lines.length; i++) {
     const line = lines[i].trim()
     if (!line) continue
-
-    if (opts?.skipXmlBlocks) {
-      if (line.startsWith("<tool-call")) continue
-      if (line.startsWith("<inline-attachment")) continue
-    }
 
     return truncate(collapseWhitespace(line), maxPrev)
   }
@@ -136,6 +124,25 @@ function trimBlankSpan(text: string, fromOff: number, toOff: number): [number, n
   }
   if (e <= s) return null
   return [s, e]
+}
+
+function createTextSymbol(docText: string, start: number, end: number): DocumentSymbol | null {
+  const span = trimBlankSpan(docText, start, end)
+  if (!span) return null
+  const [s, e] = span
+  
+  // heuristic: if text is exactly ":::", skip it (it's likely the closing fence)
+  if (docText.slice(s, e) === ":::") return null
+  
+  const preview = previewFromSpan(docText, s, e)
+  if (!preview) return null
+  
+  return {
+    name: preview,
+    kind: LspSymbolKind.String,
+    range: toRange(docText, s, e),
+    selectionRange: toRange(docText, s, Math.min(e, s + preview.length)),
+  }
 }
 
 export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): DocumentSymbol[] {
@@ -231,7 +238,7 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
       if (!span) continue
       const [s, e] = span
       const selLen = firstLineLen(docText, s)
-      const preview = previewFromSpan(docText, s, e, { maxPreviewChars: 60 })
+      const preview = previewFromSpan(docText, s, e)
       const name = preview ? `User: ${preview}` : "User"
 
       bodyChildren.push({
@@ -245,13 +252,15 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
 
     // Assistant message block
     const selLen = firstLineLen(docText, bs)
-    const preview = previewFromSpan(docText, bs, be, {
-      skipLeadingDirectiveLine: true,
-      skipXmlBlocks: true,
-      maxPreviewChars: 60,
-    })
-    const speaker = block.name ?? "Assistant"
-    const name = preview ? `${speaker}: ${preview}` : speaker
+
+    // Determine content range excluding fences
+    let contentStart = bs + selLen
+    let contentEnd = be
+    
+    // Check for closing fence ":::" at the end
+    if (contentEnd - contentStart >= 3 && docText.slice(contentEnd - 3, contentEnd) === ":::") {
+       contentEnd -= 3
+    }
 
     // Find child blocks contained by this assistant block.
     while (childCursor < childSpans.length &&
@@ -260,12 +269,21 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
     }
 
     const children: DocumentSymbol[] = []
+    let lastPos = contentStart
+
     let i = childCursor
     for (; i < childSpans.length; i++) {
       const c = childSpans[i]
       if (c.absStart >= be) break
       if (c.absStart < bs || c.absEnd > be) continue
 
+      // 1. Add text before child
+      if (c.absStart > lastPos) {
+         const textSym = createTextSymbol(docText, lastPos, c.absStart)
+         if (textSym) children.push(textSym)
+      }
+
+      // 2. Add child symbol
       const cSelLen = firstLineLen(docText, c.absStart)
       let cName = ""
       let cKind = LspSymbolKind.Object
@@ -285,8 +303,21 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
         range: toRange(docText, c.absStart, c.absEnd),
         selectionRange: toRange(docText, c.absStart, c.absStart + cSelLen),
       })
+      
+      lastPos = c.absEnd
     }
     childCursor = i
+
+    // 3. Add text after last child
+    if (lastPos < contentEnd) {
+       const textSym = createTextSymbol(docText, lastPos, contentEnd)
+       if (textSym) children.push(textSym)
+    }
+
+    const speaker = block.name ?? "Assistant"
+    const firstText = children.find(c => c.kind === LspSymbolKind.String)
+    const preview = firstText ? firstText.name : ""
+    const name = preview ? `${speaker}: ${preview}` : speaker
 
     bodyChildren.push({
       name,
