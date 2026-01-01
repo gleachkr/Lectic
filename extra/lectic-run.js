@@ -25,7 +25,7 @@ export default async function main() {
 
   // ensure run dir exists
   if (!existsSync(runDir)) {
-    try { mkdirSync(runDir, { recursive: true }); } catch (e) {}
+    try { mkdirSync(runDir, { recursive: true }); } catch {}
   }
 
   // Flags
@@ -149,7 +149,7 @@ export default async function main() {
   
   // Read STDIN if data available
   let stdinContent = "";
-  // @ts-ignore
+
   if (!process.stdin.isTTY) {
      stdinContent = await Bun.stdin.text();
   }
