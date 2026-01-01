@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>LSP Server – Lectic Documentation</title>
+<title>control_flow_macros – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -117,7 +117,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/03_lsp.html">LSP Server</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">
+      Lectic Documentation
+      </li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -364,7 +366,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link active">
+  <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">LSP Server</span></a>
   </div>
 </li>
@@ -375,72 +377,211 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#control-flow-with-macros" id="toc-control-flow-with-macros" class="nav-link active" data-scroll-target="#control-flow-with-macros">Control Flow with Macros</a>
+  <ul class="collapse">
+  <li><a href="#the-mechanism-recursion-pre" id="toc-the-mechanism-recursion-pre" class="nav-link" data-scroll-target="#the-mechanism-recursion-pre">The Mechanism: Recursion + <code>pre</code></a></li>
+  <li><a href="#recipe-1-conditional-if" id="toc-recipe-1-conditional-if" class="nav-link" data-scroll-target="#recipe-1-conditional-if">Recipe 1: Conditional (<code>:if</code>)</a></li>
+  <li><a href="#recipe-2-short-circuiting-conditional-when" id="toc-recipe-2-short-circuiting-conditional-when" class="nav-link" data-scroll-target="#recipe-2-short-circuiting-conditional-when">Recipe 2: Short-circuiting Conditional (<code>:when</code>)</a></li>
+  <li><a href="#recipe-3-recursion-loops-countdown" id="toc-recipe-3-recursion-loops-countdown" class="nav-link" data-scroll-target="#recipe-3-recursion-loops-countdown">Recipe 3: Recursion &amp; Loops (<code>:countdown</code>)</a></li>
+  <li><a href="#recipe-4-iteration-map" id="toc-recipe-4-iteration-map" class="nav-link" data-scroll-target="#recipe-4-iteration-map">Recipe 4: Iteration (<code>:map</code>)</a></li>
+  <li><a href="#fun-example-the-launch-sequence" id="toc-fun-example-the-launch-sequence" class="nav-link" data-scroll-target="#fun-example-the-launch-sequence">Fun Example: The “Launch Sequence”</a></li>
+  </ul></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/03_lsp.html">LSP Server</a></li></ol></nav>
-<div class="quarto-title">
-<h1 class="title">LSP Server</h1>
+
+
+
+<section id="control-flow-with-macros" class="level1">
+<h1>Control Flow with Macros</h1>
+<p>Because Lectic’s macros support recursion and can execute scripts during the expansion phase, it is possible to build powerful control flow structures like conditionals, loops, and maps.</p>
+<p>This guide demonstrates how to implement these constructs. While complex logic is often better handled by writing a custom tool or script, these examples show the flexibility of the macro system.</p>
+<section id="the-mechanism-recursion-pre" class="level2">
+<h2 class="anchored" data-anchor-id="the-mechanism-recursion-pre">The Mechanism: Recursion + <code>pre</code></h2>
+<p>The key to control flow is the <code>pre</code> phase of macro expansion. (See <a href="../automation/01_macros.html#advanced-macros-phases-and-recursion">Automation: Macros</a>).</p>
+<p>Because the result of a <code>pre</code> expansion is itself recursively expanded, a macro can return a new instance of itself with different arguments, effectively creating a loop.</p>
+<p>Additionally, because <code>pre</code> expansions can run shell scripts (<code>exec:</code>), they can make decisions based on arguments or environment variables.</p>
+</section>
+<section id="recipe-1-conditional-if" class="level2">
+<h2 class="anchored" data-anchor-id="recipe-1-conditional-if">Recipe 1: Conditional (<code>:if</code>)</h2>
+<p>A simple conditional macro evaluates a condition and outputs either its content (the “then” block) or an alternative (the “else” block).</p>
+<p><strong>Definition:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> if</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    post</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>      if [ "$ARG" = "true" ]; then</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>        echo "$THEN"</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      else</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>        echo "$ELSE"</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Usage:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>:if<span class="co">[</span><span class="ot">true</span><span class="co">]</span>{THEN="This is displayed if true" ELSE="This is displayed if false"}</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>:if<span class="co">[</span><span class="ot">false</span><span class="co">]</span>{THEN="This is hidden if not true" ELSE="This is shown instead"}</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>:if<span class="co">[</span><span class="ot">:some_check[]</span><span class="co">]</span>{THEN="This is hidden if not true" ELSE="This is shown instead"}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="recipe-2-short-circuiting-conditional-when" class="level2">
+<h2 class="anchored" data-anchor-id="recipe-2-short-circuiting-conditional-when">Recipe 2: Short-circuiting Conditional (<code>:when</code>)</h2>
+<p>The previous example required passing the content as attributes (<code>THEN="..."</code>), which is clumsy for large blocks of text. More importantly, if we want to conditionally run a command, we need to prevent it from executing at all unless the condition is met.</p>
+<p>If we use the <code>post</code> phase, the children are expanded <em>before</em> the parent macro. To achieve “short-circuiting” (where the children are only expanded if the condition is true), we can use the <code>pre</code> phase of macro expansion.</p>
+<p><strong>Definition:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> when</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">    # In the 'pre' phase, ARG contains the raw, unexpanded body text.</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    pre</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>      if [ "$CONDITION" = "true" ]; then</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>        # Return the body to be expanded</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        echo "$ARG"</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      else</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        # Return a comment (effectively deleting the block)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>        echo "&lt;!-- skipped --&gt;"</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Usage:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>:when[</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  This content is only processed if the condition is met.</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  :cmd<span class="co">[</span><span class="ot">echo "Expensive operation running..."</span><span class="co">]</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>]{CONDITION="false"}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>In this example the expensive <code>:cmd</code> is never expanded or executed.</p>
+</section>
+<section id="recipe-3-recursion-loops-countdown" class="level2">
+<h2 class="anchored" data-anchor-id="recipe-3-recursion-loops-countdown">Recipe 3: Recursion &amp; Loops (<code>:countdown</code>)</h2>
+<p>By having a macro call itself, we can create loops. We need a termination condition to stop the recursion (preventing an infinite loop).</p>
+<p><strong>Definition:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> countdown</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    pre</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      N=${ARG:-10}</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      if [ "$N" -gt 0 ]; then</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        echo "$N..."</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        # Recursive call with N-1</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        echo ":countdown[$((N-1))]"</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>      else</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        echo "Liftoff!"</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Usage:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>:countdown<span class="co">[</span><span class="ot">3</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Output:</strong></p>
+<pre class="text"><code>3...
+2...
+1...
+Liftoff!</code></pre>
+</section>
+<section id="recipe-4-iteration-map" class="level2">
+<h2 class="anchored" data-anchor-id="recipe-4-iteration-map">Recipe 4: Iteration (<code>:map</code>)</h2>
+<p>We can iterate over a list of items and apply another macro to each one. This is useful for batch processing files, names, or data.</p>
+<p>This implementation assumes a space-separated list of items.</p>
+<p><strong>Definition:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> map</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    pre</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      # Split ARG into array (space separated)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>      items=($ARG)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>      # Termination: if no items, stop</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>      if [ ${#items[@]} -eq 0 ]; then</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>          echo "&lt;!-- --&gt;"</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>          exit 0</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>      fi</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>      # Head: The first item</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>      first=${items[0]}</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>      # Tail: The rest of the items</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>      rest=${items[@]:1}</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>      # 1. Apply the target macro to the first item</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>      echo ":$MACRO[$first]"</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>      # 2. Recurse on the rest (if any)</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>      if [ -n "$rest" ]; then</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>         echo ":map[$rest]{MACRO=$MACRO}"</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Usage:</strong></p>
+<p>Suppose you have a macro <code>greet</code> defined:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> greet</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">expansion</span><span class="kw">:</span><span class="at"> </span><span class="st">"Hello, $ARG! "</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You can map it over a list of names:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>:map<span class="co">[</span><span class="ot">Alice Bob Charlie</span><span class="co">]</span>{MACRO="greet"}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Output:</strong></p>
+<pre class="text"><code>Hello, Alice! Hello, Bob! Hello, Charlie! </code></pre>
+</section>
+<section id="fun-example-the-launch-sequence" class="level2">
+<h2 class="anchored" data-anchor-id="fun-example-the-launch-sequence">Fun Example: The “Launch Sequence”</h2>
+<p>Let’s combine these concepts into a “Launch Sequence” generator. We want to check a list of systems, and if they are all go, initiate a countdown.</p>
+<p><strong>Configuration:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> launch_sequence</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    expansion</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>      # Check systems</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>      :map[Propulsion Guidance Life-Support]{MACRO="check_system"}</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>      # Start countdown</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>      :countdown[5]</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> check_system</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">expansion</span><span class="kw">:</span><span class="at"> </span><span class="st">"Checking $ARG... OK.</span><span class="sc">\n</span><span class="st">"</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> map</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="fu">    pre</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>      items=($ARG)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>      if [ ${#items[@]} -eq 0 ]; then echo "&lt;!-- --&gt;"; exit 0; fi</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>      first=${items[0]}</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>      rest=${items[@]:1}</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>      echo ":$MACRO[$first]"</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>      if [ -n "$rest" ]; then echo ":map[$rest]{MACRO=$MACRO}"; fi</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> countdown</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="fu">    pre</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>      N=${ARG:-10}</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>      if [ "$N" -gt 0 ]; then</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>        echo "$N..."</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>        echo ":countdown[$((N-1))]"</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>      else</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>        echo "Liftoff!"</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Usage:</strong></p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>:launch_sequence[]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Output:</strong></p>
+<pre class="text"><code>Checking Propulsion... OK.
+Checking Guidance... OK.
+Checking Life-Support... OK.
+5...
+4...
+3...
+2...
+1...
+Liftoff!</code></pre>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Recursion Limit
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Lectic has a recursion depth limit (default 100) to prevent infinite loops from crashing the process. If your loop needs to run more than 100 times, you should probably use an external script (<code>exec:</code>) instead of a recursive macro.</p>
+</div>
 </div>
 
 
-
-<div class="quarto-title-meta">
-
-    
-  
-    
-  </div>
-  
-
-
-</header>
-
-
-<p>Lectic includes a small Language Server Protocol (LSP) server that provides completion for directives, macros, and common YAML header fields, plus hovers. It is stdio only.</p>
-<p>Overview - Command: <code>lectic lsp</code> - Transport: stdio (no <code>--node-ipc</code> or <code>--socket</code>) - Features: <code>textDocument/completion</code>, <code>textDocument/hover</code>, diagnostics, document symbols (outline), workspace symbols, folding ranges, code actions, semantic tokens, go to definition - Triggers: <code>:</code>, <code>[</code> in directive brackets, and <code>-</code> in tools arrays - Insertions - Directives use snippets and place the cursor inside brackets (or at the end for reset): <code>:cmd[${0:command}]</code>, <code>:ask[$0]</code>, <code>:aside[$0]</code>, <code>:reset[]$0</code>. - Macro names are suggested on <code>:</code> and insert as directives: <code>:name[]$0</code>. - Inside brackets of <code>:ask[...]</code> and <code>:aside[...]</code>, only interlocutor names are offered. - Matching: case‑insensitive; typed prefix after <code>:</code> or inside <code>[</code> is respected. - Fences: no suggestions inside <code>::</code> or <code>:::</code> runs - Trigger filtering: only <code>:ask[</code>/<code>:aside[</code> produce bracket completions</p>
-<p>Where completions come from - Directives: built‑in suggestions for <code>:cmd</code>, <code>:ask</code>, <code>:aside</code>, and <code>:reset</code>. - Macro names: merged from the same places and precedence as the CLI (higher wins): 1) System config: <code>${LECTIC_CONFIG}/lectic.yaml</code> 2) Workspace config: <code>lectic.yaml</code> in the document directory 3) The document’s YAML header - YAML header fields: - <code>interlocutor</code> / <code>interlocutors</code> blocks: top‑level interlocutor properties such as <code>name</code>, <code>prompt</code>, <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>max_tokens</code>, <code>max_tool_use</code>, <code>thinking_effort</code>, <code>thinking_budget</code>, <code>tools</code>, and <code>nocache</code>. - <code>model</code>: provider‑appropriate model names. - <code>tools</code> array items: tool kinds after a bare <code>-</code>. - <code>kit: ...</code>: merged kit names from system/workspace/header. - <code>agent: ...</code>: merged interlocutor names. - <code>native: ...</code>: supported native types (<code>search</code>, <code>code</code>). - Interlocutors: collected from the merged header as above, combining <code>interlocutor</code> and <code>interlocutors</code>. - De‑duplication is case‑insensitive on name. Higher‑precedence entry wins. - The server shows a simple preview in the completion item.</p>
-<p>Behavior examples - Type <code>-</code> on a line inside <code>tools:</code> → suggestions for tool kinds (exec, sqlite, mcp_*, native, kit, …). - Type <code>:</code> → suggestions for directives and macro names. - Type <code>:su</code> (with a <code>summarize</code> macro defined) → <code>summarize</code> appears and inserts <code>:summarize[]$0</code>. - Type <code>:ask[</code> or <code>:aside[</code> → invoke completion to see interlocutor names; selecting a name replaces only the text inside the <code>[</code>…<code>]</code>. - Type <code>::</code> or <code>:::</code> → no suggestions (reserved for directive fences). - Place the cursor on a directive (e.g., <code>:name[]</code>, <code>:ask[Name]</code>) or a name field in the YAML header (e.g., <code>name: Assistant</code>) and invoke “Go to Definition” to jump to the relevant definition. If multiple definitions exist (e.g., a local override of a workspace or system interlocutor), the LSP returns all locations, prioritized by proximity (local &gt; workspace &gt; system).</p>
-<p>Neovim setup (vim.lsp.start) - Minimal startup for the current buffer:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">local</span> <span class="va">client_id</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">lsp</span><span class="op">.</span>start<span class="op">({</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="va">name</span> <span class="op">=</span> <span class="st">"lectic"</span><span class="op">,</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">cmd</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"lsp"</span> <span class="op">},</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">root_dir</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">fs</span><span class="op">.</span>root<span class="op">(</span><span class="dv">0</span><span class="op">,</span> <span class="op">{</span> <span class="st">".git"</span><span class="op">,</span> <span class="st">"lectic.yaml"</span> <span class="op">})</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>             <span class="kw">or</span> <span class="va">vim</span><span class="op">.</span><span class="va">fn</span><span class="op">.</span>getcwd<span class="op">(),</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="va">single_file_support</span> <span class="op">=</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="op">})</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<ul>
-<li>Auto‑start for <code>.lec</code> (and optionally markdown) files:</li>
-</ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">vim</span><span class="op">.</span><span class="va">api</span><span class="op">.</span>nvim_create_autocmd<span class="op">(</span><span class="st">"FileType"</span><span class="op">,</span> <span class="op">{</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="va">pattern</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"markdown.lectic"</span><span class="op">,</span> <span class="st">"lectic.markdown"</span> <span class="op">},</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">callback</span> <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">args</span><span class="op">)</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="va">vim</span><span class="op">.</span><span class="va">lsp</span><span class="op">.</span>start<span class="op">({</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      <span class="va">name</span> <span class="op">=</span> <span class="st">"lectic"</span><span class="op">,</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="va">cmd</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"lsp"</span> <span class="op">},</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      <span class="va">root_dir</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">fs</span><span class="op">.</span>root<span class="op">(</span><span class="va">args</span><span class="op">.</span><span class="va">buf</span><span class="op">,</span> <span class="op">{</span> <span class="st">".git"</span><span class="op">,</span> <span class="st">"lectic.yaml"</span> <span class="op">})</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>                 <span class="kw">or</span> <span class="va">vim</span><span class="op">.</span><span class="va">fn</span><span class="op">.</span>getcwd<span class="op">(),</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="va">single_file_support</span> <span class="op">=</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">})</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span><span class="op">,</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="op">})</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<ul>
-<li>Using completion
-<ul>
-<li>With nvim‑cmp (recommended), LSP completion pops on <code>:</code> and <code>-</code>.</li>
-<li>Inside brackets, invoke completion manually (<code>Ctrl‑x Ctrl‑o</code>) if your setup is not configured to trigger automatically.</li>
-</ul></li>
-</ul>
-<p>VS Code setup - The server is an external stdio LSP. You can connect to it from a VS Code extension. The repository includes <code>extra/lectic.vscode</code> for a ready‑made extension.</p>
-<p>Diagnostics - The server publishes diagnostics on open/change. - Header field validation covers missing or mistyped interlocutor properties (name, prompt, model, provider, etc.). Unknown top‑level properties on an interlocutor are reported as warnings (for example, <code>Unknown property "mood" on interlocutor A.</code>). - Duplicate names in the document header are warned with precise ranges. Later entries win at runtime; the warning helps catch mistakes. - Duplicates originating only from included configs may be reported with a coarse header-range warning.</p>
-<p>Folding - The LSP provides folding ranges for tool‑call and inline‑attachment blocks. A block must be a serialized <code>&lt;tool-call ...&gt; ... &lt;/tool-call&gt;</code> or <code>&lt;inline-attachment ...&gt; ... &lt;/inline-attachment&gt;</code> that appears as a direct child of an interlocutor container directive (<code>:::Name</code>).</p>
-<p>Hovers - Hover over a directive (e.g., <code>:ask[...]</code>) to see a short description. - Hover on a macro directive name (e.g., <code>:summarize[]</code>) to preview the macro expansion.</p>
-<p>Notes - Completion previews are static; the server does not expand macros or read files referenced by <code>file:</code>.</p>
-
-
+</section>
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

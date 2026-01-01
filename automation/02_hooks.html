@@ -388,6 +388,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#example-human-in-the-loop-tool-confirmation" id="toc-example-human-in-the-loop-tool-confirmation" class="nav-link" data-scroll-target="#example-human-in-the-loop-tool-confirmation">Example: Human-in-the-loop tool confirmation</a></li>
   <li><a href="#example-automatically-injecting-context" id="toc-example-automatically-injecting-context" class="nav-link" data-scroll-target="#example-automatically-injecting-context">Example: Automatically Injecting context</a></li>
   <li><a href="#example-notification-when-work-completes" id="toc-example-notification-when-work-completes" class="nav-link" data-scroll-target="#example-notification-when-work-completes">Example: Notification when work completes</a></li>
+  <li><a href="#example-neovim-notification-from-hooks" id="toc-example-neovim-notification-from-hooks" class="nav-link" data-scroll-target="#example-neovim-notification-from-hooks">Example: Neovim notification from hooks</a></li>
   <li><a href="#example-reset-context-on-token-limit" id="toc-example-reset-context-on-token-limit" class="nav-link" data-scroll-target="#example-reset-context-on-token-limit">Example: Reset context on token limit</a></li>
   </ul></li>
   </ul>
@@ -405,21 +406,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Hooks are defined in your YAML configuration under the <code>hooks</code> key, per-tool in the <code>hooks</code> key of a tool specification, or per-interlocutor in the <code>hooks</code> key of an interlocutor specification.</p>
 <section id="hook-configuration" class="level2">
 <h2 class="anchored" data-anchor-id="hook-configuration">Hook configuration</h2>
-<p>A hook has three fields:</p>
+<p>A hook has five possible fields:</p>
 <ul>
-<li><code>on</code>: A single event name or a list of event names to listen for.</li>
-<li><code>do</code>: The command or inline script to run when the event fires.</li>
+<li><code>on</code>: (Required) A single event name or a list of event names to listen for.</li>
+<li><code>do</code>: (Required) The command or inline script to run when the event fires.</li>
 <li><code>inline</code>: (Optional) A boolean. If <code>true</code>, the standard output of the command is captured and injected into the conversation. Defaults to <code>false</code>. Only applicable to <code>assistant_message</code> and <code>user_message</code>.</li>
+<li><code>name</code>: (Optional) A string name for the hook. If multiple hooks have the same name (e.g., one in your global config and one in a project config), the one defined later (or with higher precedence) overrides the earlier one. This allows you to replace default hooks with custom behavior.</li>
+<li><code>env</code>: (Optional) A map of environment variables to inject into the hook’s execution environment.</li>
 </ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">assistant_message</span><span class="kw">,</span><span class="at"> user_message</span><span class="kw">]</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> ./log-activity.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> logger</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">on</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">assistant_message</span><span class="kw">,</span><span class="at"> user_message</span><span class="kw">]</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">env</span><span class="kw">:</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">LOG_FILE</span><span class="kw">:</span><span class="at"> /tmp/lectic.log</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> ./log-activity.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If <code>do</code> contains multiple lines, it is treated as a script and must begin with a shebang (e.g., <code>#!/bin/bash</code>). If it is a single line, it is treated as a command. Commands are executed directly (not through a shell), so shell features like command substitution will not work.</p>
 <p>Hook commands run synchronously. By default, their stdout, stderr, and exit status are ignored by Lectic. However, if you set <code>inline: true</code>, the standard output is captured and added to the conversation.</p>
 <ul>
 <li>For <code>user_message</code> events, the output is injected as context for the LLM before it generates a response. It also appears at the top of the assistant’s response block.</li>
-<li>For <code>assistant_message</code> events, the output is appended to the end of the assistant’s response block. This will trigger another reply from the assistant, so be careful to only fire an inline hook when you want the assisant to generate more content.</li>
+<li>For <code>assistant_message</code> events, the output is appended to the end of the assistant’s response block. This will trigger another reply from the assistant, so be careful to only fire an inline hook when you want the assistant to generate more content.</li>
 </ul>
+<p>In the <code>.lec</code> file, inline hook output is stored as an XML <code>&lt;inline-attachment kind="hook"&gt;</code> block. The <code>&lt;command&gt;</code> element records the hook’s <code>do</code> field so you can see what produced the output.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"hook"</span>&gt;</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;./my-hook.sh&lt;/<span class="kw">command</span>&gt;</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">content</span><span class="ot"> type=</span><span class="st">"text/plain"</span>&gt;</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>┆System check complete.</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">content</span>&gt;</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">inline-attachment</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="available-events-and-environment" class="level2">
 <h2 class="anchored" data-anchor-id="available-events-and-environment">Available events and environment</h2>
@@ -477,11 +490,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="hook-headers-and-attributes" class="level2">
 <h2 class="anchored" data-anchor-id="hook-headers-and-attributes">Hook headers and attributes</h2>
-<p>Hooks can pass metadata back to Lectic by including headers at the very beginning of their output. Headers follow the format <code>LECTIC:KEY:VALUE</code> or simply <code>LECTIC:KEY</code> (where the value defaults to “true”) and must appear before any other content. The headers are stripped from the visible output and stored as attributes on the inline block.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env bash</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"LECTIC:final"</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">""</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"System check complete. One issue found."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Hooks can pass metadata back to Lectic by including headers at the very beginning of their output. Headers follow the format <code>LECTIC:KEY:VALUE</code> or simply <code>LECTIC:KEY</code> (where the value defaults to “true”) and must appear before any other content. The headers are stripped from the visible output and stored as attributes on the inline attachment block.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env bash</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"LECTIC:final"</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">""</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"System check complete. One issue found."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This would be recorded roughly like this:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"hook"</span><span class="ot"> final=</span><span class="st">"true"</span>&gt;</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;./my-hook.sh&lt;/<span class="kw">command</span>&gt;</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">content</span><span class="ot"> type=</span><span class="st">"text/plain"</span>&gt;</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>┆System check complete. One issue found.</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">content</span>&gt;</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">inline-attachment</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Two headers affect control flow:</p>
 <ul>
 <li><code>final</code>: When an inline hook generates output, Lectic normally continues the tool calling loop so that the assistant can see and respond to the new information. If the <code>final</code> header is present, Lectic prevents this extra pass, allowing the conversation turn to end immediately (unless the assistant explicitly called a tool).</li>
@@ -491,56 +511,56 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example-human-in-the-loop-tool-confirmation" class="level2">
 <h2 class="anchored" data-anchor-id="example-human-in-the-loop-tool-confirmation">Example: Human-in-the-loop tool confirmation</h2>
 <p>This example uses <code>tool_use_pre</code> to require confirmation before any tool execution. It uses <code>zenity</code> to show a dialog box with the tool name and arguments.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> tool_use_pre</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>      # Display a confirmation dialog</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>      zenity --question \</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>             --title="Allow Tool Use?" \</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>             --text="Tool: $TOOL_NAME\nArgs: $TOOL_ARGS"</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      # Zenity exits with 0 for Yes/OK and 1 for No/Cancel</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>      exit $?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> tool_use_pre</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      # Display a confirmation dialog</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      zenity --question \</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>             --title="Allow Tool Use?" \</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>             --text="Tool: $TOOL_NAME\nArgs: $TOOL_ARGS"</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>      # Zenity exits with 0 for Yes/OK and 1 for No/Cancel</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>      exit $?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This example persists every user and assistant message to an SQLite database located in your Lectic data directory. You can later query this for personal memory, project history, or analytics.</p>
 <p>Configuration:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">user_message</span><span class="kw">,</span><span class="at"> assistant_message</span><span class="kw">]</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>      set -euo pipefail</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>      DB_ROOT="${LECTIC_DATA:-$HOME/.local/share/lectic}"</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>      DB_PATH="${DB_ROOT}/memory.sqlite3"</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>      mkdir -p "${DB_ROOT}"</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>      # Determine role and text from available variables</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>      if [[ -n "${ASSISTANT_MESSAGE:-}" ]]; then</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        ROLE="assistant"</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        TEXT="$ASSISTANT_MESSAGE"</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>      else</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        ROLE="user"</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        TEXT="${USER_MESSAGE:-}"</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>      fi</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>      # Basic sanitizer for single quotes for SQL literal</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>      esc_sq() { printf %s "$1" | sed "s/'/''/g"; }</span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>      TS=$(date -Is)</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>      FILE_PATH="${LECTIC_FILE:-}"</span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>      NAME="${LECTIC_INTERLOCUTOR:-}"</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>      sqlite3 "$DB_PATH" &lt;&lt;SQL</span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>      CREATE TABLE IF NOT EXISTS memory (</span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        id INTEGER PRIMARY KEY,</span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>        ts TEXT NOT NULL,</span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>        role TEXT NOT NULL,</span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>        interlocutor TEXT,</span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>        file TEXT,</span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        text TEXT NOT NULL</span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>      );</span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>      INSERT INTO memory(ts, role, interlocutor, file, text)</span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>      VALUES ('${TS}', '${ROLE}', '$(esc_sq "$NAME")',</span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>              '$(esc_sq "$FILE_PATH")', '$(esc_sq "$TEXT")');</span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>      SQL</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">user_message</span><span class="kw">,</span><span class="at"> assistant_message</span><span class="kw">]</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>      set -euo pipefail</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>      DB_ROOT="${LECTIC_DATA:-$HOME/.local/share/lectic}"</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>      DB_PATH="${DB_ROOT}/memory.sqlite3"</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>      mkdir -p "${DB_ROOT}"</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>      # Determine role and text from available variables</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>      if [[ -n "${ASSISTANT_MESSAGE:-}" ]]; then</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        ROLE="assistant"</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        TEXT="$ASSISTANT_MESSAGE"</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>      else</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        ROLE="user"</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>        TEXT="${USER_MESSAGE:-}"</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>      fi</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>      # Basic sanitizer for single quotes for SQL literal</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>      esc_sq() { printf %s "$1" | sed "s/'/''/g"; }</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>      TS=$(date -Is)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>      FILE_PATH="${LECTIC_FILE:-}"</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>      NAME="${LECTIC_INTERLOCUTOR:-}"</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>      sqlite3 "$DB_PATH" &lt;&lt;SQL</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>      CREATE TABLE IF NOT EXISTS memory (</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>        id INTEGER PRIMARY KEY,</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>        ts TEXT NOT NULL,</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>        role TEXT NOT NULL,</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>        interlocutor TEXT,</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>        file TEXT,</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>        text TEXT NOT NULL</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>      );</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>      INSERT INTO memory(ts, role, interlocutor, file, text)</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>      VALUES ('${TS}', '${ROLE}', '$(esc_sq "$NAME")',</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>              '$(esc_sq "$FILE_PATH")', '$(esc_sq "$TEXT")');</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>      SQL</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Notes:</p>
 <ul>
 <li>Requires the <code>sqlite3</code> command-line tool to be installed and on your PATH.</li>
@@ -552,44 +572,64 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example-automatically-injecting-context" class="level2">
 <h2 class="anchored" data-anchor-id="example-automatically-injecting-context">Example: Automatically Injecting context</h2>
 <p>This example automatically runs <code>date</code> before every user message and injects the output into the context. This allows the LLM to always know the date and time without you needing to run :cmd[date]</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> user_message</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> </span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">      #!/usr/bin/env bash</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="at">      echo "&lt;date-and-time&gt;"</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="at">      date</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="at">      echo "&lt;/date-and-time&gt;"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> user_message</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> </span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co">      #!/usr/bin/env bash</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="at">      echo "&lt;date-and-time&gt;"</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="at">      date</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="at">      echo "&lt;/date-and-time&gt;"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="example-notification-when-work-completes" class="level2">
 <h2 class="anchored" data-anchor-id="example-notification-when-work-completes">Example: Notification when work completes</h2>
 <p>This example sends a desktop notification when the assistant finishes a tool-use workflow. The hook checks <code>TOOL_USE_DONE</code> so you only get notified once the work is actually done, not after each intermediate step.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>      if [[ "${TOOL_USE_DONE:-}" == "1" ]]; then</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        notify-send "Lectic" "Assistant finished working"</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      if [[ "${TOOL_USE_DONE:-}" == "1" ]]; then</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>        notify-send "Lectic" "Assistant finished working"</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This is especially useful for long-running agentic tasks where you want to step away and be alerted when the assistant is done.</p>
+</section>
+<section id="example-neovim-notification-from-hooks" class="level2">
+<h2 class="anchored" data-anchor-id="example-neovim-notification-from-hooks">Example: Neovim notification from hooks</h2>
+<p>When using the <a href="https://github.com/gleachkr/lectic/tree/main/extra/lectic.nvim">lectic.nvim</a> plugin, the <code>NVIM</code> environment variable is set to Neovim’s RPC server address. This allows hooks to communicate directly with your editor—sending notifications, opening windows, or triggering any Neovim Lua API.</p>
+<p>This example sends a notification to Neovim when the assistant finishes working:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>      if [[ "${TOOL_USE_DONE:-}" == "1" &amp;&amp; -n "${NVIM:-}" ]]; then</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        nvim --server "$NVIM" --remote-expr \</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>          "luaeval('vim.notify(\"Lectic: Assistant finished working\", vim.log.levels.INFO)')"</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The pattern <code>nvim --server "$NVIM" --remote-expr "luaeval('...')"</code> lets you execute arbitrary Lua in the running Neovim instance. Some ideas:</p>
+<ul>
+<li>Play a sound: <code>vim.fn.system('paplay /usr/share/sounds/...')</code></li>
+<li>Flash the screen: <code>vim.cmd('sleep 100m | redraw!')</code></li>
+<li>Update a status line variable</li>
+<li>Trigger a custom autocommand: <code>vim.api.nvim_exec_autocmds('User', {pattern = 'LecticDone'})</code></li>
+</ul>
 </section>
 <section id="example-reset-context-on-token-limit" class="level2">
 <h2 class="anchored" data-anchor-id="example-reset-context-on-token-limit">Example: Reset context on token limit</h2>
 <p>This example checks the total token usage and, if it exceeds a limit, resets the conversation context. It also uses the <code>final</code> header to stop the assistant from responding to the reset message immediately.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>      LIMIT=100000</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>      TOTAL="${TOKEN_USAGE_TOTAL:-0}"</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>      if [ "$TOTAL" -gt "$LIMIT" ]; then</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        echo "LECTIC:reset"</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        echo "LECTIC:final"</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        echo ""</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>        echo "**Context cleared (usage: $TOTAL tokens).**"</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>      LIMIT=100000</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>      TOTAL="${TOKEN_USAGE_TOTAL:-0}"</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>      if [ "$TOTAL" -gt "$LIMIT" ]; then</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>        echo "LECTIC:reset"</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>        echo "LECTIC:final"</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        echo ""</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>        echo "**Context cleared (usage: $TOTAL tokens).**"</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

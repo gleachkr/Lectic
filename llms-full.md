@@ -627,14 +627,36 @@ backticks.
 
 ### Inline Attachments
 
-When you use directives like `:cmd[...]` in your message, Lectic
-executes them and caches the results as **inline attachments**. These
-within the assistant’s response block as XML chunks:
+Lectic records some generated content directly into the transcript as
+**inline attachments**. This includes:
+
+- Output of `:cmd[...]` directives (`kind="cmd"`)
+- Output of inline hooks (`kind="hook"`)
+
+Inline attachments appear inside the assistant’s response block as XML.
+They include a `<command>` field (the command that produced the content,
+or the hook’s `do` value) and a `<content>` field.
+
+Example (`:cmd[...]`):
 
 ``` xml
-<inline-attachment cmd="git diff --staged" type="text">
+<inline-attachment kind="cmd">
+<command>git diff --staged</command>
+<content type="text/plain">
 ┆diff --git a/src/main.ts b/src/main.ts
 ┆...
+</content>
+</inline-attachment>
+```
+
+Example (inline hook output):
+
+``` xml
+<inline-attachment kind="hook" final="true">
+<command>~/.config/lectic/my-hook.sh</command>
+<content type="text/plain">
+┆System check complete.
+</content>
 </inline-attachment>
 ```
 
@@ -735,9 +757,11 @@ context as the main process.
 When combining settings from multiple configuration files, Lectic
 follows specific rules:
 
-- **Objects (Mappings)**: Merged recursively. If a key exists in
-  multiple sources, the value from the source with higher precedence
-  wins.
+- **Objects (Mappings)**: If the higher precedence source has a `name`
+  attribute, and the name doesn’t match the `name` attribute of the
+  lower precedence source, then the higher precedence source replaces
+  the lower precedence source. Otherwise, the objects are combined and
+  matching keys merged recursively.
 - **Arrays (Lists)**: Merged based on the `name` attribute of their
   elements. If two objects in an array share the same `name`, they are
   merged. Otherwise, the elements are simply combined. This is
@@ -934,7 +958,8 @@ header or in an included configuration file).
 ## Defining Macros
 
 Macros are defined under the `macros` key. Each macro must have a `name`
-and an `expansion`.
+and an `expansion`. You can optionally provide an `env` map to set
+default environment variables for the expansion.
 
 ``` yaml
 macros:
@@ -944,10 +969,10 @@ macros:
       conversation so far, focusing on the key decisions made and
       conclusions reached.
 
-  - name: commit_msg
-    expansion: |
-      Please write a Conventional Commit message for the following changes:
-      :cmd[git diff --staged]
+  - name: build
+    env:
+      BUILD_DIR: ./dist
+    expansion: exec:echo "Building in $BUILD_DIR"
 ```
 
 ### Expansion Sources
@@ -992,7 +1017,12 @@ This was a long and productive discussion. Could you wrap it up?
 :summarize[]
 ```
 
-## Passing arguments to expansions (ARG)
+## The Macro Expansion Environment
+
+When a macro expands via `exec`, the script being executed can be pased
+information via environment variables.
+
+### Passing arguments to expansions via `ARG`
 
 The text inside the directive brackets is passed to the macro expansion
 as the `ARG` environment variable.
@@ -1004,7 +1034,7 @@ scripts.
 - If you explicitly set an `ARG` attribute, it overrides the bracket
   content: `:name[hello]{ARG="override"}`.
 
-## Passing environment variables to expansions
+### Passing other environment variables via attributes
 
 You can pass environment variables to a macro’s expansion by adding
 attributes to the macro directive. These attributes are injected into
@@ -1021,7 +1051,7 @@ variables in the command string are expanded before execution. For
 multi‑line scripts, variables are available to the script via the
 environment.
 
-### Example
+#### Example
 
 **Configuration:**
 
@@ -1040,6 +1070,94 @@ macros:
 When Lectic processes this, the directive will be replaced by the output
 of the `exec` command, which is “Hello, World!”.
 
+### Other Environment Variables
+
+A few other environment variables are available by default.
+
+| Name | Description |
+|:---|:---|
+| MESSAGE_INDEX | Index (starting from zero) of the message containing the macro |
+| MESSAGES_LENGTH | Total number of messages in the conversation |
+
+These might be useful for conditionally running only if the macro is,
+e.g. part of the most recent user message.
+
+## Advanced Macros: Phases and Recursion
+
+Macros can interact with each other recursively. To support complex
+workflows, macros can define two separate expansion phases: `pre` and
+`post`.
+
+- **`pre`**: Expanded when the macro is first encountered (pre-order
+  traversal). If `pre` returns content, the expansion stops there: the
+  macro is replaced by the result of `pre` **and that result is then
+  recursively expanded**. The original children of the macro are
+  discarded.
+- **`post`**: Expanded after the macro’s children have been processed
+  (post-order traversal). The processed output of the children is passed
+  to `post` as the `ARG` variable.
+
+If you define a macro with just `expansion`, it is treated as a `post`
+phase macro.
+
+### Handling “No Operation” in Pre
+
+If the `pre` script runs but produces **no output** (an empty string),
+Lectic treats this as a “pass-through”. The macro is NOT replaced;
+instead, Lectic proceeds to process the macro’s children and then runs
+the `post` phase.
+
+This makes it easy to implement cache checks or conditional logic.
+
+> [!TIP]
+>
+> If you explicitly want to **delete** a node during the `pre` phase
+> (stopping recursion and producing no output), you cannot return an
+> empty string. Instead, return an empty HTML comment: `<!-- -->`. This
+> stops recursion and renders as nothing.
+
+### Example: Caching
+
+This design allows for powerful compositions, such as a caching macro
+that wraps expensive operations.
+
+``` yaml
+macros:
+  - name: cache
+    # Check for cache hit. If found, cat the file.
+    # If not found, the script produces no output (empty string),
+    # so Lectic proceeds to expand the children.
+    pre: |
+      exec:#!/bin/bash
+      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)
+      if [ -f "/tmp/cache/$HASH" ]; then
+        cat "/tmp/cache/$HASH"
+      fi
+    # If we reached post, it means pre didn't return anything (cache miss).
+    # We now have the result of the children in ARG. Save it and output it.
+    post: |
+      exec:#!/bin/bash
+      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)
+      mkdir -p /tmp/cache
+      echo "$ARG" > "/tmp/cache/$HASH"
+      echo "$ARG"
+```
+
+Usage:
+
+``` markdown
+:cache[:summarize[:cat[file.txt]]]
+```
+
+1.  `:cache`’s `pre` runs. If the cache exists for the raw text of the
+    children, it returns the cached summary. Lectic replaces the
+    `:cache` block with this text and is done.
+2.  If `pre` returns nothing (cache miss), Lectic enters the children.
+3.  `:cat` expands to the file content.
+4.  `:summarize` processes that content.
+5.  Finally, `:cache`’s `post` runs. `ARG` contains the summary. It
+    writes `ARG` to the cache and outputs it.
+
 
 
 # Automation: Hooks
@@ -1055,17 +1173,29 @@ in the `hooks` key of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has three fields:
+A hook has five possible fields:
 
-- `on`: A single event name or a list of event names to listen for.
-- `do`: The command or inline script to run when the event fires.
+- `on`: (Required) A single event name or a list of event names to
+  listen for.
+- `do`: (Required) The command or inline script to run when the event
+  fires.
 - `inline`: (Optional) A boolean. If `true`, the standard output of the
   command is captured and injected into the conversation. Defaults to
   `false`. Only applicable to `assistant_message` and `user_message`.
+- `name`: (Optional) A string name for the hook. If multiple hooks have
+  the same name (e.g., one in your global config and one in a project
+  config), the one defined later (or with higher precedence) overrides
+  the earlier one. This allows you to replace default hooks with custom
+  behavior.
+- `env`: (Optional) A map of environment variables to inject into the
+  hook’s execution environment.
 
 ``` yaml
 hooks:
-  - on: [assistant_message, user_message]
+  - name: logger
+    on: [assistant_message, user_message]
+    env:
+      LOG_FILE: /tmp/lectic.log
     do: ./log-activity.sh
 ```
 
@@ -1084,7 +1214,20 @@ the standard output is captured and added to the conversation.
 - For `assistant_message` events, the output is appended to the end of
   the assistant’s response block. This will trigger another reply from
   the assistant, so be careful to only fire an inline hook when you want
-  the assisant to generate more content.
+  the assistant to generate more content.
+
+In the `.lec` file, inline hook output is stored as an XML
+`<inline-attachment kind="hook">` block. The `<command>` element records
+the hook’s `do` field so you can see what produced the output.
+
+``` xml
+<inline-attachment kind="hook">
+<command>./my-hook.sh</command>
+<content type="text/plain">
+┆System check complete.
+</content>
+</inline-attachment>
+```
 
 ## Available events and environment
 
@@ -1143,13 +1286,24 @@ Hooks can pass metadata back to Lectic by including headers at the very
 beginning of their output. Headers follow the format `LECTIC:KEY:VALUE`
 or simply `LECTIC:KEY` (where the value defaults to “true”) and must
 appear before any other content. The headers are stripped from the
-visible output and stored as attributes on the inline block.
+visible output and stored as attributes on the inline attachment block.
 
 ``` bash
 #!/usr/bin/env bash
 echo "LECTIC:final"
 echo ""
 echo "System check complete. One issue found."
+```
+
+This would be recorded roughly like this:
+
+``` xml
+<inline-attachment kind="hook" final="true">
+<command>./my-hook.sh</command>
+<content type="text/plain">
+┆System check complete. One issue found.
+</content>
+</inline-attachment>
 ```
 
 Two headers affect control flow:
@@ -1278,6 +1432,38 @@ hooks:
 
 This is especially useful for long-running agentic tasks where you want
 to step away and be alerted when the assistant is done.
+
+## Example: Neovim notification from hooks
+
+When using the
+[lectic.nvim](https://github.com/gleachkr/lectic/tree/main/extra/lectic.nvim)
+plugin, the `NVIM` environment variable is set to Neovim’s RPC server
+address. This allows hooks to communicate directly with your
+editor—sending notifications, opening windows, or triggering any Neovim
+Lua API.
+
+This example sends a notification to Neovim when the assistant finishes
+working:
+
+``` yaml
+hooks:
+  - on: assistant_message
+    do: |
+      #!/usr/bin/env bash
+      if [[ "${TOOL_USE_DONE:-}" == "1" && -n "${NVIM:-}" ]]; then
+        nvim --server "$NVIM" --remote-expr \
+          "luaeval('vim.notify(\"Lectic: Assistant finished working\", vim.log.levels.INFO)')"
+      fi
+```
+
+The pattern `nvim --server "$NVIM" --remote-expr "luaeval('...')"` lets
+you execute arbitrary Lua in the running Neovim instance. Some ideas:
+
+- Play a sound: `vim.fn.system('paplay /usr/share/sounds/...')`
+- Flash the screen: `vim.cmd('sleep 100m | redraw!')`
+- Update a status line variable
+- Trigger a custom autocommand:
+  `vim.api.nvim_exec_autocmds('User', {pattern = 'LecticDone'})`
 
 ## Example: Reset context on token limit
 
@@ -2934,6 +3120,268 @@ tools:
 
 
 
+# Control Flow with Macros
+
+Because Lectic’s macros support recursion and can execute scripts during
+the expansion phase, it is possible to build powerful control flow
+structures like conditionals, loops, and maps.
+
+This guide demonstrates how to implement these constructs. While complex
+logic is often better handled by writing a custom tool or script, these
+examples show the flexibility of the macro system.
+
+## The Mechanism: Recursion + `pre`
+
+The key to control flow is the `pre` phase of macro expansion. (See
+[Automation:
+Macros](../automation/01_macros.qmd#advanced-macros-phases-and-recursion)).
+
+Because the result of a `pre` expansion is itself recursively expanded,
+a macro can return a new instance of itself with different arguments,
+effectively creating a loop.
+
+Additionally, because `pre` expansions can run shell scripts (`exec:`),
+they can make decisions based on arguments or environment variables.
+
+## Recipe 1: Conditional (`:if`)
+
+A simple conditional macro evaluates a condition and outputs either its
+content (the “then” block) or an alternative (the “else” block).
+
+**Definition:**
+
+``` yaml
+macros:
+  - name: if
+    post: |
+      exec:#!/bin/bash
+      if [ "$ARG" = "true" ]; then
+        echo "$THEN"
+      else
+        echo "$ELSE"
+      fi
+```
+
+**Usage:**
+
+``` markdown
+:if[true]{THEN="This is displayed if true" ELSE="This is displayed if false"}
+:if[false]{THEN="This is hidden if not true" ELSE="This is shown instead"}
+:if[:some_check[]]{THEN="This is hidden if not true" ELSE="This is shown instead"}
+```
+
+## Recipe 2: Short-circuiting Conditional (`:when`)
+
+The previous example required passing the content as attributes
+(`THEN="..."`), which is clumsy for large blocks of text. More
+importantly, if we want to conditionally run a command, we need to
+prevent it from executing at all unless the condition is met.
+
+If we use the `post` phase, the children are expanded *before* the
+parent macro. To achieve “short-circuiting” (where the children are only
+expanded if the condition is true), we can use the `pre` phase of macro
+expansion.
+
+**Definition:**
+
+``` yaml
+macros:
+  - name: when
+    # In the 'pre' phase, ARG contains the raw, unexpanded body text.
+    pre: |
+      exec:#!/bin/bash
+      if [ "$CONDITION" = "true" ]; then
+        # Return the body to be expanded
+        echo "$ARG"
+      else
+        # Return a comment (effectively deleting the block)
+        echo "<!-- skipped -->"
+      fi
+```
+
+**Usage:**
+
+``` markdown
+:when[
+  This content is only processed if the condition is met.
+  :cmd[echo "Expensive operation running..."]
+]{CONDITION="false"}
+```
+
+In this example the expensive `:cmd` is never expanded or executed.
+
+## Recipe 3: Recursion & Loops (`:countdown`)
+
+By having a macro call itself, we can create loops. We need a
+termination condition to stop the recursion (preventing an infinite
+loop).
+
+**Definition:**
+
+``` yaml
+macros:
+  - name: countdown
+    pre: |
+      exec:#!/bin/bash
+      N=${ARG:-10}
+      if [ "$N" -gt 0 ]; then
+        echo "$N..."
+        # Recursive call with N-1
+        echo ":countdown[$((N-1))]"
+      else
+        echo "Liftoff!"
+      fi
+```
+
+**Usage:**
+
+``` markdown
+:countdown[3]
+```
+
+**Output:**
+
+``` text
+3...
+2...
+1...
+Liftoff!
+```
+
+## Recipe 4: Iteration (`:map`)
+
+We can iterate over a list of items and apply another macro to each one.
+This is useful for batch processing files, names, or data.
+
+This implementation assumes a space-separated list of items.
+
+**Definition:**
+
+``` yaml
+macros:
+  - name: map
+    pre: |
+      exec:#!/bin/bash
+      # Split ARG into array (space separated)
+      items=($ARG)
+      
+      # Termination: if no items, stop
+      if [ ${#items[@]} -eq 0 ]; then
+          echo "<!-- -->"
+          exit 0
+      fi
+      
+      # Head: The first item
+      first=${items[0]}
+      
+      # Tail: The rest of the items
+      rest=${items[@]:1}
+      
+      # 1. Apply the target macro to the first item
+      echo ":$MACRO[$first]"
+      
+      # 2. Recurse on the rest (if any)
+      if [ -n "$rest" ]; then
+         echo ":map[$rest]{MACRO=$MACRO}"
+      fi
+```
+
+**Usage:**
+
+Suppose you have a macro `greet` defined:
+
+``` yaml
+macros:
+  - name: greet
+    expansion: "Hello, $ARG! "
+```
+
+You can map it over a list of names:
+
+``` markdown
+:map[Alice Bob Charlie]{MACRO="greet"}
+```
+
+**Output:**
+
+``` text
+Hello, Alice! Hello, Bob! Hello, Charlie! 
+```
+
+## Fun Example: The “Launch Sequence”
+
+Let’s combine these concepts into a “Launch Sequence” generator. We want
+to check a list of systems, and if they are all go, initiate a
+countdown.
+
+**Configuration:**
+
+``` yaml
+macros:
+  - name: launch_sequence
+    expansion: |
+      # Check systems
+      :map[Propulsion Guidance Life-Support]{MACRO="check_system"}
+      
+      # Start countdown
+      :countdown[5]
+
+  - name: check_system
+    expansion: "Checking $ARG... OK.\n"
+
+  - name: map
+    pre: |
+      exec:#!/bin/bash
+      items=($ARG)
+      if [ ${#items[@]} -eq 0 ]; then echo "<!-- -->"; exit 0; fi
+      first=${items[0]}
+      rest=${items[@]:1}
+      echo ":$MACRO[$first]"
+      if [ -n "$rest" ]; then echo ":map[$rest]{MACRO=$MACRO}"; fi
+
+  - name: countdown
+    pre: |
+      exec:#!/bin/bash
+      N=${ARG:-10}
+      if [ "$N" -gt 0 ]; then
+        echo "$N..."
+        echo ":countdown[$((N-1))]"
+      else
+        echo "Liftoff!"
+      fi
+```
+
+**Usage:**
+
+``` markdown
+:launch_sequence[]
+```
+
+**Output:**
+
+``` text
+Checking Propulsion... OK.
+Checking Guidance... OK.
+Checking Life-Support... OK.
+5...
+4...
+3...
+2...
+1...
+Liftoff!
+```
+
+> [!NOTE]
+>
+> ### Recursion Limit
+>
+> Lectic has a recursion depth limit (default 100) to prevent infinite
+> loops from crashing the process. If your loop needs to run more than
+> 100 times, you should probably use an external script (`exec:`)
+> instead of a recursive macro.
+
+
+
 # Cookbook
 
 This section contains practical recipes showing how to combine Lectic’s
@@ -2954,6 +3402,9 @@ can be adapted to your needs.
   summarizing and resetting context when token limits approach.
 - [Custom Sandboxing](./06_custom_sandboxing.qmd): Isolate tool
   execution using wrapper scripts like Bubblewrap.
+- [Control Flow with Macros](./07_control_flow_macros.qmd): Implement
+  advanced logic like loops, conditionals, and maps using recursive
+  macros.
 
 
 
@@ -3264,9 +3715,15 @@ in a key name.
 
 - `name`: (Required) The name of the macro, used when invoking it with
   `:name[]` or `:name[args]`.
-- `expansion`: (Required) The content to be expanded. Can be a string,
-  or loaded via `file:` or `exec:`. See [External
-  Prompts](../context_management/03_external_prompts.qmd) for details.
+- `expansion`: (Optional) The content to be expanded. Can be a string,
+  or loaded via `file:` or `exec:`. Equivalent to `post` if provided.
+  See [External Prompts](../context_management/03_external_prompts.qmd)
+  for details about `file:` and `exec:`.
+- `pre`: (Optional) Expansion content for the pre-order phase.
+- `post`: (Optional) Expansion content for the post-order phase.
+- `env`: (Optional) A dictionary of environment variables to be set
+  during the macro’s execution. These are merged with any arguments
+  provided at the call site.
 
 ------------------------------------------------------------------------
 
@@ -3281,8 +3738,12 @@ in a key name.
   See the Hooks guide for details.
 - `inline`: (Optional) Boolean. If `true`, the output of the hook is
   captured and injected into the conversation. Defaults to `false`.
+- `name`: (Optional) A name for the hook. Used for merging and
+  overriding hooks from different configuration sources.
+- `env`: (Optional) A dictionary of environment variables to be set when
+  the hook runs.
 
-# LSP Server (Experimental)
+# LSP Server
 
 
 Lectic includes a small Language Server Protocol (LSP) server that

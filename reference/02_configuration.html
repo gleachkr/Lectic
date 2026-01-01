@@ -490,7 +490,10 @@ ul.task-list li input[type="checkbox"] {
 <h2 class="anchored" data-anchor-id="the-macro-object">The <code>macro</code> Object</h2>
 <ul>
 <li><code>name</code>: (Required) The name of the macro, used when invoking it with <code>:name[]</code> or <code>:name[args]</code>.</li>
-<li><code>expansion</code>: (Required) The content to be expanded. Can be a string, or loaded via <code>file:</code> or <code>exec:</code>. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details.</li>
+<li><code>expansion</code>: (Optional) The content to be expanded. Can be a string, or loaded via <code>file:</code> or <code>exec:</code>. Equivalent to <code>post</code> if provided. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details about <code>file:</code> and <code>exec:</code>.</li>
+<li><code>pre</code>: (Optional) Expansion content for the pre-order phase.</li>
+<li><code>post</code>: (Optional) Expansion content for the post-order phase.</li>
+<li><code>env</code>: (Optional) A dictionary of environment variables to be set during the macro’s execution. These are merged with any arguments provided at the call site.</li>
 </ul>
 <hr>
 </section>
@@ -500,6 +503,8 @@ ul.task-list li input[type="checkbox"] {
 <li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, <code>error</code>, and <code>tool_use_pre</code>.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event occurs. If multi‑line, it must start with a shebang (e.g., <code>#!/bin/bash</code>). Event context is provided as environment variables. See the Hooks guide for details.</li>
 <li><code>inline</code>: (Optional) Boolean. If <code>true</code>, the output of the hook is captured and injected into the conversation. Defaults to <code>false</code>.</li>
+<li><code>name</code>: (Optional) A name for the hook. Used for merging and overriding hooks from different configuration sources.</li>
+<li><code>env</code>: (Optional) A dictionary of environment variables to be set when the hook runs.</li>
 </ul>
 
 
