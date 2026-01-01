@@ -67,7 +67,12 @@ This was a long and productive discussion. Could you wrap it up?
 :summarize[]
 ```
 
-## Passing arguments to expansions (ARG)
+## The Macro Expansion Environment
+
+When a macro expands via `exec`, the script being executed can be pased
+information via environment variables.
+
+### Passing arguments to expansions via `ARG`
 
 The text inside the directive brackets is passed to the macro expansion as
 the `ARG` environment variable.
@@ -79,7 +84,7 @@ scripts.
 - If you explicitly set an `ARG` attribute, it overrides the bracket
   content: `:name[hello]{ARG="override"}`.
 
-## Passing environment variables to expansions
+### Passing other environment variables via attributes
 
 You can pass environment variables to a macro's expansion by adding
 attributes to the macro directive. These attributes are injected into the
@@ -98,7 +103,7 @@ Notes:
   before execution. For multi‑line scripts, variables are available to the
   script via the environment.
 
-### Example
+#### Example
 
 **Configuration:**
 ```yaml
@@ -114,6 +119,18 @@ macros:
 
 When Lectic processes this, the directive will be replaced by the output
 of the `exec` command, which is "Hello, World!".
+
+### Other Environment Variables
+
+A few other environment variables are available by default.
+
+| Name            | Description
+|:----------------|:--------------------------------------------------------------
+| MESSAGE_INDEX   | Index (starting from zero) of the message containing the macro
+| MESSAGES_LENGTH | Total number of messages in the conversation
+
+These might be useful for conditionally running only if the macro is, e.g. part
+of the most recent user message.
 
 ## Advanced Macros: Phases and Recursion
 

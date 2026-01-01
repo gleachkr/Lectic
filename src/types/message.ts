@@ -50,7 +50,7 @@ export class UserMessage {
         }))
     }
 
-    async expandMacros(macros : Macro[]) {
+    async expandMacros(macros : Macro[], messageEnv? : Record<string,string>) {
         if (macros.length === 0) return
 
         const macroByName: Record<string, Macro> = {}
@@ -58,7 +58,7 @@ export class UserMessage {
             macroByName[m.name.trim().toLowerCase()] = m
         })
 
-        this.content = await expandMacros(this.content, macroByName)
+        this.content = await expandMacros(this.content, macroByName, messageEnv)
     }
 }
 

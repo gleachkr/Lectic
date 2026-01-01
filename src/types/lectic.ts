@@ -287,9 +287,13 @@ export class Lectic {
     }
 
     async expandMacros() {
-        for (const message of this.body.messages) {
+        for (let i = 0; i < this.body.messages.length; i++) {
+            const message = this.body.messages[i]
             if (message instanceof UserMessage) {
-                await message.expandMacros(this.header.macros)
+                await message.expandMacros(this.header.macros, { 
+                    MESSAGE_INDEX : (i + 1).toString(),
+                    MESSAGES_LENGTH : this.body.messages.length.toString()
+                })
             }
         }
     }

@@ -20,7 +20,8 @@ const reserved = new Set(["cmd", "ask", "aside", "reset"])
 
 export async function expandMacros(
     text: string,
-    macros: Record<string, Macro>
+    macros: Record<string, Macro>,
+    messageEnv?: Record<string, string>
 ): Promise<string> {
     if (Object.keys(macros).length === 0) return text
 
@@ -41,6 +42,7 @@ export async function expandMacros(
             if (macro) {
                 changed = true
                 const env: Record<string, string | undefined> = {
+                    ...messageEnv,
                     ...node.attributes,
                     ARG: node.attributes?.['ARG'] ?? nodesToMarkdown(node.children)
                 }
