@@ -67,6 +67,10 @@ website:
             href: ./cookbook/04_memory.qmd
           - text: Context Compaction
             href: ./cookbook/05_context_compaction.qmd
+          - text: Custom Sandboxes
+            href: ./cookbook/06_custom_sandboxing.qmd
+          - text: Control Flow With Macros
+            href: ./cookbook/07_control_flow_macros.qmd
       - section: Reference
         contents:
           - text: CLI
