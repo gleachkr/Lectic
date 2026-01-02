@@ -10,17 +10,19 @@ keypress and get features like completions, diagnostics, and folding.
 Lectic includes a Language Server Protocol (LSP) server that provides:
 
 - **Completions** for directives (`:cmd`, `:ask`, `:reset`, etc.),
-  interlocutor names, macro names, YAML header fields, and tool types
+  interlocutor names, [macros](./automation/01_macros.qmd) names,
+  [kits](./tools/01_overview.qmd#tool-kits) names, YAML header fields, tool
+  types, and some other configuration parameters.
 - **Diagnostics** for missing or invalid configuration, duplicate names,
   and broken file references
 - **Hover information** for directives, tool calls, and file links
-- **Go to definition** for macros and interlocutors
+- **Go to definition** for macros, kits, and interlocutors
 - **Folding** for tool-call and inline-attachment blocks
 - **Document outline** showing conversation structure
 - **Code Actions** for setting up a minimal YAML header, performing minor
-  lints, and expanding [macros](./automation/01_macros.qmd) (the macros don't
-  *need* to be expanded manually for the LLM to see the expansion results, but
-  they can be if you want to preview or inline the expansion output).
+  lints, and expanding macros (the macros don't *need* to be expanded manually
+  for the LLM to see the expansion results, but they can be if you want to
+  preview or inline the expansion output).
 
 Start it with:
 
