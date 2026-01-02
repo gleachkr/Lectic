@@ -17,6 +17,10 @@ Lectic includes a Language Server Protocol (LSP) server that provides:
 - **Go to definition** for macros and interlocutors
 - **Folding** for tool-call and inline-attachment blocks
 - **Document outline** showing conversation structure
+- **Code Actions** for setting up a minimal YAML header, performing minor
+  lints, and expanding [macros](./automation/01_macros.qmd) (the macros don't
+  *need* to be expanded manually for the LLM to see the expansion results, but
+  they can be if you want to preview or inline the expansion output).
 
 Start it with:
 

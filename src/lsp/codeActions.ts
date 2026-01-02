@@ -1,4 +1,4 @@
-import type { CodeAction, CodeActionKind, CodeActionParams, Range, TextEdit, WorkspaceEdit } from "vscode-languageserver"
+import type { CodeAction, CodeActionKind, CodeActionParams, Range, TextEdit } from "vscode-languageserver"
 import { CodeActionKind as LspCodeActionKind, Range as LspRange } from "vscode-languageserver/node"
 import { linkTargetAtPositionFromBundle } from "./linkTargets"
 import { directiveAtPositionFromBundle } from "./directives"
@@ -10,7 +10,6 @@ import { buildInterlocutorIndex } from "./interlocutorIndex"
 import type { AnalysisBundle } from "./analysisTypes"
 import { Macro, validateMacroSpec } from "../types/macro"
 import { expandMacros } from "../parsing/macro"
-import { TextDocument } from "vscode-languageserver-textdocument"
 
 function codeAction(kind: CodeActionKind, title: string, edits: TextEdit[], uri: string): CodeAction {
   return { title, kind, edit: { changes: { [uri]: edits } } }
