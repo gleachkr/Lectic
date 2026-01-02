@@ -7,6 +7,7 @@ import type {
   WorkspaceSymbolParams, CodeActionParams,
   SemanticTokensParams, SemanticTokensRangeParams,
   Diagnostic,
+  CodeAction,
 } from "vscode-languageserver"
 import {
   createConnection, ProposedFeatures, TextDocumentSyncKind
@@ -17,7 +18,7 @@ import { dirname } from "path"
 import { computeCompletions } from "./completions"
 import { buildDocumentSymbols } from "./symbols"
 import { buildWorkspaceSymbols } from "./workspaceSymbols"
-import { computeCodeActions } from "./codeActions"
+import { computeCodeActions, resolveCodeAction } from "./codeActions"
 import { resolveDefinition } from "./definitions"
 import { computeHover } from "./hovers"
 import type {
@@ -281,7 +282,9 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
         documentSymbolProvider: true,
         foldingRangeProvider: true,
         workspaceSymbolProvider: true,
-        codeActionProvider: true,
+        codeActionProvider: {
+          resolveProvider: true
+        },
         semanticTokensProvider: {
           legend: semanticTokenLegend,
           full: true,
@@ -399,6 +402,21 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const bundle = await analyzer.getBundle()
     const res = await computeCodeActions(params.textDocument.uri, doc.text, params, docDir, bundle)
     return res ?? []
+  })
+
+  connection.onCodeActionResolve(async (action: CodeAction) => {
+    // If it's not our action type, return as is
+    if (action.data?.type !== 'expand-macro') return action
+    
+    // We need document text to resolve. We stored uri in data.
+    const uri = action.data.uri
+    const doc = docs.get(uri)
+    if (!doc) return action
+    
+    const u = new URL(uri)
+    const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
+
+    return await resolveCodeAction(action, doc.text, docDir)
   })
 
   // Semantic tokens (full and range)

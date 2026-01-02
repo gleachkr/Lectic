@@ -1,4 +1,4 @@
-import type { CodeAction, CodeActionKind, CodeActionParams, Range, TextEdit } from "vscode-languageserver"
+import type { CodeAction, CodeActionKind, CodeActionParams, Range, TextEdit, WorkspaceEdit } from "vscode-languageserver"
 import { CodeActionKind as LspCodeActionKind, Range as LspRange } from "vscode-languageserver/node"
 import { linkTargetAtPositionFromBundle } from "./linkTargets"
 import { directiveAtPositionFromBundle } from "./directives"
@@ -8,9 +8,16 @@ import { expandEnv } from "../utils/replace"
 import { isLecticHeaderSpec } from "../types/lectic"
 import { buildInterlocutorIndex } from "./interlocutorIndex"
 import type { AnalysisBundle } from "./analysisTypes"
+import { Macro, validateMacroSpec } from "../types/macro"
+import { expandMacros } from "../parsing/macro"
+import { TextDocument } from "vscode-languageserver-textdocument"
 
 function codeAction(kind: CodeActionKind, title: string, edits: TextEdit[], uri: string): CodeAction {
   return { title, kind, edit: { changes: { [uri]: edits } } }
+}
+
+function resolveAction(kind: CodeActionKind, title: string, data: unknown): CodeAction {
+  return { title, kind, data }
 }
 
 function findLinkAtPosition(docText: string, posOff: number, bundle: AnalysisBundle): { range: Range, text: string } | null {
@@ -166,25 +173,52 @@ export async function computeCodeActions(
     }
   }
 
-  // 2) Unknown :ask/:aside closest‑match replacement
+  // 2) directive-specific code actions
   try {
     const dctx = directiveAtPositionFromBundle(docText, params.range.start, bundle)
-    if (dctx && dctx.insideBrackets && (dctx.key === 'ask' || dctx.key === 'aside')) {
-      const current = dctx.innerText.trim()
-      if (current.length > 0) {
+    if (dctx) {
+      // a) Macro expansion
+      if (dctx.key && !['ask', 'aside', 'cmd', 'reset'].includes(dctx.key)) {
         const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
-        const candidates = collectInterlocutorNames(specRes.spec)
-        const ranked = candidates
-          .map(n => ({ n, d: distance(current, n) }))
-          .filter(x => x.d <= 2)
-          .sort((a, b) => a.d - b.d)
-        for (const r of ranked) {
-          out.push(codeAction(
-            LspCodeActionKind.QuickFix,
-            `Replace with ${r.n}`,
-            [{ range: LspRange.create(dctx.innerStart, dctx.innerEnd), newText: r.n }],
-            uri
-          ))
+        if (specRes.spec && typeof specRes.spec === 'object' && 'macros' in specRes.spec) {
+          const rawMacros = (specRes.spec as any).macros
+          if (Array.isArray(rawMacros)) {
+             const found = rawMacros.some((m: unknown) => 
+               validateMacroSpec(m) && m.name.toLowerCase() === dctx.key
+             )
+             if (found) {
+               out.push(resolveAction(
+                 LspCodeActionKind.RefactorInline,
+                 `Expand macro :${dctx.key}`,
+                 {
+                   type: 'expand-macro',
+                   uri,
+                   range: LspRange.create(dctx.nodeStart, dctx.nodeEnd)
+                 }
+               ))
+             }
+          }
+        }
+      }
+
+      // b) Ask/Aside correction
+      if (dctx.insideBrackets && (dctx.key === 'ask' || dctx.key === 'aside')) {
+        const current = dctx.innerText.trim()
+        if (current.length > 0) {
+          const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+          const candidates = collectInterlocutorNames(specRes.spec)
+          const ranked = candidates
+            .map(n => ({ n, d: distance(current, n) }))
+            .filter(x => x.d <= 2)
+            .sort((a, b) => a.d - b.d)
+          for (const r of ranked) {
+            out.push(codeAction(
+              LspCodeActionKind.QuickFix,
+              `Replace with ${r.n}`,
+              [{ range: LspRange.create(dctx.innerStart, dctx.innerEnd), newText: r.n }],
+              uri
+            ))
+          }
         }
       }
     }
@@ -193,4 +227,51 @@ export async function computeCodeActions(
   }
 
   return out.length ? out : null
+}
+
+export async function resolveCodeAction(
+  action: CodeAction,
+  docText: string,
+  docDir: string | undefined
+): Promise<CodeAction> {
+  const data = action.data
+  if (!data || typeof data !== 'object' || data.type !== 'expand-macro') {
+    return action
+  }
+
+  // Perform expansion
+  const range = data.range as Range
+  const startOff = positionToOffset(docText, range.start)
+  const endOff = positionToOffset(docText, range.end)
+  const snippet = docText.slice(startOff, endOff)
+
+  // Retrieve macros
+  const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+  const macros: Record<string, Macro> = {}
+  
+  if (specRes.spec && typeof specRes.spec === 'object' && 'macros' in specRes.spec) {
+    const rawMacros = (specRes.spec as any).macros
+    if (Array.isArray(rawMacros)) {
+      for (const m of rawMacros) {
+        if (validateMacroSpec(m)) {
+          const macro = new Macro(m)
+          macros[macro.name.toLowerCase()] = macro
+        }
+      }
+    }
+  }
+
+  try {
+    const expanded = await expandMacros(snippet, macros)
+    action.edit = {
+      changes: {
+        [data.uri]: [{ range, newText: expanded }]
+      }
+    }
+  } catch (e) {
+    // If expansion fails, we return the action as is (no edit),
+    // or we could throw. The client will just see no change.
+  }
+
+  return action
 }
