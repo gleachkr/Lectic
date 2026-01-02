@@ -52,7 +52,7 @@ export async function expandMacros(
                     const parsed = processor.parse(preResult).children
                     const processedResult: RootContent[] = []
                     for (const n of parsed) {
-                        processedResult.push(...(await walk(n, preResult, depth + 1)))
+                        processedResult.push(...await walk(n, preResult, depth + 1))
                     }
                     if (processedResult.length > 0) return processedResult
                     // If parsing returned no nodes (e.g. empty comment), return empty text node
@@ -63,26 +63,25 @@ export async function expandMacros(
                 // Pre didn't return (or returned empty), so process children
                 const newChildren: RootContent[] = []
                 for (const child of node.children) {
-                    newChildren.push(...(await walk(child, raw, depth + 1)))
+                    newChildren.push(...await walk(child, raw, depth + 1))
                 }
-                const textDirective = node as TextDirective
+                
                 // We need to cast here, since technically an inline
                 // directive's children must be phrasing content.
-                textDirective.children = newChildren as PhrasingContent[]
+                node.children = newChildren as PhrasingContent[]
 
                 // Update ARG with processed children
-                env['ARG'] = node.attributes?.['ARG'] ?? nodesToMarkdown(textDirective.children)
+                env['ARG'] = node.attributes?.['ARG'] ?? nodesToMarkdown(node.children)
                 
                 const postResult = await macro.expandPost(env)
                 if (postResult !== undefined) {
                     const parsed = processor.parse(postResult).children
                     const processedResult: RootContent[] = []
                     for (const n of parsed) {
-                        processedResult.push(...(await walk(n, postResult, depth + 1)))
+                        processedResult.push(...await walk(n, postResult, depth + 1))
                     }
                     if (processedResult.length > 0) return processedResult
-                    const empty: Text = { type: 'text', value: '' }
-                    return [empty]
+                    return [{ type: 'text', value: '' }]
                 }
             }
         }
@@ -91,7 +90,7 @@ export async function expandMacros(
             const parent = node as Parent
             const newChildren: RootContent[] = []
             for (const child of parent.children) {
-                newChildren.push(...(await walk(child, raw, depth)))
+                newChildren.push(...await walk(child, raw, depth))
             }
             parent.children = newChildren
         }
@@ -101,7 +100,7 @@ export async function expandMacros(
 
     const newChildren: RootContent[] = []
     for (const child of ast.children) {
-        newChildren.push(...(await walk(child, text)))
+        newChildren.push(...await walk(child, text))
     }
     ast.children = newChildren
 
