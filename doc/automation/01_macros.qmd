@@ -126,7 +126,7 @@ A few other environment variables are available by default.
 
 | Name            | Description
 |:----------------|:--------------------------------------------------------------
-| MESSAGE_INDEX   | Index (starting from zero) of the message containing the macro
+| MESSAGE_INDEX   | Index (starting from one) of the message containing the macro
 | MESSAGES_LENGTH | Total number of messages in the conversation
 
 These might be useful for conditionally running only if the macro is, e.g. part
