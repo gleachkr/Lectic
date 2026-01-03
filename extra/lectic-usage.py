@@ -195,6 +195,21 @@ def _fmt_money(amount: float) -> str:
     return f"${amount:,.2f}"
 
 
+def _find_price(price_map: Dict[str, Any], model: str) -> Optional[Dict[str, float]]:
+    if model in price_map:
+        return price_map[model]
+
+    # Longest prefix match
+    best_match = None
+    best_len = -1
+    for p_id in price_map:
+        if model.startswith(p_id) and len(p_id) > best_len:
+            best_match = p_id
+            best_len = len(p_id)
+
+    return price_map.get(best_match) if best_match else None
+
+
 def _get_color(index: int) -> str:
     return COLORS[index % len(COLORS)]
 
@@ -303,7 +318,7 @@ def _print_graph(
             current.cached += t_inc.cached
 
             if show_price:
-                p = price_map.get(model)
+                p = _find_price(price_map, model)
                 if p:
                     uncached = t_inc.input - t_inc.cached
                     c_in = (uncached * p["input"]) / 1_000_000
