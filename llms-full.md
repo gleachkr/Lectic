@@ -247,7 +247,8 @@ What is today's date?
 ```
 
 Run Lectic again. The assistant block will now include an XML tool call
-and the recorded results. You will see tags like , , and in the block.
+and the recorded results. You will see tags like `<tool-call>`,
+`<arguments>`, and `<results>` in the block.
 
 > [!TIP]
 >
