@@ -180,7 +180,7 @@ export async function computeCodeActions(
       if (dctx.key && !['ask', 'aside', 'cmd', 'reset'].includes(dctx.key)) {
         const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
         if (specRes.spec && typeof specRes.spec === 'object' && 'macros' in specRes.spec) {
-          const rawMacros = (specRes.spec as any).macros
+          const rawMacros = specRes.spec.macros
           if (Array.isArray(rawMacros)) {
              const found = rawMacros.some((m: unknown) => 
                validateMacroSpec(m) && m.name.toLowerCase() === dctx.key
@@ -249,7 +249,7 @@ export async function resolveCodeAction(
   const macros: Record<string, Macro> = {}
   
   if (specRes.spec && typeof specRes.spec === 'object' && 'macros' in specRes.spec) {
-    const rawMacros = (specRes.spec as any).macros
+    const rawMacros = specRes.spec.macros
     if (Array.isArray(rawMacros)) {
       for (const m of rawMacros) {
         if (validateMacroSpec(m)) {
@@ -267,7 +267,7 @@ export async function resolveCodeAction(
         [data.uri]: [{ range, newText: expanded }]
       }
     }
-  } catch (e) {
+  } catch {
     // If expansion fails, we return the action as is (no edit),
     // or we could throw. The client will just see no change.
   }

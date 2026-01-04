@@ -8,6 +8,7 @@ class MockTool extends Tool {
     description = "A mock tool"
     parameters = { }
     required = []
+    kind = "mock"
     
     constructor(hooks?: any[]) {
         super(hooks)

@@ -254,7 +254,7 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
     const selLen = firstLineLen(docText, bs)
 
     // Determine content range excluding fences
-    let contentStart = bs + selLen
+    const contentStart = bs + selLen
     let contentEnd = be
     
     // Check for closing fence ":::" at the end

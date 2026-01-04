@@ -1,7 +1,6 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
 import type { Root, RootContent, Parent, Text, PhrasingContent } from "mdast"
-import type { TextDirective } from "mdast-util-directive"
 import { Macro } from "../types/macro"
 
 const processor = remark().use(remarkDirective)

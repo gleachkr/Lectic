@@ -158,6 +158,7 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         name = "mock_tool"
         description = "A mock tool"
         parameters = {}
+        kind = "mock"
         async call(_args: any) {
             return ToolCallResults("mock result")
         }

@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test"
 import { computeCodeActions, resolveCodeAction } from "./codeActions"
 import { buildTestBundle } from "./utils/testHelpers"
 import { CodeActionKind } from "vscode-languageserver/node"
-import { Position, Range } from "vscode-languageserver-types"
+import { Range } from "vscode-languageserver-types"
 
 describe("codeActions (unit)", () => {
   test("computeCodeActions suggests macro expansion", async () => {
@@ -20,6 +20,7 @@ macros:
       "file:///doc.lec",
       text,
       {
+        textDocument: { uri: "file:///doc.lec" },
         range: Range.create(line, char, line, char),
         context: { diagnostics: [] }
       },

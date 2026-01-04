@@ -8,6 +8,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'stringTool',
             description: 'Tool that handles strings',
             parameters: { message: { type: 'string', description: 'A message' } },
+            kind: 'mock',
             call: async (_arg) => ToolCallResults('success'),
             validateArguments: _ => null,
             required: [],
@@ -31,6 +32,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'booleanTool',
             description: 'Tool that handles booleans',
             parameters: { confirmed: { type: 'boolean', description: 'Confirmation status' } },
+            kind: 'mock',
             call: async (_arg) => ToolCallResults('done'),
             validateArguments: _ => null,
             required: [],
@@ -54,6 +56,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             name: 'numberTool',
             description: 'Tool that handles numbers',
             parameters: { amount: { type: 'number', description: 'An amount' } },
+            kind: 'mock',
             call: async (_arg) => ToolCallResults('calculated'),
             validateArguments: _ => null,
             required: [],
@@ -79,6 +82,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
             parameters: {
                 items: { type: 'array', description: 'A list of items', items: { type: 'string', description: 'Item' } }
             },
+            kind: 'mock',
             call: async (_arg) => ToolCallResults('completed'),
             validateArguments: _ => null,
             required: [],
@@ -111,6 +115,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
                     }
                 }
             },
+            kind: 'mock',
             call: async (_arg) => ToolCallResults('adjusted'),
             validateArguments: _ => null,
             required: [],
@@ -133,6 +138,7 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         name: 'mockTool',
         description: 'A mock tool',
         parameters: { param: { type: 'string', description: 'A parameter' } },
+        kind: 'mock',
         call: async (_arg) => ToolCallResults('result'),
         validateArguments: _ => null,
         required: [],
@@ -193,6 +199,7 @@ describe('Result escaping round-trip edge cases', () => {
         name: 'edgeTool',
         description: 'Tool for edge cases',
         parameters: { },
+        kind: 'mock',
         call: async (_arg) => ToolCallResults('ok'),
         validateArguments: _ => null,
         required: [],
