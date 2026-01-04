@@ -288,6 +288,23 @@ export class Lectic {
         this.body = body
     }
 
+    applyYaml(yaml : string) {
+        const merged = mergeValues(this.header.spec, YAML.parse(yaml))
+        const newSpec = LecticHeader.normalizeMergedSpec(merged)
+        try { 
+            if (validateLecticHeaderSpec(newSpec)) {
+                this.header = new LecticHeader(newSpec)
+            }
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                throw new Error(`merge_yaml produced a malformed header: ${e.message}`)
+            } else {
+                throw new Error(`merge_yaml produced a malformed header: ${e}`)
+            }
+        }
+    }
+
     async processMessages() {
         const last = this.body.messages.length - 1
         let messages = this.body.messages
@@ -313,20 +330,11 @@ export class Lectic {
                             break
                         }
                         case "merge_yaml" : {
-                            const merged = mergeValues(this.header.spec, YAML.parse(directive.text))
-                            const newSpec = LecticHeader.normalizeMergedSpec(merged)
-                            try { 
-                                if (validateLecticHeaderSpec(newSpec)) {
-                                    this.header = new LecticHeader(newSpec)
-                                }
-                            }
-                            catch (e) {
-                                if (e instanceof Error) {
-                                    throw new Error(`merge_yaml produced a malformed header: ${e.message}`)
-                                } else {
-                                    throw new Error(`merge_yaml produced a malformed header: ${e}`)
-                                }
-                            }
+                            this.applyYaml(directive.text)
+                            break
+                        }
+                        case "temp_merge_yaml" : {
+                            if (idx === last) this.applyYaml(directive.text)
                             break
                         }
                     }
