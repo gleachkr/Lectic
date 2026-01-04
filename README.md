@@ -18,17 +18,27 @@ git diff --staged | lectic -f commit-msg.lec -S >> commits.log
 ## Why Lectic?
 
 **Bring your own editor.** Lectic has LSP support, so you get completions,
-diagnostics, and folding in Neovim, VS Code, or anything else that speaks
-LSP.
+diagnostics, code actions, and folding in Neovim, VS Code, or anything else 
+that speaks LSP.
 
 **Bring your own language.** Tools, hooks, and macros are just executables.
 Write them in Bash, Python, Rust — whatever you want.
 
-**Composable primitives.** A small set of building blocks (`:cmd`, `:ask`,
-`:reset`, macros, hooks) combine to handle a wide range of workflows.
+**Composable primitives.** A small set of building blocks (directives, macros, 
+and hooks) combine to handle a wide range of workflows.
 
-**Plain text all the way down.** Conversations are markdown files. No
-databases, no proprietary formats, no lock-in.
+**Plain text all the way down.** Conversations are commonmark markdown files 
+(with directives), easy to read, parse, modify, share, search, archive, and 
+more.
+
+**Sensible Sandboxing.** Lectic lets you sandbox your LLM with any strategy or 
+combination of strategies you want: worktrees, bwrap, containers, or file 
+permissions.
+
+**Git style subcommands** Lectic is extensible with git style subcommands - 
+executables that live on your PATH or in Lectic's configuration directories. 
+LLMs are great at writing small self-contained programs against a simple API 
+surface. So that's how you extend Lectic.
 
 ## Installation
 
