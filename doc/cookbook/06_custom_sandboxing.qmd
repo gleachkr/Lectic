@@ -184,15 +184,18 @@ tools:
 
 ## Tips
 
-- **Environment Variables**: Lectic passes environment variables (like
-  `LECTIC_INTERLOCUTOR`) to your sandbox script. You can use these to create
-  per-interlocutor isolation directories. See the full list in the
-  Environment](../tools/02_exec.qmd#execution-environment) and [Configuration
+- **Environment variables**: Lectic passes variables like
+  `LECTIC_INTERLOCUTOR` into sandboxed commands. Use these for per-interlocutor
+  state (for example, separate scratch directories). See
+  [Exec Tool](../tools/02_exec.qmd#execution-environment) and
   [Configuration Reference](../reference/02_configuration.qmd#overriding-default-directories).
-  for lists of available variables.
-- **Complex Arguments**: If your sandbox script needs its own arguments, just
-  add them in the config string: `sandbox: ./wrapper.sh --allow-net`.
-- **High-Latency Sandboxes**: Tools are often called frequently in a loop.
-  Heavy isolation methods like `docker run` can introduce significant latency
-  per turn. If using Docker, prefer `docker exec` into an already-running
-  container over spinning up a new container for every command.
+
+- **Quoting and arguments**: A sandbox is a command string. If you need complex
+  quoting or structured options, prefer writing a wrapper script.
+
+- **Performance matters**: Tools can be called in tight loops. Heavy sandboxes
+  like `docker run` can add significant latency. Prefer `docker exec` into a
+  long-running container if you go the Docker route.
+
+- **Test your sandbox**: Verify it blocks what you think it blocks. Try to
+  access files outside the allowed roots and confirm it fails.
