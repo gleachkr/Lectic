@@ -482,6 +482,22 @@ export async function computeCompletions(
       documentation: "Temporarily switch interlocutor for this turn only.",
       sortText: "04_aside",
     },
+    {
+      key: "merge_yaml",
+      label: "merge_yaml",
+      insert: ":merge_yaml[${0:yaml}]",
+      detail: ":merge_yaml — merge configuration into the header",
+      documentation: "Merge the provided YAML into the document header configuration.",
+      sortText: "05_merge_yaml",
+    },
+    {
+      key: "temp_merge_yaml",
+      label: "temp_merge_yaml",
+      insert: ":temp_merge_yaml[${0:yaml}]",
+      detail: ":temp_merge_yaml — temporarily merge configuration",
+      documentation: "Merge the provided YAML into the header for this turn only.",
+      sortText: "06_temp_merge_yaml",
+    },
   ]
 
   // Add macro names as directive completions: :name[]

@@ -100,3 +100,34 @@ a summary of our previous discussion about the Roman Empire.
 
 This is a powerful tool for managing long-running conversations, allowing you
 to "compact" the context manually or with the help of the LLM.
+
+## Dynamic Configuration with `:merge_yaml` and `:temp_merge_yaml`
+
+Sometimes you need to change the configuration of the conversation on the fly.
+Lectic provides two directives for this purpose, allowing you to merge new
+YAML configuration into the header.
+
+### `:merge_yaml[YAML]` - Permanently Update Configuration
+
+The `:merge_yaml` directive allows you to permanently update the conversation's
+configuration. The provided YAML is merged with the existing header, overriding
+any existing keys.
+
+```markdown
+:merge_yaml[{ interlocutor: { model: "claude-3-opus-20240229" } }]
+```
+
+This change persists for all subsequent turns in the conversation.
+
+### `:temp_merge_yaml[YAML]` - Temporarily Update Configuration
+
+The `:temp_merge_yaml` directive updates the configuration for the *current turn
+only*. This is useful for one-off changes, such as temporarily increasing the
+`max_tokens` limit or enabling a specific tool.
+
+```markdown
+:temp_merge_yaml[{ interlocutor: { max_tokens: 4000 } }]
+```
+
+Once the turn is complete, the configuration reverts to its previous state for
+subsequent messages.
