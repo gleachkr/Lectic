@@ -339,6 +339,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Context Compaction</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/06_custom_sandboxing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Custom Sandboxes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/07_control_flow_macros.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Control Flow With Macros</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -420,12 +432,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="the-lsp-server">The LSP Server</h2>
 <p>Lectic includes a Language Server Protocol (LSP) server that provides:</p>
 <ul>
-<li><strong>Completions</strong> for directives (<code>:cmd</code>, <code>:ask</code>, <code>:reset</code>, etc.), interlocutor names, macro names, YAML header fields, and tool types</li>
+<li><strong>Completions</strong> for directives (<code>:cmd</code>, <code>:ask</code>, <code>:reset</code>, etc.), interlocutor names, <a href="./automation/01_macros.html">macros</a> names, <a href="./tools/01_overview.html#tool-kits">kits</a> names, YAML header fields, tool types, and some other configuration parameters.</li>
 <li><strong>Diagnostics</strong> for missing or invalid configuration, duplicate names, and broken file references</li>
 <li><strong>Hover information</strong> for directives, tool calls, and file links</li>
-<li><strong>Go to definition</strong> for macros and interlocutors</li>
+<li><strong>Go to definition</strong> for macros, kits, and interlocutors</li>
 <li><strong>Folding</strong> for tool-call and inline-attachment blocks</li>
 <li><strong>Document outline</strong> showing conversation structure</li>
+<li><strong>Code Actions</strong> for setting up a minimal YAML header, performing minor lints, and expanding macros (the macros don’t <em>need</em> to be expanded manually for the LLM to see the expansion results, but they can be if you want to preview or inline the expansion output).</li>
 </ul>
 <p>Start it with:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> lsp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>

@@ -339,6 +339,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Context Compaction</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/06_custom_sandboxing.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Custom Sandboxes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/07_control_flow_macros.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Control Flow With Macros</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -388,6 +400,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#asidename---switch-for-a-single-turn" id="toc-asidename---switch-for-a-single-turn" class="nav-link" data-scroll-target="#asidename---switch-for-a-single-turn"><code>:aside[Name]</code> - Switch for a Single Turn</a></li>
   </ul></li>
   <li><a href="#context-management-with-reset" id="toc-context-management-with-reset" class="nav-link" data-scroll-target="#context-management-with-reset">Context Management with <code>:reset</code></a></li>
+  <li><a href="#dynamic-configuration-with-merge_yaml-and-temp_merge_yaml" id="toc-dynamic-configuration-with-merge_yaml-and-temp_merge_yaml" class="nav-link" data-scroll-target="#dynamic-configuration-with-merge_yaml-and-temp_merge_yaml">Dynamic Configuration with <code>:merge_yaml</code> and <code>:temp_merge_yaml</code></a>
+  <ul class="collapse">
+  <li><a href="#merge_yamlyaml---permanently-update-configuration" id="toc-merge_yamlyaml---permanently-update-configuration" class="nav-link" data-scroll-target="#merge_yamlyaml---permanently-update-configuration"><code>:merge_yaml[YAML]</code> - Permanently Update Configuration</a></li>
+  <li><a href="#temp_merge_yamlyaml---temporarily-update-configuration" id="toc-temp_merge_yamlyaml---temporarily-update-configuration" class="nav-link" data-scroll-target="#temp_merge_yamlyaml---temporarily-update-configuration"><code>:temp_merge_yaml[YAML]</code> - Temporarily Update Configuration</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 </nav>
@@ -465,8 +482,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>a summary of our previous discussion about the Roman Empire.</span>
 <span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This is a powerful tool for managing long-running conversations, allowing you to “compact” the context manually or with the help of the LLM.</p>
+</section>
+<section id="dynamic-configuration-with-merge_yaml-and-temp_merge_yaml" class="level2">
+<h2 class="anchored" data-anchor-id="dynamic-configuration-with-merge_yaml-and-temp_merge_yaml">Dynamic Configuration with <code>:merge_yaml</code> and <code>:temp_merge_yaml</code></h2>
+<p>Sometimes you need to change the configuration of the conversation on the fly. Lectic provides two directives for this purpose, allowing you to merge new YAML configuration into the header.</p>
+<section id="merge_yamlyaml---permanently-update-configuration" class="level3">
+<h3 class="anchored" data-anchor-id="merge_yamlyaml---permanently-update-configuration"><code>:merge_yaml[YAML]</code> - Permanently Update Configuration</h3>
+<p>The <code>:merge_yaml</code> directive allows you to permanently update the conversation’s configuration. The provided YAML is merged with the existing header, overriding any existing keys.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>:merge_yaml<span class="co">[</span><span class="ot">{ interlocutor: { model: "claude-3-opus-20240229" } }</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This change persists for all subsequent turns in the conversation.</p>
+</section>
+<section id="temp_merge_yamlyaml---temporarily-update-configuration" class="level3">
+<h3 class="anchored" data-anchor-id="temp_merge_yamlyaml---temporarily-update-configuration"><code>:temp_merge_yaml[YAML]</code> - Temporarily Update Configuration</h3>
+<p>The <code>:temp_merge_yaml</code> directive updates the configuration for the <em>current turn only</em>. This is useful for one-off changes, such as temporarily increasing the <code>max_tokens</code> limit or enabling a specific tool.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>:temp_merge_yaml<span class="co">[</span><span class="ot">{ interlocutor: { max_tokens: 4000 } }</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Once the turn is complete, the configuration reverts to its previous state for subsequent messages.</p>
 
 
+</section>
 </section>
 </section>
 

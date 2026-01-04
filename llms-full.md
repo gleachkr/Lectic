@@ -348,13 +348,19 @@ keypress and get features like completions, diagnostics, and folding.
 Lectic includes a Language Server Protocol (LSP) server that provides:
 
 - **Completions** for directives (`:cmd`, `:ask`, `:reset`, etc.),
-  interlocutor names, macro names, YAML header fields, and tool types
+  interlocutor names, [macros](./automation/01_macros.qmd) names,
+  [kits](./tools/01_overview.qmd#tool-kits) names, YAML header fields,
+  tool types, and some other configuration parameters.
 - **Diagnostics** for missing or invalid configuration, duplicate names,
   and broken file references
 - **Hover information** for directives, tool calls, and file links
-- **Go to definition** for macros and interlocutors
+- **Go to definition** for macros, kits, and interlocutors
 - **Folding** for tool-call and inline-attachment blocks
 - **Document outline** showing conversation structure
+- **Code Actions** for setting up a minimal YAML header, performing
+  minor lints, and expanding macros (the macros don’t *need* to be
+  expanded manually for the LLM to see the expansion results, but they
+  can be if you want to preview or inline the expansion output).
 
 Start it with:
 
@@ -1076,7 +1082,7 @@ A few other environment variables are available by default.
 
 | Name | Description |
 |:---|:---|
-| MESSAGE_INDEX | Index (starting from zero) of the message containing the macro |
+| MESSAGE_INDEX | Index (starting from one) of the message containing the macro |
 | MESSAGES_LENGTH | Total number of messages in the conversation |
 
 These might be useful for conditionally running only if the macro is,
@@ -1883,6 +1889,38 @@ a summary of our previous discussion about the Roman Empire.
 This is a powerful tool for managing long-running conversations,
 allowing you to “compact” the context manually or with the help of the
 LLM.
+
+## Dynamic Configuration with `:merge_yaml` and `:temp_merge_yaml`
+
+Sometimes you need to change the configuration of the conversation on
+the fly. Lectic provides two directives for this purpose, allowing you
+to merge new YAML configuration into the header.
+
+### `:merge_yaml[YAML]` - Permanently Update Configuration
+
+The `:merge_yaml` directive allows you to permanently update the
+conversation’s configuration. The provided YAML is merged with the
+existing header, overriding any existing keys.
+
+``` markdown
+:merge_yaml[{ interlocutor: { model: "claude-3-opus-20240229" } }]
+```
+
+This change persists for all subsequent turns in the conversation.
+
+### `:temp_merge_yaml[YAML]` - Temporarily Update Configuration
+
+The `:temp_merge_yaml` directive updates the configuration for the
+*current turn only*. This is useful for one-off changes, such as
+temporarily increasing the `max_tokens` limit or enabling a specific
+tool.
+
+``` markdown
+:temp_merge_yaml[{ interlocutor: { max_tokens: 4000 } }]
+```
+
+Once the turn is complete, the configuration reverts to its previous
+state for subsequent messages.
 
 
 
@@ -3102,21 +3140,24 @@ tools:
 
 ## Tips
 
-- **Environment Variables**: Lectic passes environment variables (like
-  `LECTIC_INTERLOCUTOR`) to your sandbox script. You can use these to
-  create per-interlocutor isolation directories. See the full list in
-  the Environment\](../tools/02_exec.qmd#execution-environment) and
-  \[Configuration [Configuration
+- **Environment variables**: Lectic passes variables like
+  `LECTIC_INTERLOCUTOR` into sandboxed commands. Use these for
+  per-interlocutor state (for example, separate scratch directories).
+  See [Exec Tool](../tools/02_exec.qmd#execution-environment) and
+  [Configuration
   Reference](../reference/02_configuration.qmd#overriding-default-directories).
-  for lists of available variables.
-- **Complex Arguments**: If your sandbox script needs its own arguments,
-  just add them in the config string:
-  `sandbox: ./wrapper.sh --allow-net`.
-- **High-Latency Sandboxes**: Tools are often called frequently in a
-  loop. Heavy isolation methods like `docker run` can introduce
-  significant latency per turn. If using Docker, prefer `docker exec`
-  into an already-running container over spinning up a new container for
-  every command.
+
+- **Quoting and arguments**: A sandbox is a command string. If you need
+  complex quoting or structured options, prefer writing a wrapper
+  script.
+
+- **Performance matters**: Tools can be called in tight loops. Heavy
+  sandboxes like `docker run` can add significant latency. Prefer
+  `docker exec` into a long-running container if you go the Docker
+  route.
+
+- **Test your sandbox**: Verify it blocks what you think it blocks. Try
+  to access files outside the allowed roots and confirm it fails.
 
 
 

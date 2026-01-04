@@ -117,9 +117,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">
-      Lectic Documentation
-      </li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxes</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -341,6 +339,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Context Compaction</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/06_custom_sandboxing.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Custom Sandboxes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/07_control_flow_macros.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Control Flow With Macros</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -398,7 +408,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxes</a></li></ol></nav></header>
 
 
 
@@ -526,9 +536,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tips" class="level2">
 <h2 class="anchored" data-anchor-id="tips">Tips</h2>
 <ul>
-<li><strong>Environment Variables</strong>: Lectic passes environment variables (like <code>LECTIC_INTERLOCUTOR</code>) to your sandbox script. You can use these to create per-interlocutor isolation directories. See the full list in the Environment](../tools/02_exec.qmd#execution-environment) and [Configuration <a href="../reference/02_configuration.html#overriding-default-directories">Configuration Reference</a>. for lists of available variables.</li>
-<li><strong>Complex Arguments</strong>: If your sandbox script needs its own arguments, just add them in the config string: <code>sandbox: ./wrapper.sh --allow-net</code>.</li>
-<li><strong>High-Latency Sandboxes</strong>: Tools are often called frequently in a loop. Heavy isolation methods like <code>docker run</code> can introduce significant latency per turn. If using Docker, prefer <code>docker exec</code> into an already-running container over spinning up a new container for every command.</li>
+<li><p><strong>Environment variables</strong>: Lectic passes variables like <code>LECTIC_INTERLOCUTOR</code> into sandboxed commands. Use these for per-interlocutor state (for example, separate scratch directories). See <a href="../tools/02_exec.html#execution-environment">Exec Tool</a> and <a href="../reference/02_configuration.html#overriding-default-directories">Configuration Reference</a>.</p></li>
+<li><p><strong>Quoting and arguments</strong>: A sandbox is a command string. If you need complex quoting or structured options, prefer writing a wrapper script.</p></li>
+<li><p><strong>Performance matters</strong>: Tools can be called in tight loops. Heavy sandboxes like <code>docker run</code> can add significant latency. Prefer <code>docker exec</code> into a long-running container if you go the Docker route.</p></li>
+<li><p><strong>Test your sandbox</strong>: Verify it blocks what you think it blocks. Try to access files outside the allowed roots and confirm it fails.</p></li>
 </ul>
 
 
