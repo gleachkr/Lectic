@@ -60,11 +60,9 @@ export async function generate() {
 
         lectic = await parseLectic(lecticString, includes)
 
-        // expands macros in user messages
-        await lectic.expandMacros()
-
-        // handle directives, which may update header fields
-        lectic.handleDirectives()
+        // expands macros in user messages, and handle directives, which may
+        // update header fields
+        await lectic.processMessages()
 
         // initialize, starting MCP servers for the active interlocutor
         await lectic.header.initialize()

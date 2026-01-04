@@ -59,6 +59,7 @@ export class LecticHeader {
     macros: Macro[]
     hooks: Hook[]
     kits: ToolKitSpec[]
+    spec: LecticHeaderSpec
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
@@ -70,6 +71,7 @@ export class LecticHeader {
             this.interlocutor = spec.interlocutors[0]
             this.interlocutors = spec.interlocutors
         }
+        this.spec = spec
         this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         this.hooks = (spec.hooks ?? []).map(spec => new Hook(spec))
         this.kits = spec.kits ?? []
@@ -286,34 +288,47 @@ export class Lectic {
         this.body = body
     }
 
-    async expandMacros() {
-        for (let i = 0; i < this.body.messages.length; i++) {
-            const message = this.body.messages[i]
+    async processMessages() {
+        const last = this.body.messages.length - 1
+        let messages = this.body.messages
+        for (let idx = 0; idx < this.body.messages.length; idx++) {
+            const message = this.body.messages[idx]
             if (message instanceof UserMessage) {
                 await message.expandMacros(this.header.macros, { 
-                    MESSAGE_INDEX : (i + 1).toString(),
+                    MESSAGE_INDEX : (idx + 1).toString(),
                     MESSAGES_LENGTH : this.body.messages.length.toString()
                 })
-            }
-        }
-    }
-
-    handleDirectives() {
-        const entries = this.body.messages.entries()
-        let messages = this.body.messages
-        for (const [index, message] of entries) {
-            if (message.role === "user") {
                 for (const directive of message.containedDirectives()) {
-                    if (directive.name === "ask") {
-                        this.header.setSpeaker(directive.text)
-                    }
-                    if (index === this.body.messages.length - 1
-                        && directive.name === "aside") {
-                        this.header.setSpeaker(directive.text)
-                    }
-                    if (index < this.body.messages.length - 1
-                        && directive.name === "reset") {
-                        messages = this.body.messages.slice(index + 1)
+                    switch (directive.name) {
+                        case "ask": {
+                            this.header.setSpeaker(directive.text)
+                            break
+                        }
+                        case "aside": {
+                            if (idx === last) this.header.setSpeaker(directive.text)
+                            break
+                        }
+                        case "reset" : {
+                            if (idx < last) messages = this.body.messages.slice(idx + 1)
+                            break
+                        }
+                        case "merge_yaml" : {
+                            const merged = mergeValues(this.header.spec, YAML.parse(directive.text))
+                            const newSpec = LecticHeader.normalizeMergedSpec(merged)
+                            try { 
+                                if (validateLecticHeaderSpec(newSpec)) {
+                                    this.header = new LecticHeader(newSpec)
+                                }
+                            }
+                            catch (e) {
+                                if (e instanceof Error) {
+                                    throw new Error(`merge_yaml produced a malformed header: ${e.message}`)
+                                } else {
+                                    throw new Error(`merge_yaml produced a malformed header: ${e}`)
+                                }
+                            }
+                            break
+                        }
                     }
                 }
             }
