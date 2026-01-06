@@ -5,7 +5,7 @@ Lectic conversations are stored in plain markdown files, typically with a
 conventions: a YAML frontmatter block for configuration and "container
 directives" for assistant responses.
 
-## 1. YAML Frontmatter
+## YAML Frontmatter
 
 Every Lectic file begins with a YAML frontmatter block, enclosed by three
 dashes (`---`). This is where you configure the conversation, defining the
@@ -29,7 +29,7 @@ The frontmatter can be closed with either three dashes (`---`) or three
 periods (`...`). For a complete guide to all available options, see the
 Configuration page.
 
-## 2. User Messages
+## User Messages
 
 Anything in the file that is not part of the YAML frontmatter or an
 assistant response block is considered a user message. You write your
@@ -43,7 +43,7 @@ So is this. You can include any markdown you like, such as **bold text** or
 `inline code`.
 ```
 
-## 3. Assistant Responses
+## Assistant Responses
 
 Lectic uses "container directives" to represent messages from the LLM. These
 are fenced blocks that start with a run of colons, followed immediately by
