@@ -42,6 +42,7 @@ type DialecticHeaderSpec = {
     macros?: MacroSpec[]
     hooks?: HookSpec[]
     kits? : ToolKitSpec[]
+    sandbox? : string
 }
 
 type ManylecticHeaderSpec = {
@@ -49,6 +50,7 @@ type ManylecticHeaderSpec = {
     macros?: MacroSpec[]
     hooks?: HookSpec[]
     kits? : ToolKitSpec[]
+    sandbox? : string
 }
 
 export type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
@@ -60,6 +62,7 @@ export class LecticHeader {
     hooks: Hook[]
     kits: ToolKitSpec[]
     spec: LecticHeaderSpec
+    sandbox? : string
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
             const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
@@ -72,6 +75,7 @@ export class LecticHeader {
             this.interlocutors = spec.interlocutors
         }
         this.spec = spec
+        this.sandbox = spec.sandbox
         this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         this.hooks = (spec.hooks ?? []).map(spec => new Hook(spec))
         this.kits = spec.kits ?? []
@@ -166,7 +170,8 @@ export class LecticHeader {
                 // if the YAML uses &* references
                 const loadedSpec: ExecToolSpec = { ...spec }
                 loadedSpec.usage = await loadFrom(spec.usage)
-                loadedSpec.sandbox = this.interlocutor.sandbox ?? loadedSpec.sandbox
+                loadedSpec.sandbox =
+                    loadedSpec.sandbox ?? this.interlocutor.sandbox ?? this.sandbox
 
                 register(new ExecTool(loadedSpec, this.interlocutor.name))
             } else if (isSQLiteToolSpec(spec)) {
@@ -184,7 +189,8 @@ export class LecticHeader {
             } else if (isMCPSpec(spec)) {
                 const loadedSpec = { ...spec }
                 if ("mcp_command" in loadedSpec) {
-                     loadedSpec.sandbox = this.interlocutor.sandbox ?? loadedSpec.sandbox
+                     loadedSpec.sandbox =
+                        loadedSpec.sandbox ?? this.interlocutor.sandbox ?? this.sandbox
                 }
                 (await MCPTool.fromSpec(loadedSpec)).map(register)
             } else if (isNativeTool(spec)) {
@@ -228,6 +234,10 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
     if ('macros' in raw) {
         if (!Array.isArray(raw['macros'])) { throw Error(Messages.header.macrosType()) }
         raw['macros'].every(validateMacroSpec)
+    }
+
+    if ('sandbox' in raw && !(typeof raw['sandbox'] === "string")) {
+        throw Error(Messages.header.sandboxType())
     }
 
     if ('hooks' in raw) {

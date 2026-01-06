@@ -108,5 +108,6 @@ how sandboxing scripts work, and the
 [Custom Sandboxing](../cookbook/06_custom_sandboxing.qmd) recipe for
 examples.
 
-You can also set a default `sandbox` on the `interlocutor` object. If set,
-it applies to all local MCP tools that don't specify their own.
+You can also set a default sandbox at the top level (`sandbox`) or on the
+`interlocutor` object. If set, it applies to all local `mcp_command` tools
+that don't specify their own. Tool-level `sandbox` wins over both defaults.

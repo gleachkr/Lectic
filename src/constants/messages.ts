@@ -97,6 +97,7 @@ export const Messages = {
     interlocutorsType: () => `'interlocutors' must be an array.`,
     interlocutorsEmpty: () => `'interlocutors' array cannot be empty.`,
     macrosType: () => `'macros' must be an array.`,
+    sandboxType: () => `'sandbox' must be a string.`,
     hooksType: () => `'hooks' must be an array.`,
     kitsType: () => `'kits' must be an array.`
   }

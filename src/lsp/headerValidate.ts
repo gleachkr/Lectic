@@ -299,6 +299,18 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
   }
 
+  // sandbox
+  if ("sandbox" in root) {
+    if (!(typeof root["sandbox"] === "string")) {
+      issues.push({
+        code: "header.sandbox.type",
+        message: Messages.header.sandboxType(),
+        path: ["sandbox"],
+        severity: "error"
+      })
+    } 
+  }
+
   // kits
   if ("kits" in root) {
     const kits = root["kits"]

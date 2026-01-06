@@ -53,7 +53,7 @@ tools:
   for semantics.
 - `sandbox`: A command string to wrap execution (e.g. `/path/to/script.sh`
   or `wrapper.sh arg1`). See safety below. Overrides any interlocutor-level
-  sandbox.
+  or top-level sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the tool
@@ -199,5 +199,6 @@ recipe for a detailed guide on writing your own sandbox scripts.
 For example, `extra/sandbox/bwrap-sandbox.sh` uses Bubblewrap to create a
 minimal, isolated environment with a temporary home directory.
 
-You can also set a default `sandbox` on the `interlocutor` object. If set,
-it applies to all `exec` tools that don't specify their own.
+You can also set a default sandbox at the top level (`sandbox`) or on the
+`interlocutor` object. If set, it applies to all `exec` tools that don't
+specify their own. Tool-level `sandbox` wins over both defaults.

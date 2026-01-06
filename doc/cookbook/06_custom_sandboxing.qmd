@@ -154,10 +154,31 @@ the results, you can manually copy them back.
 
 ## Configuration Usage
 
-You can apply sandboxes globally to an interlocutor or to specific tools.
+You can apply sandboxes project-wide (top-level), per-interlocutor, or per-
+tool.
 
-**Global (Recommended):**
-This ensures every `exec` tool the assistant uses is wrapped.
+Precedence is:
+
+1. Tool `sandbox`
+2. Interlocutor `sandbox`
+3. Top-level `sandbox`
+
+**Project-wide default (recommended for per-project configs):**
+This wraps all `exec` tools and local `mcp_command` tools in the project,
+across all interlocutors.
+
+```yaml
+sandbox: ~/.config/lectic/safe-run.sh
+
+interlocutor:
+  name: Assistant
+  tools:
+    - exec: bash
+    - exec: python3
+```
+
+**Per-interlocutor default:**
+Useful when different interlocutors need different isolation.
 
 ```yaml
 interlocutor:
@@ -168,7 +189,7 @@ interlocutor:
     - exec: python3
 ```
 
-**Per-Tool:**
+**Per-tool:**
 Useful if you have a specific "dangerous" tool that needs isolation while
 others (like `ls`) can run natively.
 

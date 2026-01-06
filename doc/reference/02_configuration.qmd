@@ -13,6 +13,9 @@ included configuration files.
   interlocutors.
 - `macros`: A list of macro definitions. See [Macros](../automation/01_macros.qmd).
 - `hooks`: A list of hook definitions. See [Hooks](../automation/02_hooks.qmd).
+- `sandbox`: A default sandbox command string applied to all `exec` tools
+  and local `mcp_command` tools, unless overridden by
+  `interlocutor.sandbox` or a tool's own `sandbox` setting.
 
 ---
 
@@ -32,6 +35,7 @@ An interlocutor object defines a single LLM "personality" or configuration.
 - `sandbox`: A command string (e.g. `/path/to/script.sh` or `wrapper.sh arg1`)
   to wrap execution for all `exec` tools and local `mcp_command` tools used by
   this interlocutor, unless overridden by the tool's own `sandbox` setting.
+  This overrides any top-level `sandbox` setting.
 
 ### Model Configuration
 
