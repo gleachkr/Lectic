@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import difflib
 import json
 import os
 import re
@@ -196,18 +197,45 @@ def _fmt_money(amount: float) -> str:
 
 
 def _find_price(price_map: Dict[str, Any], model: str) -> Optional[Dict[str, float]]:
+    """
+    Find the price for a model, using exact match, normalized match,
+    longest prefix match, or fuzzy matching.
+    """
+    if not price_map:
+        return None
+
     if model in price_map:
         return price_map[model]
 
-    # Longest prefix match
+    def normalize(s: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+    norm_model = normalize(model)
+    norm_keys = {normalize(k): k for k in price_map}
+
+    # 1. Exact normalized match
+    if norm_model in norm_keys:
+        return price_map[norm_keys[norm_model]]
+
+    # 2. Longest prefix match on normalized names
     best_match = None
     best_len = -1
-    for p_id in price_map:
-        if model.startswith(p_id) and len(p_id) > best_len:
-            best_match = p_id
-            best_len = len(p_id)
+    for norm_p_id, orig_p_id in norm_keys.items():
+        if norm_model.startswith(norm_p_id) and len(norm_p_id) > best_len:
+            best_match = orig_p_id
+            best_len = len(norm_p_id)
 
-    return price_map.get(best_match) if best_match else None
+    if best_match:
+        return price_map[best_match]
+
+    # 3. Fuzzy matching as a last resort
+    close_matches = difflib.get_close_matches(
+        norm_model, norm_keys.keys(), n=1, cutoff=0.6
+    )
+    if close_matches:
+        return price_map[norm_keys[close_matches[0]]]
+
+    return None
 
 
 def _get_color(index: int) -> str:
