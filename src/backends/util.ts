@@ -6,7 +6,7 @@ import { OpenAIResponsesBackend } from "./openai-responses"
 import { GeminiBackend } from "./gemini"
 import type { Interlocutor } from "../types/interlocutor"
 
-export function getBackend(interlocutor : Interlocutor) : Backend {
+export function getBackend(interlocutor: Interlocutor): Backend<unknown, unknown> {
     switch (interlocutor.provider || getDefaultProvider()) {
         case LLMProvider.OpenAI:  return new OpenAIBackend({
             defaultModel: 'gpt-5.2',
@@ -33,6 +33,6 @@ export function getBackend(interlocutor : Interlocutor) : Backend {
         })
         case LLMProvider.Anthropic: return new AnthropicBackend()
         case LLMProvider.AnthropicBedrock: return new AnthropicBedrockBackend()
-        case LLMProvider.Gemini: return GeminiBackend
+        case LLMProvider.Gemini: return new GeminiBackend()
     }
 }

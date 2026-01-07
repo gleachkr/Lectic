@@ -50,9 +50,16 @@ class ModelRegistry {
 
     // Gemini
     if (process.env["GEMINI_API_KEY"]) {
-      tasks.push(GeminiBackend.listModels().then(ms => {
-        this.cache.set(LLMProvider.Gemini, ms)
-      }).catch(() => { /* ignore */ }))
+      tasks.push(
+        new GeminiBackend()
+          .listModels()
+          .then((ms: string[]) => {
+            this.cache.set(LLMProvider.Gemini, ms)
+          })
+          .catch(() => {
+            /* ignore */
+          })
+      )
     }
 
     // OpenAI Responses

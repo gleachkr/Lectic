@@ -13,7 +13,7 @@ export async function listModels() {
   }
   // Gemini
   if (process.env['GEMINI_API_KEY']) {
-    const models = await GeminiBackend.listModels()
+    const models = await new GeminiBackend().listModels()
     out.push({ name: LLMProvider.Gemini, models })
   }
   // OpenAI (Responses)

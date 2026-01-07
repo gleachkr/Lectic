@@ -31,25 +31,28 @@ describe("backend model listing", () => {
   })
 
   test("Gemini models.list supports async iteration", async () => {
-    const orig = GeminiBackend.client
+    const backend = new GeminiBackend()
+    const orig = backend.client
     try {
-      (GeminiBackend as any).client = {
+      ;(backend as any).client = {
         models: {
-          list: async () => asyncIterableFrom([ 
-              { 
-                  name: "gemini-2.5-flash",
-                  supportedActions: ["generateContent"]
-
-              }, { 
-                  name: "gemini-1.5-pro",
-                  supportedActions: ["generateContent"]
-              } ])
-        }
+          list: async () =>
+            asyncIterableFrom([
+              {
+                name: "gemini-2.5-flash",
+                supportedActions: ["generateContent"],
+              },
+              {
+                name: "gemini-1.5-pro",
+                supportedActions: ["generateContent"],
+              },
+            ]),
+        },
       }
-      const ids = await GeminiBackend.listModels()
+      const ids = await backend.listModels()
       expect(ids).toEqual(["gemini-2.5-flash", "gemini-1.5-pro"])
     } finally {
-      ;(GeminiBackend as any).client = orig
+      backend.client = orig
     }
   })
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { Hook } from "./hook";
 import { Tool, ToolCallResults } from "./tool";
-import { resolveToolCalls, type ToolRegistry } from "../backends/common";
+import { resolveToolCalls, type ToolRegistry } from "./backend"
 
 class MockTool extends Tool {
     name = "mock_tool"

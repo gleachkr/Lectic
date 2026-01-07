@@ -2,7 +2,7 @@ import { createWriteStream } from "fs"
 import { parseLectic } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
-import { runHooks } from "./backends/common"
+import { runHooks } from "./types/backend"
 import { version } from "../package.json"
 import { lecticEnv } from "./utils/xdg";
 import { Lectic } from "./types/lectic"

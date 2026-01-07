@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test"
-import { runHooks, emitAssistantMessageEvent, resolveToolCalls } from "./common"
+import { emitAssistantMessageEvent, resolveToolCalls, runHooks } from "../types/backend"
 import { Hook } from "../types/hook"
 import { Tool, ToolCallResults } from "../types/tool"
 
