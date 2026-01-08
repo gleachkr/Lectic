@@ -155,6 +155,85 @@ export async function computeCompletions(
       return items
     }
 
+    // Interlocutor name suggestions for interlocutor.name fields
+    const isInterlocutorNamePath = (p: (string | number)[]): boolean => {
+      if (p.length === 2 && p[0] === 'interlocutor' && p[1] === 'name') return true
+      if (
+        p.length === 3 &&
+        p[0] === 'interlocutors' &&
+        typeof p[1] === 'number' &&
+        p[2] === 'name'
+      ) return true
+      return false
+    }
+
+    const inRangeOrTrailingSpace = (r: Range): boolean => {
+      if (inRange(pos, r)) return true
+      if (pos.line !== r.end.line) return false
+      if (pos.character < r.end.character) return false
+      const between = lineText.slice(r.end.character, pos.character)
+      return between.trim() === ''
+    }
+
+    const interlocutorNameHit = header.fieldRanges.find(fr => {
+      if (!isInterlocutorNamePath(fr.path)) return false
+      return inRangeOrTrailingSpace(fr.range)
+    })
+
+    if (interlocutorNameHit) {
+      const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+      const spec = specRes.spec
+
+      const names: Array<{ name: string, prompt?: string }> = []
+      const seen = new Set<string>()
+
+      const pushName = (name: string, prompt?: string) => {
+        const key = name.toLowerCase()
+        if (seen.has(key)) return
+        seen.add(key)
+        names.push({ name, prompt })
+      }
+
+      if (isLecticHeaderSpec(spec)) {
+        for (const inter of buildInterlocutorIndex(spec)) {
+          pushName(inter.name, inter.prompt)
+        }
+      } else if (isObjectRecord(spec)) {
+        const single = spec['interlocutor']
+        if (isObjectRecord(single) && typeof single['name'] === 'string') {
+          const p = typeof single['prompt'] === 'string' ? single['prompt'] : undefined
+          pushName(single['name'], p)
+        }
+        const list = spec['interlocutors']
+        if (Array.isArray(list)) {
+          for (const it of list) {
+            if (!isObjectRecord(it) || typeof it['name'] !== 'string') continue
+            const p = typeof it['prompt'] === 'string' ? it['prompt'] : undefined
+            pushName(it['name'], p)
+          }
+        }
+      }
+
+      const edit = computeValueEdit(lineText, pos)
+      const prefixLc = edit.prefixLc
+      const textEditRange = edit.range
+
+      for (const n of names) {
+        if (prefixLc && !startsWithCI(n.name, prefixLc)) continue
+        const textEdit: TextEdit = { range: textEditRange, newText: n.name }
+        items.push({
+          label: n.name,
+          kind: CompletionItemKind.Value,
+          detail: 'Interlocutor name',
+          documentation: n.prompt,
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit,
+        })
+      }
+
+      return items
+    }
+
     // Interlocutor property name suggestions inside mappings
     const linePrefix = lineText.slice(0, pos.character)
     const colonInLine = linePrefix.lastIndexOf(':')

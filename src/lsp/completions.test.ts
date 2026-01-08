@@ -182,6 +182,64 @@ describe("completions (unit)", () => {
     expect(labels.has("Main")).toBeTrue()
   })
 
+  test("interlocutor.name suggests known interlocutors from config", async () => {
+    const text = `---\ninterlocutor:\n  name: \n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('name:'))
+    const char = lines[line].length
+
+    const wsDir = await mkdtemp(join(tmpdir(), 'lectic-ws-'))
+    try {
+      await writeFile(
+        join(wsDir, 'lectic.yaml'),
+        `interlocutors:\n  - name: opus\n    prompt: hi\n  - name: haiku\n    prompt: hi\n`
+      )
+
+      const items: any = await computeCompletions(
+        "file:///doc.lec",
+        text,
+        { line, character: char } as any,
+        wsDir,
+        buildTestBundle(text)
+      )
+      const arr = Array.isArray(items) ? items : (items?.items ?? [])
+      const labels = new Set(arr.map((x: any) => x.label))
+      expect(labels.has("opus")).toBeTrue()
+      expect(labels.has("haiku")).toBeTrue()
+    } finally {
+      await rm(wsDir, { recursive: true, force: true })
+    }
+  })
+
+  test("interlocutor.name suggestions filter by typed prefix", async () => {
+    const text = `---\ninterlocutor:\n  name: h\n---\n`
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('name:'))
+    const char = lines[line].length
+
+    const wsDir = await mkdtemp(join(tmpdir(), 'lectic-ws-'))
+    try {
+      await writeFile(
+        join(wsDir, 'lectic.yaml'),
+        `interlocutors:\n  - name: opus\n    prompt: hi\n  - name: haiku\n    prompt: hi\n`
+      )
+
+      const items: any = await computeCompletions(
+        "file:///doc.lec",
+        text,
+        { line, character: char } as any,
+        wsDir,
+        buildTestBundle(text)
+      )
+      const arr = Array.isArray(items) ? items : (items?.items ?? [])
+      const labels = new Set(arr.map((x: any) => x.label))
+      expect(labels.has("haiku")).toBeTrue()
+      expect(labels.has("opus")).toBeFalse()
+    } finally {
+      await rm(wsDir, { recursive: true, force: true })
+    }
+  })
+
   test("native tool suggests supported types", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    - native: \n---\n`
     const lines = text.split(/\r?\n/)
