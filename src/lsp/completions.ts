@@ -587,11 +587,22 @@ export async function computeCompletions(
     for (const m of macros) {
       const key = m.name
       if (!key.toLowerCase().startsWith(prefix)) continue
+      const pm = previewMacro(m)
+
+      const descriptionOneLine = pm.description
+        ? pm.description.replace(/\s+/g, " ").trim()
+        : undefined
+
+      const docParts = [pm.description, pm.documentation].filter(Boolean)
+
       items.push({
         label: key,
+        labelDetails: descriptionOneLine ? { description: descriptionOneLine } : undefined,
         kind: CompletionItemKind.Snippet,
-        detail: `:${key} — macro`,
-        documentation: previewMacro(m).documentation,
+        detail: descriptionOneLine
+          ? `:${key} — ${descriptionOneLine}`
+          : `:${key} — macro`,
+        documentation: docParts.join("\n\n"),
         insertTextFormat: InsertTextFormat.Snippet,
         sortText: `50_macro_${key.toLowerCase()}`,
         textEdit: {

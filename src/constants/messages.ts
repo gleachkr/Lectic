@@ -51,6 +51,8 @@ export const Messages = {
     expansionMissing: () =>
       `Macro needs to be given with an "expansion", "pre", or "post" field.`,
     envType: () => `The "env" field of a macro must be an object.`,
+    descriptionType: () =>
+      `The "description" field of a macro must be a string.`,
     baseNeedsNameExpansion: (raw: unknown) =>
       `Macro needs to be given with "name" and at least one of "expansion", "pre", or "post". Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for macro`,

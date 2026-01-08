@@ -32,12 +32,20 @@ export async function computeHover(
           m => m.name.toLowerCase() === dctx.key.toLowerCase()
         )
         if (found) {
-          const { detail, documentation } = previewMacro(found)
+          const { detail, description, documentation } = previewMacro(found)
           const snippet = documentation.slice(0, 500).replace(/`/g, "\u200b`")
+
+          const parts: string[] = []
+          parts.push(`macro ${code(detail)}`)
+          if (description) {
+            parts.push(description.replace(/`/g, "\u200b`"))
+          }
+          parts.push(code(snippet))
+
           return {
             contents: {
               kind: MarkupKind.Markdown,
-              value: `macro ${code(detail)}\n\n${code(snippet)}`,
+              value: parts.join("\n\n"),
             },
             range: LspRange.create(dctx.nodeStart, dctx.nodeEnd),
           }

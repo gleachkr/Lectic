@@ -276,7 +276,7 @@ describe("completions (unit)", () => {
   })
 
   test("after ':' suggests macros as directives (new form)", async () => {
-    const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\n:su`
+    const text = `---\nmacros:\n  - name: summarize\n    description: Summarize the conversation.\n    expansion: exec:echo hi\n---\n:su`
     const lines = text.split(/\r?\n/)
     const line = lines.length - 1
     const char = lines[line].length
@@ -294,6 +294,10 @@ describe("completions (unit)", () => {
     expect(Boolean(summarize)).toBeTrue()
     expect(summarize.insertTextFormat).toBe(InsertTextFormat.Snippet)
     expect(summarize.textEdit.newText).toBe(":summarize[]$0")
+
+    expect(summarize.detail).toContain("Summarize the conversation")
+    expect(summarize.labelDetails.description)
+      .toContain("Summarize the conversation")
   })
 
   test("inside :ask[...] suggests interlocutor names only", async () => {

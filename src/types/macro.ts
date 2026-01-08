@@ -8,6 +8,7 @@ export type MacroSpec = {
     pre?: string
     post?: string
     env?: Record<string, string>
+    description?: string
 }
 
 export function validateMacroSpec (raw : unknown) : raw is MacroSpec {
@@ -28,6 +29,10 @@ export function validateMacroSpec (raw : unknown) : raw is MacroSpec {
         throw Error(Messages.macro.envType())
     }
 
+    if ("description" in raw && typeof raw.description !== "string") {
+        throw Error(Messages.macro.descriptionType())
+    }
+
     if (!hasExpansion && !hasPre && !hasPost) {
         throw Error(Messages.macro.expansionMissing())
     }
@@ -39,12 +44,14 @@ export class Macro {
     pre? : string
     post? : string
     env : Record<string, string>
+    description? : string
 
-    constructor({name, expansion, pre, post, env} : MacroSpec) {
+    constructor({name, expansion, pre, post, env, description} : MacroSpec) {
         this.name = name
         this.pre = pre
         this.post = post || expansion
         this.env = env || {}
+        this.description = description
     }
 
     get expansion() : string {
