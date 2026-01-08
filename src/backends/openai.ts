@@ -297,7 +297,9 @@ export class OpenAIBackend extends Backend<
 
   protected finalHasToolCalls(final: OpenAI.Chat.Completions.ChatCompletion) {
     const msg = final.choices[0]?.message
-    return (msg?.tool_calls?.length ?? 0) > 0
+    // we assume only function calls, since that's all that getTools supports at the moment
+    const calls = msg?.tool_calls?.filter(call => call.type === "function")
+    return (calls?.length ?? 0) > 0
   }
 
   protected finalUsage(
