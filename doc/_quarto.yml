@@ -71,6 +71,8 @@ website:
             href: ./cookbook/06_custom_sandboxing.qmd
           - text: Control Flow With Macros
             href: ./cookbook/07_control_flow_macros.qmd
+          - text: Agent Skills Support
+            href: ./cookbook/08_skills_subcommand.qmd
       - section: Reference
         contents:
           - text: CLI

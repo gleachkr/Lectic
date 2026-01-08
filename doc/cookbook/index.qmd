@@ -20,3 +20,6 @@ can be adapted to your needs.
   using wrapper scripts like Bubblewrap.
 - [Control Flow with Macros](./07_control_flow_macros.qmd): Implement advanced
   logic like loops, conditionals, and maps using recursive macros.
+- [Agent Skills Support](./08_skills_subcommand.qmd): Expose Agent Skills as a
+  progressive-disclosure tool that can load instructions, references, and run
+  skill scripts.
