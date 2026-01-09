@@ -12,7 +12,6 @@ import {
   pdfFragment,
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
-  computeCmdAttachments,
   isAttachmentMime,
   destrictifyToolResults,
 } from "./common.ts"
@@ -247,12 +246,9 @@ export class OpenAIResponsesBackend extends Backend<
     }
 
     if (opt?.inlineAttachments !== undefined) {
-      const { textBlocks, inline } = await computeCmdAttachments(msg)
-      for (const t of textBlocks) content.push({ type: "input_text", text: t })
       for (const t of opt.inlineAttachments) {
         content.push({ type: "input_text", text: t.content })
       }
-      opt.inlineAttachments.push(...inline)
     }
     const messages : OpenAI.Responses.ResponseInput = [{ role: msg.role, content }]
     return { messages, reset: false }

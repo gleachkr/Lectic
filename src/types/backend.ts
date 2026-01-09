@@ -1,6 +1,8 @@
 import { Logger } from "../logging/logger"
 import { Lectic, type HasModel } from "./lectic"
 import type { Message } from "./message"
+import { UserMessage } from "./message"
+import { MessageCommand } from "./directive"
 import { Hook, type HookEvents } from "./hook"
 import type { Tool } from "./tool"
 import type { ToolCall } from "./tool"
@@ -138,6 +140,29 @@ export function emitUserMessageEvent(
   )
 
   return runHooks(allHooks, "user_message", baseEnv)
+}
+
+export async function emitCmdAttachments(
+  msg: UserMessage
+): Promise<InlineAttachment[]> {
+  const inline: InlineAttachment[] = []
+
+  const directives = msg.containedDirectives().filter((d) => d.name === "cmd")
+
+  for (const d of directives) {
+    const command = new MessageCommand(d)
+    const result = await command.execute()
+    if (result) {
+      inline.push({
+        kind: "cmd",
+        command: command.command,
+        content: result,
+        mimetype: "text/plain",
+      })
+    }
+  }
+
+  return inline
 }
 
 export type ToolRegistry = Record<string, Tool>
@@ -288,19 +313,29 @@ export abstract class Backend<TMessage, TFinal> {
   async *evaluate(lectic: Lectic): AsyncIterable<string | Message> {
     const messages: TMessage[] = []
 
-    // Execute :cmd only if the last message is a user message.
+    // Only execute :cmd directives and user_message hooks if the last
+    // message is a user message.
     const lastIdx = lectic.body.messages.length - 1
     const lastIsUser =
       lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
 
-    const inlineAttachments: InlineAttachment[] = []
+    let inlinePreface: InlineAttachment[] = []
 
     for (let i = 0; i < lectic.body.messages.length; i++) {
       const m = lectic.body.messages[i]
+
       if (m.role === "user" && lastIsUser && i === lastIdx) {
-        inlineAttachments.push(...emitUserMessageEvent(m.content, lectic))
+        const hookAttachments = emitUserMessageEvent(m.content, lectic)
+        const cmdAttachments = await emitCmdAttachments(m)
+
+        // XXX: Make sure to keep transcript order aligned with the
+        // provider-visible order. This prevents the initial request from
+        // seeing a different ordering than subsequent runs that replay cached
+        // inline attachments.
+        inlinePreface = [...hookAttachments, ...cmdAttachments]
+
         const { messages: newMsgs } = await this.handleMessage(m, lectic, {
-          inlineAttachments,
+          inlineAttachments: inlinePreface,
         })
         messages.push(...newMsgs)
       } else {
@@ -314,8 +349,8 @@ export abstract class Backend<TMessage, TFinal> {
 
     yield* this.runConversationLoop({
       messages,
-      lectic : lectic as Lectic & HasModel,
-      inlinePreface: inlineAttachments,
+      lectic: lectic as Lectic & HasModel,
+      inlinePreface,
     })
   }
 

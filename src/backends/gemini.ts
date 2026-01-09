@@ -20,7 +20,6 @@ import {
   pdfFragment,
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
-  computeCmdAttachments,
   isAttachmentMime,
 } from "./common.ts"
 import { inlineReset, type InlineAttachment, } from "../types/inlineAttachment"
@@ -392,10 +391,9 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
     }
 
     if (opt?.inlineAttachments !== undefined) {
-      const { textBlocks, inline } = await computeCmdAttachments(msg)
-      for (const t of textBlocks) content.push({ text: t })
-      for (const t of opt.inlineAttachments) content.push({ text: t.content })
-      opt.inlineAttachments.push(...inline)
+      for (const t of opt.inlineAttachments) {
+        content.push({ text: t.content })
+      }
     }
 
     return { messages: [{ role: "user", parts: content }], reset: false }

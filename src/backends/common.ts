@@ -3,8 +3,6 @@ import type { Lectic } from "../types/lectic"
 import type { Tool, ToolCall } from "../types/tool"
 import type { MessageLink, UserMessage } from "../types/message"
 import { MessageAttachment, type MessageAttachmentPart, } from "../types/attachment"
-import { MessageCommand } from "../types/directive.ts"
-import type { InlineAttachment } from "../types/inlineAttachment"
 import { destrictify, type JSONSchema } from "../types/schema.ts"
 
 export function wrapText({text, name} : { text : string, name: string}) {
@@ -130,28 +128,6 @@ export async function gatherMessageAttachmentParts(
     }
   }
   return parts
-}
-
-export async function computeCmdAttachments(msg: UserMessage): Promise<{
-  textBlocks: string[]
-  inline: InlineAttachment[]
-}> {
-  const textBlocks: string[] = []
-  const inline: InlineAttachment[] = []
-  const commands = msg.containedDirectives().map((d) => new MessageCommand(d))
-  for (const command of commands) {
-    const result = await command.execute()
-    if (result) {
-      textBlocks.push(result)
-      inline.push({
-        kind: "cmd",
-        command: command.command,
-        content: result,
-        mimetype: "text/plain",
-      })
-    }
-  }
-  return { textBlocks, inline }
 }
 
 export function destrictifyToolResults(tool : Tool | null, values : string) : unknown {
