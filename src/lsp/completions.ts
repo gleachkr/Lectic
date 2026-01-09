@@ -1,5 +1,10 @@
 import type { CompletionItem, CompletionParams, TextEdit, Position, Range } from "vscode-languageserver"
-import { CompletionItemKind, InsertTextFormat, Range as RangeNS } from "vscode-languageserver/node"
+import {
+  CompletionItemKind,
+  InsertTextFormat,
+  MarkupKind,
+  Range as RangeNS,
+} from "vscode-languageserver/node"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { buildInterlocutorIndex, previewInterlocutor } from "./interlocutorIndex"
 import { directiveAtPositionFromBundle, findSingleColonStart, computeReplaceRange } from "./directives"
@@ -15,8 +20,13 @@ import { startsWithCI } from "./utils/text"
 import { effectiveProviderForPath } from "./utils/provider"
 import { LLMProvider } from "../types/provider"
 import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
-
-
+import {
+  DIRECTIVE_DOCS,
+  formatKitDocsMarkdown,
+  formatMacroDocsMarkdown,
+  oneLine,
+  trimText,
+} from "./docs"
 
 // Static tool kind catalog for YAML tools arrays
 const TOOL_KINDS: Array<{ key: string, detail: string, sort: string }> = [
@@ -388,44 +398,38 @@ export async function computeCompletions(
       const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
       const spec = specRes.spec
       if (!isLecticHeaderSpec(spec)) return items
-      const mergedKitsUnknown = (spec as Record<string, unknown>)['kits']
-      const mergedKits = Array.isArray(mergedKitsUnknown) ? mergedKitsUnknown as unknown[] : []
+
+      const mergedKits = spec.kits ?? []
 
       const edit = computeValueEdit(lineText, pos)
       const prefixLc = edit.prefixLc
       const textEditRange = edit.range
 
-      const trim = (s: string, n: number) =>
-        s.length <= n ? s : (s.slice(0, n - 1) + "…")
-
       const seen = new Set<string>()
       for (const kit of mergedKits) {
-        if (!isObjectRecord(kit)) continue
-        const nameRaw = kit['name']
-        const name = typeof nameRaw === 'string' ? nameRaw : undefined
-        if (!name) continue
-
-        const descRaw = kit['description']
-        const desc = typeof descRaw === 'string' ? descRaw : undefined
-        const descOneLine = desc
-          ? desc.replace(/\s+/g, " ").trim()
-          : undefined
+        const name = kit.name
+        const desc = kit.description
+        const descOneLine = desc ? oneLine(desc) : undefined
 
         const key = name.toLowerCase()
         if (seen.has(key)) continue
         if (prefixLc && !startsWithCI(name, prefixLc)) continue
         seen.add(key)
+
         const textEdit: TextEdit = { range: textEditRange, newText: name }
         items.push({
           label: name,
           labelDetails: descOneLine
-            ? { description: trim(descOneLine, 80) }
+            ? { description: trimText(descOneLine, 80) }
             : undefined,
           kind: CompletionItemKind.Value,
           detail: descOneLine
-            ? `Tool kit — ${trim(descOneLine, 100)}`
-            : 'Tool kit',
-          documentation: desc ? trim(desc, 500) : undefined,
+            ? `Tool kit — ${trimText(descOneLine, 100)}`
+            : "Tool kit",
+          documentation: {
+            kind: MarkupKind.Markdown,
+            value: formatKitDocsMarkdown(kit),
+          },
           insertTextFormat: InsertTextFormat.PlainText,
           textEdit,
         })
@@ -530,71 +534,7 @@ export async function computeCompletions(
   // 2) Directive keywords on ':' (and macro names as directives)
   if (colonStart === null) return []
 
-  type Dir = {
-    key: string,
-    label: string,
-    insert: string,
-    detail: string,
-    documentation: string,
-    sortText?: string,
-    deprecated?: boolean,
-  }
-
   const prefix = lineText.slice(colonStart + 1, pos.character).toLowerCase()
-
-  const directives: Dir[] = [
-    {
-      key: "cmd",
-      label: "cmd",
-      insert: ":cmd[${0:command}]",
-      detail: ":cmd — run a shell command and insert stdout",
-      documentation:
-        "Execute a shell command using the Bun shell and inline its stdout " +
-        "into the message.",
-      sortText: "01_cmd",
-    },
-    {
-      key: "reset",
-      label: "reset",
-      insert: ":reset[]$0",
-      detail: ":reset — clear prior conversation context for this turn",
-      documentation: "Reset the context window so this turn starts fresh.",
-      sortText: "02_reset",
-    },
-    {
-      key: "ask",
-      label: "ask",
-      insert: ":ask[$0]",
-      detail: ":ask — switch interlocutor for subsequent turns",
-      documentation: "Switch the active interlocutor permanently.",
-      sortText: "03_ask",
-    },
-    {
-      key: "aside",
-      label: "aside",
-      insert: ":aside[$0]",
-      detail: ":aside — address one interlocutor for a single turn",
-      documentation: "Temporarily switch interlocutor for this turn only.",
-      sortText: "04_aside",
-    },
-    {
-      key: "merge_yaml",
-      label: "merge_yaml",
-      insert: ":merge_yaml[${0:yaml}]",
-      detail: ":merge_yaml — merge configuration into the header",
-      documentation: "Merge the provided YAML into the document header configuration.",
-      sortText: "05_merge_yaml",
-    },
-    {
-      key: "temp_merge_yaml",
-      label: "temp_merge_yaml",
-      insert: ":temp_merge_yaml[${0:yaml}]",
-      detail: ":temp_merge_yaml — temporarily merge configuration",
-      documentation: "Merge the provided YAML into the header for this turn only.",
-      sortText: "06_temp_merge_yaml",
-    },
-  ]
-
   // Add macro names as directive completions: :name[]
   const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
   const spec = specRes.spec
@@ -606,16 +546,11 @@ export async function computeCompletions(
       const pm = previewMacro(m)
 
       const descriptionOneLine = pm.description
-        ? pm.description.replace(/\s+/g, " ").trim()
+        ? oneLine(pm.description)
         : undefined
 
-      const docParts = [pm.description, pm.documentation].filter(Boolean)
-
-      const trim = (s: string, n: number) =>
-        s.length <= n ? s : (s.slice(0, n - 1) + "…")
-
       const detail = descriptionOneLine
-        ? `:${key} — macro — ${trim(descriptionOneLine, 120)}`
+        ? `:${key} — macro — ${trimText(descriptionOneLine, 120)}`
         : `:${key} — macro`
 
       items.push({
@@ -625,7 +560,10 @@ export async function computeCompletions(
           : undefined,
         kind: CompletionItemKind.Snippet,
         detail,
-        documentation: docParts.join("\n\n"),
+        documentation: {
+          kind: MarkupKind.Markdown,
+          value: formatMacroDocsMarkdown(key, pm, { documentationLimit: 800 }),
+        },
         insertTextFormat: InsertTextFormat.Snippet,
         sortText: `50_macro_${key.toLowerCase()}`,
         textEdit: {
@@ -636,25 +574,27 @@ export async function computeCompletions(
     }
   }
 
-  for (const d of directives) {
+  for (const d of DIRECTIVE_DOCS) {
     if (!d.key.startsWith(prefix)) continue
+
     const textEdit: TextEdit = {
       range: computeReplaceRange(pos.line, colonStart, pos.character),
       newText: d.insert,
     }
-    const triggerSuggest = (d.key === "ask" || d.key === "aside")
+
+    const triggerSuggest = d.triggerSuggest
       ? { title: "trigger suggest", command: "editor.action.triggerSuggest" }
       : undefined
+
     items.push({
-      label: d.label,
+      label: d.key,
       kind: CompletionItemKind.Snippet,
-      detail: d.detail,
-      documentation: d.documentation,
+      detail: `:${d.key} — ${d.title}`,
+      documentation: d.body,
       insertTextFormat: InsertTextFormat.Snippet,
       textEdit,
       command: triggerSuggest,
       sortText: d.sortText,
-      deprecated: d.deprecated,
     })
   }
 

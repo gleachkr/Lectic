@@ -1,0 +1,198 @@
+import { isObjectRecord } from "../types/guards"
+import type { ToolKitSpec } from "../types/lectic"
+
+type MacroPreview = { description?: string, documentation: string }
+
+type KitDocOpts = {
+  descriptionLimit?: number
+  toolsLimit?: number
+  toolsSummaryLimit?: number
+}
+
+type MacroDocOpts = {
+  documentationLimit?: number
+}
+
+export type DirectiveDoc = {
+  key: string
+  title: string
+  body: string
+  insert: string
+  sortText?: string
+  triggerSuggest?: boolean
+}
+
+export const DIRECTIVE_DOCS: DirectiveDoc[] = [
+  {
+    key: "cmd",
+    title: "run a shell command and insert stdout",
+    body:
+      "Execute a command using the Bun shell and inline its stdout into " +
+      "the message.",
+    insert: ":cmd[${0:command}]",
+    sortText: "01_cmd",
+  },
+  {
+    key: "reset",
+    title: "clear prior conversation context for this turn",
+    body: "Start this turn fresh. Previous history is not sent to the model.",
+    insert: ":reset[]$0",
+    sortText: "02_reset",
+  },
+  {
+    key: "ask",
+    title: "switch interlocutor for subsequent turns",
+    body: "Permanently switch the active interlocutor until changed again.",
+    insert: ":ask[$0]",
+    sortText: "03_ask",
+    triggerSuggest: true,
+  },
+  {
+    key: "aside",
+    title: "address one interlocutor for a single turn",
+    body: "Temporarily switch interlocutor for just this user message.",
+    insert: ":aside[$0]",
+    sortText: "04_aside",
+    triggerSuggest: true,
+  },
+  {
+    key: "merge_yaml",
+    title: "merge configuration into the header",
+    body: "Merge the provided YAML into the document header configuration.",
+    insert: ":merge_yaml[${0:yaml}]",
+    sortText: "05_merge_yaml",
+  },
+  {
+    key: "temp_merge_yaml",
+    title: "temporarily merge configuration",
+    body: "Merge the provided YAML into the header for this turn only.",
+    insert: ":temp_merge_yaml[${0:yaml}]",
+    sortText: "06_temp_merge_yaml",
+  },
+]
+
+export function directiveDocFor(key: string): DirectiveDoc | null {
+  const found = DIRECTIVE_DOCS.find(d => d.key === key)
+  return found ?? null
+}
+
+export function trimText(s: string, n: number): string {
+  return s.length <= n ? s : (s.slice(0, n - 1) + "…")
+}
+
+export function oneLine(s: string): string {
+  return s.replace(/\s+/g, " ").trim()
+}
+
+export function escapeInlineBackticks(s: string): string {
+  return s.replace(/`/g, "\u200b`")
+}
+
+export function code(s: string): string {
+  return "`" + escapeInlineBackticks(s) + "`"
+}
+
+export function codeFence(s: string): string {
+  const safe = s.replace(/```/g, "``\u200b`")
+  return "```\n" + safe + "\n```"
+}
+
+export function codeFenceLang(s: string, lang: string | null | undefined): string {
+  const safe = s.replace(/```/g, "``\u200b`")
+  const header = lang && lang.length > 0 ? "```" + lang : "```"
+  return header + "\n" + safe + "\n```"
+}
+
+export function formatKitDocsMarkdown(
+  kit: ToolKitSpec,
+  opts: KitDocOpts = {}
+): string {
+  const descLimit = opts.descriptionLimit ?? 1000
+  const toolsLimit = opts.toolsLimit ?? 12
+  const toolsSummaryLimit = opts.toolsSummaryLimit ?? 1000
+
+  const parts: string[] = []
+  parts.push(`kit ${code(kit.name)}`)
+
+  if (kit.description) {
+    parts.push(trimText(escapeInlineBackticks(kit.description), descLimit))
+  }
+
+  const toolsSummary = summarizeKitTools(kit.tools, toolsLimit)
+  parts.push(`Tools (${kit.tools.length}):`)
+  parts.push(codeFence(trimText(toolsSummary, toolsSummaryLimit)))
+
+  return parts.join("\n\n")
+}
+
+export function formatMacroDocsMarkdown(
+  macroName: string,
+  preview: MacroPreview,
+  opts: MacroDocOpts = {}
+): string {
+  const documentationLimit = opts.documentationLimit ?? 500
+
+  const parts: string[] = []
+  parts.push(`macro ${code(macroName)}`)
+
+  if (preview.description) {
+    parts.push(escapeInlineBackticks(preview.description))
+  }
+
+  const snippet = trimText(preview.documentation, documentationLimit)
+  parts.push(codeFence(snippet))
+
+  return parts.join("\n\n")
+}
+
+function summarizeKitTools(tools: object[], max: number): string {
+  const lines: string[] = []
+
+  for (const t of tools.slice(0, max)) {
+    lines.push(summarizeToolSpec(t))
+  }
+
+  const remaining = tools.length - Math.min(tools.length, max)
+  if (remaining > 0) {
+    lines.push(`… (${remaining} more)`)
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "(no tools)"
+}
+
+function summarizeToolSpec(tool: object): string {
+  if (!isObjectRecord(tool)) return "- (invalid tool spec)"
+  const name = typeof tool["name"] === "string" ? tool["name"] : undefined
+
+  const kind = TOOL_SPEC_KEYS.find(k => k in tool) ?? "tool"
+
+  if (kind === "kit") {
+    const kit = tool["kit"]
+    if (typeof kit === "string") return `- kit: ${kit}`
+  }
+  if (kind === "agent") {
+    const agent = tool["agent"]
+    if (typeof agent === "string") return `- agent: ${agent}`
+  }
+  if (kind === "native") {
+    const native = tool["native"]
+    if (typeof native === "string") return `- native: ${native}`
+  }
+
+  if (name) return `- ${name} (${kind})`
+  return `- ${kind}`
+}
+
+const TOOL_SPEC_KEYS = [
+  "exec",
+  "sqlite",
+  "mcp_command",
+  "mcp_ws",
+  "mcp_sse",
+  "mcp_shttp",
+  "agent",
+  "think_about",
+  "serve_on_port",
+  "native",
+  "kit",
+]

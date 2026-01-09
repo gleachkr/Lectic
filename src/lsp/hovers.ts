@@ -5,11 +5,18 @@ import { linkTargetAtPositionFromBundle } from "./linkTargets"
 import { offsetToPosition, positionToOffset } from "./positions"
 import { mergedHeaderSpecForDocDetailed } from "../parsing/parse"
 import { isLecticHeaderSpec } from "../types/lectic"
-import { isObjectRecord } from "../types/guards"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
 import { buildHeaderRangeIndex } from "./yamlRanges"
 import { inRange } from "./utils/range"
 import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./utils/path"
+import {
+  code,
+  codeFence,
+  codeFenceLang,
+  directiveDocFor,
+  formatKitDocsMarkdown,
+  formatMacroDocsMarkdown,
+} from "./docs"
 import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
 import { unescapeTags, extractElements, unwrap } from "../parsing/xml" 
@@ -35,35 +42,25 @@ export async function computeHover(
           m => m.name.toLowerCase() === dctx.key.toLowerCase()
         )
         if (found) {
-          const { detail, description, documentation } = previewMacro(found)
-          const snippet = documentation.slice(0, 500).replace(/`/g, "\u200b`")
-
-          const parts: string[] = []
-          parts.push(`macro ${code(detail)}`)
-          if (description) {
-            parts.push(description.replace(/`/g, "\u200b`"))
-          }
-          parts.push(code(snippet))
+          const pm = previewMacro(found)
+          const value = formatMacroDocsMarkdown(found.name, pm)
 
           return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: parts.join("\n\n"),
-            },
+            contents: { kind: MarkupKind.Markdown, value },
             range: LspRange.create(dctx.nodeStart, dctx.nodeEnd),
           }
         }
       }
     }
 
-    const info = directiveInfo(dctx.key)
+    const info = directiveDocFor(dctx.key)
     if (info) {
       return {
         contents: {
           kind: MarkupKind.Markdown,
-          value: `:${info.key} — ${info.title}\n\n${info.body}`
+          value: `:${info.key} — ${info.title}\n\n${info.body}`,
         },
-        range: LspRange.create(dctx.nodeStart, dctx.nodeEnd)
+        range: LspRange.create(dctx.nodeStart, dctx.nodeEnd),
       }
     }
   }
@@ -88,28 +85,6 @@ export async function computeHover(
   return null
 }
 
-function directiveInfo(key: string): { key: string, title: string, body: string } | null {
-  const map: Record<string, { title: string, body: string }> = {
-    cmd: {
-      title: "run a shell command and insert stdout",
-      body: "Execute a command using the Bun shell and inline its stdout into the message."
-    },
-    reset: {
-      title: "clear prior conversation context for this turn",
-      body: "Start this turn fresh. Previous history is not sent to the model."
-    },
-    ask: {
-      title: "switch interlocutor for subsequent turns",
-      body: "Permanently switch the active interlocutor until changed again."
-    },
-    aside: {
-      title: "address one interlocutor for a single turn",
-      body: "Temporarily switch interlocutor for just this user message."
-    },
-  }
-  const entry = map[key]
-  return entry ? { key, ...entry } : null
-}
 
 async function kitYamlHover(
   docText: string,
@@ -133,81 +108,13 @@ async function kitYamlHover(
   const found = kits.find(k => k.name.toLowerCase() === targetName.toLowerCase())
   if (!found) return null
 
-  const trim = (s: string, n: number) =>
-    s.length <= n ? s : (s.slice(0, n - 1) + "…")
-
-  const parts: string[] = []
-  parts.push(`kit ${code(found.name)}`)
-
-  if (found.description) {
-    parts.push(trim(found.description.replace(/`/g, "\u200b`"), 1000))
-  }
-
-  const toolsSummary = summarizeKitTools(found.tools)
-  parts.push(`Tools (${found.tools.length}):`)
-  parts.push(codeFence(trim(toolsSummary, 1000)))
+  const value = formatKitDocsMarkdown(found)
 
   return {
-    contents: {
-      kind: MarkupKind.Markdown,
-      value: parts.join("\n\n"),
-    },
+    contents: { kind: MarkupKind.Markdown, value },
     range: hitRange,
   }
 }
-
-function summarizeKitTools(tools: object[]): string {
-  const max = 12
-  const lines: string[] = []
-
-  for (const t of tools.slice(0, max)) {
-    lines.push(summarizeToolSpec(t))
-  }
-
-  const remaining = tools.length - Math.min(tools.length, max)
-  if (remaining > 0) {
-    lines.push(`… (${remaining} more)`)
-  }
-
-  return lines.length > 0 ? lines.join("\n") : "(no tools)"
-}
-
-function summarizeToolSpec(tool: object): string {
-  if (!isObjectRecord(tool)) return "- (invalid tool spec)"
-  const name = typeof tool['name'] === 'string' ? tool['name'] : undefined
-
-  const kind = TOOL_SPEC_KEYS.find(k => k in tool) ?? "tool"
-
-  if (kind === 'kit') {
-    const kit = tool['kit']
-    if (typeof kit === 'string') return `- kit: ${kit}`
-  }
-  if (kind === 'agent') {
-    const agent = tool['agent']
-    if (typeof agent === 'string') return `- agent: ${agent}`
-  }
-  if (kind === 'native') {
-    const native = tool['native']
-    if (typeof native === 'string') return `- native: ${native}`
-  }
-
-  if (name) return `- ${name} (${kind})`
-  return `- ${kind}`
-}
-
-const TOOL_SPEC_KEYS = [
-  'exec',
-  'sqlite',
-  'mcp_command',
-  'mcp_ws',
-  'mcp_sse',
-  'mcp_shttp',
-  'agent',
-  'think_about',
-  'serve_on_port',
-  'native',
-  'kit',
-]
 
 async function linkHover(
   docText: string,
@@ -309,19 +216,6 @@ async function linkPreviewWith(norm: ReturnType<typeof normalizeUrl>, range: Ran
   }
 }
 
-function code(s: string) { return "`" + s.replace(/`/g, "\u200b`") + "`" }
-
-function codeFence(s: string): string {
-  // Avoid breaking the fence if the content contains ```
-  const safe = s.replace(/```/g, "``\u200b`")
-  return "```\n" + safe + "\n```"
-}
-
-function codeFenceLang(s: string, lang: string | null | undefined): string {
-  const safe = s.replace(/```/g, "``\u200b`")
-  const header = lang && lang.length > 0 ? "```" + lang : "```"
-  return header + "\n" + safe + "\n```"
-}
 
 function langFor(mediaType?: string | null): string | null {
   if (!mediaType) return null
