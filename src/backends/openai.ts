@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import type { Message } from "../types/message"
-import type { Lectic } from "../types/lectic"
+import type { HasModel, Lectic } from "../types/lectic"
 import type { BackendCompletion, BackendUsage } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
@@ -263,7 +263,7 @@ export class OpenAIBackend extends Backend<
 
   protected async createCompletion(opt: {
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
-    lectic: Lectic
+    lectic: Lectic & HasModel
   }): Promise<BackendCompletion<OpenAI.Chat.Completions.ChatCompletion>> {
     const { messages, lectic } = opt
 

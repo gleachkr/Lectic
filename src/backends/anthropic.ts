@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk"
 import type { Message } from "../types/message"
-import type { Lectic } from "../types/lectic"
+import type { Lectic, HasModel } from "../types/lectic"
 import type { BackendCompletion, BackendUsage, } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
@@ -300,13 +300,13 @@ export class AnthropicBackend extends Backend<
 
   protected async createCompletion(opt: {
     messages: Anthropic.Messages.MessageParam[]
-    lectic: Lectic
+    lectic: Lectic & HasModel
   }): Promise<BackendCompletion<Anthropic.Messages.Message>> {
     const { messages, lectic } = opt
 
     if (!lectic.header.interlocutor.nocache) updateCache(messages)
 
-    const model = lectic.header.interlocutor.model ?? this.defaultModel
+    const model = lectic.header.interlocutor.model
 
     Logger.debug("anthropic - messages", messages)
 

@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import type { Message } from "../types/message"
-import type { Lectic } from "../types/lectic"
+import type { HasModel, Lectic } from "../types/lectic"
 import type { BackendCompletion, BackendUsage } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
@@ -260,11 +260,11 @@ export class OpenAIResponsesBackend extends Backend<
 
   protected async createCompletion(opt: {
     messages: OpenAI.Responses.ResponseInputItem[]
-    lectic: Lectic
+    lectic: Lectic & HasModel
   }): Promise<BackendCompletion<OpenAI.Responses.Response>> {
     const { messages, lectic } = opt
 
-    const model = lectic.header.interlocutor.model ?? this.defaultModel
+    const model = lectic.header.interlocutor.model
 
     Logger.debug("openai - messages", messages)
 

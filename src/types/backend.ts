@@ -1,5 +1,5 @@
 import { Logger } from "../logging/logger"
-import type { Lectic } from "./lectic"
+import { Lectic, type HasModel } from "./lectic"
 import type { Message } from "./message"
 import { Hook, type HookEvents } from "./hook"
 import type { Tool } from "./tool"
@@ -254,7 +254,7 @@ export abstract class Backend<TMessage, TFinal> {
 
   protected abstract createCompletion(opt: {
     messages: TMessage[]
-    lectic: Lectic
+    lectic: Lectic & HasModel
   }): Promise<BackendCompletion<TFinal>>
 
   protected abstract finalHasToolCalls(final: TFinal): boolean
@@ -310,19 +310,18 @@ export abstract class Backend<TMessage, TFinal> {
       }
     }
 
-    lectic.header.interlocutor.model =
-      lectic.header.interlocutor.model ?? this.defaultModel
+    lectic.header.interlocutor.model ??= this.defaultModel
 
     yield* this.runConversationLoop({
       messages,
-      lectic,
+      lectic : lectic as Lectic & HasModel,
       inlinePreface: inlineAttachments,
     })
   }
 
   protected async *runConversationLoop(opt: {
     messages: TMessage[]
-    lectic: Lectic
+    lectic: Lectic & HasModel
     inlinePreface: InlineAttachment[]
   }): AsyncGenerator<string | Message> {
     const { messages, lectic } = opt

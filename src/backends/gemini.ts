@@ -8,7 +8,7 @@ import {
   type FunctionCall,
 } from "@google/genai"
 import type { Message } from "../types/message"
-import type { Lectic } from "../types/lectic"
+import type { HasModel, Lectic } from "../types/lectic"
 import type { BackendCompletion, BackendUsage, } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
@@ -403,11 +403,11 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
 
   protected async createCompletion(opt: {
     messages: Content[]
-    lectic: Lectic
+    lectic: Lectic & HasModel
   }): Promise<BackendCompletion<GeminiFinal>> {
     const { messages, lectic } = opt
 
-    const model = lectic.header.interlocutor.model ?? this.defaultModel
+    const model = lectic.header.interlocutor.model
 
     Logger.debug("gemini - messages", messages)
 

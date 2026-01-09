@@ -298,6 +298,8 @@ export function isLecticBody(raw: unknown): raw is LecticBody {
         'snapshot' in raw
 }
 
+export type HasModel = { header : { interlocutor : { model : string } } }
+
 export class Lectic {
     header : LecticHeader
     body : LecticBody
