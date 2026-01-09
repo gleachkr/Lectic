@@ -252,8 +252,7 @@ describe('AssistantMessage', () => {
         const a2 = serializeInlineAttachment({ kind: 'cmd', command: 'y', content: 'C2' })
         const content = `${a1}\n\n${a2}\n\nThen text.`
         const msg = new AssistantMessage({ content, interlocutor: fake })
-        const { attachments, interactions } = msg.parseAssistantContent()
-        expect(attachments.length).toBe(0)
+        const { interactions } = msg.parseAssistantContent()
         expect(interactions.length).toBe(1)
         expect(interactions[0].attachments.length).toBe(2)
         expect(interactions[0].attachments[0].command).toBe('x')

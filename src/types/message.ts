@@ -76,11 +76,9 @@ export class AssistantMessage {
 
     // Parse out inline attachments and subsequent interactions
     // in a single mdast pass.
-    parseAssistantContent(): { attachments: InlineAttachment[], interactions: MessageInteraction[] } {
+    parseAssistantContent(): { interactions: MessageInteraction[] } {
         const raw = this.content
         const blocks = parseBlocks(raw)
-
-        const attachments: InlineAttachment[] = [] // Legacy field, now always empty
 
         let curText : RootContent[] = []
         let curCalls : ToolCall[] = []
@@ -126,7 +124,7 @@ export class AssistantMessage {
 
         flush()
 
-        return { attachments, interactions }
+        return { interactions }
     }
 
 
