@@ -599,9 +599,7 @@ export async function computeCompletions(
         label: key,
         labelDetails: descriptionOneLine ? { description: descriptionOneLine } : undefined,
         kind: CompletionItemKind.Snippet,
-        detail: descriptionOneLine
-          ? `:${key} — ${descriptionOneLine}`
-          : `:${key} — macro`,
+        detail: `:${key} — macro`,
         documentation: docParts.join("\n\n"),
         insertTextFormat: InsertTextFormat.Snippet,
         sortText: `50_macro_${key.toLowerCase()}`,
