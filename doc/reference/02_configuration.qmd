@@ -19,6 +19,18 @@ included configuration files.
 
 ---
 
+## The `kit` Object
+
+A kit is a named list of tools that can be reused from an interlocutor's
+`tools` array using `- kit: <name>`.
+
+- `name`: (Required) The kit name.
+- `tools`: (Required) An array of tool definitions.
+- `description`: (Optional) Short documentation shown in editor hovers and
+  autocomplete.
+
+---
+
 ## The `interlocutor` Object
 
 An interlocutor object defines a single LLM "personality" or configuration.

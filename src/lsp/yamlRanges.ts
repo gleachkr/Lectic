@@ -176,6 +176,8 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
         if (r) kitNameRanges.push({ name, range: r })
         pushField(['kits', i, 'name'], val)
       }
+      pushIf(kMap, 'description', ['kits', i, 'description'])
+
       const kt = getValue(kMap, 'tools')
       if (kt) indexTools(kt, ['kits', i])
     }

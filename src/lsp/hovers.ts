@@ -5,7 +5,10 @@ import { linkTargetAtPositionFromBundle } from "./linkTargets"
 import { offsetToPosition, positionToOffset } from "./positions"
 import { mergedHeaderSpecForDocDetailed } from "../parsing/parse"
 import { isLecticHeaderSpec } from "../types/lectic"
+import { isObjectRecord } from "../types/guards"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
+import { buildHeaderRangeIndex } from "./yamlRanges"
+import { inRange } from "./utils/range"
 import { normalizeUrl, readHeadPreview, pathExists, hasGlobChars } from "./utils/path"
 import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
@@ -65,6 +68,10 @@ export async function computeHover(
     }
   }
 
+  // 1.5) Kit hover for YAML header kit references and definitions
+  const kitHover = await kitYamlHover(docText, pos, docDir)
+  if (kitHover) return kitHover
+
   // 2) Tool-call block hover: anywhere inside the call shows inputs
   //    and results (previews derived from serialized content only)
   const toolHover = toolBlockHover(docText, pos, bundle)
@@ -103,6 +110,104 @@ function directiveInfo(key: string): { key: string, title: string, body: string 
   const entry = map[key]
   return entry ? { key, ...entry } : null
 }
+
+async function kitYamlHover(
+  docText: string,
+  pos: Position,
+  docDir: string | undefined
+): Promise<Hover | null> {
+  const idx = buildHeaderRangeIndex(docText)
+  if (!idx) return null
+
+  const refHit = idx.kitTargetRanges.find(kr => inRange(pos, kr.range))
+  const defHit = idx.kitNameRanges.find(kn => inRange(pos, kn.range))
+
+  const targetName = refHit?.target ?? defHit?.name
+  const hitRange = refHit?.range ?? defHit?.range
+  if (!targetName || !hitRange) return null
+
+  const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+  if (!isLecticHeaderSpec(specRes.spec)) return null
+
+  const kits = specRes.spec.kits ?? []
+  const found = kits.find(k => k.name.toLowerCase() === targetName.toLowerCase())
+  if (!found) return null
+
+  const trim = (s: string, n: number) =>
+    s.length <= n ? s : (s.slice(0, n - 1) + "…")
+
+  const parts: string[] = []
+  parts.push(`kit ${code(found.name)}`)
+
+  if (found.description) {
+    parts.push(trim(found.description.replace(/`/g, "\u200b`"), 1000))
+  }
+
+  const toolsSummary = summarizeKitTools(found.tools)
+  parts.push(`Tools (${found.tools.length}):`)
+  parts.push(codeFence(trim(toolsSummary, 1000)))
+
+  return {
+    contents: {
+      kind: MarkupKind.Markdown,
+      value: parts.join("\n\n"),
+    },
+    range: hitRange,
+  }
+}
+
+function summarizeKitTools(tools: object[]): string {
+  const max = 12
+  const lines: string[] = []
+
+  for (const t of tools.slice(0, max)) {
+    lines.push(summarizeToolSpec(t))
+  }
+
+  const remaining = tools.length - Math.min(tools.length, max)
+  if (remaining > 0) {
+    lines.push(`… (${remaining} more)`)
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "(no tools)"
+}
+
+function summarizeToolSpec(tool: object): string {
+  if (!isObjectRecord(tool)) return "- (invalid tool spec)"
+  const name = typeof tool['name'] === 'string' ? tool['name'] : undefined
+
+  const kind = TOOL_SPEC_KEYS.find(k => k in tool) ?? "tool"
+
+  if (kind === 'kit') {
+    const kit = tool['kit']
+    if (typeof kit === 'string') return `- kit: ${kit}`
+  }
+  if (kind === 'agent') {
+    const agent = tool['agent']
+    if (typeof agent === 'string') return `- agent: ${agent}`
+  }
+  if (kind === 'native') {
+    const native = tool['native']
+    if (typeof native === 'string') return `- native: ${native}`
+  }
+
+  if (name) return `- ${name} (${kind})`
+  return `- ${kind}`
+}
+
+const TOOL_SPEC_KEYS = [
+  'exec',
+  'sqlite',
+  'mcp_command',
+  'mcp_ws',
+  'mcp_sse',
+  'mcp_shttp',
+  'agent',
+  'think_about',
+  'serve_on_port',
+  'native',
+  'kit',
+]
 
 async function linkHover(
   docText: string,

@@ -82,6 +82,8 @@ export const Messages = {
       `The tools field of kit ${name} needs to be an array.`,
     toolsItems: (name: string) =>
       `One or more tools in kit ${name} weren't properly specified`,
+    descriptionType: () =>
+      `The "description" field of a kit must be a string.`,
     baseNeedsNameTools: (raw: unknown) =>
       `Kit needs to be given with at least "name" and "tools" fields. Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for kit`,

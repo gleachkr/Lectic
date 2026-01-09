@@ -140,6 +140,26 @@ describe("completions (unit)", () => {
     expect(labels.has("typescript_tools")).toBeTrue()
   })
 
+  test("kit completion includes kit description", async () => {
+    const text = `---\nkits:\n  - name: typescript_tools\n    description: TS tooling\n    tools: []\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    - kit: \n---\n`
+    const line = 9
+    const char = text.split(/\r?\n/)[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const kit = arr.find((x: any) => x.label === "typescript_tools")
+    expect(Boolean(kit)).toBeTrue()
+    expect(String(kit.detail)).toContain("TS tooling")
+    expect(String(kit.documentation)).toContain("TS tooling")
+    expect(String(kit.labelDetails.description)).toContain("TS tooling")
+  })
+
   test("kit tool suggests workspace kit names (merged)", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  tools:\n    - kit: \n---\n`
     const lines = text.split(/\r?\n/)

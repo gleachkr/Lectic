@@ -355,6 +355,15 @@ export function validateHeaderShape(spec: unknown): Issue[] {
             severity: "error"
           })
         }
+
+        if ("description" in b && typeof b["description"] !== "string") {
+          issues.push({
+            code: "kit.description.type",
+            message: Messages.kit.descriptionType(),
+            path: ["kits", i, "description"],
+            severity: "error"
+          })
+        }
       })
     }
   }

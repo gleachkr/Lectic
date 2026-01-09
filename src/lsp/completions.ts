@@ -395,12 +395,22 @@ export async function computeCompletions(
       const prefixLc = edit.prefixLc
       const textEditRange = edit.range
 
+      const trim = (s: string, n: number) =>
+        s.length <= n ? s : (s.slice(0, n - 1) + "…")
+
       const seen = new Set<string>()
       for (const kit of mergedKits) {
         if (!isObjectRecord(kit)) continue
         const nameRaw = kit['name']
         const name = typeof nameRaw === 'string' ? nameRaw : undefined
         if (!name) continue
+
+        const descRaw = kit['description']
+        const desc = typeof descRaw === 'string' ? descRaw : undefined
+        const descOneLine = desc
+          ? desc.replace(/\s+/g, " ").trim()
+          : undefined
+
         const key = name.toLowerCase()
         if (seen.has(key)) continue
         if (prefixLc && !startsWithCI(name, prefixLc)) continue
@@ -408,8 +418,14 @@ export async function computeCompletions(
         const textEdit: TextEdit = { range: textEditRange, newText: name }
         items.push({
           label: name,
+          labelDetails: descOneLine
+            ? { description: trim(descOneLine, 80) }
+            : undefined,
           kind: CompletionItemKind.Value,
-          detail: 'Tool kit (merged config)',
+          detail: descOneLine
+            ? `Tool kit — ${trim(descOneLine, 100)}`
+            : 'Tool kit',
+          documentation: desc ? trim(desc, 500) : undefined,
           insertTextFormat: InsertTextFormat.PlainText,
           textEdit,
         })
@@ -595,11 +611,20 @@ export async function computeCompletions(
 
       const docParts = [pm.description, pm.documentation].filter(Boolean)
 
+      const trim = (s: string, n: number) =>
+        s.length <= n ? s : (s.slice(0, n - 1) + "…")
+
+      const detail = descriptionOneLine
+        ? `:${key} — macro — ${trim(descriptionOneLine, 120)}`
+        : `:${key} — macro`
+
       items.push({
         label: key,
-        labelDetails: descriptionOneLine ? { description: descriptionOneLine } : undefined,
+        labelDetails: descriptionOneLine
+          ? { description: descriptionOneLine }
+          : undefined,
         kind: CompletionItemKind.Snippet,
-        detail: `:${key} — macro`,
+        detail,
         documentation: docParts.join("\n\n"),
         insertTextFormat: InsertTextFormat.Snippet,
         sortText: `50_macro_${key.toLowerCase()}`,

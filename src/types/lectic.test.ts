@@ -1,4 +1,4 @@
-import { LecticHeader } from './lectic';
+import { LecticHeader, validateLecticHeaderSpec } from './lectic';
 import { ExecTool } from '../tools/exec';
 import { SQLiteTool } from '../tools/sqlite';
 import { ThinkTool } from '../tools/think';
@@ -223,6 +223,18 @@ describe('LecticHeader', () => {
       const header = new LecticHeader(spec as any)
       const test = async () => await header.initialize()
       expect(test).toThrow('Kit expansion cycle detected at a')
+    })
+
+    it('validates kit description type', () => {
+      const spec = {
+        kits: [
+          { name: 'a', description: 1, tools: [] }
+        ],
+        interlocutor: { name: 'Tester', prompt: 'p' }
+      }
+
+      const test = () => validateLecticHeaderSpec(spec as any)
+      expect(test).toThrow('The "description" field of a kit must be a string.')
     })
   });
 });

@@ -17,22 +17,30 @@ import { mergeValues } from "../utils/merge"
 import { Messages } from "../constants/messages"
 import { isObjectRecord } from "./guards"
 
-type ToolKitSpec = {
+export type ToolKitSpec = {
     name : string
     tools: object[]
+    description?: string
 }
 
 function validateToolKit(raw : unknown) : raw is ToolKitSpec {
     if (raw === null) throw Error(Messages.kit.baseNull())
     if (typeof raw !== "object" )
         throw Error(Messages.kit.baseNeedsNameTools(raw))
-    if (!("name" in raw && typeof raw.name === "string")) throw Error(Messages.kit.nameMissing())
+    if (!("name" in raw && typeof raw.name === "string"))
+        throw Error(Messages.kit.nameMissing())
+
     const name = raw.name
     if (!("tools" in raw)) throw Error(Messages.kit.toolsMissing(name))
     if (!(Array.isArray(raw.tools)))
         throw Error(Messages.kit.toolsType(name))
     if (!(raw.tools.every((t : unknown) => typeof t === "object")))
         throw Error(Messages.kit.toolsItems(name))
+
+    if ("description" in raw && typeof raw.description !== "string") {
+        throw Error(Messages.kit.descriptionType())
+    }
+
     return true
 }
 
