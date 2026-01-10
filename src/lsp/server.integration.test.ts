@@ -72,6 +72,7 @@ describe("LSP integration", () => {
 
     const labels = new Set(items.map((x: any) => x.label))
     expect(labels.has("cmd")).toBeTrue()
+    expect(labels.has("attach")).toBeTrue()
     expect(labels.has("reset")).toBeTrue()
     expect(labels.has("ask")).toBeTrue()
     expect(labels.has("aside")).toBeTrue()

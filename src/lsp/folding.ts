@@ -71,7 +71,9 @@ function getCollapsedText(raw: string): string {
     const kind = kindMatch ? kindMatch[1] : "cmd"
 
     if (useNerdFont) {
-      return kind === "hook" ? "󱐋 hook" : "  cmd"
+      if (kind === "hook") return "󱐋 hook"
+      if (kind === "attach") return "  attach"
+      return "  cmd"
     } else {
       return `[${kind}]`
     }

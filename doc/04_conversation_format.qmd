@@ -77,11 +77,15 @@ Lectic records some generated content directly into the transcript as
 **inline attachments**. This includes:
 
 - Output of `:cmd[...]` directives (`kind="cmd"`)
+- Output of `:attach[...]` directives (`kind="attach"`)
 - Output of inline hooks (`kind="hook"`)
 
 Inline attachments appear inside the assistant's response block as XML.
 They include a `<command>` field (the command that produced the content,
 or the hook's `do` value) and a `<content>` field.
+
+For `:attach[...]`, `<command>` is empty and `<content>` is the verbatim
+text from the directive.
 
 Example (`:cmd[...]`):
 

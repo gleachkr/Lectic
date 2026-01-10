@@ -177,7 +177,18 @@ export async function computeCodeActions(
     const dctx = directiveAtPositionFromBundle(docText, params.range.start, bundle)
     if (dctx) {
       // a) Macro expansion
-      if (dctx.key && !['ask', 'aside', 'cmd', 'reset'].includes(dctx.key)) {
+      if (
+        dctx.key &&
+        ![
+          'ask',
+          'aside',
+          'cmd',
+          'attach',
+          'reset',
+          'merge_yaml',
+          'temp_merge_yaml',
+        ].includes(dctx.key)
+      ) {
         const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
         if (specRes.spec && typeof specRes.spec === 'object' && 'macros' in specRes.spec) {
           const rawMacros = specRes.spec.macros

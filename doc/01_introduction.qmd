@@ -70,6 +70,7 @@ scripting language. Your existing scripts and tools integrate directly.
 Lectic provides a small set of building blocks:
 
 - **`:cmd`**: Run a command and include its output.
+- **`:attach`**: Attach verbatim inline text as an inline attachment.
 - **`:ask` / `:aside`**: Switch between interlocutors.
 - **`:reset`**: Clear conversation context.
 - **Macros**: Reusable text expansions.

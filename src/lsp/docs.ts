@@ -33,6 +33,16 @@ export const DIRECTIVE_DOCS: DirectiveDoc[] = [
     sortText: "01_cmd",
   },
   {
+    key: "attach",
+    title: "attach verbatim inline text as an inline attachment",
+    body:
+      "Create an inline attachment whose content is exactly the text inside " +
+      "the brackets. The attachment is treated as extra user context for the " +
+      "next assistant turn.",
+    insert: ":attach[${0:text}]",
+    sortText: "01_attach",
+  },
+  {
     key: "reset",
     title: "clear prior conversation context for this turn",
     body: "Start this turn fresh. Previous history is not sent to the model.",

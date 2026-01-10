@@ -100,6 +100,9 @@ visible to the LLM.
 
 ## Command Output via `:cmd` Directive
 
+If you already have text you want to include verbatim (no command
+execution), use `:attach[...]` instead.
+
 Use `:cmd[...]` to execute a shell command and capture its stdout and stderr.
 Lectic runs the command with the Bun shell. The result is returned as an
 inline attachment that appears at the very top of the next assistant block.

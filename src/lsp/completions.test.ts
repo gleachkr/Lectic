@@ -24,6 +24,7 @@ describe("completions (unit)", () => {
     )
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     expect(hasLabel(arr, "cmd")).toBeTrue()
+    expect(hasLabel(arr, "attach")).toBeTrue()
     expect(hasLabel(arr, "macro")).toBeFalse()
   })
 

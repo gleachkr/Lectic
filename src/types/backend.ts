@@ -162,6 +162,57 @@ export async function emitCmdAttachments(
   return inline
 }
 
+export function emitAttachAttachments(msg: UserMessage): InlineAttachment[] {
+  const inline: InlineAttachment[] = []
+
+  const directives = msg.containedDirectives().filter((d) => d.name === "attach")
+
+  for (const d of directives) {
+    inline.push({
+      kind: "attach",
+      command: "",
+      content: d.text,
+      mimetype: "text/plain",
+    })
+  }
+
+  return inline
+}
+
+export async function emitDirectiveAttachments(
+  msg: UserMessage
+): Promise<InlineAttachment[]> {
+  const inline: InlineAttachment[] = []
+
+  const directives = msg
+    .containedDirectives()
+    .filter((d) => d.name === "cmd" || d.name === "attach")
+
+  for (const d of directives) {
+    if (d.name === "cmd") {
+      const command = new MessageCommand(d)
+      const result = await command.execute()
+      if (result) {
+        inline.push({
+          kind: "cmd",
+          command: command.command,
+          content: result,
+          mimetype: "text/plain",
+        })
+      }
+    } else {
+      inline.push({
+        kind: "attach",
+        command: "",
+        content: d.text,
+        mimetype: "text/plain",
+      })
+    }
+  }
+
+  return inline
+}
+
 export type ToolRegistry = Record<string, Tool>
 
 export type ToolCallEntry = { id?: string; name: string; args: unknown }
@@ -323,13 +374,13 @@ export abstract class Backend<TMessage, TFinal> {
 
       if (m.role === "user" && lastIsUser && i === lastIdx) {
         const hookAttachments = emitUserMessageEvent(m.content, lectic)
-        const cmdAttachments = await emitCmdAttachments(m)
+        const directiveAttachments = await emitDirectiveAttachments(m)
 
         // XXX: Make sure to keep transcript order aligned with the
         // provider-visible order. This prevents the initial request from
         // seeing a different ordering than subsequent runs that replay cached
         // inline attachments.
-        inlinePreface = [...hookAttachments, ...cmdAttachments]
+        inlinePreface = [...hookAttachments, ...directiveAttachments]
 
         const { messages: newMsgs } = await this.handleMessage(m, lectic, {
           inlineAttachments: inlinePreface,
