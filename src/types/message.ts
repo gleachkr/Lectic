@@ -7,7 +7,7 @@ import {
     nodeRaw,
     replaceDirectives,
 } from "../parsing/markdown"
-import { expandMacros } from "../parsing/macro"
+import { expandMacros, type MacroMessageEnv } from "../parsing/macro"
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
 import type { Interlocutor } from "./interlocutor"
@@ -84,7 +84,7 @@ export class UserMessage {
         }))
     }
 
-    async expandMacros(macros : Macro[], messageEnv? : Record<string,string>) {
+    async expandMacros(macros : Macro[], messageEnv? : MacroMessageEnv) {
         if (macros.length === 0) return
 
         const macroByName: Record<string, Macro> = {}

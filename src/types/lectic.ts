@@ -332,8 +332,8 @@ export class Lectic {
             const message = this.body.messages[idx]
             if (message instanceof UserMessage) {
                 await message.expandMacros(this.header.macros, { 
-                    MESSAGE_INDEX : (idx + 1).toString(),
-                    MESSAGES_LENGTH : this.body.messages.length.toString()
+                    MESSAGE_INDEX : idx + 1,
+                    MESSAGES_LENGTH : this.body.messages.length
                 })
                 for (const directive of message.containedDirectives()) {
                     switch (directive.name) {

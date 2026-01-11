@@ -1,6 +1,7 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
-import type { Root, RootContent, Parent, Text, PhrasingContent } from "mdast"
+import type { Root, RootContent, Parent, Text, PhrasingContent} from "mdast"
+import type { TextDirective } from "mdast-util-directive";
 import { Macro } from "../types/macro"
 
 const processor = remark().use(remarkDirective)
@@ -17,10 +18,24 @@ function nodesToMarkdown(nodes: RootContent[]): string {
 
 const reserved = new Set(["cmd", "ask", "aside", "reset"])
 
+export type MacroMessageEnv = {
+    MESSAGE_INDEX : number,
+    MESSAGES_LENGTH : number,
+}
+
+function skipDirective(node : TextDirective, messageEnv? : MacroMessageEnv) {
+    const nameLower = node.name.toLowerCase()
+    // Don't expand under reserved directives
+    if (reserved.has(nameLower)) return true
+    // Or under :attach, unless we're processing the final message
+    if (nameLower == "attach" && messageEnv &&
+        messageEnv.MESSAGE_INDEX != messageEnv.MESSAGES_LENGTH) return true
+}
+
 export async function expandMacros(
     text: string,
     macros: Record<string, Macro>,
-    messageEnv?: Record<string, string>
+    messageEnv?: MacroMessageEnv
 ): Promise<string> {
     if (Object.keys(macros).length === 0) return text
 
@@ -35,13 +50,13 @@ export async function expandMacros(
         }
 
         if (node.type === 'textDirective') {
-            const nameLower = node.name.toLowerCase()
-            if (reserved.has(nameLower)) return [node]
-            const macro = macros[nameLower]
+            if (skipDirective(node, messageEnv)) return [node]
+            const macro = macros[node.name.toLowerCase()]
             if (macro) {
                 changed = true
                 const env: Record<string, string | undefined> = {
-                    ...messageEnv,
+                    ...Object.fromEntries(
+                        Object.entries(messageEnv ?? []).map(([k,v]) => [k,String(v)])),
                     ...node.attributes,
                     ARG: node.attributes?.['ARG'] ?? nodesToMarkdown(node.children)
                 }
