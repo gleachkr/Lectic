@@ -68,12 +68,13 @@ function getCollapsedText(raw: string): string {
 
   if (line.startsWith("<inline-attachment")) {
     const kindMatch = /kind="([^"]*)"/.exec(line)
-    const kind = kindMatch ? kindMatch[1] : "cmd"
+    const rawKind = kindMatch ? kindMatch[1] : "attach"
+    const kind = rawKind === "cmd" ? "attach" : rawKind
 
     if (useNerdFont) {
       if (kind === "hook") return "󱐋 hook"
       if (kind === "attach") return "  attach"
-      return "  cmd"
+      return "  attachment"
     } else {
       return `[${kind}]`
     }

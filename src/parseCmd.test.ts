@@ -170,7 +170,7 @@ User message
 :::Bot
 Start text.
 
-<inline-attachment kind="cmd">
+<inline-attachment kind="attach">
 <command>echo hi</command>
 <content type="text/plain">hi</content>
 </inline-attachment>

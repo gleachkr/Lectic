@@ -145,9 +145,9 @@ describe('UserMessage', () => {
         });
 
         it('should leave non-macro directives untouched during expansion', async () => {
-            const message = new UserMessage({ content: 'Before :cmd[ls] and :greet[] after' });
+            const message = new UserMessage({ content: 'Before :attach[some stuff] and :greet[] after' });
             await message.expandMacros(macros);
-            expect(message.content).toBe('Before :cmd[ls] and Hello, World! after');
+            expect(message.content).toBe('Before :attach[some stuff] and Hello, World! after');
         });
 
         it('trims final newline after macro expansion', async () => {
@@ -266,8 +266,8 @@ describe('UserMessage', () => {
 describe('AssistantMessage', () => {
     it('extracts leading inline attachments into the first interaction', async () => {
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
-        const a1 = serializeInlineAttachment({ kind: 'cmd', command: 'x', content: 'C1' })
-        const a2 = serializeInlineAttachment({ kind: 'cmd', command: 'y', content: 'C2' })
+        const a1 = serializeInlineAttachment({ kind: 'attach', command: 'x', content: 'C1' })
+        const a2 = serializeInlineAttachment({ kind: 'attach', command: 'y', content: 'C2' })
         const content = `${a1}\n\n${a2}\n\nThen text.`
         const msg = new AssistantMessage({ content, interlocutor: fake })
         const { interactions } = msg.parseAssistantContent()
@@ -280,7 +280,7 @@ describe('AssistantMessage', () => {
 
     it('extracts interleaved inline attachments', async () => {
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
-        const a1 = serializeInlineAttachment({ kind: 'cmd', command: 'x', content: 'C1' })
+        const a1 = serializeInlineAttachment({ kind: 'attach', command: 'x', content: 'C1' })
         const content = `Text1\n\n${a1}\n\nText2`
         const msg = new AssistantMessage({ content, interlocutor: fake })
         const { interactions } = msg.parseAssistantContent()

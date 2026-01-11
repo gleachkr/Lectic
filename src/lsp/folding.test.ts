@@ -52,14 +52,14 @@ describe("folding ranges (tool-call)", () => {
 
 describe("folding ranges (inline-attachment)", () => {
   test("simple inline-attachment folds including closing tag line", async () => {
-    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="cmd">\n<command>x</command>\n<content type="text/plain">\n┆hi\n</content>\n</inline-attachment>\n:::\nAfter\n`
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="attach">\n<command>x</command>\n<content type="text/plain">\n┆hi\n</content>\n</inline-attachment>\n:::\nAfter\n`
     const ranges = await buildFoldingRanges(text)
     // open at line 5, close at 10
     expect(toPairs(ranges)).toEqual([[5, 10]])
   })
 
   test("one-line inline-attachment should not fold", async () => {
-    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="cmd"></inline-attachment>\n:::\n`
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="attach"></inline-attachment>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges.length).toBe(0)
   })
@@ -86,11 +86,11 @@ describe("folding ranges (collapsedText)", () => {
     expect(ranges[0].collapsedText).toBe("[sqlite tool: my_db]")
   })
 
-  test("inline-attachment shows cmd icon when NERD_FONT=1", async () => {
+  test("inline-attachment shows attach icon when NERD_FONT=1", async () => {
     process.env["NERD_FONT"] = "1"
-    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="cmd">\n<command>ls</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="attach">\n<command>ls</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
     const ranges = await buildFoldingRanges(text)
-    expect(ranges[0].collapsedText).toBe("  cmd")
+    expect(ranges[0].collapsedText).toBe("  attach")
   })
 
   test("inline-attachment shows hook icon when NERD_FONT=1", async () => {

@@ -1,7 +1,6 @@
 import { Logger } from "../logging/logger"
 import { Lectic, type HasModel } from "./lectic"
 import { type Message, UserMessage } from "./message"
-import { MessageCommand } from "./directive"
 import { Hook, type HookEvents } from "./hook"
 import { serializeCall, ToolCallResults, type Tool, type ToolCall} from "./tool"
 import { LLMProvider } from "./provider"
@@ -139,29 +138,6 @@ export function emitUserMessageEvent(
   return runHooks(allHooks, "user_message", baseEnv)
 }
 
-export async function emitCmdAttachments(
-  msg: UserMessage
-): Promise<InlineAttachment[]> {
-  const inline: InlineAttachment[] = []
-
-  const directives = msg.containedDirectives().filter((d) => d.name === "cmd")
-
-  for (const d of directives) {
-    const command = new MessageCommand(d)
-    const result = await command.execute()
-    if (result) {
-      inline.push({
-        kind: "cmd",
-        command: command.command,
-        content: result,
-        mimetype: "text/plain",
-      })
-    }
-  }
-
-  return inline
-}
-
 export function emitAttachAttachments(msg: UserMessage): InlineAttachment[] {
   const inline: InlineAttachment[] = []
 
@@ -186,28 +162,15 @@ export async function emitDirectiveAttachments(
 
   const directives = msg
     .containedDirectives()
-    .filter((d) => d.name === "cmd" || d.name === "attach")
+    .filter(d => d.name === "attach")
 
   for (const d of directives) {
-    if (d.name === "cmd") {
-      const command = new MessageCommand(d)
-      const result = await command.execute()
-      if (result) {
-        inline.push({
-          kind: "cmd",
-          command: command.command,
-          content: result,
-          mimetype: "text/plain",
-        })
-      }
-    } else {
       inline.push({
         kind: "attach",
         command: "",
         content: d.text,
         mimetype: "text/plain",
       })
-    }
   }
 
   return inline

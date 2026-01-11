@@ -2,7 +2,7 @@ import { escapeTags, unescapeTags } from "../parsing/xml"
 import { unwrap, extractElements } from "../parsing/xml"
 
 export type InlineAttachment = {
-  kind: "cmd" | "hook" | "attach"
+  kind: "hook" | "attach"
   command: string
   content: string
   mimetype?: string // defaults to text/plain
@@ -41,8 +41,10 @@ export function deserializeInlineAttachment(xml: string): InlineAttachment {
     attributes[m[1]] = m[2].replace(/&quot;/g, '"')
   }
 
-  const kind = (attributes["kind"] || "cmd") as "cmd" | "hook" | "attach"
+  const rawKind = String(attributes["kind"] || "attach")
   delete attributes["kind"]
+
+  const kind = rawKind === "hook" ? "hook" : "attach"
 
   const inner = unwrap(outer, "inline-attachment")
   const parts = extractElements(inner)

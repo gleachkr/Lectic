@@ -96,7 +96,7 @@ function toolCallLabel(raw: string): string {
 function inlineAttachmentLabel(raw: string): string {
   const firstLine = raw.split(/\r?\n/)[0]?.trim() ?? raw.trim()
   const kindMatch = /kind="([^"]*)"/.exec(firstLine)
-  const kind = kindMatch?.[1] ?? "cmd"
+  const kind= kindMatch?.[1] ?? "attach"
 
   // Try to pluck the <command> element (it's near the top).
   const m = /<command>([\s\S]*?)<\/command>/.exec(raw)

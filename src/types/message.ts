@@ -85,8 +85,6 @@ export class UserMessage {
     }
 
     async expandMacros(macros : Macro[], messageEnv? : MacroMessageEnv) {
-        if (macros.length === 0) return
-
         const macroByName: Record<string, Macro> = {}
         macros.forEach(m => {
             macroByName[m.name.trim().toLowerCase()] = m

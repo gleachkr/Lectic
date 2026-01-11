@@ -15,10 +15,13 @@ describe("emitAttachAttachments", () => {
 })
 
 describe("emitDirectiveAttachments", () => {
-  it("preserves document order among :attach and :cmd directives", async () => {
+  it("preserves document order among :attach directives", async () => {
     const msg = new UserMessage({
-      content: ":attach[a] :cmd[echo one] :attach[b]",
+      content: ":attach[a] :attach[:cmd[echo one]] :attach[b]",
     })
+
+    // Simulate this being the last message, so :cmd is expanded within :attach.
+    await msg.expandMacros([], { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
 
     const out = await emitDirectiveAttachments(msg)
 
@@ -26,8 +29,9 @@ describe("emitDirectiveAttachments", () => {
     expect(out[0].kind).toBe("attach")
     expect(out[0].content).toBe("a")
 
-    expect(out[1].kind).toBe("cmd")
-    expect(out[1].command.trim()).toBe("echo one")
+    expect(out[1].kind).toBe("attach")
+    expect(out[1].content).toContain("<stdout")
+    expect(out[1].content).toContain("echo one")
     expect(out[1].content).toContain("one")
 
     expect(out[2].kind).toBe("attach")
