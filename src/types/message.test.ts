@@ -74,6 +74,24 @@ describe('UserMessage', () => {
         });
     });
 
+    describe('cleanSideEffects', () => {
+        it('strips built-in directives but preserves unknown directives', () => {
+            const message = new UserMessage({
+                content: 'A :cmd[echo one] B :unknown[keep] :merge_yaml[{x: 1}]'
+            })
+
+            const cleaned = message.cleanSideEffects()
+
+            expect(cleaned.content).not.toContain(':cmd[')
+            expect(cleaned.content).not.toContain(':merge_yaml[')
+            expect(cleaned.content).toContain(':unknown[keep]')
+
+            // The transcript message should remain unchanged.
+            expect(message.content).toContain(':cmd[')
+            expect(message.content).toContain(':merge_yaml[')
+        })
+    })
+
     describe('expandMacros', () => {
         const macros = [
             new Macro({ name: 'greet', expansion: 'Hello, World!' }),

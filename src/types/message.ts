@@ -1,5 +1,12 @@
 import type { RootContent } from "mdast"
-import { parseReferences, parseDirectives, parseBlocks, nodeContentRaw, nodeRaw } from "../parsing/markdown"
+import {
+    parseReferences,
+    parseDirectives,
+    parseBlocks,
+    nodeContentRaw,
+    nodeRaw,
+    replaceDirectives,
+} from "../parsing/markdown"
 import { expandMacros } from "../parsing/macro"
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
@@ -32,6 +39,33 @@ export class UserMessage {
 
     constructor({content} : {content : string}) {
         this.content = content
+    }
+
+    // Built-in text directives that are used for Lectic side effects
+    // (running commands, switching interlocutors, etc). These directives
+    // should not be forwarded to the LLM as literal text.
+    static readonly BUILTIN_DIRECTIVES_TO_STRIP = [
+        "cmd",
+        "attach",
+        "ask",
+        "aside",
+        "reset",
+        "merge_yaml",
+        "temp_merge_yaml",
+    ] as const
+
+    // Returns a clean copy of the message with built-in directives removed.
+    cleanSideEffects(): UserMessage {
+        const out = new UserMessage({ content: this.content })
+        out.stripTextDirectives(UserMessage.BUILTIN_DIRECTIVES_TO_STRIP)
+        return out
+    }
+
+    stripTextDirectives(names: readonly string[]): void {
+        const wanted = new Set(names.map((n) => n.toLowerCase()))
+        this.content = replaceDirectives(this.content, (name) => {
+            return wanted.has(name.toLowerCase()) ? "" : null
+        })
     }
 
     containedLinks() : MessageLink[] {
