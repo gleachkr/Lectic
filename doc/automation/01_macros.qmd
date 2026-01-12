@@ -59,8 +59,20 @@ name:
   as the `ARG` environment variable.
 
 When Lectic processes the file, it replaces the macro directive with the
-full text from its `expansion` field *before* processing any other
-directives (like `:cmd`).
+full text from its `expansion` field.
+
+::: {.callout-note}
+## Built-in Macros
+
+Lectic includes one built-in macro: `:cmd[...]`. It executes a shell
+command and expands to the command's output wrapped in XML. See
+[External Content](../context_management/01_external_content.qmd#command-output-via-cmd)
+for details.
+
+Because `:cmd` is a macro, it composes naturally with user-defined macros.
+For example, you can wrap `:cmd` in a caching macro:
+`:cache[:cmd[expensive-command]]`.
+:::
 
 ```markdown
 This was a long and productive discussion. Could you wrap it up?

@@ -74,27 +74,35 @@ Markdown code fences inside assistant blocks can also use three backticks.
 ### Inline Attachments
 
 Lectic records some generated content directly into the transcript as
-**inline attachments**. This includes:
+**inline attachments**. These are created by:
 
-- Output of `:cmd[...]` directives (`kind="cmd"`)
-- Output of `:attach[...]` directives (`kind="attach"`)
-- Output of inline hooks (`kind="hook"`)
+- The `:attach[...]` directive (`kind="attach"`)
+- Inline hooks (`kind="hook"`)
 
 Inline attachments appear inside the assistant's response block as XML.
-They include a `<command>` field (the command that produced the content,
-or the hook's `do` value) and a `<content>` field.
+They include a `<command>` field (the hook's `do` value, or empty for
+`:attach`) and a `<content>` field.
 
-For `:attach[...]`, `<command>` is empty and `<content>` is the verbatim
-text from the directive.
-
-Example (`:cmd[...]`):
+Example (`:attach[...]`):
 
 ```xml
-<inline-attachment kind="cmd">
-<command>git diff --staged</command>
+<inline-attachment kind="attach">
+<command></command>
 <content type="text/plain">
-┆diff --git a/src/main.ts b/src/main.ts
+┆some content here
+</content>
+</inline-attachment>
+```
+
+Example (`:attach[:cmd[...]]`):
+
+```xml
+<inline-attachment kind="attach">
+<command></command>
+<content type="text/plain">
+┆<stdout from="git diff --staged">diff --git a/src/main.ts b/src/main.ts
 ┆...
+┆</stdout>
 </content>
 </inline-attachment>
 ```
@@ -113,21 +121,22 @@ Example (inline hook output):
 Inline attachments serve two purposes:
 
 1. **Caching**: The results are stored in the file, so re-running Lectic
-   doesn't re-execute old commands. Only `:cmd` directives in the most
-   recent user message are executed.
+   doesn't re-process old directives. Only `:attach` directives in the most
+   recent user message are processed.
 
 2. **Context positioning**: When sending the conversation to the provider,
-   attachments are treated as if they were a user message This keeps provider
+   attachments are treated as if they were a user message. This keeps provider
    caches stable and avoids token recomputation.
 
-You'll see inline attachments frequently when using `:cmd`. They're part
-of the conversation record and should generally be left alone. Editor
-plugins typically fold them by default to reduce visual clutter.
+You'll see inline attachments when using `:attach` (often with `:cmd` inside)
+or inline hooks. They're part of the conversation record and should generally
+be left alone. Editor plugins typically fold them by default to reduce visual
+clutter.
 
 ::: {.callout-tip}
-Inline attachments are managed by Lectic. Don't edit them by hand—if you
-need to re-run a command, just run `lectic` again with the same `:cmd`
-directive in your latest message.
+Inline attachments are managed by Lectic. Don't edit them by hand — if you
+need to re-run something, delete the attachment and add a new directive in
+your latest message.
 :::
 
 ### Example

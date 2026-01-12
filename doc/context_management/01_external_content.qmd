@@ -33,7 +33,7 @@ What does this README say?
   `provider: openai/chat` with an audio‑capable model; supported formats
   include MP3, MPEG, and WAV. Gemini supports a broader set of audio types.
 - **Video**: Gemini supports video understanding. See supported formats in
-  Google’s docs:
+  Google's docs:
   https://ai.google.dev/gemini-api/docs/video-understanding#supported-formats
 
 ### URI Schemes
@@ -98,40 +98,132 @@ If both `page` and `pages` are supplied, `pages` takes precedence. If a page
 or range is malformed or out of bounds, Lectic will surface an error that is
 visible to the LLM.
 
-## Command Output via `:cmd` Directive
+## Command Output via `:cmd`
 
-If you already have text you want to include verbatim (no command
-execution), use `:attach[...]` instead.
+Use `:cmd[...]` to execute a shell command and insert its output directly
+into your message. Think of it as a built-in
+[macro](../automation/01_macros.qmd) that runs a command and pastes in the
+result.
 
-Use `:cmd[...]` to execute a shell command and capture its stdout and stderr.
-Lectic runs the command with the Bun shell. The result is returned as an
-inline attachment that appears at the very top of the next assistant block.
+```markdown
+What can you tell me about my system? :cmd[uname -a]
+```
 
-How it works
-- When you run lectic, any `:cmd[...]` found in the last user message is
-  executed, and the result is forwarded to the LLM.
-- The result is also inserted as an inline attachment chunk at the beginning of
-  the generated assistant block. It looks like an XML block beginning with
-  `<inline-attachment ...>`. It includes the command and its content (stdout,
-  or an error wrapper that includes stdout and stderr).
-- During provider serialization, this attachment is treated as if it were
-  a user message that immediately precedes the assistant’s round. This keeps
-  provider caches stable and avoids recomputing earlier commands.
-- Older `:cmd[...]` directives are not re-executed. Their cached attachments
-  remain part of the transcript and are reused across runs.
+When Lectic processes this, it runs `uname -a` and replaces the `:cmd[...]`
+directive with the command's output wrapped in XML:
 
-Use cases
-- System information: `What can you tell me about my system? :cmd[uname -a]`
-- Project state: `Write a commit message: :cmd[git diff --staged]`
-- Data analysis: `Compute the average: :cmd[cat data.csv | awk '...']`
+```xml
+<stdout from="uname -a">Linux myhost 6.1.0 ...</stdout>
+```
 
-Notes
-- Output is wrapped in XML. On success, stdout is included. On failure,
-  an `<error>` wrapper includes both stdout and stderr.
-- `:cmd` runs with Bun’s `$` shell in the current working directory. Standard
-  Lectic environment variables like `LECTIC_FILE` are available. By contrast,
-  single‑line `exec` tools run without a shell; invoke a shell explicitly if
-  you need shell features.
-- line breaks inside of `:cmd` are ignored so that if a `:cmd` happens to
-  line-wrap, the newline doesn't affect the command to be executed.
-    
+If the command fails (non-zero exit code), you get an error wrapper instead:
+
+```xml
+<error>Something went wrong when executing a command:<stdout from="bad-cmd">
+</stdout><stderr from="bad-cmd">bad-cmd: command not found</stderr></error>
+```
+
+### When `:cmd` runs
+
+`:cmd` directives are expanded at the beginning of each user turn. You can also
+expand them with an [LSP](../reference/03_lsp.qmd) code action. If you want
+a `:cmd` directive to expand only once, you can wrap it in `:attach[..]` (see
+below) which will store the results in the lectic document as an attachment, or
+you can implement some other caching mechanism using the macro system.
+
+### Execution environment
+
+- `:cmd` runs with Bun's `$` shell in the current working directory.
+- Standard Lectic environment variables like `LECTIC_FILE` are available.
+- Line breaks inside `:cmd[...]` are ignored, so wrapped commands work:
+
+```markdown
+:cmd[find . -name "*.ts" 
+     | head -20]
+```
+
+### Use cases
+
+- **System information**: `What can you tell me about my system? :cmd[uname -a]`
+- **Project state**: `Write a commit message: :cmd[git diff --staged]`
+- **Data snippets**: `Analyze this: :cmd[head -50 data.csv]`
+
+## Inline Attachments with `:attach`
+
+While `:cmd` inserts command output directly into your message text, sometimes
+you want to provide context that appears as a separate attachment — for
+example, to keep the conversation transcript cleaner or to control caching
+behavior.
+
+The `:attach[...]` directive creates an **inline attachment**. The content
+inside the brackets is stored in the assistant's response block (after macro
+expansion) and sent to the LLM as additional user context.
+
+```markdown
+Here's the current state of the config:
+
+:attach[:config_status_macro[]]
+
+What do you think of this configuration?
+```
+
+When Lectic processes this, it creates an inline attachment that appears at
+the top of the assistant's response:
+
+```xml
+<inline-attachment kind="attach">
+<command></command>
+<content type="text/plain">
+┆server:
+┆  port: 8080
+┆  host: localhost
+</content>
+</inline-attachment>
+```
+
+### Combining `:attach` with `:cmd`
+
+You can compose `:attach` and `:cmd` to get the best of both worlds — run
+a command and store its output as an attachment:
+
+```markdown
+Review this diff: :attach[:cmd[git diff --staged]]
+```
+
+This executes `git diff --staged`, then wraps the result as an inline
+attachment. The attachment is cached in the transcript, so re-running Lectic
+won't re-execute the command.
+
+::: {.callout-tip}
+## When to use `:cmd` vs `:attach[:cmd[...]]`
+
+Use **`:cmd[...]`** when you want command output inlined directly in your
+message. The output becomes part of the message text.
+
+Use **`:attach[:cmd[...]]`** when you want the output stored as a cached
+attachment. This is useful for large outputs or when you want to preserve
+provider cache efficiency (for example, if the output of `:cmd` might change
+in between user turns).
+:::
+
+### How inline attachments work
+
+Inline attachments serve two purposes:
+
+1. **Caching**: Results are stored in the file, so re-running Lectic doesn't
+   re-execute commands or re-process content. Only `:attach` directives in the
+   most recent user message are processed.
+
+2. **Context positioning**: When sending the conversation to the provider,
+   attachments are treated as if they were a user message immediately
+   preceding the assistant's response. This keeps provider caches stable.
+
+Inline attachments appear in the `.lec` file as XML blocks inside the
+assistant response. Editor plugins typically fold them by default to reduce
+visual clutter.
+
+::: {.callout-tip}
+Inline attachments are managed by Lectic. Don't edit them by hand — if you
+need to re-run a command, delete the attachment and add a new `:attach`
+directive in your latest message.
+:::
