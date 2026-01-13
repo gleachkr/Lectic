@@ -7,12 +7,19 @@ import {
     nodeRaw,
     replaceDirectives,
 } from "../parsing/markdown"
-import { expandMacros, type MacroMessageEnv } from "../parsing/macro"
+import {
+  expandMacrosWithAttachments,
+  type MacroMessageEnv,
+} from "../parsing/macro"
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
 import type { Interlocutor } from "./interlocutor"
 import { deserializeCall, getSerializedCallName, isSerializedCall, Tool } from "./tool"
-import { deserializeInlineAttachment, isSerializedInlineAttachment, type InlineAttachment } from "./inlineAttachment"
+import {
+  deserializeInlineAttachment,
+  isSerializedInlineAttachment,
+  type InlineAttachment,
+} from "./inlineAttachment"
 
 export type MessageLink = {
     text : string
@@ -36,6 +43,7 @@ export type MessageInteraction = {
 export class UserMessage {
     content : string
     role = "user" as const
+    inlineAttachments: InlineAttachment[] = []
 
     constructor({content} : {content : string}) {
         this.content = content
@@ -90,7 +98,14 @@ export class UserMessage {
             macroByName[m.name.trim().toLowerCase()] = m
         })
 
-        this.content = await expandMacros(this.content, macroByName, messageEnv)
+        const res = await expandMacrosWithAttachments(
+          this.content,
+          macroByName,
+          messageEnv
+        )
+
+        this.content = res.text
+        this.inlineAttachments = res.inlineAttachments
     }
 }
 

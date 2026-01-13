@@ -138,42 +138,9 @@ export function emitUserMessageEvent(
   return runHooks(allHooks, "user_message", baseEnv)
 }
 
-export function emitAttachAttachments(msg: UserMessage): InlineAttachment[] {
-  const inline: InlineAttachment[] = []
-
-  const directives = msg.containedDirectives().filter((d) => d.name === "attach")
-
-  for (const d of directives) {
-    inline.push({
-      kind: "attach",
-      command: "",
-      content: d.text,
-      mimetype: "text/plain",
-    })
-  }
-
-  return inline
-}
-
-export async function emitDirectiveAttachments(
-  msg: UserMessage
-): Promise<InlineAttachment[]> {
-  const inline: InlineAttachment[] = []
-
-  const directives = msg
-    .containedDirectives()
-    .filter(d => d.name === "attach")
-
-  for (const d of directives) {
-      inline.push({
-        kind: "attach",
-        command: "",
-        content: d.text,
-        mimetype: "text/plain",
-      })
-  }
-
-  return inline
+export function emitInlineAttachments(msg: UserMessage): InlineAttachment[] {
+  // These are the attachments generated during macro expansion
+  return msg.inlineAttachments
 }
 
 export type ToolRegistry = Record<string, Tool>
@@ -338,7 +305,7 @@ export abstract class Backend<TMessage, TFinal> {
       if (m.role === "user" && lastIsUser && i === lastIdx) {
         const cleanMsg = m.cleanSideEffects()
         const hookAttachments = emitUserMessageEvent(m.content, lectic)
-        const directiveAttachments = await emitDirectiveAttachments(m)
+        const directiveAttachments = emitInlineAttachments(m)
 
         // XXX: Make sure to keep transcript order aligned with the
         // provider-visible order. This prevents the initial request from

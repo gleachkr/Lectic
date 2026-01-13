@@ -1,20 +1,25 @@
 import { describe, it, expect } from "bun:test"
 import { UserMessage } from "./message"
-import { emitAttachAttachments, emitDirectiveAttachments } from "./backend"
+import { emitInlineAttachments } from "./backend"
 
-describe("emitAttachAttachments", () => {
-  it("creates an inline attachment with verbatim content", () => {
+describe("UserMessage inlineAttachments", () => {
+  it("collects :attach content as an inline attachment", async () => {
     const msg = new UserMessage({ content: ":attach[derp]" })
-    const out = emitAttachAttachments(msg)
 
-    expect(out).toHaveLength(1)
-    expect(out[0].kind).toBe("attach")
-    expect(out[0].mimetype).toBe("text/plain")
-    expect(out[0].content).toBe("derp")
+    // Simulate this being the last message.
+    await msg.expandMacros([], { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
+
+    expect(msg.inlineAttachments).toHaveLength(1)
+    expect(msg.inlineAttachments[0].kind).toBe("attach")
+    expect(msg.inlineAttachments[0].mimetype).toBe("text/plain")
+    expect(msg.inlineAttachments[0].content).toBe("derp")
+
+    // :attach expands to nothing in the final user message.
+    expect(msg.content).not.toContain(":attach[")
   })
 })
 
-describe("emitDirectiveAttachments", () => {
+describe("emitInlineAttachments", () => {
   it("preserves document order among :attach directives", async () => {
     const msg = new UserMessage({
       content: ":attach[a] :attach[:cmd[echo one]] :attach[b]",
@@ -23,7 +28,7 @@ describe("emitDirectiveAttachments", () => {
     // Simulate this being the last message, so :cmd is expanded within :attach.
     await msg.expandMacros([], { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
 
-    const out = await emitDirectiveAttachments(msg)
+    const out = emitInlineAttachments(msg)
 
     expect(out).toHaveLength(3)
     expect(out[0].kind).toBe("attach")

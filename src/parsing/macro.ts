@@ -4,6 +4,7 @@ import type { Parent, PhrasingContent, Root, RootContent, Text } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 import { $ } from "bun"
 import { Macro } from "../types/macro"
+import type { InlineAttachment } from "../types/inlineAttachment"
 
 const processor = remark().use(remarkDirective)
 
@@ -17,6 +18,15 @@ function nodesToMarkdown(nodes: RootContent[]): string {
   }
 
   return out
+}
+
+export async function expandMacros(
+  text: string,
+  macros: Record<string, Macro>,
+  messageEnv?: MacroMessageEnv
+): Promise<string> {
+  const res = await expandMacrosWithAttachments(text, macros, messageEnv)
+  return res.text
 }
 
 const skipped = new Set([
@@ -41,10 +51,10 @@ function skipDirective(node: TextDirective, messageEnv?: MacroMessageEnv) {
   if (skipped.has(nameLower)) return true
 
   // Don't expand under :attach, unless we're processing the final message.
+  // This prevents re-running attachment macros from older messages.
   if (
     nameLower === "attach" &&
-    messageEnv &&
-    messageEnv.MESSAGE_INDEX !== messageEnv.MESSAGES_LENGTH
+    (!messageEnv || messageEnv.MESSAGE_INDEX !== messageEnv.MESSAGES_LENGTH)
   ) {
     return true
   }
@@ -90,15 +100,29 @@ async function handleBuiltin(node: TextDirective): Promise<Text> {
   return { type: "text", value }
 }
 
-export async function expandMacros(
+export type MacroExpansionResult = {
+  text: string
+  inlineAttachments: InlineAttachment[]
+}
+
+function isFinalMessage(messageEnv?: MacroMessageEnv): boolean {
+  return !!messageEnv && messageEnv.MESSAGE_INDEX === messageEnv.MESSAGES_LENGTH
+}
+
+export async function expandMacrosWithAttachments(
   text: string,
   macros: Record<string, Macro>,
   messageEnv?: MacroMessageEnv
-): Promise<string> {
+): Promise<MacroExpansionResult> {
   const hasMacros = Object.keys(macros).length > 0
   const hasBuiltin = /:cmd\[/i.test(text)
+  const mayHaveAttach = isFinalMessage(messageEnv) && /:attach\[/i.test(text)
 
-  if (!hasMacros && !hasBuiltin) return text
+  if (!hasMacros && !hasBuiltin && !mayHaveAttach) {
+    return { text, inlineAttachments: [] }
+  }
+
+  const inlineAttachments: InlineAttachment[] = []
 
   const ast = processor.parse(text)
   let changed = false
@@ -115,14 +139,37 @@ export async function expandMacros(
     }
 
     if (node.type === "textDirective") {
+      const nameLower = node.name.toLowerCase()
+
+      if (nameLower === "attach") {
+        if (!isFinalMessage(messageEnv)) return [node]
+
+        changed = true
+
+        const newChildren: RootContent[] = []
+        for (const child of node.children) {
+          newChildren.push(...await walk(child, raw, depth + 1))
+        }
+
+        inlineAttachments.push({
+          kind: "attach",
+          command: "",
+          content: nodesToMarkdown(newChildren),
+          mimetype: "text/plain",
+        })
+
+        return [{ type: "text", value: "" }]
+      }
+
       if (skipDirective(node, messageEnv)) return [node]
 
-      if (builtin.has(node.name.toLowerCase())) {
+
+      if (builtin.has(nameLower)) {
         changed = true
         return [await handleBuiltin(node)]
       }
 
-      const macro = macros[node.name.toLowerCase()]
+      const macro = macros[nameLower]
       if (macro) {
         changed = true
 
@@ -198,10 +245,13 @@ export async function expandMacros(
   }
   ast.children = newChildren
 
-  if (!changed) return text
+  if (!changed) {
+    return { text, inlineAttachments }
+  }
+
 
   let out = processor.stringify(ast)
   const inputHasFinalNL = /\r?\n$/.test(text)
   if (!inputHasFinalNL) out = out.replace(/\r?\n$/, "")
-  return out
+  return { text: out, inlineAttachments }
 }
