@@ -1,12 +1,22 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
+import remarkStringify from "remark-stringify"
 import type { Parent, PhrasingContent, Root, RootContent, Text } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 import { $ } from "bun"
 import { Macro } from "../types/macro"
+import { lecticEnv } from "../utils/xdg";
 import type { InlineAttachment } from "../types/inlineAttachment"
 
-const processor = remark().use(remarkDirective)
+const processor = remark()
+    .use(remarkDirective)
+    .use(remarkStringify, {
+        handlers : {
+            // we want to disable escaping of markdown symbols, so that macro
+            // output is reproduced verbatim
+            "text": node => node.value
+        }
+    })
 
 function nodesToMarkdown(nodes: RootContent[]): string {
   const root: Root = { type: "root", children: nodes }
@@ -62,10 +72,16 @@ function skipDirective(node: TextDirective, messageEnv?: MacroMessageEnv) {
   return false
 }
 
-async function handleBuiltin(node: TextDirective): Promise<Text> {
+async function handleBuiltin(node: TextDirective, env : Record<string, string | undefined>): Promise<Text> {
   let value = ""
 
   switch (node.name.toLowerCase()) {
+    case "env": {
+      const env_var = nodesToMarkdown(node.children).trim()
+      env = {...process.env, ...lecticEnv, ... env}
+      value = env[env_var] ?? ""
+      break
+    }
     case "cmd": {
       // Execute the bracket content as a Bun shell command.
       // Newlines are ignored so wrapped commands don't change meaning.
@@ -163,23 +179,23 @@ export async function expandMacrosWithAttachments(
 
       if (skipDirective(node, messageEnv)) return [node]
 
+      const env: Record<string, string | undefined> = {
+        ...Object.fromEntries(
+          Object.entries(messageEnv ?? {}).map(([k, v]) => [k, String(v)])
+        ),
+        ...node.attributes,
+        ARG: node.attributes?.["ARG"] ?? nodesToMarkdown(node.children),
+      }
 
       if (builtin.has(nameLower)) {
         changed = true
-        return [await handleBuiltin(node)]
+        return [await handleBuiltin(node, env)]
       }
 
       const macro = macros[nameLower]
       if (macro) {
         changed = true
 
-        const env: Record<string, string | undefined> = {
-          ...Object.fromEntries(
-            Object.entries(messageEnv ?? {}).map(([k, v]) => [k, String(v)])
-          ),
-          ...node.attributes,
-          ARG: node.attributes?.["ARG"] ?? nodesToMarkdown(node.children),
-        }
 
         const preResult = await macro.expandPre(env)
         if (preResult !== undefined) {
