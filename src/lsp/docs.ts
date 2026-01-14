@@ -94,23 +94,42 @@ export function oneLine(s: string): string {
   return s.replace(/\s+/g, " ").trim()
 }
 
-export function escapeInlineBackticks(s: string): string {
-  return s.replace(/`/g, "\u200b`")
+function maxBacktickRun(s: string): number {
+  let max = 0
+  let run = 0
+
+  for (const ch of s) {
+    if (ch === '`') {
+      run++
+      if (run > max) max = run
+    } else {
+      run = 0
+    }
+  }
+
+  return max
 }
 
 export function code(s: string): string {
-  return "`" + escapeInlineBackticks(s) + "`"
+  // Prefer a real Markdown code span (with a long enough delimiter) over
+  // inserting zero-width characters.
+  const fence = "`".repeat(maxBacktickRun(s) + 1)
+  const body = (s.startsWith('`') || s.endsWith('`')) ? ` ${s} ` : s
+  return fence + body + fence
 }
 
 export function codeFence(s: string): string {
-  const safe = s.replace(/```/g, "``\u200b`")
-  return "```\n" + safe + "\n```"
+  const fence = "`".repeat(Math.max(3, maxBacktickRun(s) + 1))
+  return `${fence}\n${s}\n${fence}`
 }
 
-export function codeFenceLang(s: string, lang: string | null | undefined): string {
-  const safe = s.replace(/```/g, "``\u200b`")
-  const header = lang && lang.length > 0 ? "```" + lang : "```"
-  return header + "\n" + safe + "\n```"
+export function codeFenceLang(
+  s: string,
+  lang: string | null | undefined
+): string {
+  const fence = "`".repeat(Math.max(3, maxBacktickRun(s) + 1))
+  const header = lang && lang.length > 0 ? fence + lang : fence
+  return `${header}\n${s}\n${fence}`
 }
 
 export function formatKitDocsMarkdown(
@@ -125,7 +144,9 @@ export function formatKitDocsMarkdown(
   parts.push(`kit ${code(kit.name)}`)
 
   if (kit.description) {
-    parts.push(trimText(escapeInlineBackticks(kit.description), descLimit))
+    parts.push(
+      trimText(kit.description, descLimit)
+    )
   }
 
   const toolsSummary = summarizeKitTools(kit.tools, toolsLimit)
@@ -146,7 +167,7 @@ export function formatMacroDocsMarkdown(
   parts.push(`macro ${code(macroName)}`)
 
   if (preview.description) {
-    parts.push(escapeInlineBackticks(preview.description))
+    parts.push(preview.description)
   }
 
   const snippet = trimText(preview.documentation, documentationLimit)
