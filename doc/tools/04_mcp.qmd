@@ -65,6 +65,27 @@ tools:
     mcp_shttp: https://mcp.context7.com/mcp
 ```
 
+#### Authentication for Streamable HTTP
+
+The `mcp_shttp` transport supports both custom headers and dynamic OAuth 2.0.
+
+Custom headers can be provided using the `headers` key. Header values support
+`file:` and `exec:` sources, which is useful for securely loading tokens or
+computing authentication headers on the fly.
+
+```yaml
+tools:
+  - name: github_mcp
+    mcp_shttp: https://api.githubcopilot.com/mcp
+    headers:
+      Authorization: exec:bash -c 'echo "Bearer $(pass github_token)"'
+```
+
+If a server requires OAuth 2.0 and supports the MCP OAuth flow, Lectic will
+automatically handle the authorization process. When an unauthorized request
+is made, Lectic will open your default browser to complete the login, and
+then securely persist the resulting tokens in your data directory.
+
 ### Server Resources and Content References
 
 If you give an MCP tool a `name` (e.g., `name: brave`), you can access any
@@ -77,7 +98,7 @@ For example, to access a `repo` resource from a server named `github`:
 
 The LLM is also given a tool to list the available resources from the server.
 
-### Excluding server tools
+### Blacklisting and whitelisting server tools
 
 You can hide specific tools that a server exposes by listing their names
 under `exclude`. 
@@ -90,6 +111,20 @@ tools:
       - dangerous_tool
       - low_value_tool
 ```
+
+You can also limit access to a specific set of tools that a server exposes by
+listing their names under `only`. 
+
+```yaml
+tools:
+  - name: github
+    mcp_ws: wss://example.org/mcp
+    only:
+      - safe_tool
+      - high_value_tool
+```
+
+If you specify both options at once, you'll get exactly the tools from the `only` list that aren't also excluded.
 
 ## Safety and trust
 

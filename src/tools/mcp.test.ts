@@ -93,6 +93,62 @@ describe("Identity keys include roots and sandbox", () => {
     expect(clientA).not.toBe(clientB);
   });
 
+  it("injects headers into fetch", async () => {
+    const originalFetch = global.fetch;
+    let capturedHeaders: Headers | undefined;
+    (global as any).fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedHeaders = new Headers(init?.headers);
+        return new Response("ok");
+    };
+    
+    try {
+        await MCPTool.fromSpec({
+          mcp_shttp: "http://example.com",
+          headers: { "X-Custom": "Value" }
+        } as any);
+        
+        const transport = lastTransport as any;
+        expect(transport._fetch).toBeDefined();
+        
+        // Trigger the fetch
+        await transport._fetch("http://example.com/foo", {});
+        
+        expect(capturedHeaders).toBeDefined();
+        expect(capturedHeaders!.get("X-Custom")).toBe("Value");
+        
+    } finally {
+        global.fetch = originalFetch;
+    }
+  });
+
+  it("resolves exec: in headers", async () => {
+    const originalFetch = global.fetch;
+    let capturedHeaders: Headers | undefined;
+    (global as any).fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedHeaders = new Headers(init?.headers);
+      return new Response("ok");
+    };
+
+    try {
+      await MCPTool.fromSpec({
+        mcp_shttp: "http://example.com",
+        headers: { "Authorization": "exec:echo Bearer 123" }
+      } as any);
+
+      const transport = lastTransport as any;
+      expect(transport._fetch).toBeDefined();
+
+      // Trigger the fetch
+      await transport._fetch("http://example.com/foo", {});
+
+      expect(capturedHeaders).toBeDefined();
+      expect(capturedHeaders!.get("Authorization")).toBe("Bearer 123");
+
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it("different sandbox => different stdio clients", async () => {
     const a = await MCPTool.fromSpec({
       mcp_command: "echo",
@@ -103,6 +159,22 @@ describe("Identity keys include roots and sandbox", () => {
       mcp_command: "echo",
       name: "b",
       sandbox: "/usr/bin/env bash",
+    } as any);
+    const clientA = (a.find((t: any) => t.name === "a_search") as any).client;
+    const clientB = (b.find((t: any) => t.name === "b_search") as any).client;
+    expect(clientA).not.toBe(clientB);
+  });
+
+  it("different headers => different clients for same URL", async () => {
+    const a = await MCPTool.fromSpec({
+      mcp_shttp: "http://example.com",
+      name: "a",
+      headers: { "Authorization": "Bearer 1" }
+    } as any);
+    const b = await MCPTool.fromSpec({
+      mcp_shttp: "http://example.com",
+      name: "b",
+      headers: { "Authorization": "Bearer 2" }
     } as any);
     const clientA = (a.find((t: any) => t.name === "a_search") as any).client;
     const clientB = (b.find((t: any) => t.name === "b_search") as any).client;

@@ -8,7 +8,9 @@ import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websoc
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import { expandEnv } from "../utils/replace";
+import { loadFrom } from "../utils/loader";
 import { isHookSpecList, type HookSpec } from "../types/hook";
+import { FilePersistedOAuthClientProvider, waitForOAuthCallback } from "./mcpOAuth";
 
 type MCPSpecSTDIO = {
     mcp_command: string
@@ -23,6 +25,7 @@ type MCPSpecSSE = {
 
 type MCPSpecStreamableHTTP = {
     mcp_shttp: string
+    headers?: Record<string, string>
 }
 
 type MCPSpecWebsocket = {
@@ -52,6 +55,7 @@ type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamable
     name?: string
     roots?: MCPRoot[]
     exclude?: string[]
+    only?: string[]
     hooks? : HookSpec[]
 }
 
@@ -98,7 +102,12 @@ function isMCPSpecStreamableHttp(raw : unknown) : raw is MCPSpecStreamableHTTP {
     return raw !== null &&
         typeof raw === "object" &&
         "mcp_shttp" in raw && 
-        typeof raw.mcp_shttp == "string" 
+        typeof raw.mcp_shttp == "string" &&
+        ("headers" in raw 
+            ? raw.headers !== null && typeof raw.headers === "object" 
+            && Object.values(raw.headers).every(v => typeof v === "string")
+            : true
+        )
 }
 
 export function isMCPSpec(raw : unknown) : raw is MCPSpec {
@@ -108,6 +117,7 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
             isMCPSpecStreamableHttp(raw)) && 
            ("name" in raw ? typeof raw.name === "string" : true) &&
            ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true) &&
+           ("only" in raw ? Array.isArray(raw.only) && raw.only.every(s => typeof s === "string") : true) &&
            ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
@@ -285,7 +295,7 @@ export class MCPTool extends Tool {
         const ident = [spec.roots, "mcp_sse" in spec 
             ? spec.mcp_sse
             : "mcp_shttp" in spec
-            ? spec.mcp_shttp
+            ? [spec.mcp_shttp, spec.headers]
             : "mcp_ws" in spec
             ? spec.mcp_ws
             : [spec.mcp_command, spec.args, spec.env, spec.sandbox]]
@@ -346,9 +356,38 @@ export class MCPTool extends Tool {
                 transport = new SSEClientTransport(new URL(spec.mcp_sse))
             else if ("mcp_ws" in spec)
                 transport = new WebSocketClientTransport(new URL(spec.mcp_ws))
-            else 
-                transport = new StreamableHTTPClientTransport(new URL(spec.mcp_shttp))
+            else {
+                const callbackPort = 8090;
+                const callbackUrl = `http://localhost:${callbackPort}/callback`;
+                
+                const clientMetadata = {
+                    client_name: 'Lectic MCP Client',
+                    redirect_uris: [callbackUrl],
+                    grant_types: ['authorization_code', 'refresh_token'],
+                    response_types: ['code'],
+                    token_endpoint_auth_method: 'client_secret_post'
+                };
+                
+                const authProvider = new FilePersistedOAuthClientProvider(
+                    callbackUrl,
+                    clientMetadata,
+                    spec.mcp_shttp // use URL as storage ID
+                );
 
+                transport = new StreamableHTTPClientTransport(new URL(spec.mcp_shttp), { 
+                    authProvider,
+                    fetch: "headers" in spec && spec.headers ? async (input, init) => {
+                        const headers = new Headers(init?.headers);
+                        await Promise.all(Object.entries(spec.headers!).map(async ([key, value]) => {
+                             const loaded = await loadFrom(value)
+                             if (typeof loaded === "string") {
+                                 headers.append(key, loaded.trim());
+                             }
+                        }));
+                        return fetch(input, { ...init, headers });
+                   } : undefined 
+                })
+            }
 
             if (spec.roots) {
                 (spec.roots as MCPRoot[]).map(validateRoot)
@@ -359,11 +398,25 @@ export class MCPTool extends Tool {
                 })
             }
 
-            await client.connect(transport)
+            try {
+                await client.connect(transport)
+            } catch (e) {
+                const err = e as Error;
+                if ((err.name === "UnauthorizedError" || e?.constructor?.name === "UnauthorizedError") 
+                    && transport instanceof StreamableHTTPClientTransport
+                   ) {
+                    const code = await waitForOAuthCallback(8090);
+                    await transport.finishAuth(code);
+                    await client.connect(transport);
+                } else {
+                    throw e;
+                }
+            }
         }
 
         const associated_tools : Tool[] = (await client.listTools()).tools
         .filter(tool => !(spec.exclude && spec.exclude.includes(tool.name)))
+        .filter(tool => !spec.only || spec.only.includes(tool.name))
         .map(tool => {
             return new MCPTool({
                 name: `${prefix}_${tool.name}`,
