@@ -3,6 +3,8 @@ import { AnthropicBackend } from "./backends/anthropic"
 import { GeminiBackend } from "./backends/gemini"
 import { OpenAIResponsesBackend } from "./backends/openai-responses"
 import { OpenAIBackend } from "./backends/openai"
+import { ChatGPTBackend } from "./backends/chatgpt"
+import { ChatGPTAuth } from "./auth/chatgpt"
 
 export async function listModels() {
   const out: Array<{ name: string; models: string[] }> = []
@@ -36,6 +38,14 @@ export async function listModels() {
     })
     const models = await openrouter.listModels()
     out.push({ name: LLMProvider.OpenRouter, models })
+  }
+
+  // ChatGPT
+  const chatgptAuth = new ChatGPTAuth()
+  if (chatgptAuth.isAuthenticated()) {
+    const chatgpt = new ChatGPTBackend()
+    const models = await chatgpt.listModels()
+    out.push({ name: LLMProvider.ChatGPT, models })
   }
 
   if (out.length === 0) {

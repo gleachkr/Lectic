@@ -4,6 +4,7 @@ export enum LLMProvider {
     OpenAI = "openai/chat",
     OpenAIResponses = "openai",
     Ollama = "ollama",
+    ChatGPT = "chatgpt",
     Gemini = "gemini",
     OpenRouter = "openrouter",
 }
@@ -24,5 +25,6 @@ export function isLLMProvider(raw : unknown) : raw is LLMProvider {
         raw == LLMProvider.Ollama ||
         raw == LLMProvider.OpenRouter ||
         raw == LLMProvider.OpenAIResponses ||
+        raw == LLMProvider.ChatGPT ||
         raw == LLMProvider.Gemini
 }

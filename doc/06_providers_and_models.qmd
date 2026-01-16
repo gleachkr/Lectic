@@ -1,8 +1,8 @@
 # Providers and Models
 
 Lectic speaks to several providers. You pick a provider and a model in your
-YAML header, or let Lectic choose a default based on which API keys are in
-your environment.
+YAML header, or let Lectic choose a default based on which credentials are
+available in your environment.
 
 ## Picking a default provider
 
@@ -18,26 +18,48 @@ Set one of these environment variables before you run Lectic:
 - OPENAI_API_KEY
 - OPENROUTER_API_KEY
 
-AWS credentials for Bedrock are not used for auto‑selection. If you want
+AWS credentials for Bedrock are not used for auto-selection. If you want
 Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly and make
 sure your AWS environment is configured.
+
+## ChatGPT subscription (no API key)
+
+Lectic also supports `provider: chatgpt`, which uses your ChatGPT
+subscription via the official Codex / ChatGPT OAuth flow.
+
+Notes:
+
+- This provider is not auto-selected (there is no API key env var to check).
+  If you want it by default, set `provider: chatgpt` in your `lectic.yaml` or
+  in the `.lec` frontmatter.
+- On first use, Lectic opens a browser window for login and stores tokens at
+  `$LECTIC_STATE/chatgpt_auth.json` (for example,
+  `~/.local/state/lectic/chatgpt_auth.json` on Linux).
+- Login starts a local callback server on port 1455. If that port is in use,
+  stop the other process and try again.
+- If you want to "log out", delete that file.
 
 ## Discover models
 
 Not sure which models are available? Run:
-by running:
 
 ```bash
 lectic models
 ```
 
-This queries each provider you have API keys for and prints the available
-models. It's the easiest way to find valid model names for your
-configuration.
+This queries each provider you have credentials for and prints the available
+models.
 
 ::: {.callout-tip}
 The LSP can also autocomplete model names as you type in the YAML header.
 See [Editor Integration](./03_editor_integration.qmd).
+:::
+
+::: {.callout-note}
+`provider: chatgpt` models only show up in `lectic models` after you have
+logged in at least once (since the login is browser-based, not an API key).
+If you have not logged in yet, run a `.lec` file with `provider: chatgpt`
+first.
 :::
 
 ## OpenAI: two provider strings
@@ -50,9 +72,9 @@ OpenAI has two modes in Lectic today.
 
 ## Examples
 
-These examples show the minimal configuration for each provider. You can
-omit `provider` and `model` if you want Lectic to pick defaults based on
-your environment.
+These examples show the minimal configuration for each provider. You can omit
+`provider` and `model` if you want Lectic to pick defaults based on your
+environment.
 
 **Anthropic** (direct API):
 
@@ -73,7 +95,7 @@ interlocutor:
   model: anthropic.claude-3-haiku-20240307-v1:0
 ```
 
-**OpenAI** (Responses API—use this for native tools):
+**OpenAI** (Responses API):
 
 ```yaml
 interlocutor:
@@ -89,6 +111,16 @@ interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: openai/chat
+```
+
+**ChatGPT** (subscription via Codex backend):
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: chatgpt
+  model: gpt-5.1-codex
 ```
 
 **Gemini**:
@@ -128,17 +160,19 @@ Providers differ in what they accept as input. Here's a rough guide:
 |----------|------|--------|------|-------|-------|
 | Anthropic | ✓ | ✓ | ✓ | ✗ | ✗ |
 | Gemini | ✓ | ✓ | ✓ | ✓ | ✓ |
-| OpenAI | ✓ | ✓ | ✓ | ✓* | ✗ |
+| OpenAI | ✓ | ✓ | ✓ | varies* | ✗ |
+| ChatGPT | ✓ | ✓ | ✓ | varies* | ✗ |
 | OpenRouter | varies by model | | | | |
 | Ollama | ✓ | varies | ✗ | ✗ | ✗ |
 
-\* OpenAI audio requires `provider: openai/chat` with an audio-capable
-model.
+\* Audio support depends on model. For OpenAI audio workflows you may need
+`provider: openai/chat` with an audio-capable model.
 
 Support changes quickly. Consult each provider's documentation for current
 limits on formats, sizes, and rate limits.
 
 In Lectic, you attach external content by linking files in the user message
-body. Lectic packages these and sends them to the provider in a way that
-fits that provider's API. See [External
-Content](./context_management/01_external_content.qmd) for examples and tips.
+body. Lectic packages these and sends them to the provider in a way that fits
+that provider's API. See
+[External Content](./context_management/01_external_content.qmd) for examples
+and tips.

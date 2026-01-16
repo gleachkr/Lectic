@@ -278,6 +278,7 @@ export class OpenAIResponsesBackend extends Backend<
         ? { effort: lectic.header.interlocutor.thinking_effort }
         : undefined,
       tools: getTools(lectic),
+      store: false,
     })
 
     async function* text(): AsyncGenerator<string> {

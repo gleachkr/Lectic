@@ -53,6 +53,15 @@ export ANTHROPIC_API_KEY="your-api-key-here"
 Lectic chooses a default provider by checking for keys in this order:
 Anthropic → Gemini → OpenAI → OpenRouter. You only need one.
 
+::: {.callout-note}
+You can also use your ChatGPT subscription with `provider: chatgpt`.
+This does not use an API key environment variable, so it is not
+auto-selected. On first use, Lectic opens a browser window for login and
+stores tokens at `$LECTIC_STATE/chatgpt_auth.json`.
+
+The login flow starts a local callback server on port 1455.
+:::
+
 ::: {.callout-warning}
 **Common issue:** If you see "No API key found," make sure you exported
 the key in the same shell session where you're running Lectic. If you set

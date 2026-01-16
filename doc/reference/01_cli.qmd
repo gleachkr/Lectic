@@ -25,12 +25,15 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
     lectic file.
 
 - `lectic models`
-  List available models for providers with detected API keys. Only
-  providers with API keys in the environment are queried.
+  List available models for providers with detected credentials.
+
+  Providers with API keys in the environment are queried. The `chatgpt`
+  provider is listed if you have previously logged in (it is not an API
+  key-based provider).
 
 - `lectic script`
   Run an ES module file using Lectic's internal Bun JS runtime. Works as
-  a hashbang interpreter, useful for writing subcommands (see below), 
+  a hashbang interpreter, useful for writing subcommands (see below),
   [hooks](../automation/02_hooks.qmd), and [exec tools](../tools/02_exec.qmd).
   For example:
 
@@ -41,8 +44,9 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 
 ## Custom Subcommands
 
-Lectic supports git-style custom subcommands. If you invoke `lectic <command>`,
-Lectic will look for an executable named `lectic-<command>` in your
+Lectic supports git-style custom subcommands. If you invoke
+`lectic <command>`, Lectic will look for an executable named
+`lectic-<command>` in your
 configuration directory, data directory, or PATH.
 
 See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a full
