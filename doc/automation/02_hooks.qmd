@@ -154,6 +154,24 @@ Two headers affect control flow:
   output. This is useful for implementing custom context compaction or
   archival strategies when token limits are reached.
 
+## Example: A simple logging hook
+
+Let's start with the simplest possible hook: logging every message to a
+file. This helps you understand the basics before moving to more complex
+examples.
+
+```yaml
+hooks:
+  - on: [user_message, assistant_message]
+    do: |
+      #!/usr/bin/env bash
+      echo "$(date): Message received" >> /tmp/lectic.log
+```
+
+This hook fires on both user and assistant messages. It appends a
+timestamp to a log file. That's it—no return value, no interaction with
+the conversation.
+
 ## Example: Human-in-the-loop tool confirmation
 
 This example uses `tool_use_pre` to require confirmation before any tool
@@ -172,6 +190,8 @@ hooks:
       # Zenity exits with 0 for Yes/OK and 1 for No/Cancel
       exit $?
 ```
+
+## Example: Persisting messages to SQLite
 
 This example persists every user and assistant message to an SQLite
 database located in your Lectic data directory. You can later query this

@@ -10,9 +10,10 @@ header or in an included configuration file).
 
 ## Defining Macros
 
-Macros are defined under the `macros` key. Each macro must have a `name` and
-an `expansion`. You can optionally provide an `env` map to set default
-environment variables for the expansion.
+Macros are defined under the `macros` key. Each macro must have a `name` and an
+`expansion`. You can optionally provide an `env` map to set default environment
+variables for the expansion. You can also provide an optional `description`,
+which will be is shown in the LSP hover info for the macro.
 
 ```yaml
 macros:
@@ -137,16 +138,51 @@ of the most recent user message.
 Macros can interact with each other recursively. To support complex workflows,
 macros can define two separate expansion phases: `pre` and `post`.
 
-- **`pre`**: Expanded when the macro is first encountered (pre-order traversal).
-  If `pre` returns content, the expansion stops there: the macro is replaced
-  by the result of `pre` **and that result is then recursively expanded**.
-  The original children of the macro are discarded.
-- **`post`**: Expanded after the macro's children have been processed (post-order
-  traversal). The processed output of the children is passed to `post` as the
-  `ARG` variable.
+- **`pre`**: Expanded when the macro is first encountered (pre-order
+  traversal). If `pre` returns content, the macro is replaced by that
+  content, which is then recursively expanded. The original children are
+  discarded.
+- **`post`**: Expanded after the macro's children have been processed
+  (post-order traversal). The processed children are passed to `post` as
+  the `ARG` variable.
 
-If you define a macro with just `expansion`, it is treated as a `post` phase
-macro.
+If you define a macro with just `expansion`, it is treated as a `post`
+phase macro.
+
+Here's how the phases work for a nested macro call like
+`:outer[:inner[content]]`:
+
+```text
+:outer[:inner[content]]
+   │
+   ▼
+┌─────────────────────────────────────────────────────┐
+│ 1. Run :outer's PRE                                 │
+│    - If it returns content → replace :outer,        │
+│      recursively expand the result, DONE            │
+│    - If it returns nothing → continue to children   │
+└─────────────────────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────────────────────┐
+│ 2. Process children: :inner[content]                │
+│    - Run :inner's PRE                               │
+│    - Process :inner's children ("content")          │
+│    - Run :inner's POST with children as ARG         │
+│    - Replace :inner with result                     │
+└─────────────────────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────────────────────┐
+│ 3. Run :outer's POST                                │
+│    - ARG = processed children (result of :inner)    │
+│    - Replace :outer with result                     │
+└─────────────────────────────────────────────────────┘
+```
+
+The key insight: `pre` lets you short-circuit (skip children entirely), or
+change the children of a directive, while `post` lets you wrap or transform the
+fully expanded results of the children.
 
 ### Handling "No Operation" in Pre
 

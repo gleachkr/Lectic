@@ -1,86 +1,100 @@
 ---
-title: LSP Server
+title: LSP Server Reference
 ---
 
-Lectic includes a small Language Server Protocol (LSP) server that
-provides completion for directives, macros, and common YAML header
-fields, plus hovers. It is stdio only.
+# LSP Server
 
-Overview
-- Command: `lectic lsp`
-- Transport: stdio (no `--node-ipc` or `--socket`)
-- Features: `textDocument/completion`, `textDocument/hover`,
-  diagnostics, document symbols (outline), workspace symbols,
-  folding ranges, code actions, semantic tokens, go to definition
-- Triggers: `:`, `[` in directive brackets, and `-` in tools arrays
-- Insertions
-  - Directives use snippets and place the cursor inside brackets (or at
-    the end for reset):
-    `:cmd[${0:command}]`, `:ask[$0]`,
-    `:aside[$0]`, `:reset[]$0`.
-  - Macro names are suggested on `:` and insert as directives:
-    `:name[]$0`.
-  - Inside brackets of `:ask[...]` and `:aside[...]`, only interlocutor
-    names are offered.
-- Matching: case‑insensitive; typed prefix after `:` or inside `[` is
-  respected.
-- Fences: no suggestions inside `::` or `:::` runs
-- Trigger filtering: only `:ask[`/`:aside[` produce bracket completions
+Lectic includes a Language Server Protocol (LSP) server that makes editing
+`.lec` files more pleasant. It provides completions, diagnostics, folding,
+and other features that help you write correct configurations and navigate
+conversations.
 
-Where completions come from
-- Directives: built‑in suggestions for `:cmd`, `:ask`, `:aside`, and
-  `:reset`.
-- Macro names: merged from the same places and precedence as the CLI
-  (higher wins):
-  1) System config: `${LECTIC_CONFIG}/lectic.yaml`
-  2) Workspace config: `lectic.yaml` in the document directory
-  3) The document’s YAML header
-- YAML header fields:
-  - `interlocutor` / `interlocutors` blocks: top‑level interlocutor
-    properties such as `name`, `prompt`, `provider`, `model`,
-    `temperature`, `max_tokens`, `max_tool_use`, `thinking_effort`,
-    `thinking_budget`, `tools`, and `nocache`.
-  - `model`: provider‑appropriate model names.
-  - `tools` array items: tool kinds after a bare `-`.
-  - `kit: ...`: merged kit names from system/workspace/header.
-  - `agent: ...`: merged interlocutor names.
-  - `native: ...`: supported native types (`search`, `code`).
-- Interlocutors: collected from the merged header as above, combining
-  `interlocutor` and `interlocutors`.
-- De‑duplication is case‑insensitive on name. Higher‑precedence entry
-  wins.
-- The server shows a simple preview in the completion item.
+Start the server with:
 
-Behavior examples
-- Type `-` on a line inside `tools:` → suggestions for tool kinds
-  (exec, sqlite, mcp_*, native, kit, ...).
-- Type `:` → suggestions for directives and macro names.
-- Type `:su` (with a `summarize` macro defined) → `summarize` appears
-  and inserts `:summarize[]$0`.
-- Type `:ask[` or `:aside[` → invoke completion to see interlocutor
-  names; selecting a name replaces only the text inside the `[`...`]`.
-- Type `::` or `:::` → no suggestions (reserved for directive fences).
-- Place the cursor on a directive (e.g., `:name[]`, `:ask[Name]`) or
-  a name field in the YAML header (e.g., `name: Assistant`) and invoke
-  “Go to Definition” to jump to the relevant definition. If multiple
-  definitions exist (e.g., a local override of a workspace or system
-  interlocutor), the LSP returns all locations, prioritized by
-  proximity (local > workspace > system).
-
-Neovim setup (vim.lsp.start)
-- Minimal startup for the current buffer:
-
-```lua
-local client_id = vim.lsp.start({
-  name = "lectic",
-  cmd = { "lectic", "lsp" },
-  root_dir = vim.fs.root(0, { ".git", "lectic.yaml" })
-             or vim.fn.getcwd(),
-  single_file_support = true,
-})
+```bash
+lectic lsp
 ```
 
-- Auto‑start for `.lec` (and optionally markdown) files:
+The server uses stdio transport and works with any LSP-capable editor. See
+[Editor Integration](../03_editor_integration.qmd) for setup instructions.
+
+## Features
+
+### Completions
+
+The LSP suggests completions as you type:
+
+- **Directives**: Type `:` to see `:cmd`, `:ask`, `:aside`, `:reset`, and
+  any macros you've defined.
+- **Interlocutor names**: Inside `:ask[` or `:aside[`, the LSP suggests
+  names from your configuration.
+- **YAML header fields**: In the frontmatter, get suggestions for
+  interlocutor properties (`provider`, `model`, `thinking_effort`, etc.), tool types,
+  kit names, and model names.
+- **Tool types**: Type `-` inside a `tools:` array to see available tool
+  kinds (`exec`, `sqlite`, `mcp_command`, `native`, etc.).
+
+Completions are case-insensitive and respect any prefix you've typed.
+
+### Diagnostics
+
+The server catches errors before you run the file:
+
+- **YAML syntax errors**: Malformed frontmatter is flagged immediately.
+- **Missing required fields**: An interlocutor without a `name` or `prompt`
+  triggers an error.
+- **Unknown properties**: A typo like `promt` instead of `prompt` shows a
+  warning.
+- **Duplicate names**: If you define two interlocutors or macros with the
+  same name, the LSP warns you. (The later definition wins at runtime.)
+
+### Folding
+
+Tool calls and inline attachments can be long. The LSP provides folding
+ranges so your editor can collapse them:
+
+```markdown
+:::Assistant
+
+<tool-call with="search">        ← Fold starts here
+...                              ← Hidden when folded
+</tool-call>                     ← Fold ends here
+
+Based on the search results...
+:::
+```
+
+Both Neovim and VS Code plugins enable folding by default.
+
+### Hover Information
+
+Hover over elements to see documentation:
+
+- **Directives**: Hover on `:cmd`, `:ask`, etc. to see what they do.
+- **Macros**: Hover on a macro directive to preview its expansion.
+- **Tool calls**: Hover on a `<tool-call>` block to see a summary.
+
+### Go to Definition
+
+Jump to where things are defined:
+
+- Place your cursor on a macro name and invoke "Go to Definition" to jump
+  to the macro's definition in your config.
+- Works for interlocutors, kits, and macros.
+- If multiple definitions exist (e.g., a local override of a system
+  config), the LSP returns all locations, prioritized by proximity.
+
+### Document Outline
+
+The LSP provides document symbols showing the conversation structure:
+messages, interlocutor responses, and configuration sections. Use your
+editor's outline view to navigate long conversations.
+
+## Editor Setup
+
+### Neovim
+
+Auto-start the LSP for `.lec` files:
 
 ```lua
 vim.api.nvim_create_autocmd("FileType", {
@@ -97,39 +111,52 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 ```
 
-- Using completion
-  - With nvim‑cmp (recommended), LSP completion pops on `:` and `-`.
-  - Inside brackets, invoke completion manually (`Ctrl‑x Ctrl‑o`) if your
-    setup is not configured to trigger automatically.
+For LSP-based folding:
 
-VS Code setup
-- The server is an external stdio LSP. You can connect to it from a
-  VS Code extension. The repository includes `extra/lectic.vscode` for a
-  ready‑made extension.
+```lua
+vim.opt.foldmethod = 'expr'
+vim.opt.foldexpr = 'v:lua.vim.lsp.foldexpr()'
+```
 
-Diagnostics
-- The server publishes diagnostics on open/change.
-- Header field validation covers missing or mistyped interlocutor
-  properties (name, prompt, model, provider, etc.). Unknown top‑level
-  properties on an interlocutor are reported as warnings (for example,
-  `Unknown property "mood" on interlocutor A.`).
-- Duplicate names in the document header are warned with precise ranges.
-  Later entries win at runtime; the warning helps catch mistakes.
-- Duplicates originating only from included configs may be reported with
-  a coarse header-range warning.
+With nvim-cmp, completions appear automatically on `:` and `-`. For
+bracket completions (interlocutor names), you may need to invoke
+completion manually with `<C-Space>` or `<C-x><C-o>`.
 
-Folding
-- The LSP provides folding ranges for tool‑call and inline‑attachment
-  blocks. A block must be a serialized
-  `<tool-call ...> ... </tool-call>` or
-  `<inline-attachment ...> ... </inline-attachment>` that appears as a
-  direct child of an interlocutor container directive (`:::Name`).
+### VS Code
 
-Hovers
-- Hover over a directive (e.g., `:ask[...]`) to see a short description.
-- Hover on a macro directive name (e.g., `:summarize[]`) to preview the
-  macro expansion.
+Install the extension from `extra/lectic.vscode` or download the VSIX from
+[releases](https://github.com/gleachkr/Lectic/releases). The extension
+starts the LSP automatically for `.lec` files.
 
-Notes
-- Completion previews are static; the server does not expand macros or
-  read files referenced by `file:`.
+### Other Editors
+
+Any editor that supports LSP over stdio can use the Lectic server. The
+command is `lectic lsp` with no arguments. See your editor's documentation
+for how to configure external language servers.
+
+## Technical Details
+
+### Completion Sources
+
+Completions are merged from multiple configuration sources, with later
+sources taking precedence:
+
+1. System config: `$LECTIC_CONFIG/lectic.yaml`
+2. Workspace config: `lectic.yaml` in the document's directory
+3. The document's YAML header
+
+This matches the precedence used at runtime, so what you see in
+completions reflects what will actually be available.
+
+### Triggers
+
+- `:` triggers directive and macro completions
+- `[` after `:ask` or `:aside` triggers interlocutor name completions
+- `-` in a `tools:` array triggers tool type completions
+
+### Limitations
+
+- Completion previews are static. The server doesn't expand `exec:` or
+  read `file:` references when showing previews.
+- No completions are offered inside `:::` fences (those are response
+  blocks, not meant for editing).

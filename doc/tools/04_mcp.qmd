@@ -4,7 +4,19 @@ Lectic can act as a client for servers that implement the [Model Context
 Protocol (MCP)](https://modelcontextprotocol.io). This allows you to connect
 your LLM to a vast and growing ecosystem of pre-built tools and services.
 
+## What is MCP?
+
+MCP is a standard protocol for connecting LLMs to external tools and data
+sources. Instead of writing custom integrations for every service, you can
+use any MCP-compatible server. Servers exist for GitHub, databases, file
+systems, web browsers, and much more.
+
+The protocol handles the details of how tools describe themselves and how
+results are returned. Lectic speaks MCP, so you can drop in any compatible
+server and the LLM can use its tools immediately.
+
 You can find lists of available servers here:
+
 - [Official MCP Server List](https://github.com/modelcontextprotocol/servers)
 - [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
 

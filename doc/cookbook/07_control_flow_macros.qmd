@@ -1,5 +1,14 @@
 # Control Flow with Macros
 
+::: {.callout-note}
+## Advanced Recipe
+
+This recipe demonstrates advanced macro techniques. Most Lectic workflows
+don't need recursive macros or control flow constructs—a simple `exec`
+tool or script usually suffices. But if you want to see how far the macro
+system can go, read on.
+:::
+
 Because Lectic's macros support recursion and can execute scripts during the
 expansion phase, it is possible to build powerful control flow structures like
 conditionals, loops, and maps.

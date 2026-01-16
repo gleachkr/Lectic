@@ -24,15 +24,21 @@ sure your AWS environment is configured.
 
 ## Discover models
 
-You can list available models for providers that have API keys configured
+Not sure which models are available? Run:
 by running:
 
 ```bash
 lectic models
 ```
 
-The command prints each detected provider followed by its models. If no
-known provider keys are set, it prints a short message and exits.
+This queries each provider you have API keys for and prints the available
+models. It's the easiest way to find valid model names for your
+configuration.
+
+::: {.callout-tip}
+The LSP can also autocomplete model names as you type in the YAML header.
+See [Editor Integration](./03_editor_integration.qmd).
+:::
 
 ## OpenAI: two provider strings
 
@@ -44,19 +50,20 @@ OpenAI has two modes in Lectic today.
 
 ## Examples
 
-Anthropic, direct API (uses `thinking_budget` when set):
+These examples show the minimal configuration for each provider. You can
+omit `provider` and `model` if you want Lectic to pick defaults based on
+your environment.
+
+**Anthropic** (direct API):
 
 ```yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: anthropic
-  model: claude-3-haiku-20240307
-  # Optional thinking controls (Anthropic/Gemini):
-  # thinking_budget: 1024     # integer token budget for reasoning
 ```
 
-Anthropic via Bedrock:
+**Anthropic via Bedrock**:
 
 ```yaml
 interlocutor:
@@ -66,37 +73,34 @@ interlocutor:
   model: anthropic.claude-3-haiku-20240307-v1:0
 ```
 
-OpenAI Responses API:
+**OpenAI** (Responses API—use this for native tools):
 
 ```yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: openai
-  model: gpt-4o-mini
 ```
 
-OpenAI Chat Completions:
+**OpenAI Chat Completions** (legacy API):
 
 ```yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: openai/chat
-  model: gpt-4o-mini
 ```
 
-Gemini:
+**Gemini**:
 
 ```yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: gemini
-  model: gemini-2.5-flash
 ```
 
-OpenRouter:
+**OpenRouter**:
 
 ```yaml
 interlocutor:
@@ -106,7 +110,7 @@ interlocutor:
   model: meta-llama/llama-3.1-70b-instruct
 ```
 
-Ollama (local inference):
+**Ollama** (local inference):
 
 ```yaml
 interlocutor:
@@ -118,12 +122,23 @@ interlocutor:
 
 ## Capabilities and media
 
-Providers differ in what they accept as input. Most accept plain text and
-images. Many accept PDFs and short audio clips. Support changes quickly, so
-consult each provider's documentation for current limits on formats, sizes,
-page counts, and rate limits.
+Providers differ in what they accept as input. Here's a rough guide:
+
+| Provider | Text | Images | PDFs | Audio | Video |
+|----------|------|--------|------|-------|-------|
+| Anthropic | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Gemini | ✓ | ✓ | ✓ | ✓ | ✓ |
+| OpenAI | ✓ | ✓ | ✓ | ✓* | ✗ |
+| OpenRouter | varies by model | | | | |
+| Ollama | ✓ | varies | ✗ | ✗ | ✗ |
+
+\* OpenAI audio requires `provider: openai/chat` with an audio-capable
+model.
+
+Support changes quickly. Consult each provider's documentation for current
+limits on formats, sizes, and rate limits.
 
 In Lectic, you attach external content by linking files in the user message
-body. Lectic will package these and send them to the provider in a way that
+body. Lectic packages these and sends them to the provider in a way that
 fits that provider's API. See [External
 Content](./context_management/01_external_content.qmd) for examples and tips.

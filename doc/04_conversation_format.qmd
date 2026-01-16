@@ -18,10 +18,20 @@ A minimal header looks like this:
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
+---
+```
+
+Lectic picks a default provider and model based on your environment
+variables, so you often don't need to specify them. If you want to be
+explicit:
+
+```yaml
+---
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
   provider: anthropic
-  model: claude-3-haiku-20240307
-  # Optional thinking controls (Anthropic/Gemini):
-  # thinking_budget: 1024     # integer token budget for reasoning
+  model: claude-sonnet-4-20250514
 ---
 ```
 
@@ -109,6 +119,12 @@ Inline attachments serve two purposes:
 You'll see inline attachments frequently when using `:cmd`. They're part
 of the conversation record and should generally be left alone. Editor
 plugins typically fold them by default to reduce visual clutter.
+
+::: {.callout-tip}
+Inline attachments are managed by Lectic. Don't edit them by hand—if you
+need to re-run a command, just run `lectic` again with the same `:cmd`
+directive in your latest message.
+:::
 
 ### Example
 

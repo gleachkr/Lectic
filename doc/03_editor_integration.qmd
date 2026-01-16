@@ -1,28 +1,36 @@
 # Editor Integration
 
 Lectic is designed to work with your editor, not replace it. The core
-workflow is simple: edit a file, run `lectic`, get a response appended.
-But with proper editor integration, you can do this with a single
-keypress and get features like completions, diagnostics, and folding.
+workflow is: edit a file, press a key, watch the response stream in. No
+mode switching, no separate chat window—you stay in your editor the
+whole time.
+
+This page covers setup for several editors. If you just want to get
+started quickly:
+
+- **Neovim**: Install the plugin from `extra/lectic.nvim`, add the LSP
+  config below, and use `<localleader>l` to submit.
+- **VS Code**: Install the extension from
+  [releases](https://github.com/gleachkr/Lectic/releases) and use
+  `Cmd+L` / `Alt+L`.
+- **Other editors**: Run `lectic -i file.lec` from a keybinding.
 
 ## The LSP Server
 
-Lectic includes a Language Server Protocol (LSP) server that provides:
+Lectic includes a Language Server Protocol (LSP) server. You don't
+strictly need it—Lectic works fine as a command-line tool—but the LSP
+makes editing `.lec` files much more pleasant:
 
-- **Completions** for directives (`:cmd`, `:ask`, `:reset`, etc.),
-  interlocutor names, [macros](./automation/01_macros.qmd) names,
-  [kits](./tools/01_overview.qmd#tool-kits) names, YAML header fields, tool
-  types, and some other configuration parameters.
-- **Diagnostics** for missing or invalid configuration, duplicate names,
-  and broken file references
-- **Hover information** for directives, tool calls, and file links
-- **Go to definition** for macros, kits, and interlocutors
-- **Folding** for tool-call and inline-attachment blocks
-- **Document outline** showing conversation structure
-- **Code Actions** for setting up a minimal YAML header, performing minor
-  lints, and expanding macros (the macros don't *need* to be expanded manually
-  for the LLM to see the expansion results, but they can be if you want to
-  preview or inline the expansion output).
+- **Completions** for directives, macro names, YAML fields, model names,
+  and tool types. Start typing and the LSP suggests what comes next.
+- **Diagnostics** that catch YAML errors, missing configuration, and
+  duplicate names before you run the file.
+- **Folding** for tool-call blocks. Tool output can be verbose; folding
+  keeps the conversation readable.
+- **Hover information** showing what a directive does or what a macro
+  expands to.
+- **Go to definition** for macros, kits, and interlocutors defined in
+  config files.
 
 Start it with:
 

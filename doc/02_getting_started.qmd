@@ -8,18 +8,11 @@ simple tool in action.
 
 Choose the method that fits your system.
 
-#### Nix
-
-If you use Nix, install directly from the repository:
-
-```bash
-nix profile install github:gleachkr/lectic
-```
-
 #### Linux (AppImage)
 
-Download the AppImage from the GitHub Releases page. Make it executable and
-put it on your PATH.
+Download the AppImage from the
+[GitHub Releases page](https://github.com/gleachkr/Lectic/releases). Make it
+executable and put it on your PATH.
 
 ```bash
 chmod +x lectic-*.AppImage
@@ -28,7 +21,17 @@ mv lectic-*.AppImage ~/.local/bin/lectic
 
 #### macOS
 
-Download the macOS binary from the [GitHub Releases page](https://github.com/gleachkr/Lectic/releases) and put it on your PATH.
+Download the macOS binary from the
+[GitHub Releases page](https://github.com/gleachkr/Lectic/releases) and put
+it on your PATH.
+
+#### Nix
+
+If you use Nix, install directly from the repository:
+
+```bash
+nix profile install github:gleachkr/lectic
+```
 
 ## Verify the install
 
@@ -38,87 +41,91 @@ lectic --version
 
 If you see a version number, you are ready to go.
 
-## Tab completion (optional)
+## Set up an API key
 
-Lectic has an extensible tab completion system that supports standard flags
-and [Custom Subcommands](../automation/03_custom_subcommands.qmd).
-
-To enable it, source the completion script in your shell configuration (e.g.,
-`~/.bashrc`):
-
-```bash
-# Adjust path to where you cloned/extracted Lectic
-source /path/to/lectic/extra/tab_complete/lectic_completion.bash
-```
-
-or place the script in `~/.local/share/bash-completion/completions/` or one of
-the other standard locations for completion scripts.
-
-## Your first conversation
-
-#### Set up an API key
-
-Lectic talks to LLM providers. Put at least one provider key in your environment so
-Lectic can pick a default.
+Lectic talks to LLM providers. Put at least one provider key in your
+environment:
 
 ```bash
 export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
 Lectic chooses a default provider by checking for keys in this order:
-Anthropic, then Gemini, then OpenAI, then OpenRouter. If you need Bedrock,
-set `provider: anthropic/bedrock` explicitly in your file and make sure your
-AWS credentials are configured. Bedrock is not auto‑selected.
+Anthropic → Gemini → OpenAI → OpenRouter. You only need one.
 
-Finally, OpenAI has two provider choices. Use `openai` for the newer
-Responses API and native tools. Use `openai/chat` for the legacy Chat
-Completions API when you need it.
+::: {.callout-warning}
+**Common issue:** If you see "No API key found," make sure you exported
+the key in the same shell session where you're running Lectic. If you set
+it in `.bashrc`, you may need to restart your terminal or run
+`source ~/.bashrc`.
+:::
 
-#### Create a conversation file
+## Your first conversation
 
-Make a new file, for example `my_convo.lec`. The `.lec` extension helps with
-editor integration.
+### The conversation format
 
-Add a minimal YAML header and your first user message:
+A Lectic conversation is a markdown file with a YAML header. The header
+configures the LLM (which we call an "interlocutor"). Everything below the
+header is the conversation: your messages as plain text, and the LLM's
+responses in special `:::Name` blocks.
 
-```yaml
+Here's a minimal example:
+
+```markdown
 ---
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
-  provider: anthropic
-  model: claude-3-haiku-20240307
-  # Optional thinking controls (Anthropic/Gemini):
-  # thinking_budget: 1024     # integer token budget for reasoning
 ---
 
-Hello, world! What is a fun fact about the Rust programming language?
+What is a fun fact about the Rust programming language?
 ```
 
-#### Run Lectic
+The `name` identifies who's speaking in the response blocks. The `prompt`
+is the system prompt. Lectic picks a default provider and model based on
+your API keys, so you don't need to specify them.
 
-From your terminal, run Lectic on the file. The `-i` flag updates the file
-in place.
+### Create and run
+
+Create a file called `hello.lec` with the content above, then run:
 
 ```bash
-lectic -i my_convo.lec
+lectic -i hello.lec
 ```
 
-Lectic sends your message to the model and appends its response in a new
-assistant block. You can add your next message under that block and run the
-command again to continue the conversation.
+The `-i` flag updates the file in place. Lectic sends your message to the
+LLM and appends the response:
 
-#### Use a tiny tool
+```markdown
+---
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+---
 
-Now add a very small tool to see the tool flow. This one exposes `date`.
+What is a fun fact about the Rust programming language?
+
+:::Assistant
+
+Rust's mascot is a crab named Ferris! The name is a pun on "ferrous,"
+relating to iron (Fe), which connects to "rust." You'll often see Ferris
+in Rust documentation and community materials.
+
+:::
+```
+
+To continue the conversation, add your next message below the `:::` block
+and run `lectic -i hello.lec` again.
+
+### Use a tool
+
+Now let's give the assistant a tool. Create a new file called `tools.lec`:
 
 ```yaml
 ---
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
-  provider: anthropic
-  model: claude-3-haiku-20240307
   tools:
     - exec: date
       name: get_date
@@ -148,12 +155,55 @@ Lectic needs at least one provider key in your environment. Make sure
 you've exported it in the same shell session:
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-lectic -i my_convo.lec
+lectic -i tools.lec
 ```
 
-If you set the key in a config file (like `.bashrc`), you may need to
-restart your terminal or run `source ~/.bashrc`.
+The response now includes an XML block showing the tool call and its
+results:
+
+```markdown
+:::Assistant
+
+<tool-call with="get_date">
+<arguments><argv>[]</argv></arguments>
+<results>
+<result type="text">
+┆<stdout>Fri Jun 13 10:42:17 PDT 2025</stdout>
+</result>
+</results>
+</tool-call>
+
+Today is Friday, June 13th, 2025.
+
+:::
+```
+
+The `<tool-call>` block is part of the conversation record. It shows what
+the LLM requested, what arguments it passed, and what came back. Editor
+plugins typically fold these blocks to reduce clutter.
+
+::: {.callout-tip}
+You can load prompts from files or compute them with commands using
+`file:` and `exec:`. See
+[External Prompts](./context_management/03_external_prompts.qmd).
+:::
+
+## Tab completion (optional)
+
+Lectic has an extensible tab completion system that supports standard flags
+and [Custom Subcommands](./automation/03_custom_subcommands.qmd).
+
+To enable it, source the completion script in your shell configuration
+(e.g., `~/.bashrc`):
+
+```bash
+# Adjust path to where you cloned/extracted Lectic
+source /path/to/lectic/extra/tab_complete/lectic_completion.bash
+```
+
+Or place the script in `~/.local/share/bash-completion/completions/`.
+
+## Troubleshooting
 
 ### Response is empty or tool calls aren't working
 
@@ -169,13 +219,7 @@ The LSP server catches many of these. See
 ### "Model not found" errors
 
 Model names vary by provider. Use `lectic models` to see what's available
-for your configured API keys. Some common model names:
-
-- Anthropic: `claude-sonnet-4-20250514`, `claude-3-haiku-20240307`
-- OpenAI: `gpt-4o`, `gpt-4o-mini`
-- Gemini: `gemini-2.5-flash`, `gemini-2.5-pro`
-
-The LSP server can autocomplete model names, so tab-complete is your friend here.
+for your configured API keys.
 
 ### Tools aren't being called
 
@@ -191,17 +235,17 @@ interlocutor:
     - exec: date
       name: get_date
 
-# Wrong - tools at top level
+# Wrong — tools at top level won't work
 interlocutor:
   name: Assistant
   prompt: You are helpful.
-tools:  # This won't work
+tools:
   - exec: date
 ```
 
 ## Next steps
 
-Now that you have Lectic working, you'll want to:
+Now that you have Lectic working:
 
 1. **Set up your editor.** The intended workflow is to run Lectic with a
    single keypress. See [Editor Integration](./03_editor_integration.qmd)

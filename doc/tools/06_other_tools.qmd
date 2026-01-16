@@ -52,14 +52,20 @@ for tourism, career opportunities, or something else?
 
 ## The `serve` Tool
 
-The `serve` tool allows the LLM to spin up a simple, single-use web server to
-present content, such as an HTML file or a small web application it has
-generated.
+The `serve` tool lets the LLM show you interactive content—HTML pages,
+visualizations, small web apps—directly in your browser. This is Lectic's
+answer to "artifacts" features you might have seen in web-based LLM
+interfaces.
 
-When the LLM uses this tool, Lectic starts a server on the specified port. It
-will then attempt to open the page in your default web browser. The server
+Why use this instead of just writing HTML to a file? With `serve`, the
+content appears in your browser immediately. You don't need to find the
+file and open it. The LLM can generate a data visualization, a diagram,
+or a playable game and you see it right away.
+
+When the LLM uses this tool, Lectic starts a server on the specified port
+and opens the page in your default browser. The server shuts down after
 shuts down automatically after the first request is served. While the page is
-loading, Lectic waits for the first request—so the conversation resumes once
+the first request, and the conversation resumes.
 your browser has loaded the page.
 
 ### Configuration

@@ -5,6 +5,26 @@ directly. This is a powerful way to provide access to structured
 data, allowing the LLM to perform data analysis, answer questions from a
 knowledge base, or check the state of an application.
 
+::: {.callout-note}
+## Why not just use `exec: sqlite3`?
+
+You could give the LLM a shell command like `exec: sqlite3 ./data.db`,
+but the built-in `sqlite` tool does more:
+
+- **Schema introspection**: Lectic reads the database schema and includes
+  it in the tool description, so the LLM knows what tables and columns
+  exist without you having to explain them.
+- **Result limiting**: Large query results can overwhelm the context
+  window. The `limit` parameter caps response size and returns an error
+  if exceeded, prompting the LLM to write a more selective query.
+- **YAML output**: Results are formatted as YAML, which LLMs tend to
+  parse more reliably than raw SQL output.
+- **Atomic transactions**: Each tool call runs in a transaction. If
+  anything fails, changes are rolled back.
+- **No external binary**: Lectic uses Bun's built-in SQLite support, so
+  you don't need `sqlite3` installed.
+:::
+
 ## Configuration
 
 The snippets below show only the tool definition. They assume you have an

@@ -82,3 +82,31 @@ A logical approach. We will proceed with passive scans.
 
 :::
 ````
+
+## Recursion
+
+Agents can call other agents, and those agents can call back. There's no
+built-in limit on recursion depth, so be thoughtful about your
+configurations. An agent that calls itself (or creates a cycle) will keep
+going until it decides to stop or hits a token limit.
+
+For example, Spock could have a tool that calls Kirk:
+
+```yaml
+interlocutors:
+  - name: Kirk
+    prompt: You are Captain Kirk.
+    tools:
+      - agent: Spock
+        name: consult_spock
+
+  - name: Spock
+    prompt: You are Mr. Spock.
+    tools:
+      - agent: Kirk
+        name: consult_captain
+```
+
+This is powerful for workflows where agents need to collaborate, but it
+requires clear instructions in the prompts about when to delegate and
+when to answer directly.

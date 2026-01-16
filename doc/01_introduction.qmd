@@ -8,25 +8,50 @@ Lectic is a unixy LLM toolbox. It treats conversations as plain text files,
 which means you can version control them, grep them, pipe them, email them, and
 edit them in whatever editor you like.
 
+## What Problems Does Lectic Solve?
+
+Most LLM tools ask you to work in *their* environment—a chat window, a
+dedicated IDE, a web app. Lectic takes the opposite approach: it brings LLMs
+into *your* environment. The conversation is a file. You edit it with your
+editor. You run a command. The response appears.
+
+This matters when you want to:
+
+- **Keep your workflow.** You already have an editor you like, a terminal
+  you've customized, scripts you've written. Lectic fits into that setup
+  instead of replacing it.
+- **Control your data.** Conversations are human-readable files on your disk.
+  Back them up however you want. Delete them when you're done. Email them if
+  you want to. No cloud sync you didn't ask for.
+- **Automate LLM interactions.** Because Lectic is a command-line tool, you can
+  script it, pipe to it, run it from cron jobs or git hooks.
+- **Experiment freely.** Branch a conversation with git. Try different prompts.
+  Diff the results.
+
+The "conversation as file" approach is underexplored. Many "agentic" coding
+tools are reinventing editor affordances in awkward ways—custom UIs for
+editing, bespoke diff viewers, their own version of undo, or evan a vim mode.
+Lectic sidesteps all of that. Your editor already does those things.
+
 ## Core Principles
 
 ### Plain text all the way down
 
-Every conversation is a markdown file (`.lec`). Because your conversations are
-files, you can do anything with them that you can do with files:
+Every conversation is a markdown file (`.lec`). Because your conversations
+are files, you can do anything with them that you can do with files:
 
 - **Version control**: Track changes with git, branch experiments, diff
   conversations.
 - **Search**: `grep` across your conversation history.
-- **Process**: Pipe conversations through other tools. Combine lectic with
+- **Process**: Pipe conversations through other tools. Combine Lectic with
   `sed`, `pandoc`, or anything else.
 - **Back up**: Copy files. Sync with rsync. Store wherever you want.
 
 ### Bring your own editor
 
 Lectic includes an LSP server that provides completions, diagnostics, hover
-information, go-to-definition, and folding for `.lec` files. You can use lectic
-with Neovim, VS Code, or any editor that speaks LSP.
+information, go-to-definition, and folding for `.lec` files. You can use
+Lectic with Neovim, VS Code, or any editor that speaks LSP.
 
 For editors without LSP support, the basic workflow still works: edit a
 file, run `lectic -i file.lec`, and the response is appended.
@@ -51,14 +76,22 @@ Lectic provides a small set of building blocks:
 - **Hooks**: Run code on events (message sent, tool called, etc.).
 - **Tools**: Give the LLM capabilities (shell, database, MCP servers).
 
-You can put these together to build all sorts of AI applications: coding
-assistants, reseach and analysis workflows, orchestrated multi-agent swarms, or
-simple one-shot command line text processing tools. Take a look at the
-[Cookbook](./cookbook/index.qmd) for some detailed recipes.
+::: {.callout-note}
+## What's an "interlocutor"?
+
+Lectic calls LLM configurations "interlocutors" because they're
+participants in a conversation. An interlocutor has a name, a prompt, and
+optionally tools and other settings. You can have multiple interlocutors
+in one conversation—each with different capabilities or personalities.
+:::
+
+You combine these to build what you need: coding assistants, research
+workflows, multi-agent systems, or simple one-shot text processing. See the
+[Cookbook](./cookbook/index.qmd) for detailed recipes.
 
 ## Quick Example
 
-A minimal conversation:
+A minimal conversation file:
 
 ```markdown
 ---
@@ -76,7 +109,11 @@ What's 2 + 2?
 :::
 ```
 
-A more interesting one:
+The `---` block at the top is YAML configuration. Below it, you write your
+message. The `:::Assistant` block is where the LLM's response appears—Lectic
+appends it when you run the command.
+
+A more interesting setup with tools:
 
 ```yaml
 ---
@@ -94,9 +131,27 @@ interlocutor:
 ```markdown
 Review the error handling in src/main.ts. Are there any uncaught
 exceptions?
+
+:::Assistant
+
+<tool-call with="read_file">
+<arguments><argv>["src/main.ts"]</argv></arguments>
+<results>
+<result type="text">
+┆<stdout>// contents of main.ts...</stdout>
+</result>
+</results>
+</tool-call>
+
+Looking at the code, I can see several places where exceptions might not
+be caught...
+
+:::
 ```
 
-The assistant can read files and search the codebase to answer.
+The assistant reads files and searches the codebase to answer your question.
+Tool calls appear inline in the response so you can see exactly what
+happened.
 
 ## Next Steps
 
@@ -110,4 +165,5 @@ The assistant can read files and search the codebase to answer.
 - [Cookbook](./cookbook/index.qmd): Ready-to-use recipes for common
   workflows.
 
-All of the documentation concatinated into a single markdown file can be found [here](./llms-full.md)
+All documentation concatenated into a single markdown file can be found
+[here](./llms-full.md).

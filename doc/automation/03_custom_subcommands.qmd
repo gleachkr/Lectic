@@ -40,11 +40,11 @@ Run it:
 lectic hello
 ```
 
-### Javascript via `lectic script`
+### JavaScript/TypeScript via `lectic script`
 
-Lectic includes a built-in bun runtime for running JavaScript and TypeScript files via
-`lectic script`. You can use this to write subcommands in JS or TS even if you
-don't have bun installed globally.
+Lectic bundles a Bun runtime, so you can write subcommands in JavaScript or
+TypeScript without installing anything extra. Use `lectic script` as your
+shebang interpreter.
 
 Create `~/.config/lectic/lectic-calc`:
 
@@ -72,10 +72,16 @@ Make it executable and run:
 lectic calc 1 + 2
 ```
 
-Bun has built in support for [all sorts of things](https://bun.com/docs),
-including YAML parsing and serialization, running simple webservers,
-interfacing with databases, rich networking primitives, and lots more. All
-these are accessible via `lectic script`.
+::: {.callout-tip}
+## Why `lectic script`?
+
+You get Bun's full capabilities without installing Bun separately. This
+includes built-in YAML parsing, HTTP servers, SQLite, fetch, and much more.
+See [Bun's documentation](https://bun.sh/docs) for what's available.
+
+This is especially useful for writing more complex subcommands that would
+be awkward in Bash.
+:::
 
 ## Environment Variables
 

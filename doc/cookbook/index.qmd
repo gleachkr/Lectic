@@ -4,22 +4,51 @@ This section contains practical recipes showing how to combine Lectic's
 primitives to build useful workflows. Each recipe is self-contained and
 can be adapted to your needs.
 
-## Recipes
+## Getting Started
 
-- [Coding Assistant](./01_coding_assistant.qmd): An agentic setup with
-  shell tools, TypeScript checking, and human-in-the-loop confirmation.
-- [Git Commit Messages](./02_commit_messages.qmd): A custom subcommand
-  that generates commit messages from staged changes.
-- [Research with Multiple Perspectives](./03_research_perspectives.qmd):
-  Using multiple interlocutors to get different viewpoints on a problem.
-- [Conversation Memory](./04_memory.qmd): Persisting conversations to
-  SQLite and retrieving relevant context.
-- [Context Compaction](./05_context_compaction.qmd): Automatically
-  summarizing and resetting context when token limits approach.
-- [Custom Sandboxing](./06_custom_sandboxing.qmd): Isolate tool execution
-  using wrapper scripts like Bubblewrap.
-- [Control Flow with Macros](./07_control_flow_macros.qmd): Implement advanced
-  logic like loops, conditionals, and maps using recursive macros.
-- [Agent Skills Support](./08_skills_subcommand.qmd): Expose Agent Skills as a
-  progressive-disclosure tool that can load instructions, references, and run
-  skill scripts.
+If you're new to Lectic, start with these:
+
+- **[Coding Assistant](./01_coding_assistant.qmd)** — Give your LLM shell
+  access, type checking, and linting. Includes a confirmation dialog so
+  you approve tool calls before they run.
+
+- **[Git Commit Messages](./02_commit_messages.qmd)** — A `lectic commit`
+  subcommand that generates conventional commit messages from your staged
+  changes. A good example of building small, focused tools.
+
+## Multi-Agent Workflows
+
+- **[Research with Multiple Perspectives](./03_research_perspectives.qmd)**
+  — Define multiple interlocutors with different personalities (researcher,
+  critic, synthesizer) and use `:ask` and `:aside` to get different
+  viewpoints on a problem.
+
+## State and Memory
+
+- **[Conversation Memory](./04_memory.qmd)** — Two approaches to
+  persistence: automatically recording everything to SQLite, or giving the
+  LLM an explicit "remember" tool. An advanced recipe that shows the power
+  of hooks.
+
+- **[Context Compaction](./05_context_compaction.qmd)** — Automatically
+  summarize and reset context when token usage gets high. Useful for
+  long-running conversations that would otherwise hit context limits.
+
+## Security and Isolation
+
+- **[Custom Sandboxing](./06_custom_sandboxing.qmd)** — Isolate tool
+  execution using wrapper scripts. Covers logging, Bubblewrap isolation,
+  and stateful "shadow workspaces." Essential reading if you're giving
+  LLMs write access to your system.
+
+## Advanced Techniques
+
+- **[Control Flow with Macros](./07_control_flow_macros.qmd)** — Implement
+  loops, conditionals, and map operations using recursive macros. This is
+  power-user territory—most workflows don't need this, but it shows what's
+  possible.
+
+- **[Agent Skills Support](./08_skills_subcommand.qmd)** — Build a
+  subcommand that exposes the [Agent Skills](https://agentskills.io)
+  format, letting your LLM load capabilities on demand through progressive
+  disclosure.
