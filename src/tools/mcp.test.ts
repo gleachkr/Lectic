@@ -96,7 +96,10 @@ describe("Identity keys include roots and sandbox", () => {
   it("injects headers into fetch", async () => {
     const originalFetch = global.fetch;
     let capturedHeaders: Headers | undefined;
-    (global as any).fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    (global as any).fetch = async (
+      _input: RequestInfo | URL,
+      init?: RequestInit
+    ) => {
         capturedHeaders = new Headers(init?.headers);
         return new Response("ok");
     };
@@ -124,7 +127,10 @@ describe("Identity keys include roots and sandbox", () => {
   it("resolves exec: in headers", async () => {
     const originalFetch = global.fetch;
     let capturedHeaders: Headers | undefined;
-    (global as any).fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    (global as any).fetch = async (
+      _input: RequestInfo | URL,
+      init?: RequestInit
+    ) => {
       capturedHeaders = new Headers(init?.headers);
       return new Response("ok");
     };

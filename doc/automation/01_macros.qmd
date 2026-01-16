@@ -64,12 +64,8 @@ full text from its `expansion` field.
 ::: {.callout-note}
 ## Built-in Macros
 
-Lectic includes one built-in macro: `:cmd[...]`. It executes a shell
-command and expands to the command's output wrapped in XML. See
-[External Content](../context_management/01_external_content.qmd#command-output-via-cmd)
-for details.
-
-Because `:cmd` is a macro, it composes naturally with user-defined macros.
+Lectic includes several built-in macros described in the next section.
+Because they are macros, they compose naturally with user-defined macros.
 For example, you can wrap `:cmd` in a caching macro:
 `:cache[:cmd[expensive-command]]`.
 :::
@@ -79,6 +75,97 @@ This was a long and productive discussion. Could you wrap it up?
 
 :summarize[]
 ```
+
+## Built-in Macros Reference
+
+Lectic provides several built-in macros for common operations. These are
+always available without any configuration.
+
+### `:cmd` — Execute a Command
+
+Runs a shell command and expands to the output wrapped in XML.
+
+```markdown
+What's my current directory? :cmd[pwd]
+```
+
+Expands to:
+
+```xml
+<stdout from="pwd">/home/user/project</stdout>
+```
+
+If the command fails, you get an error wrapper with both stdout and stderr.
+See [External Content](../context_management/01_external_content.qmd#command-output-via-cmd)
+for full details on execution environment and error handling.
+
+### `:env` — Read Environment Variables
+
+Expands to the value of an environment variable. Useful for injecting
+configuration or paths without running a command.
+
+```markdown
+My home directory is :env[HOME]
+```
+
+ If the variable is not set, `:env` expands to an
+empty string.
+
+### `:verbatim` — Prevent Expansion
+
+Returns the raw child text without expanding any macros inside it.
+```markdown
+Here's an example of macro syntax: :verbatim[:cmd[echo hello]]
+```
+
+Expands to:
+
+```markdown
+Here's an example of macro syntax: :cmd[echo hello]
+```
+
+The inner `:cmd` is not executed — it appears literally in the output.
+
+### `:once` — Expand Only in Final Message
+
+Only expands its children when processing the final (most recent) user
+message. In earlier messages, it expands to nothing.
+
+This is useful for commands that should only run once, not be re-executed
+every time context is rebuilt:
+
+```markdown
+:once[:cmd[expensive-analysis-script]]
+```
+
+When you add a new message and re-run Lectic, the `:once` directive in
+older messages will produce no output, while the one in your latest
+message will execute.
+
+### `:discard` — Evaluate and Discard
+
+Expands and evaluates its children (including any commands), but discards
+the output entirely. Useful for side effects.
+
+```markdown
+:discard[:cmd[echo "logged" >> activity.log]]
+```
+
+The command runs and writes to the log file, but nothing appears in the
+conversation. You can combine `:once` and `:discard` for cases where you only
+want the macro to run once, and you don't want to pass the output to the LLM.
+
+### `:attach` — Create Inline Attachment
+
+Captures its expanded children as an inline attachment stored in the
+assistant's response block. Only processed in the final message.
+
+```markdown
+:attach[:cmd[git diff --staged]]
+```
+
+See [External Content](../context_management/01_external_content.qmd#inline-attachments-with-attach)
+for full details on how inline attachments work and when to use them.
 
 ## The Macro Expansion Environment
 

@@ -78,7 +78,7 @@ macros:
   - name: inner
     expansion: Inner
   - name: outer
-    expansion: Outer :inner[]
+    pre: Outer :inner[]
 ---
 :outer[]`
     const lines = text.split("\n")

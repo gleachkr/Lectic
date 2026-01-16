@@ -33,6 +33,43 @@ export const DIRECTIVE_DOCS: DirectiveDoc[] = [
     sortText: "01_cmd",
   },
   {
+    key: "env",
+    title: "expand an environment variable",
+    body:
+      "Expand to the value of the named environment variable. The " +
+      "expansion environment includes your process env, standard Lectic " +
+      "variables (LECTIC_*), and any directive attributes.",
+    insert: ":env[${0:VAR}]",
+    sortText: "01_env",
+  },
+  {
+    key: "verbatim",
+    title: "return raw text without expanding nested macros",
+    body:
+      "Return the bracket content exactly as written. Nested directives " +
+      "inside the brackets are not expanded.",
+    insert: ":verbatim[${0:text}]",
+    sortText: "01_verbatim",
+  },
+  {
+    key: "once",
+    title: "expand only in the most recent user message",
+    body:
+      "Expand the bracket content only when processing the most recent " +
+      "user message. In older messages it expands to an empty string.",
+    insert: ":once[${0:text}]",
+    sortText: "01_once",
+  },
+  {
+    key: "discard",
+    title: "expand nested macros but discard the resulting text",
+    body:
+      "Expand the bracket content (including nested macros), then return " +
+      "an empty string. Useful for side-effecting expansions like :attach.",
+    insert: ":discard[${0:text}]",
+    sortText: "01_discard",
+  },
+  {
     key: "attach",
     title: "attach verbatim inline text as an inline attachment",
     body:

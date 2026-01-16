@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { expandMacros } from "./macro"
 import { Macro } from "../types/macro"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
 describe("expandMacros", () => {
     test("expands simple macro", async () => {
@@ -159,5 +162,69 @@ describe("expandMacros", () => {
         const input = ":if_a[:case_b[]]" // inner should not run
         const output = await expandMacros(input, macros)
         expect(output.trim()).toBe("Case A")
+    })
+
+    test("builtin :env reads from process.env", async () => {
+        const prev = process.env["LECTIC_TEST_ENV"]
+        process.env["LECTIC_TEST_ENV"] = "hello"
+        try {
+            const out = await expandMacros(":env[LECTIC_TEST_ENV]", {})
+            expect(out).toBe("hello")
+        } finally {
+            if (prev === undefined) delete process.env["LECTIC_TEST_ENV"]
+            else process.env["LECTIC_TEST_ENV"] = prev
+        }
+    })
+
+    test("builtin :env reads from directive attrs", async () => {
+        const out = await expandMacros(":env[FOO]{FOO=\"bar\"}", {})
+        expect(out).toBe("bar")
+    })
+
+    test("builtin :verbatim returns raw child text", async () => {
+        const macros = {
+            inner: new Macro({ name: "inner", expansion: "EXPANDED" }),
+        }
+        const out = await expandMacros(":verbatim[:inner[]]", macros)
+        expect(out.trim()).toBe(":inner[]")
+    })
+
+    test("builtin :once only expands in final message", async () => {
+        const macros = {
+            inner: new Macro({ name: "inner", expansion: "EXPANDED" }),
+        }
+
+        const notFinal = await expandMacros(
+            ":once[:inner[]]",
+            macros,
+            { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 2 }
+        )
+        expect(notFinal).toBe("")
+
+        const final = await expandMacros(
+            ":once[:inner[]]",
+            macros,
+            { MESSAGE_INDEX: 2, MESSAGES_LENGTH: 2 }
+        )
+        expect(final.trim()).toBe("EXPANDED")
+    })
+
+    test("builtin :discard evaluates children but discards output", async () => {
+        const dir = mkdtempSync(join(tmpdir(), "lectic-macro-"))
+        const outFile = join(dir, "clear-test.txt")
+
+        try {
+            const out = await expandMacros(
+                `:discard[:cmd[echo hi > \"${outFile}\"]]`,
+                {},
+                { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 }
+            )
+
+            expect(out).toBe("")
+            expect(existsSync(outFile)).toBe(true)
+            expect(readFileSync(outFile, "utf8").trim()).toBe("hi")
+        } finally {
+            rmSync(dir, { recursive: true, force: true })
+        }
     })
 })

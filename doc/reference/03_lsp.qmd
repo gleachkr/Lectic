@@ -24,8 +24,9 @@ The server uses stdio transport and works with any LSP-capable editor. See
 
 The LSP suggests completions as you type:
 
-- **Directives**: Type `:` to see `:cmd`, `:ask`, `:aside`, `:reset`, and
-  any macros you've defined.
+- **Directives**: Type `:` to see built-in directives (`:cmd`, `:env`,
+  `:verbatim`, `:once`, `:discard`, `:attach`, `:ask`, `:aside`, `:reset`)
+  and any macros you've defined.
 - **Interlocutor names**: Inside `:ask[` or `:aside[`, the LSP suggests
   names from your configuration.
 - **YAML header fields**: In the frontmatter, get suggestions for
@@ -70,7 +71,7 @@ Both Neovim and VS Code plugins enable folding by default.
 
 Hover over elements to see documentation:
 
-- **Directives**: Hover on `:cmd`, `:ask`, etc. to see what they do.
+- **Directives**: Hover on built-in directives to see what they do.
 - **Macros**: Hover on a macro directive to preview its expansion.
 - **Tool calls**: Hover on a `<tool-call>` block to see a summary.
 

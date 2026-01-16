@@ -502,14 +502,14 @@ export async function computeCompletions(
 
   // 1) Inside :ask[...]/:aside[...]
   const dctx = bundle ? directiveAtPositionFromBundle(docText, pos, bundle) : null
-  if (dctx && dctx.insideBrackets && (dctx.key === "ask" || dctx.key === "aside")) {
-    const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
-    const spec = specRes.spec
-    if (!isLecticHeaderSpec(spec)) return items
-
-    const innerText = dctx.innerPrefix.toLowerCase()
+  if (dctx && dctx.insideBrackets) {
 
     if (dctx.key === "ask" || dctx.key === "aside") {
+      const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+      const spec = specRes.spec
+      if (!isLecticHeaderSpec(spec)) return items
+
+      const innerText = dctx.innerPrefix.toLowerCase()
       const interNames = buildInterlocutorIndex(spec)
       for (const n of interNames) {
         if (!n.name.toLowerCase().startsWith(innerText)) continue
@@ -526,6 +526,38 @@ export async function computeCompletions(
           textEdit
         })
       }
+      return items
+    }
+
+    if (dctx.key === "env") {
+      const prefix = dctx.innerPrefix.trim().toLowerCase()
+      const envVars = [
+        "LECTIC_CONFIG",
+        "LECTIC_DATA",
+        "LECTIC_CACHE",
+        "LECTIC_STATE",
+        "LECTIC_TEMP",
+        "LECTIC_FILE",
+        "LECTIC_INTERLOCUTOR",
+        "LECTIC_MODEL",
+        ...Object.keys(process.env)
+      ]
+
+      for (const v of envVars) {
+        if (prefix && !v.toLowerCase().startsWith(prefix)) continue
+        const textEdit: TextEdit = {
+          range: RangeNS.create(dctx.innerStart, pos),
+          newText: v,
+        }
+        items.push({
+          label: v,
+          kind: CompletionItemKind.Variable,
+          detail: "Environment variable",
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit,
+        })
+      }
+
       return items
     }
 
