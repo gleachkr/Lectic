@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -394,12 +400,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#tools-model-context-protocol-mcp" id="toc-tools-model-context-protocol-mcp" class="nav-link active" data-scroll-target="#tools-model-context-protocol-mcp">Tools: Model Context Protocol (<code>mcp</code>)</a>
   <ul class="collapse">
+  <li><a href="#what-is-mcp" id="toc-what-is-mcp" class="nav-link" data-scroll-target="#what-is-mcp">What is MCP?</a></li>
   <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a>
   <ul class="collapse">
   <li><a href="#local-mcp-server-mcp_command" id="toc-local-mcp-server-mcp_command" class="nav-link" data-scroll-target="#local-mcp-server-mcp_command">Local MCP Server (<code>mcp_command</code>)</a></li>
   <li><a href="#remote-mcp-servers" id="toc-remote-mcp-servers" class="nav-link" data-scroll-target="#remote-mcp-servers">Remote MCP Servers</a></li>
   <li><a href="#server-resources-and-content-references" id="toc-server-resources-and-content-references" class="nav-link" data-scroll-target="#server-resources-and-content-references">Server Resources and Content References</a></li>
-  <li><a href="#excluding-server-tools" id="toc-excluding-server-tools" class="nav-link" data-scroll-target="#excluding-server-tools">Excluding server tools</a></li>
+  <li><a href="#blacklisting-and-whitelisting-server-tools" id="toc-blacklisting-and-whitelisting-server-tools" class="nav-link" data-scroll-target="#blacklisting-and-whitelisting-server-tools">Blacklisting and whitelisting server tools</a></li>
   </ul></li>
   <li><a href="#safety-and-trust" id="toc-safety-and-trust" class="nav-link" data-scroll-target="#safety-and-trust">Safety and trust</a>
   <ul class="collapse">
@@ -419,7 +426,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tools-model-context-protocol-mcp" class="level1">
 <h1>Tools: Model Context Protocol (<code>mcp</code>)</h1>
 <p>Lectic can act as a client for servers that implement the <a href="https://modelcontextprotocol.io">Model Context Protocol (MCP)</a>. This allows you to connect your LLM to a vast and growing ecosystem of pre-built tools and services.</p>
-<p>You can find lists of available servers here: - <a href="https://github.com/modelcontextprotocol/servers">Official MCP Server List</a> - <a href="https://github.com/punkpeye/awesome-mcp-servers">Awesome MCP Servers</a></p>
+<section id="what-is-mcp" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-mcp">What is MCP?</h2>
+<p>MCP is a standard protocol for connecting LLMs to external tools and data sources. Instead of writing custom integrations for every service, you can use any MCP-compatible server. Servers exist for GitHub, databases, file systems, web browsers, and much more.</p>
+<p>The protocol handles the details of how tools describe themselves and how results are returned. Lectic speaks MCP, so you can drop in any compatible server and the LLM can use its tools immediately.</p>
+<p>You can find lists of available servers here:</p>
+<ul>
+<li><a href="https://github.com/modelcontextprotocol/servers">Official MCP Server List</a></li>
+<li><a href="https://github.com/punkpeye/awesome-mcp-servers">Awesome MCP Servers</a></li>
+</ul>
+</section>
 <section id="configuration" class="level2">
 <h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
 <p>Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.</p>
@@ -451,6 +467,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> documentation_search </span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://mcp.context7.com/mcp</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="authentication-for-streamable-http" class="level4">
+<h4 class="anchored" data-anchor-id="authentication-for-streamable-http">Authentication for Streamable HTTP</h4>
+<p>The <code>mcp_shttp</code> transport supports both custom headers and dynamic OAuth 2.0.</p>
+<p>Custom headers can be provided using the <code>headers</code> key. Header values support <code>file:</code> and <code>exec:</code> sources, which is useful for securely loading tokens or computing authentication headers on the fly.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github_mcp</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://api.githubcopilot.com/mcp</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">headers</span><span class="kw">:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">Authorization</span><span class="kw">:</span><span class="at"> exec:bash -c 'echo "Bearer $(pass github_token)"'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If a server requires OAuth 2.0 and supports the MCP OAuth flow, Lectic will automatically handle the authorization process. When an unauthorized request is made, Lectic will open your default browser to complete the login, and then securely persist the resulting tokens in your data directory.</p>
+</section>
 </section>
 <section id="server-resources-and-content-references" class="level3">
 <h3 class="anchored" data-anchor-id="server-resources-and-content-references">Server Resources and Content References</h3>
@@ -458,15 +485,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>For example, to access a <code>repo</code> resource from a server named <code>github</code>: <code>[README](github+repo://gleachkr/Lectic/contents/README.md)</code></p>
 <p>The LLM is also given a tool to list the available resources from the server.</p>
 </section>
-<section id="excluding-server-tools" class="level3">
-<h3 class="anchored" data-anchor-id="excluding-server-tools">Excluding server tools</h3>
+<section id="blacklisting-and-whitelisting-server-tools" class="level3">
+<h3 class="anchored" data-anchor-id="blacklisting-and-whitelisting-server-tools">Blacklisting and whitelisting server tools</h3>
 <p>You can hide specific tools that a server exposes by listing their names under <code>exclude</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_ws</span><span class="kw">:</span><span class="at"> wss://example.org/mcp</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exclude</span><span class="kw">:</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> dangerous_tool</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> low_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_ws</span><span class="kw">:</span><span class="at"> wss://example.org/mcp</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exclude</span><span class="kw">:</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> dangerous_tool</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> low_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You can also limit access to a specific set of tools that a server exposes by listing their names under <code>only</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_ws</span><span class="kw">:</span><span class="at"> wss://example.org/mcp</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">only</span><span class="kw">:</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> safe_tool</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> high_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If you specify both options at once, you’ll get exactly the tools from the <code>only</code> list that aren’t also excluded.</p>
 </section>
 </section>
 <section id="safety-and-trust" class="level2">
@@ -492,7 +527,7 @@ Warning
 <h3 class="anchored" data-anchor-id="sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</h3>
 <p>For local <code>mcp_command</code> tools, you can specify a <code>sandbox</code> command. This command will be used to launch the MCP server process in a controlled and isolated environment, limiting its access to your system. Arguments are supported (e.g.&nbsp;<code>sandbox: wrapper.sh --strict</code>).</p>
 <p>See the documentation for the <a href="../tools/02_exec.html">Exec Tool</a> for more details on how sandboxing scripts work, and the <a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a> recipe for examples.</p>
-<p>You can also set a default <code>sandbox</code> on the <code>interlocutor</code> object. If set, it applies to all local MCP tools that don’t specify their own.</p>
+<p>You can also set a default sandbox at the top level (<code>sandbox</code>) or on the <code>interlocutor</code> object. If set, it applies to all local <code>mcp_command</code> tools that don’t specify their own. Tool-level <code>sandbox</code> wins over both defaults.</p>
 
 
 </section>

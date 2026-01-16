@@ -316,6 +316,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -360,6 +366,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#reference-configuration-keys" id="toc-reference-configuration-keys" class="nav-link active" data-scroll-target="#reference-configuration-keys">Reference: Configuration Keys</a>
   <ul class="collapse">
   <li><a href="#top-level-keys" id="toc-top-level-keys" class="nav-link" data-scroll-target="#top-level-keys">Top-Level Keys</a></li>
+  <li><a href="#the-kit-object" id="toc-the-kit-object" class="nav-link" data-scroll-target="#the-kit-object">The <code>kit</code> Object</a></li>
   <li><a href="#the-interlocutor-object" id="toc-the-interlocutor-object" class="nav-link" data-scroll-target="#the-interlocutor-object">The <code>interlocutor</code> Object</a>
   <ul class="collapse">
   <li><a href="#model-configuration" id="toc-model-configuration" class="nav-link" data-scroll-target="#model-configuration">Model Configuration</a></li>
@@ -388,6 +395,17 @@ ul.task-list li input[type="checkbox"] {
 <li><code>kits</code>: A list of named tool kits you can reference from interlocutors.</li>
 <li><code>macros</code>: A list of macro definitions. See <a href="../automation/01_macros.html">Macros</a>.</li>
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>.</li>
+<li><code>sandbox</code>: A default sandbox command string applied to all <code>exec</code> tools and local <code>mcp_command</code> tools, unless overridden by <code>interlocutor.sandbox</code> or a tool’s own <code>sandbox</code> setting.</li>
+</ul>
+<hr>
+</section>
+<section id="the-kit-object" class="level2">
+<h2 class="anchored" data-anchor-id="the-kit-object">The <code>kit</code> Object</h2>
+<p>A kit is a named list of tools that can be reused from an interlocutor’s <code>tools</code> array using <code>- kit: &lt;name&gt;</code>.</p>
+<ul>
+<li><code>name</code>: (Required) The kit name.</li>
+<li><code>tools</code>: (Required) An array of tool definitions.</li>
+<li><code>description</code>: (Optional) Short documentation shown in editor hovers and autocomplete.</li>
 </ul>
 <hr>
 </section>
@@ -398,7 +416,7 @@ ul.task-list li input[type="checkbox"] {
 <li><code>name</code>: (Required) The name of the speaker, used in the <code>:::Name</code> response blocks.</li>
 <li><code>prompt</code>: (Required) The base system prompt that defines the LLM’s personality and instructions. The value can be a string, or it can be loaded from a file (<code>file:./path.txt</code>) or a command (<code>exec:get-prompt</code>). See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details and examples.</li>
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>. These hooks fire only when this interlocutor is active.</li>
-<li><code>sandbox</code>: A command string (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>) to wrap execution for all <code>exec</code> tools and local <code>mcp_command</code> tools used by this interlocutor, unless overridden by the tool’s own <code>sandbox</code> setting.</li>
+<li><code>sandbox</code>: A command string (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>) to wrap execution for all <code>exec</code> tools and local <code>mcp_command</code> tools used by this interlocutor, unless overridden by the tool’s own <code>sandbox</code> setting. This overrides any top-level <code>sandbox</code> setting.</li>
 </ul>
 <section id="model-configuration" class="level3">
 <h3 class="anchored" data-anchor-id="model-configuration">Model Configuration</h3>
@@ -480,9 +498,11 @@ ul.task-list li input[type="checkbox"] {
 <li>One of: <code>mcp_command</code>, <code>mcp_ws</code>, <code>mcp_sse</code>, or <code>mcp_shttp</code>.</li>
 <li><code>args</code>: Arguments for <code>mcp_command</code>.</li>
 <li><code>env</code>: Environment variables for <code>mcp_command</code>.</li>
+<li><code>headers</code>: A map of custom headers for <code>mcp_shttp</code>. Values support <code>file:</code> and <code>exec:</code>.</li>
 <li><code>sandbox</code>: Optional wrapper command to isolate <code>mcp_command</code> servers.</li>
 <li><code>roots</code>: Optional list of root objects for file access (each with <code>uri</code> and optional <code>name</code>).</li>
-<li><code>exclude</code>: Optional list of server tool names to hide.</li>
+<li><code>exclude</code>: Optional list of server tool names to blacklist.</li>
+<li><code>only</code>: Optional list of server tool names to whitelist.</li>
 </ul>
 </section>
 <section id="other-tool-keys" class="level4">

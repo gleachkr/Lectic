@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -415,6 +421,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tools-sqlite-query" class="level1">
 <h1>Tools: SQLite Query</h1>
 <p>The <code>sqlite</code> tool gives your LLM the ability to query SQLite databases directly. This is a powerful way to provide access to structured data, allowing the LLM to perform data analysis, answer questions from a knowledge base, or check the state of an application.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Why not just use <code>exec: sqlite3</code>?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>You could give the LLM a shell command like <code>exec: sqlite3 ./data.db</code>, but the built-in <code>sqlite</code> tool does more:</p>
+<ul>
+<li><strong>Schema introspection</strong>: Lectic reads the database schema and includes it in the tool description, so the LLM knows what tables and columns exist without you having to explain them.</li>
+<li><strong>Result limiting</strong>: Large query results can overwhelm the context window. The <code>limit</code> parameter caps response size and returns an error if exceeded, prompting the LLM to write a more selective query.</li>
+<li><strong>YAML output</strong>: Results are formatted as YAML, which LLMs tend to parse more reliably than raw SQL output.</li>
+<li><strong>Atomic transactions</strong>: Each tool call runs in a transaction. If anything fails, changes are rolled back.</li>
+<li><strong>No external binary</strong>: Lectic uses Bun’s built-in SQLite support, so you don’t need <code>sqlite3</code> installed.</li>
+</ul>
+</div>
+</div>
 <section id="configuration" class="level2">
 <h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
 <p>The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See Getting Started for a full header example.</p>

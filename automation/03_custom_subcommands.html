@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -398,7 +404,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a>
   <ul class="collapse">
   <li><a href="#bash-script" id="toc-bash-script" class="nav-link" data-scroll-target="#bash-script">Bash Script</a></li>
-  <li><a href="#javascript-via-lectic-script" id="toc-javascript-via-lectic-script" class="nav-link" data-scroll-target="#javascript-via-lectic-script">Javascript via <code>lectic script</code></a></li>
+  <li><a href="#javascripttypescript-via-lectic-script" id="toc-javascripttypescript-via-lectic-script" class="nav-link" data-scroll-target="#javascripttypescript-via-lectic-script">JavaScript/TypeScript via <code>lectic script</code></a></li>
   </ul></li>
   <li><a href="#environment-variables" id="toc-environment-variables" class="nav-link" data-scroll-target="#environment-variables">Environment Variables</a></li>
   <li><a href="#tab-completion" id="toc-tab-completion" class="nav-link" data-scroll-target="#tab-completion">Tab Completion</a>
@@ -442,9 +448,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Run it:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> hello</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="javascript-via-lectic-script" class="level3">
-<h3 class="anchored" data-anchor-id="javascript-via-lectic-script">Javascript via <code>lectic script</code></h3>
-<p>Lectic includes a built-in bun runtime for running JavaScript and TypeScript files via <code>lectic script</code>. You can use this to write subcommands in JS or TS even if you don’t have bun installed globally.</p>
+<section id="javascripttypescript-via-lectic-script" class="level3">
+<h3 class="anchored" data-anchor-id="javascripttypescript-via-lectic-script">JavaScript/TypeScript via <code>lectic script</code></h3>
+<p>Lectic bundles a Bun runtime, so you can write subcommands in JavaScript or TypeScript without installing anything extra. Use <code>lectic script</code> as your shebang interpreter.</p>
 <p>Create <code>~/.config/lectic/lectic-calc</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env -S lectic script</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -464,7 +470,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Make it executable and run:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> calc 1 + 2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Bun has built in support for <a href="https://bun.com/docs">all sorts of things</a>, including YAML parsing and serialization, running simple webservers, interfacing with databases, rich networking primitives, and lots more. All these are accessible via <code>lectic script</code>.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Why <code>lectic script</code>?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>You get Bun’s full capabilities without installing Bun separately. This includes built-in YAML parsing, HTTP servers, SQLite, fetch, and much more. See <a href="https://bun.sh/docs">Bun’s documentation</a> for what’s available.</p>
+<p>This is especially useful for writing more complex subcommands that would be awkward in Bash.</p>
+</div>
+</div>
 </section>
 </section>
 <section id="environment-variables" class="level2">

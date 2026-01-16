@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -461,8 +467,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="the-serve-tool" class="level2">
 <h2 class="anchored" data-anchor-id="the-serve-tool">The <code>serve</code> Tool</h2>
-<p>The <code>serve</code> tool allows the LLM to spin up a simple, single-use web server to present content, such as an HTML file or a small web application it has generated.</p>
-<p>When the LLM uses this tool, Lectic starts a server on the specified port. It will then attempt to open the page in your default web browser. The server shuts down automatically after the first request is served. While the page is loading, Lectic waits for the first request—so the conversation resumes once your browser has loaded the page.</p>
+<p>The <code>serve</code> tool lets the LLM show you interactive content—HTML pages, visualizations, small web apps—directly in your browser. This is Lectic’s answer to “artifacts” features you might have seen in web-based LLM interfaces.</p>
+<p>Why use this instead of just writing HTML to a file? With <code>serve</code>, the content appears in your browser immediately. You don’t need to find the file and open it. The LLM can generate a data visualization, a diagram, or a playable game and you see it right away.</p>
+<p>When the LLM uses this tool, Lectic starts a server on the specified port and opens the page in your default browser. The server shuts down automatically after the first request is served, and the conversation resumes once your browser has loaded the page.</p>
 <section id="configuration-1" class="level3">
 <h3 class="anchored" data-anchor-id="configuration-1">Configuration</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
@@ -520,6 +527,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Gemini</strong>: Supports both <code>search</code> and <code>code</code>. Note that the Gemini API has a limitation where you can only use one native tool at a time, and it cannot be combined with other (non-native) tools.</li>
 <li><strong>Anthropic</strong>: Supports <code>search</code> only.</li>
 <li><strong>OpenAI</strong>: Supports both <code>search</code> and <code>code</code> via the <code>openai</code> provider (not the legacy <code>openai/chat</code> provider).</li>
+<li><strong>ChatGPT</strong>: Supports both <code>search</code> and <code>code</code> via the <code>chatgpt</code> provider (ChatGPT subscription, Codex backend).</li>
 </ul>
 
 

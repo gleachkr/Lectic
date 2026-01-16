@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>LSP Server – Lectic Documentation</title>
+<title>LSP Server Reference – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -387,15 +393,44 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#lsp-server" id="toc-lsp-server" class="nav-link active" data-scroll-target="#lsp-server">LSP Server</a>
+  <ul class="collapse">
+  <li><a href="#features" id="toc-features" class="nav-link" data-scroll-target="#features">Features</a>
+  <ul class="collapse">
+  <li><a href="#completions" id="toc-completions" class="nav-link" data-scroll-target="#completions">Completions</a></li>
+  <li><a href="#diagnostics" id="toc-diagnostics" class="nav-link" data-scroll-target="#diagnostics">Diagnostics</a></li>
+  <li><a href="#folding" id="toc-folding" class="nav-link" data-scroll-target="#folding">Folding</a></li>
+  <li><a href="#hover-information" id="toc-hover-information" class="nav-link" data-scroll-target="#hover-information">Hover Information</a></li>
+  <li><a href="#go-to-definition" id="toc-go-to-definition" class="nav-link" data-scroll-target="#go-to-definition">Go to Definition</a></li>
+  <li><a href="#document-outline" id="toc-document-outline" class="nav-link" data-scroll-target="#document-outline">Document Outline</a></li>
+  </ul></li>
+  <li><a href="#editor-setup" id="toc-editor-setup" class="nav-link" data-scroll-target="#editor-setup">Editor Setup</a>
+  <ul class="collapse">
+  <li><a href="#neovim" id="toc-neovim" class="nav-link" data-scroll-target="#neovim">Neovim</a></li>
+  <li><a href="#vs-code" id="toc-vs-code" class="nav-link" data-scroll-target="#vs-code">VS Code</a></li>
+  <li><a href="#other-editors" id="toc-other-editors" class="nav-link" data-scroll-target="#other-editors">Other Editors</a></li>
+  </ul></li>
+  <li><a href="#technical-details" id="toc-technical-details" class="nav-link" data-scroll-target="#technical-details">Technical Details</a>
+  <ul class="collapse">
+  <li><a href="#completion-sources" id="toc-completion-sources" class="nav-link" data-scroll-target="#completion-sources">Completion Sources</a></li>
+  <li><a href="#triggers" id="toc-triggers" class="nav-link" data-scroll-target="#triggers">Triggers</a></li>
+  <li><a href="#limitations" id="toc-limitations" class="nav-link" data-scroll-target="#limitations">Limitations</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/03_lsp.html">LSP Server</a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title">LSP Server</h1>
+<h1 class="title">LSP Server Reference</h1>
 </div>
 
 
@@ -412,47 +447,133 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>Lectic includes a small Language Server Protocol (LSP) server that provides completion for directives, macros, and common YAML header fields, plus hovers. It is stdio only.</p>
-<p>Overview - Command: <code>lectic lsp</code> - Transport: stdio (no <code>--node-ipc</code> or <code>--socket</code>) - Features: <code>textDocument/completion</code>, <code>textDocument/hover</code>, diagnostics, document symbols (outline), workspace symbols, folding ranges, code actions, semantic tokens, go to definition - Triggers: <code>:</code>, <code>[</code> in directive brackets, and <code>-</code> in tools arrays - Insertions - Directives use snippets and place the cursor inside brackets (or at the end for reset): <code>:cmd[${0:command}]</code>, <code>:ask[$0]</code>, <code>:aside[$0]</code>, <code>:reset[]$0</code>. - Macro names are suggested on <code>:</code> and insert as directives: <code>:name[]$0</code>. - Inside brackets of <code>:ask[...]</code> and <code>:aside[...]</code>, only interlocutor names are offered. - Matching: case‑insensitive; typed prefix after <code>:</code> or inside <code>[</code> is respected. - Fences: no suggestions inside <code>::</code> or <code>:::</code> runs - Trigger filtering: only <code>:ask[</code>/<code>:aside[</code> produce bracket completions</p>
-<p>Where completions come from - Directives: built‑in suggestions for <code>:cmd</code>, <code>:ask</code>, <code>:aside</code>, and <code>:reset</code>. - Macro names: merged from the same places and precedence as the CLI (higher wins): 1) System config: <code>${LECTIC_CONFIG}/lectic.yaml</code> 2) Workspace config: <code>lectic.yaml</code> in the document directory 3) The document’s YAML header - YAML header fields: - <code>interlocutor</code> / <code>interlocutors</code> blocks: top‑level interlocutor properties such as <code>name</code>, <code>prompt</code>, <code>provider</code>, <code>model</code>, <code>temperature</code>, <code>max_tokens</code>, <code>max_tool_use</code>, <code>thinking_effort</code>, <code>thinking_budget</code>, <code>tools</code>, and <code>nocache</code>. - <code>model</code>: provider‑appropriate model names. - <code>tools</code> array items: tool kinds after a bare <code>-</code>. - <code>kit: ...</code>: merged kit names from system/workspace/header. - <code>agent: ...</code>: merged interlocutor names. - <code>native: ...</code>: supported native types (<code>search</code>, <code>code</code>). - Interlocutors: collected from the merged header as above, combining <code>interlocutor</code> and <code>interlocutors</code>. - De‑duplication is case‑insensitive on name. Higher‑precedence entry wins. - The server shows a simple preview in the completion item.</p>
-<p>Behavior examples - Type <code>-</code> on a line inside <code>tools:</code> → suggestions for tool kinds (exec, sqlite, mcp_*, native, kit, …). - Type <code>:</code> → suggestions for directives and macro names. - Type <code>:su</code> (with a <code>summarize</code> macro defined) → <code>summarize</code> appears and inserts <code>:summarize[]$0</code>. - Type <code>:ask[</code> or <code>:aside[</code> → invoke completion to see interlocutor names; selecting a name replaces only the text inside the <code>[</code>…<code>]</code>. - Type <code>::</code> or <code>:::</code> → no suggestions (reserved for directive fences). - Place the cursor on a directive (e.g., <code>:name[]</code>, <code>:ask[Name]</code>) or a name field in the YAML header (e.g., <code>name: Assistant</code>) and invoke “Go to Definition” to jump to the relevant definition. If multiple definitions exist (e.g., a local override of a workspace or system interlocutor), the LSP returns all locations, prioritized by proximity (local &gt; workspace &gt; system).</p>
-<p>Neovim setup (vim.lsp.start) - Minimal startup for the current buffer:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">local</span> <span class="va">client_id</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">lsp</span><span class="op">.</span>start<span class="op">({</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="va">name</span> <span class="op">=</span> <span class="st">"lectic"</span><span class="op">,</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">cmd</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"lsp"</span> <span class="op">},</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">root_dir</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">fs</span><span class="op">.</span>root<span class="op">(</span><span class="dv">0</span><span class="op">,</span> <span class="op">{</span> <span class="st">".git"</span><span class="op">,</span> <span class="st">"lectic.yaml"</span> <span class="op">})</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>             <span class="kw">or</span> <span class="va">vim</span><span class="op">.</span><span class="va">fn</span><span class="op">.</span>getcwd<span class="op">(),</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="va">single_file_support</span> <span class="op">=</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="op">})</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="lsp-server" class="level1">
+<h1>LSP Server</h1>
+<p>Lectic includes a Language Server Protocol (LSP) server that makes editing <code>.lec</code> files more pleasant. It provides completions, diagnostics, folding, and other features that help you write correct configurations and navigate conversations.</p>
+<p>Start the server with:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> lsp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The server uses stdio transport and works with any LSP-capable editor. See <a href="../03_editor_integration.html">Editor Integration</a> for setup instructions.</p>
+<section id="features" class="level2">
+<h2 class="anchored" data-anchor-id="features">Features</h2>
+<section id="completions" class="level3">
+<h3 class="anchored" data-anchor-id="completions">Completions</h3>
+<p>The LSP suggests completions as you type:</p>
 <ul>
-<li>Auto‑start for <code>.lec</code> (and optionally markdown) files:</li>
+<li><strong>Directives</strong>: Type <code>:</code> to see built-in directives (<code>:cmd</code>, <code>:env</code>, <code>:verbatim</code>, <code>:once</code>, <code>:discard</code>, <code>:attach</code>, <code>:ask</code>, <code>:aside</code>, <code>:reset</code>) and any macros you’ve defined.</li>
+<li><strong>Interlocutor names</strong>: Inside <code>:ask[</code> or <code>:aside[</code>, the LSP suggests names from your configuration.</li>
+<li><strong>YAML header fields</strong>: In the frontmatter, get suggestions for interlocutor properties (<code>provider</code>, <code>model</code>, <code>thinking_effort</code>, etc.), tool types, kit names, and model names.</li>
+<li><strong>Tool types</strong>: Type <code>-</code> inside a <code>tools:</code> array to see available tool kinds (<code>exec</code>, <code>sqlite</code>, <code>mcp_command</code>, <code>native</code>, etc.).</li>
 </ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="va">vim</span><span class="op">.</span><span class="va">api</span><span class="op">.</span>nvim_create_autocmd<span class="op">(</span><span class="st">"FileType"</span><span class="op">,</span> <span class="op">{</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="va">pattern</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"markdown.lectic"</span><span class="op">,</span> <span class="st">"lectic.markdown"</span> <span class="op">},</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">callback</span> <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">args</span><span class="op">)</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="va">vim</span><span class="op">.</span><span class="va">lsp</span><span class="op">.</span>start<span class="op">({</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      <span class="va">name</span> <span class="op">=</span> <span class="st">"lectic"</span><span class="op">,</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="va">cmd</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"lsp"</span> <span class="op">},</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      <span class="va">root_dir</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">fs</span><span class="op">.</span>root<span class="op">(</span><span class="va">args</span><span class="op">.</span><span class="va">buf</span><span class="op">,</span> <span class="op">{</span> <span class="st">".git"</span><span class="op">,</span> <span class="st">"lectic.yaml"</span> <span class="op">})</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>                 <span class="kw">or</span> <span class="va">vim</span><span class="op">.</span><span class="va">fn</span><span class="op">.</span>getcwd<span class="op">(),</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="va">single_file_support</span> <span class="op">=</span> <span class="kw">true</span><span class="op">,</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">})</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span><span class="op">,</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="op">})</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Completions are case-insensitive and respect any prefix you’ve typed.</p>
+</section>
+<section id="diagnostics" class="level3">
+<h3 class="anchored" data-anchor-id="diagnostics">Diagnostics</h3>
+<p>The server catches errors before you run the file:</p>
 <ul>
-<li>Using completion
-<ul>
-<li>With nvim‑cmp (recommended), LSP completion pops on <code>:</code> and <code>-</code>.</li>
-<li>Inside brackets, invoke completion manually (<code>Ctrl‑x Ctrl‑o</code>) if your setup is not configured to trigger automatically.</li>
-</ul></li>
+<li><strong>YAML syntax errors</strong>: Malformed frontmatter is flagged immediately.</li>
+<li><strong>Missing required fields</strong>: An interlocutor without a <code>name</code> or <code>prompt</code> triggers an error.</li>
+<li><strong>Unknown properties</strong>: A typo like <code>promt</code> instead of <code>prompt</code> shows a warning.</li>
+<li><strong>Duplicate names</strong>: If you define two interlocutors or macros with the same name, the LSP warns you. (The later definition wins at runtime.)</li>
 </ul>
-<p>VS Code setup - The server is an external stdio LSP. You can connect to it from a VS Code extension. The repository includes <code>extra/lectic.vscode</code> for a ready‑made extension.</p>
-<p>Diagnostics - The server publishes diagnostics on open/change. - Header field validation covers missing or mistyped interlocutor properties (name, prompt, model, provider, etc.). Unknown top‑level properties on an interlocutor are reported as warnings (for example, <code>Unknown property "mood" on interlocutor A.</code>). - Duplicate names in the document header are warned with precise ranges. Later entries win at runtime; the warning helps catch mistakes. - Duplicates originating only from included configs may be reported with a coarse header-range warning.</p>
-<p>Folding - The LSP provides folding ranges for tool‑call and inline‑attachment blocks. A block must be a serialized <code>&lt;tool-call ...&gt; ... &lt;/tool-call&gt;</code> or <code>&lt;inline-attachment ...&gt; ... &lt;/inline-attachment&gt;</code> that appears as a direct child of an interlocutor container directive (<code>:::Name</code>).</p>
-<p>Hovers - Hover over a directive (e.g., <code>:ask[...]</code>) to see a short description. - Hover on a macro directive name (e.g., <code>:summarize[]</code>) to preview the macro expansion.</p>
-<p>Notes - Completion previews are static; the server does not expand macros or read files referenced by <code>file:</code>.</p>
+</section>
+<section id="folding" class="level3">
+<h3 class="anchored" data-anchor-id="folding">Folding</h3>
+<p>Tool calls and inline attachments can be long. The LSP provides folding ranges so your editor can collapse them:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>:::Assistant</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tool-call</span><span class="ot"> with</span><span class="op">=</span><span class="st">"search"</span><span class="dt">&gt;</span>        ← Fold starts here</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...                              ← Hidden when folded</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tool-call</span><span class="dt">&gt;</span>                     ← Fold ends here</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>Based on the search results...</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Both Neovim and VS Code plugins enable folding by default.</p>
+</section>
+<section id="hover-information" class="level3">
+<h3 class="anchored" data-anchor-id="hover-information">Hover Information</h3>
+<p>Hover over elements to see documentation:</p>
+<ul>
+<li><strong>Directives</strong>: Hover on built-in directives to see what they do.</li>
+<li><strong>Macros</strong>: Hover on a macro directive to preview its expansion.</li>
+<li><strong>Tool calls</strong>: Hover on a <code>&lt;tool-call&gt;</code> block to see a summary.</li>
+</ul>
+</section>
+<section id="go-to-definition" class="level3">
+<h3 class="anchored" data-anchor-id="go-to-definition">Go to Definition</h3>
+<p>Jump to where things are defined:</p>
+<ul>
+<li>Place your cursor on a macro name and invoke “Go to Definition” to jump to the macro’s definition in your config.</li>
+<li>Works for interlocutors, kits, and macros.</li>
+<li>If multiple definitions exist (e.g., a local override of a system config), the LSP returns all locations, prioritized by proximity.</li>
+</ul>
+</section>
+<section id="document-outline" class="level3">
+<h3 class="anchored" data-anchor-id="document-outline">Document Outline</h3>
+<p>The LSP provides document symbols showing the conversation structure: messages, interlocutor responses, and configuration sections. Use your editor’s outline view to navigate long conversations.</p>
+</section>
+</section>
+<section id="editor-setup" class="level2">
+<h2 class="anchored" data-anchor-id="editor-setup">Editor Setup</h2>
+<section id="neovim" class="level3">
+<h3 class="anchored" data-anchor-id="neovim">Neovim</h3>
+<p>Auto-start the LSP for <code>.lec</code> files:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="va">vim</span><span class="op">.</span><span class="va">api</span><span class="op">.</span>nvim_create_autocmd<span class="op">(</span><span class="st">"FileType"</span><span class="op">,</span> <span class="op">{</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="va">pattern</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"markdown.lectic"</span><span class="op">,</span> <span class="st">"lectic.markdown"</span> <span class="op">},</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">callback</span> <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">args</span><span class="op">)</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="va">vim</span><span class="op">.</span><span class="va">lsp</span><span class="op">.</span>start<span class="op">({</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>      <span class="va">name</span> <span class="op">=</span> <span class="st">"lectic"</span><span class="op">,</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>      <span class="va">cmd</span> <span class="op">=</span> <span class="op">{</span> <span class="st">"lectic"</span><span class="op">,</span> <span class="st">"lsp"</span> <span class="op">},</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>      <span class="va">root_dir</span> <span class="op">=</span> <span class="va">vim</span><span class="op">.</span><span class="va">fs</span><span class="op">.</span>root<span class="op">(</span><span class="va">args</span><span class="op">.</span><span class="va">buf</span><span class="op">,</span> <span class="op">{</span> <span class="st">".git"</span><span class="op">,</span> <span class="st">"lectic.yaml"</span> <span class="op">})</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>                 <span class="kw">or</span> <span class="va">vim</span><span class="op">.</span><span class="va">fn</span><span class="op">.</span>getcwd<span class="op">(),</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      <span class="va">single_file_support</span> <span class="op">=</span> <span class="kw">true</span><span class="op">,</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">})</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">end</span><span class="op">,</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="op">})</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For LSP-based folding:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode lua code-with-copy"><code class="sourceCode lua"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="va">vim</span><span class="op">.</span><span class="va">opt</span><span class="op">.</span><span class="va">foldmethod</span> <span class="op">=</span> <span class="st">'expr'</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="va">vim</span><span class="op">.</span><span class="va">opt</span><span class="op">.</span><span class="va">foldexpr</span> <span class="op">=</span> <span class="st">'v:lua.vim.lsp.foldexpr()'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>With nvim-cmp, completions appear automatically on <code>:</code> and <code>-</code>. For bracket completions (interlocutor names), you may need to invoke completion manually with <code>&lt;C-Space&gt;</code> or <code>&lt;C-x&gt;&lt;C-o&gt;</code>.</p>
+</section>
+<section id="vs-code" class="level3">
+<h3 class="anchored" data-anchor-id="vs-code">VS Code</h3>
+<p>Install the extension from <code>extra/lectic.vscode</code> or download the VSIX from <a href="https://github.com/gleachkr/Lectic/releases">releases</a>. The extension starts the LSP automatically for <code>.lec</code> files.</p>
+</section>
+<section id="other-editors" class="level3">
+<h3 class="anchored" data-anchor-id="other-editors">Other Editors</h3>
+<p>Any editor that supports LSP over stdio can use the Lectic server. The command is <code>lectic lsp</code> with no arguments. See your editor’s documentation for how to configure external language servers.</p>
+</section>
+</section>
+<section id="technical-details" class="level2">
+<h2 class="anchored" data-anchor-id="technical-details">Technical Details</h2>
+<section id="completion-sources" class="level3">
+<h3 class="anchored" data-anchor-id="completion-sources">Completion Sources</h3>
+<p>Completions are merged from multiple configuration sources, with later sources taking precedence:</p>
+<ol type="1">
+<li>System config: <code>$LECTIC_CONFIG/lectic.yaml</code></li>
+<li>Workspace config: <code>lectic.yaml</code> in the document’s directory</li>
+<li>The document’s YAML header</li>
+</ol>
+<p>This matches the precedence used at runtime, so what you see in completions reflects what will actually be available.</p>
+</section>
+<section id="triggers" class="level3">
+<h3 class="anchored" data-anchor-id="triggers">Triggers</h3>
+<ul>
+<li><code>:</code> triggers directive and macro completions</li>
+<li><code>[</code> after <code>:ask</code> or <code>:aside</code> triggers interlocutor name completions</li>
+<li><code>-</code> in a <code>tools:</code> array triggers tool type completions</li>
+</ul>
+</section>
+<section id="limitations" class="level3">
+<h3 class="anchored" data-anchor-id="limitations">Limitations</h3>
+<ul>
+<li>Completion previews are static. The server doesn’t expand <code>exec:</code> or read <code>file:</code> references when showing previews.</li>
+<li>No completions are offered inside <code>:::</code> fences (those are response blocks, not meant for editing).</li>
+</ul>
 
 
+</section>
+</section>
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

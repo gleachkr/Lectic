@@ -6,6 +6,32 @@ Lectic is a unixy LLM toolbox. It treats conversations as plain text
 files, which means you can version control them, grep them, pipe them,
 email them, and edit them in whatever editor you like.
 
+## What Problems Does Lectic Solve?
+
+Most LLM tools ask you to work in *their* environment—a chat window, a
+dedicated IDE, a web app. Lectic takes the opposite approach: it brings
+LLMs into *your* environment. The conversation is a file. You edit it
+with your editor. You run a command. The response appears.
+
+This matters when you want to:
+
+- **Keep your workflow.** You already have an editor you like, a
+  terminal you’ve customized, scripts you’ve written. Lectic fits into
+  that setup instead of replacing it.
+- **Control your data.** Conversations are human-readable files on your
+  disk. Back them up however you want. Delete them when you’re done.
+  Email them if you want to. No cloud sync you didn’t ask for.
+- **Automate LLM interactions.** Because Lectic is a command-line tool,
+  you can script it, pipe to it, run it from cron jobs or git hooks.
+- **Experiment freely.** Branch a conversation with git. Try different
+  prompts. Diff the results.
+
+The “conversation as file” approach is underexplored. Many “agentic”
+coding tools are reinventing editor affordances in awkward ways—custom
+UIs for editing, bespoke diff viewers, their own version of undo, or
+evan a vim mode. Lectic sidesteps all of that. Your editor already does
+those things.
+
 ## Core Principles
 
 ### Plain text all the way down
@@ -17,7 +43,7 @@ with files:
 - **Version control**: Track changes with git, branch experiments, diff
   conversations.
 - **Search**: `grep` across your conversation history.
-- **Process**: Pipe conversations through other tools. Combine lectic
+- **Process**: Pipe conversations through other tools. Combine Lectic
   with `sed`, `pandoc`, or anything else.
 - **Back up**: Copy files. Sync with rsync. Store wherever you want.
 
@@ -25,7 +51,7 @@ with files:
 
 Lectic includes an LSP server that provides completions, diagnostics,
 hover information, go-to-definition, and folding for `.lec` files. You
-can use lectic with Neovim, VS Code, or any editor that speaks LSP.
+can use Lectic with Neovim, VS Code, or any editor that speaks LSP.
 
 For editors without LSP support, the basic workflow still works: edit a
 file, run `lectic -i file.lec`, and the response is appended.
@@ -44,20 +70,34 @@ scripting language. Your existing scripts and tools integrate directly.
 Lectic provides a small set of building blocks:
 
 - **`:cmd`**: Run a command and include its output.
+- **`:attach`**: Create an inline attachment from expanded content.
+- **`:env`**: Read an environment variable.
+- **`:verbatim`**: Include text without macro expansion.
+- **`:once`**: Expand content only in the final message.
+- **`:discard`**: Evaluate content for side effects, discard output.
 - **`:ask` / `:aside`**: Switch between interlocutors.
 - **`:reset`**: Clear conversation context.
 - **Macros**: Reusable text expansions.
 - **Hooks**: Run code on events (message sent, tool called, etc.).
 - **Tools**: Give the LLM capabilities (shell, database, MCP servers).
 
-You can put these together to build all sorts of AI applications: coding
-assistants, reseach and analysis workflows, orchestrated multi-agent
-swarms, or simple one-shot command line text processing tools. Take a
-look at the [Cookbook](./cookbook/index.qmd) for some detailed recipes.
+> [!NOTE]
+>
+> ### What’s an “interlocutor”?
+>
+> Lectic calls LLM configurations “interlocutors” because they’re
+> participants in a conversation. An interlocutor has a name, a prompt,
+> and optionally tools and other settings. You can have multiple
+> interlocutors in one conversation—each with different capabilities or
+> personalities.
+
+You combine these to build what you need: coding assistants, research
+workflows, multi-agent systems, or simple one-shot text processing. See
+the [Cookbook](./cookbook/index.qmd) for detailed recipes.
 
 ## Quick Example
 
-A minimal conversation:
+A minimal conversation file:
 
 ``` markdown
 ---
@@ -75,7 +115,11 @@ What's 2 + 2?
 :::
 ```
 
-A more interesting one:
+The `---` block at the top is YAML configuration. Below it, you write
+your message. The `:::Assistant` block is where the LLM’s response
+appears—Lectic appends it when you run the command.
+
+A more interesting setup with tools:
 
 ``` yaml
 ---
@@ -93,9 +137,27 @@ interlocutor:
 ``` markdown
 Review the error handling in src/main.ts. Are there any uncaught
 exceptions?
+
+:::Assistant
+
+<tool-call with="read_file">
+<arguments><argv>["src/main.ts"]</argv></arguments>
+<results>
+<result type="text">
+┆<stdout>// contents of main.ts...</stdout>
+</result>
+</results>
+</tool-call>
+
+Looking at the code, I can see several places where exceptions might not
+be caught...
+
+:::
 ```
 
-The assistant can read files and search the codebase to answer.
+The assistant reads files and searches the codebase to answer your
+question. Tool calls appear inline in the response so you can see
+exactly what happened.
 
 ## Next Steps
 
@@ -109,8 +171,8 @@ The assistant can read files and search the codebase to answer.
 - [Cookbook](./cookbook/index.qmd): Ready-to-use recipes for common
   workflows.
 
-All of the documentation concatinated into a single markdown file can be
-found [here](./llms-full.md)
+All documentation concatenated into a single markdown file can be found
+[here](./llms-full.md).
 
 
 
@@ -124,17 +186,10 @@ key, and see a simple tool in action.
 
 Choose the method that fits your system.
 
-#### Nix
-
-If you use Nix, install directly from the repository:
-
-``` bash
-nix profile install github:gleachkr/lectic
-```
-
 #### Linux (AppImage)
 
-Download the AppImage from the GitHub Releases page. Make it executable
+Download the AppImage from the [GitHub Releases
+page](https://github.com/gleachkr/Lectic/releases). Make it executable
 and put it on your PATH.
 
 ``` bash
@@ -148,6 +203,14 @@ Download the macOS binary from the [GitHub Releases
 page](https://github.com/gleachkr/Lectic/releases) and put it on your
 PATH.
 
+#### Nix
+
+If you use Nix, install directly from the repository:
+
+``` bash
+nix profile install github:gleachkr/lectic
+```
+
 ## Verify the install
 
 ``` bash
@@ -156,88 +219,101 @@ lectic --version
 
 If you see a version number, you are ready to go.
 
-## Tab completion (optional)
-
-Lectic has an extensible tab completion system that supports standard
-flags and [Custom Subcommands](../automation/03_custom_subcommands.qmd).
-
-To enable it, source the completion script in your shell configuration
-(e.g., `~/.bashrc`):
-
-``` bash
-# Adjust path to where you cloned/extracted Lectic
-source /path/to/lectic/extra/tab_complete/lectic_completion.bash
-```
-
-or place the script in `~/.local/share/bash-completion/completions/` or
-one of the other standard locations for completion scripts.
-
-## Your first conversation
-
-#### Set up an API key
+## Set up an API key
 
 Lectic talks to LLM providers. Put at least one provider key in your
-environment so Lectic can pick a default.
+environment:
 
 ``` bash
 export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
 Lectic chooses a default provider by checking for keys in this order:
-Anthropic, then Gemini, then OpenAI, then OpenRouter. If you need
-Bedrock, set `provider: anthropic/bedrock` explicitly in your file and
-make sure your AWS credentials are configured. Bedrock is not
-auto‑selected.
+Anthropic → Gemini → OpenAI → OpenRouter. You only need one.
 
-Finally, OpenAI has two provider choices. Use `openai` for the newer
-Responses API and native tools. Use `openai/chat` for the legacy Chat
-Completions API when you need it.
+> [!NOTE]
+>
+> You can also use your ChatGPT subscription with `provider: chatgpt`.
+> This does not use an API key environment variable, so it is not
+> auto-selected. On first use, Lectic opens a browser window for login
+> and stores tokens at `$LECTIC_STATE/chatgpt_auth.json`.
+>
+> The login flow starts a local callback server on port 1455.
 
-#### Create a conversation file
+> [!WARNING]
+>
+> **Common issue:** If you see “No API key found,” make sure you
+> exported the key in the same shell session where you’re running
+> Lectic. If you set it in `.bashrc`, you may need to restart your
+> terminal or run `source ~/.bashrc`.
 
-Make a new file, for example `my_convo.lec`. The `.lec` extension helps
-with editor integration.
+## Your first conversation
 
-Add a minimal YAML header and your first user message:
+### The conversation format
 
-``` yaml
+A Lectic conversation is a markdown file with a YAML header. The header
+configures the LLM (which we call an “interlocutor”). Everything below
+the header is the conversation: your messages as plain text, and the
+LLM’s responses in special `:::Name` blocks.
+
+Here’s a minimal example:
+
+``` markdown
 ---
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
-  provider: anthropic
-  model: claude-3-haiku-20240307
-  # Optional thinking controls (Anthropic/Gemini):
-  # thinking_budget: 1024     # integer token budget for reasoning
 ---
 
-Hello, world! What is a fun fact about the Rust programming language?
+What is a fun fact about the Rust programming language?
 ```
 
-#### Run Lectic
+The `name` identifies who’s speaking in the response blocks. The
+`prompt` is the system prompt. Lectic picks a default provider and model
+based on your API keys, so you don’t need to specify them.
 
-From your terminal, run Lectic on the file. The `-i` flag updates the
-file in place.
+### Create and run
+
+Create a file called `hello.lec` with the content above, then run:
 
 ``` bash
-lectic -i my_convo.lec
+lectic -i hello.lec
 ```
 
-Lectic sends your message to the model and appends its response in a new
-assistant block. You can add your next message under that block and run
-the command again to continue the conversation.
+The `-i` flag updates the file in place. Lectic sends your message to
+the LLM and appends the response:
 
-#### Use a tiny tool
+``` markdown
+---
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+---
 
-Now add a very small tool to see the tool flow. This one exposes `date`.
+What is a fun fact about the Rust programming language?
+
+:::Assistant
+
+Rust's mascot is a crab named Ferris! The name is a pun on "ferrous,"
+relating to iron (Fe), which connects to "rust." You'll often see Ferris
+in Rust documentation and community materials.
+
+:::
+```
+
+To continue the conversation, add your next message below the `:::`
+block and run `lectic -i hello.lec` again.
+
+### Use a tool
+
+Now let’s give the assistant a tool. Create a new file called
+`tools.lec`:
 
 ``` yaml
 ---
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
-  provider: anthropic
-  model: claude-3-haiku-20240307
   tools:
     - exec: date
       name: get_date
@@ -266,12 +342,55 @@ Lectic needs at least one provider key in your environment. Make sure
 you’ve exported it in the same shell session:
 
 ``` bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-lectic -i my_convo.lec
+lectic -i tools.lec
 ```
 
-If you set the key in a config file (like `.bashrc`), you may need to
-restart your terminal or run `source ~/.bashrc`.
+The response now includes an XML block showing the tool call and its
+results:
+
+``` markdown
+:::Assistant
+
+<tool-call with="get_date">
+<arguments><argv>[]</argv></arguments>
+<results>
+<result type="text">
+┆<stdout>Fri Jun 13 10:42:17 PDT 2025</stdout>
+</result>
+</results>
+</tool-call>
+
+Today is Friday, June 13th, 2025.
+
+:::
+```
+
+The `<tool-call>` block is part of the conversation record. It shows
+what the LLM requested, what arguments it passed, and what came back.
+Editor plugins typically fold these blocks to reduce clutter.
+
+> [!TIP]
+>
+> You can load prompts from files or compute them with commands using
+> `file:` and `exec:`. See [External
+> Prompts](./context_management/03_external_prompts.qmd).
+
+## Tab completion (optional)
+
+Lectic has an extensible tab completion system that supports standard
+flags and [Custom Subcommands](./automation/03_custom_subcommands.qmd).
+
+To enable it, source the completion script in your shell configuration
+(e.g., `~/.bashrc`):
+
+``` bash
+# Adjust path to where you cloned/extracted Lectic
+source /path/to/lectic/extra/tab_complete/lectic_completion.bash
+```
+
+Or place the script in `~/.local/share/bash-completion/completions/`.
+
+## Troubleshooting
 
 ### Response is empty or tool calls aren’t working
 
@@ -287,14 +406,7 @@ Integration](./03_editor_integration.qmd) to set it up.
 ### “Model not found” errors
 
 Model names vary by provider. Use `lectic models` to see what’s
-available for your configured API keys. Some common model names:
-
-- Anthropic: `claude-sonnet-4-20250514`, `claude-3-haiku-20240307`
-- OpenAI: `gpt-4o`, `gpt-4o-mini`
-- Gemini: `gemini-2.5-flash`, `gemini-2.5-pro`
-
-The LSP server can autocomplete model names, so tab-complete is your
-friend here.
+available for your configured API keys.
 
 ### Tools aren’t being called
 
@@ -310,17 +422,17 @@ interlocutor:
     - exec: date
       name: get_date
 
-# Wrong - tools at top level
+# Wrong — tools at top level won't work
 interlocutor:
   name: Assistant
   prompt: You are helpful.
-tools:  # This won't work
+tools:
   - exec: date
 ```
 
 ## Next steps
 
-Now that you have Lectic working, you’ll want to:
+Now that you have Lectic working:
 
 1.  **Set up your editor.** The intended workflow is to run Lectic with
     a single keypress. See [Editor
@@ -340,28 +452,36 @@ Now that you have Lectic working, you’ll want to:
 # Editor Integration
 
 Lectic is designed to work with your editor, not replace it. The core
-workflow is simple: edit a file, run `lectic`, get a response appended.
-But with proper editor integration, you can do this with a single
-keypress and get features like completions, diagnostics, and folding.
+workflow is: edit a file, press a key, watch the response stream in. No
+mode switching, no separate chat window—you stay in your editor the
+whole time.
+
+This page covers setup for several editors. If you just want to get
+started quickly:
+
+- **Neovim**: Install the plugin from `extra/lectic.nvim`, add the LSP
+  config below, and use `<localleader>l` to submit.
+- **VS Code**: Install the extension from
+  [releases](https://github.com/gleachkr/Lectic/releases) and use
+  `Cmd+L` / `Alt+L`.
+- **Other editors**: Run `lectic -i file.lec` from a keybinding.
 
 ## The LSP Server
 
-Lectic includes a Language Server Protocol (LSP) server that provides:
+Lectic includes a Language Server Protocol (LSP) server. You don’t
+strictly need it—Lectic works fine as a command-line tool—but the LSP
+makes editing `.lec` files much more pleasant:
 
-- **Completions** for directives (`:cmd`, `:ask`, `:reset`, etc.),
-  interlocutor names, [macros](./automation/01_macros.qmd) names,
-  [kits](./tools/01_overview.qmd#tool-kits) names, YAML header fields,
-  tool types, and some other configuration parameters.
-- **Diagnostics** for missing or invalid configuration, duplicate names,
-  and broken file references
-- **Hover information** for directives, tool calls, and file links
-- **Go to definition** for macros, kits, and interlocutors
-- **Folding** for tool-call and inline-attachment blocks
-- **Document outline** showing conversation structure
-- **Code Actions** for setting up a minimal YAML header, performing
-  minor lints, and expanding macros (the macros don’t *need* to be
-  expanded manually for the LLM to see the expansion results, but they
-  can be if you want to preview or inline the expansion output).
+- **Completions** for directives, macro names, YAML fields, model names,
+  and tool types. Start typing and the LSP suggests what comes next.
+- **Diagnostics** that catch YAML errors, missing configuration, and
+  duplicate names before you run the file.
+- **Folding** for tool-call blocks. Tool output can be verbose; folding
+  keeps the conversation readable.
+- **Hover information** showing what a directive does or what a macro
+  expands to.
+- **Go to definition** for macros, kits, and interlocutors defined in
+  config files.
 
 Start it with:
 
@@ -574,7 +694,7 @@ a `.lec` extension. They use a superset of CommonMark, adding two
 specific conventions: a YAML frontmatter block for configuration and
 “container directives” for assistant responses.
 
-## 1. YAML Frontmatter
+## YAML Frontmatter
 
 Every Lectic file begins with a YAML frontmatter block, enclosed by
 three dashes (`---`). This is where you configure the conversation,
@@ -588,10 +708,20 @@ A minimal header looks like this:
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
+---
+```
+
+Lectic picks a default provider and model based on your environment
+variables, so you often don’t need to specify them. If you want to be
+explicit:
+
+``` yaml
+---
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
   provider: anthropic
-  model: claude-3-haiku-20240307
-  # Optional thinking controls (Anthropic/Gemini):
-  # thinking_budget: 1024     # integer token budget for reasoning
+  model: claude-sonnet-4-20250514
 ---
 ```
 
@@ -599,7 +729,7 @@ The frontmatter can be closed with either three dashes (`---`) or three
 periods (`...`). For a complete guide to all available options, see the
 Configuration page.
 
-## 2. User Messages
+## User Messages
 
 Anything in the file that is not part of the YAML frontmatter or an
 assistant response block is considered a user message. You write your
@@ -613,7 +743,7 @@ So is this. You can include any markdown you like, such as **bold text** or
 `inline code`.
 ```
 
-## 3. Assistant Responses
+## Assistant Responses
 
 Lectic uses “container directives” to represent messages from the LLM.
 These are fenced blocks that start with a run of colons, followed
@@ -635,23 +765,35 @@ backticks.
 ### Inline Attachments
 
 Lectic records some generated content directly into the transcript as
-**inline attachments**. This includes:
+**inline attachments**. These are created by:
 
-- Output of `:cmd[...]` directives (`kind="cmd"`)
-- Output of inline hooks (`kind="hook"`)
+- The `:attach[...]` directive (`kind="attach"`)
+- Inline hooks (`kind="hook"`)
 
 Inline attachments appear inside the assistant’s response block as XML.
-They include a `<command>` field (the command that produced the content,
-or the hook’s `do` value) and a `<content>` field.
+They include a `<command>` field (the hook’s `do` value, or empty for
+`:attach`) and a `<content>` field.
 
-Example (`:cmd[...]`):
+Example (`:attach[...]`):
 
 ``` xml
-<inline-attachment kind="cmd">
-<command>git diff --staged</command>
+<inline-attachment kind="attach">
+<command></command>
 <content type="text/plain">
-┆diff --git a/src/main.ts b/src/main.ts
+┆some content here
+</content>
+</inline-attachment>
+```
+
+Example (`:attach[:cmd[...]]`):
+
+``` xml
+<inline-attachment kind="attach">
+<command></command>
+<content type="text/plain">
+┆<stdout from="git diff --staged">diff --git a/src/main.ts b/src/main.ts
 ┆...
+┆</stdout>
 </content>
 </inline-attachment>
 ```
@@ -670,16 +812,23 @@ Example (inline hook output):
 Inline attachments serve two purposes:
 
 1.  **Caching**: The results are stored in the file, so re-running
-    Lectic doesn’t re-execute old commands. Only `:cmd` directives in
-    the most recent user message are executed.
+    Lectic doesn’t re-process old directives. Only `:attach` directives
+    in the most recent user message are processed.
 
 2.  **Context positioning**: When sending the conversation to the
-    provider, attachments are treated as if they were a user message
+    provider, attachments are treated as if they were a user message.
     This keeps provider caches stable and avoids token recomputation.
 
-You’ll see inline attachments frequently when using `:cmd`. They’re part
-of the conversation record and should generally be left alone. Editor
-plugins typically fold them by default to reduce visual clutter.
+You’ll see inline attachments when using `:attach` (often with `:cmd`
+inside) or inline hooks. They’re part of the conversation record and
+should generally be left alone. Editor plugins typically fold them by
+default to reduce visual clutter.
+
+> [!TIP]
+>
+> Inline attachments are managed by Lectic. Don’t edit them by hand — if
+> you need to re-run something, delete the attachment and add a new
+> directive in your latest message.
 
 ### Example
 
@@ -822,8 +971,8 @@ can switch to `opus` within the conversation if needed, using an
 # Providers and Models
 
 Lectic speaks to several providers. You pick a provider and a model in
-your YAML header, or let Lectic choose a default based on which API keys
-are in your environment.
+your YAML header, or let Lectic choose a default based on which
+credentials are available in your environment.
 
 ## Picking a default provider
 
@@ -839,21 +988,49 @@ Set one of these environment variables before you run Lectic:
 - OPENAI_API_KEY
 - OPENROUTER_API_KEY
 
-AWS credentials for Bedrock are not used for auto‑selection. If you want
+AWS credentials for Bedrock are not used for auto-selection. If you want
 Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly and
 make sure your AWS environment is configured.
 
+## ChatGPT subscription (no API key)
+
+Lectic also supports `provider: chatgpt`, which uses your ChatGPT
+subscription via the official Codex / ChatGPT OAuth flow.
+
+Notes:
+
+- This provider is not auto-selected (there is no API key env var to
+  check). If you want it by default, set `provider: chatgpt` in your
+  `lectic.yaml` or in the `.lec` frontmatter.
+- On first use, Lectic opens a browser window for login and stores
+  tokens at `$LECTIC_STATE/chatgpt_auth.json` (for example,
+  `~/.local/state/lectic/chatgpt_auth.json` on Linux).
+- Login starts a local callback server on port 1455. If that port is in
+  use, stop the other process and try again.
+- If you want to “log out”, delete that file.
+
 ## Discover models
 
-You can list available models for providers that have API keys
-configured by running:
+Not sure which models are available? Run:
 
 ``` bash
 lectic models
 ```
 
-The command prints each detected provider followed by its models. If no
-known provider keys are set, it prints a short message and exits.
+This queries each provider you have credentials for and prints the
+available models.
+
+> [!TIP]
+>
+> The LSP can also autocomplete model names as you type in the YAML
+> header. See [Editor Integration](./03_editor_integration.qmd).
+
+> [!NOTE]
+>
+> `provider: chatgpt` models only show up in `lectic models` after you
+> have logged in at least once (since the login is browser-based, not an
+> API key). If you have not logged in yet, run a `.lec` file with
+> `provider: chatgpt` first.
 
 ## OpenAI: two provider strings
 
@@ -865,19 +1042,20 @@ OpenAI has two modes in Lectic today.
 
 ## Examples
 
-Anthropic, direct API (uses `thinking_budget` when set):
+These examples show the minimal configuration for each provider. You can
+omit `provider` and `model` if you want Lectic to pick defaults based on
+your environment.
+
+**Anthropic** (direct API):
 
 ``` yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: anthropic
-  model: claude-3-haiku-20240307
-  # Optional thinking controls (Anthropic/Gemini):
-  # thinking_budget: 1024     # integer token budget for reasoning
 ```
 
-Anthropic via Bedrock:
+**Anthropic via Bedrock**:
 
 ``` yaml
 interlocutor:
@@ -887,37 +1065,44 @@ interlocutor:
   model: anthropic.claude-3-haiku-20240307-v1:0
 ```
 
-OpenAI Responses API:
+**OpenAI** (Responses API):
 
 ``` yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: openai
-  model: gpt-4o-mini
 ```
 
-OpenAI Chat Completions:
+**OpenAI Chat Completions** (legacy API):
 
 ``` yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: openai/chat
-  model: gpt-4o-mini
 ```
 
-Gemini:
+**ChatGPT** (subscription via Codex backend):
+
+``` yaml
+interlocutor:
+  name: Assistant
+  prompt: You are a helpful assistant.
+  provider: chatgpt
+  model: gpt-5.1-codex
+```
+
+**Gemini**:
 
 ``` yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: gemini
-  model: gemini-2.5-flash
 ```
 
-OpenRouter:
+**OpenRouter**:
 
 ``` yaml
 interlocutor:
@@ -927,7 +1112,7 @@ interlocutor:
   model: meta-llama/llama-3.1-70b-instruct
 ```
 
-Ollama (local inference):
+**Ollama** (local inference):
 
 ``` yaml
 interlocutor:
@@ -939,14 +1124,26 @@ interlocutor:
 
 ## Capabilities and media
 
-Providers differ in what they accept as input. Most accept plain text
-and images. Many accept PDFs and short audio clips. Support changes
-quickly, so consult each provider’s documentation for current limits on
-formats, sizes, page counts, and rate limits.
+Providers differ in what they accept as input. Here’s a rough guide:
+
+| Provider   | Text            | Images | PDFs | Audio    | Video |
+|------------|-----------------|--------|------|----------|-------|
+| Anthropic  | ✓               | ✓      | ✓    | ✗        | ✗     |
+| Gemini     | ✓               | ✓      | ✓    | ✓        | ✓     |
+| OpenAI     | ✓               | ✓      | ✓    | varies\* | ✗     |
+| ChatGPT    | ✓               | ✓      | ✓    | varies\* | ✗     |
+| OpenRouter | varies by model |        |      |          |       |
+| Ollama     | ✓               | varies | ✗    | ✗        | ✗     |
+
+\* Audio support depends on model. For OpenAI audio workflows you may
+need `provider: openai/chat` with an audio-capable model.
+
+Support changes quickly. Consult each provider’s documentation for
+current limits on formats, sizes, and rate limits.
 
 In Lectic, you attach external content by linking files in the user
-message body. Lectic will package these and send them to the provider in
-a way that fits that provider’s API. See [External
+message body. Lectic packages these and sends them to the provider in a
+way that fits that provider’s API. See [External
 Content](./context_management/01_external_content.qmd) for examples and
 tips.
 
@@ -966,7 +1163,9 @@ header or in an included configuration file).
 
 Macros are defined under the `macros` key. Each macro must have a `name`
 and an `expansion`. You can optionally provide an `env` map to set
-default environment variables for the expansion.
+default environment variables for the expansion. You can also provide an
+optional `description`, which will be is shown in the LSP hover info for
+the macro.
 
 ``` yaml
 macros:
@@ -1015,14 +1214,116 @@ name:
   expansion as the `ARG` environment variable.
 
 When Lectic processes the file, it replaces the macro directive with the
-full text from its `expansion` field *before* processing any other
-directives (like `:cmd`).
+full text from its `expansion` field.
+
+> [!NOTE]
+>
+> ### Built-in Macros
+>
+> Lectic includes several built-in macros described in the next section.
+> Because they are macros, they compose naturally with user-defined
+> macros. For example, you can wrap `:cmd` in a caching macro:
+> `:cache[:cmd[expensive-command]]`.
 
 ``` markdown
 This was a long and productive discussion. Could you wrap it up?
 
 :summarize[]
 ```
+
+## Built-in Macros Reference
+
+Lectic provides several built-in macros for common operations. These are
+always available without any configuration.
+
+### `:cmd` — Execute a Command
+
+Runs a shell command and expands to the output wrapped in XML.
+
+``` markdown
+What's my current directory? :cmd[pwd]
+```
+
+Expands to:
+
+``` xml
+<stdout from="pwd">/home/user/project</stdout>
+```
+
+If the command fails, you get an error wrapper with both stdout and
+stderr. See [External
+Content](../context_management/01_external_content.qmd#command-output-via-cmd)
+for full details on execution environment and error handling.
+
+### `:env` — Read Environment Variables
+
+Expands to the value of an environment variable. Useful for injecting
+configuration or paths without running a command.
+
+``` markdown
+My home directory is :env[HOME]
+```
+
+If the variable is not set, `:env` expands to an empty string.
+
+### `:verbatim` — Prevent Expansion
+
+Returns the raw child text without expanding any macros inside it.
+
+``` markdown
+Here's an example of macro syntax: :verbatim[:cmd[echo hello]]
+```
+
+Expands to:
+
+``` markdown
+Here's an example of macro syntax: :cmd[echo hello]
+```
+
+The inner `:cmd` is not executed — it appears literally in the output.
+
+### `:once` — Expand Only in Final Message
+
+Only expands its children when processing the final (most recent) user
+message. In earlier messages, it expands to nothing.
+
+This is useful for commands that should only run once, not be
+re-executed every time context is rebuilt:
+
+``` markdown
+:once[:cmd[expensive-analysis-script]]
+```
+
+When you add a new message and re-run Lectic, the `:once` directive in
+older messages will produce no output, while the one in your latest
+message will execute.
+
+### `:discard` — Evaluate and Discard
+
+Expands and evaluates its children (including any commands), but
+discards the output entirely. Useful for side effects.
+
+``` markdown
+:discard[:cmd[echo "logged" >> activity.log]]
+```
+
+The command runs and writes to the log file, but nothing appears in the
+conversation. You can combine `:once` and `:discard` for cases where you
+only want the macro to run once, and you don’t want to pass the output
+to the LLM.
+
+### `:attach` — Create Inline Attachment
+
+Captures its expanded children as an inline attachment stored in the
+assistant’s response block. Only processed in the final message.
+
+``` markdown
+:attach[:cmd[git diff --staged]]
+```
+
+See [External
+Content](../context_management/01_external_content.qmd#inline-attachments-with-attach)
+for full details on how inline attachments work and when to use them.
 
 ## The Macro Expansion Environment
 
@@ -1096,16 +1397,50 @@ workflows, macros can define two separate expansion phases: `pre` and
 `post`.
 
 - **`pre`**: Expanded when the macro is first encountered (pre-order
-  traversal). If `pre` returns content, the expansion stops there: the
-  macro is replaced by the result of `pre` **and that result is then
-  recursively expanded**. The original children of the macro are
+  traversal). If `pre` returns content, the macro is replaced by that
+  content, which is then recursively expanded. The original children are
   discarded.
 - **`post`**: Expanded after the macro’s children have been processed
-  (post-order traversal). The processed output of the children is passed
-  to `post` as the `ARG` variable.
+  (post-order traversal). The processed children are passed to `post` as
+  the `ARG` variable.
 
 If you define a macro with just `expansion`, it is treated as a `post`
 phase macro.
+
+Here’s how the phases work for a nested macro call like
+`:outer[:inner[content]]`:
+
+``` text
+:outer[:inner[content]]
+   │
+   ▼
+┌─────────────────────────────────────────────────────┐
+│ 1. Run :outer's PRE                                 │
+│    - If it returns content → replace :outer,        │
+│      recursively expand the result, DONE            │
+│    - If it returns nothing → continue to children   │
+└─────────────────────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────────────────────┐
+│ 2. Process children: :inner[content]                │
+│    - Run :inner's PRE                               │
+│    - Process :inner's children ("content")          │
+│    - Run :inner's POST with children as ARG         │
+│    - Replace :inner with result                     │
+└─────────────────────────────────────────────────────┘
+   │
+   ▼
+┌─────────────────────────────────────────────────────┐
+│ 3. Run :outer's POST                                │
+│    - ARG = processed children (result of :inner)    │
+│    - Replace :outer with result                     │
+└─────────────────────────────────────────────────────┘
+```
+
+The key insight: `pre` lets you short-circuit (skip children entirely),
+or change the children of a directive, while `post` lets you wrap or
+transform the fully expanded results of the children.
 
 ### Handling “No Operation” in Pre
 
@@ -1327,6 +1662,24 @@ Two headers affect control flow:
   context compaction or archival strategies when token limits are
   reached.
 
+## Example: A simple logging hook
+
+Let’s start with the simplest possible hook: logging every message to a
+file. This helps you understand the basics before moving to more complex
+examples.
+
+``` yaml
+hooks:
+  - on: [user_message, assistant_message]
+    do: |
+      #!/usr/bin/env bash
+      echo "$(date): Message received" >> /tmp/lectic.log
+```
+
+This hook fires on both user and assistant messages. It appends a
+timestamp to a log file. That’s it—no return value, no interaction with
+the conversation.
+
 ## Example: Human-in-the-loop tool confirmation
 
 This example uses `tool_use_pre` to require confirmation before any tool
@@ -1345,6 +1698,8 @@ hooks:
       # Zenity exits with 0 for Yes/OK and 1 for No/Cancel
       exit $?
 ```
+
+## Example: Persisting messages to SQLite
 
 This example persists every user and assistant message to an SQLite
 database located in your Lectic data directory. You can later query this
@@ -1544,11 +1899,11 @@ Run it:
 lectic hello
 ```
 
-### Javascript via `lectic script`
+### JavaScript/TypeScript via `lectic script`
 
-Lectic includes a built-in bun runtime for running JavaScript and
-TypeScript files via `lectic script`. You can use this to write
-subcommands in JS or TS even if you don’t have bun installed globally.
+Lectic bundles a Bun runtime, so you can write subcommands in JavaScript
+or TypeScript without installing anything extra. Use `lectic script` as
+your shebang interpreter.
 
 Create `~/.config/lectic/lectic-calc`:
 
@@ -1577,10 +1932,17 @@ Make it executable and run:
 lectic calc 1 + 2
 ```
 
-Bun has built in support for [all sorts of
-things](https://bun.com/docs), including YAML parsing and serialization,
-running simple webservers, interfacing with databases, rich networking
-primitives, and lots more. All these are accessible via `lectic script`.
+> [!TIP]
+>
+> ### Why `lectic script`?
+>
+> You get Bun’s full capabilities without installing Bun separately.
+> This includes built-in YAML parsing, HTTP servers, SQLite, fetch, and
+> much more. See [Bun’s documentation](https://bun.sh/docs) for what’s
+> available.
+>
+> This is especially useful for writing more complex subcommands that
+> would be awkward in Bash.
 
 ## Environment Variables
 
@@ -1751,38 +2113,140 @@ If both `page` and `pages` are supplied, `pages` takes precedence. If a
 page or range is malformed or out of bounds, Lectic will surface an
 error that is visible to the LLM.
 
-## Command Output via `:cmd` Directive
+## Command Output via `:cmd`
 
-Use `:cmd[...]` to execute a shell command and capture its stdout and
-stderr. Lectic runs the command with the Bun shell. The result is
-returned as an inline attachment that appears at the very top of the
-next assistant block.
+Use `:cmd[...]` to execute a shell command and insert its output
+directly into your message. Think of it as a built-in
+[macro](../automation/01_macros.qmd) that runs a command and pastes in
+the result.
 
-How it works - When you run lectic, any `:cmd[...]` found in the last
-user message is executed, and the result is forwarded to the LLM. - The
-result is also inserted as an inline attachment chunk at the beginning
-of the generated assistant block. It looks like an XML block beginning
-with `<inline-attachment ...>`. It includes the command and its content
-(stdout, or an error wrapper that includes stdout and stderr). - During
-provider serialization, this attachment is treated as if it were a user
-message that immediately precedes the assistant’s round. This keeps
-provider caches stable and avoids recomputing earlier commands. - Older
-`:cmd[...]` directives are not re-executed. Their cached attachments
-remain part of the transcript and are reused across runs.
+``` markdown
+What can you tell me about my system? :cmd[uname -a]
+```
 
-Use cases - System information:
-`What can you tell me about my system? :cmd[uname -a]` - Project state:
-`Write a commit message: :cmd[git diff --staged]` - Data analysis:
-`Compute the average: :cmd[cat data.csv | awk '...']`
+When Lectic processes this, it runs `uname -a` and replaces the
+`:cmd[...]` directive with the command’s output wrapped in XML:
 
-Notes - Output is wrapped in XML. On success, stdout is included. On
-failure, an `<error>` wrapper includes both stdout and stderr. - `:cmd`
-runs with Bun’s `$` shell in the current working directory. Standard
-Lectic environment variables like `LECTIC_FILE` are available. By
-contrast, single‑line `exec` tools run without a shell; invoke a shell
-explicitly if you need shell features. - line breaks inside of `:cmd`
-are ignored so that if a `:cmd` happens to line-wrap, the newline
-doesn’t affect the command to be executed.
+``` xml
+<stdout from="uname -a">Linux myhost 6.1.0 ...</stdout>
+```
+
+If the command fails (non-zero exit code), you get an error wrapper
+instead:
+
+``` xml
+<error>Something went wrong when executing a command:<stdout from="bad-cmd">
+</stdout><stderr from="bad-cmd">bad-cmd: command not found</stderr></error>
+```
+
+### When `:cmd` runs
+
+`:cmd` directives are expanded at the beginning of each user turn. You
+can also expand them with an [LSP](../reference/03_lsp.qmd) code action.
+If you want a `:cmd` directive to expand only once, you can wrap it in
+`:attach[..]` (see below) which will store the results in the lectic
+document as an attachment, or you can implement some other caching
+mechanism using the macro system.
+
+### Execution environment
+
+- `:cmd` runs with Bun’s `$` shell in the current working directory.
+- Standard Lectic environment variables like `LECTIC_FILE` are
+  available.
+- Line breaks inside `:cmd[...]` are ignored, so wrapped commands work:
+
+``` markdown
+:cmd[find . -name "*.ts" 
+     | head -20]
+```
+
+### Use cases
+
+- **System information**:
+  `What can you tell me about my system? :cmd[uname -a]`
+- **Project state**: `Write a commit message: :cmd[git diff --staged]`
+- **Data snippets**: `Analyze this: :cmd[head -50 data.csv]`
+
+## Inline Attachments with `:attach`
+
+While `:cmd` inserts command output directly into your message text,
+sometimes you want to provide context that appears as a separate
+attachment — for example, to keep the conversation transcript cleaner or
+to control caching behavior.
+
+The `:attach[...]` directive creates an **inline attachment**. The
+content inside the brackets is stored in the assistant’s response block
+(after macro expansion) and sent to the LLM as additional user context.
+
+``` markdown
+Here's the current state of the config:
+
+:attach[:config_status_macro[]]
+
+What do you think of this configuration?
+```
+
+When Lectic processes this, it creates an inline attachment that appears
+at the top of the assistant’s response:
+
+``` xml
+<inline-attachment kind="attach">
+<command></command>
+<content type="text/plain">
+┆server:
+┆  port: 8080
+┆  host: localhost
+</content>
+</inline-attachment>
+```
+
+### Combining `:attach` with `:cmd`
+
+You can compose `:attach` and `:cmd` to get the best of both worlds —
+run a command and store its output as an attachment:
+
+``` markdown
+Review this diff: :attach[:cmd[git diff --staged]]
+```
+
+This executes `git diff --staged`, then wraps the result as an inline
+attachment. The attachment is cached in the transcript, so re-running
+Lectic won’t re-execute the command.
+
+> [!TIP]
+>
+> ### When to use `:cmd` vs `:attach[:cmd[...]]`
+>
+> Use **`:cmd[...]`** when you want command output inlined directly in
+> your message. The output becomes part of the message text.
+>
+> Use **`:attach[:cmd[...]]`** when you want the output stored as a
+> cached attachment. This is useful for large outputs or when you want
+> to preserve provider cache efficiency (for example, if the output of
+> `:cmd` might change in between user turns).
+
+### How inline attachments work
+
+Inline attachments serve two purposes:
+
+1.  **Caching**: Results are stored in the file, so re-running Lectic
+    doesn’t re-execute commands or re-process content. Only `:attach`
+    directives in the most recent user message are processed.
+
+2.  **Context positioning**: When sending the conversation to the
+    provider, attachments are treated as if they were a user message
+    immediately preceding the assistant’s response. This keeps provider
+    caches stable.
+
+Inline attachments appear in the `.lec` file as XML blocks inside the
+assistant response. Editor plugins typically fold them by default to
+reduce visual clutter.
+
+> [!TIP]
+>
+> Inline attachments are managed by Lectic. Don’t edit them by hand — if
+> you need to re-run a command, delete the attachment and add a new
+> `:attach` directive in your latest message.
 
 
 
@@ -3111,11 +3575,31 @@ If you like the results, you can manually copy them back.
 
 ## Configuration Usage
 
-You can apply sandboxes globally to an interlocutor or to specific
-tools.
+You can apply sandboxes project-wide (top-level), per-interlocutor, or
+per- tool.
 
-**Global (Recommended):** This ensures every `exec` tool the assistant
-uses is wrapped.
+Precedence is:
+
+1.  Tool `sandbox`
+2.  Interlocutor `sandbox`
+3.  Top-level `sandbox`
+
+**Project-wide default (recommended for per-project configs):** This
+wraps all `exec` tools and local `mcp_command` tools in the project,
+across all interlocutors.
+
+``` yaml
+sandbox: ~/.config/lectic/safe-run.sh
+
+interlocutor:
+  name: Assistant
+  tools:
+    - exec: bash
+    - exec: python3
+```
+
+**Per-interlocutor default:** Useful when different interlocutors need
+different isolation.
 
 ``` yaml
 interlocutor:
@@ -3126,7 +3610,7 @@ interlocutor:
     - exec: python3
 ```
 
-**Per-Tool:** Useful if you have a specific “dangerous” tool that needs
+**Per-tool:** Useful if you have a specific “dangerous” tool that needs
 isolation while others (like `ls`) can run natively.
 
 ``` yaml
@@ -3163,6 +3647,15 @@ tools:
 
 
 # Control Flow with Macros
+
+> [!NOTE]
+>
+> ### Advanced Recipe
+>
+> This recipe demonstrates advanced macro techniques. Most Lectic
+> workflows don’t need recursive macros or control flow constructs—a
+> simple `exec` tool or script usually suffices. But if you want to see
+> how far the macro system can go, read on.
 
 Because Lectic’s macros support recursion and can execute scripts during
 the expansion phase, it is possible to build powerful control flow
@@ -3424,29 +3917,200 @@ Liftoff!
 
 
 
+# Recipe: Agent Skills Support
+
+This recipe adds support for the [Agent Skills](https://agentskills.io)
+format by building a custom `lectic skills` subcommand.
+
+## What are Agent Skills?
+
+[Agent Skills](https://agentskills.io) is an open format for packaging
+reusable capabilities that LLMs can load on demand. A skill is a folder
+containing:
+
+- `SKILL.md`: Instructions for the LLM (with YAML frontmatter for
+  metadata)
+- `scripts/`: Executable scripts the LLM can run
+- `references/`: Documentation and examples the LLM can read
+
+The format emphasizes “progressive disclosure”—the LLM sees only skill
+names and descriptions initially, then loads full instructions only when
+needed. This keeps prompts small while giving the LLM access to a large
+library of capabilities.
+
+## Goal
+
+We’ll build a subcommand that gives your LLM access to a library of
+skills while keeping the base prompt small. It follows the skills spec’s
+“progressive disclosure” approach:
+
+1.  Discovery: load only each skill’s name + description.
+2.  Activation: load the full `SKILL.md` instructions for one skill.
+3.  Resources: read reference files or run scripts only when needed.
+
+## The subcommand
+
+Lectic resolves `lectic <command>` using git-style subcommands. We will
+create an executable named `lectic-skills.ts` (TypeScript), using
+Lectic’s built-in script interpreter.
+
+Copy the repository’s `extra/lectic-skills.ts` to your config directory:
+
+``` bash
+cp /path/to/lectic/extra/lectic-skills.ts ~/.config/lectic/lectic-skills.ts
+chmod +x ~/.config/lectic/lectic-skills.ts
+```
+
+Now `lectic skills` should resolve to that file.
+
+## Skill directories
+
+The subcommand accepts one or more “skill directory” paths.
+
+Each path may be either:
+
+- A single skill root (it contains `SKILL.md`)
+- A directory that contains multiple skill roots as immediate children
+
+Example layout:
+
+``` text
+skills/
+  pdf-processing/
+    SKILL.md
+    scripts/
+    references/
+  code-review/
+    SKILL.md
+```
+
+## Configure it as an exec tool
+
+Add an exec tool that bakes in the skill directories:
+
+``` yaml
+tools:
+  - name: skills
+    exec: lectic skills ./skills $LECTIC_DATA/skills
+    usage: exec:lectic skills --prompt ./skills $LECTIC_DATA/skills
+```
+
+This creates a single tool (named `skills`) that the model can use to:
+
+- `activate <name>` (load instructions)
+- `read <name> <path>` (load reference content)
+- `run <name> <script> ...` (execute bundled scripts)
+
+The discovery list (name + description for each skill) is included in
+the tool usage text generated by `--prompt`, so the model usually does
+not need to call `list`.
+
+## Example workflow
+
+1.  The model activates a skill when relevant:
+
+``` text
+<tool-call with="skills">
+<arguments><argv>["activate","pdf-processing"]</argv></arguments>
+...</tool-call>
+```
+
+3.  It reads references mentioned by `SKILL.md`:
+
+``` text
+<tool-call with="skills">
+<arguments><argv>["read","pdf-processing","references/REFERENCE.md"]</argv></arguments>
+...</tool-call>
+```
+
+4.  It runs a script bundled with the skill:
+
+``` text
+<tool-call with="skills">
+<arguments><argv>["run","pdf-processing","extract.py","--input","a.pdf"]</argv></arguments>
+...</tool-call>
+```
+
+## How it’s built
+
+The subcommand is a small CLI wrapper around the skills folder format:
+
+- It scans the provided directories for `SKILL.md` files.
+- It parses the YAML frontmatter to build the discovery list.
+- `activate` returns the full skill instructions on demand.
+- `read` enforces path containment (no `..` escapes) and has a size cap.
+- `run` executes files in `scripts/` only, with the skill root as the
+  working directory.
+
+## Safety notes
+
+Running skill scripts is equivalent to granting the LLM another `exec`
+tool. In real use, you should combine this with one or more of:
+
+- A `tool_use_pre` confirmation hook
+- A sandbox wrapper (Bubblewrap, nsjail, etc.)
+
+See [Custom Sandboxing](./06_custom_sandboxing.qmd) for practical
+options.
+
+
+
 # Cookbook
 
 This section contains practical recipes showing how to combine Lectic’s
 primitives to build useful workflows. Each recipe is self-contained and
 can be adapted to your needs.
 
-## Recipes
+## Getting Started
 
-- [Coding Assistant](./01_coding_assistant.qmd): An agentic setup with
-  shell tools, TypeScript checking, and human-in-the-loop confirmation.
-- [Git Commit Messages](./02_commit_messages.qmd): A custom subcommand
-  that generates commit messages from staged changes.
-- [Research with Multiple Perspectives](./03_research_perspectives.qmd):
-  Using multiple interlocutors to get different viewpoints on a problem.
-- [Conversation Memory](./04_memory.qmd): Persisting conversations to
-  SQLite and retrieving relevant context.
-- [Context Compaction](./05_context_compaction.qmd): Automatically
-  summarizing and resetting context when token limits approach.
-- [Custom Sandboxing](./06_custom_sandboxing.qmd): Isolate tool
-  execution using wrapper scripts like Bubblewrap.
-- [Control Flow with Macros](./07_control_flow_macros.qmd): Implement
-  advanced logic like loops, conditionals, and maps using recursive
-  macros.
+If you’re new to Lectic, start with these:
+
+- **[Coding Assistant](./01_coding_assistant.qmd)** — Give your LLM
+  shell access, type checking, and linting. Includes a confirmation
+  dialog so you approve tool calls before they run.
+
+- **[Git Commit Messages](./02_commit_messages.qmd)** — A
+  `lectic commit` subcommand that generates conventional commit messages
+  from your staged changes. A good example of building small, focused
+  tools.
+
+## Multi-Agent Workflows
+
+- **[Research with Multiple
+  Perspectives](./03_research_perspectives.qmd)** — Define multiple
+  interlocutors with different personalities (researcher, critic,
+  synthesizer) and use `:ask` and `:aside` to get different viewpoints
+  on a problem.
+
+## State and Memory
+
+- **[Conversation Memory](./04_memory.qmd)** — Two approaches to
+  persistence: automatically recording everything to SQLite, or giving
+  the LLM an explicit “remember” tool. An advanced recipe that shows the
+  power of hooks.
+
+- **[Context Compaction](./05_context_compaction.qmd)** — Automatically
+  summarize and reset context when token usage gets high. Useful for
+  long-running conversations that would otherwise hit context limits.
+
+## Security and Isolation
+
+- **[Custom Sandboxing](./06_custom_sandboxing.qmd)** — Isolate tool
+  execution using wrapper scripts. Covers logging, Bubblewrap isolation,
+  and stateful “shadow workspaces.” Essential reading if you’re giving
+  LLMs write access to your system.
+
+## Advanced Techniques
+
+- **[Control Flow with Macros](./07_control_flow_macros.qmd)** —
+  Implement loops, conditionals, and map operations using recursive
+  macros. This is power-user territory—most workflows don’t need this,
+  but it shows what’s possible.
+
+- **[Agent Skills Support](./08_skills_subcommand.qmd)** — Build a
+  subcommand that exposes the [Agent Skills](https://agentskills.io)
+  format, letting your LLM load capabilities on demand through
+  progressive disclosure.
 
 
 
@@ -3476,8 +4140,12 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   - `--reverse`: Ingest JSON (or YAML) output and reconstruct the
     original lectic file.
 
-- `lectic models` List available models for providers with detected API
-  keys. Only providers with API keys in the environment are queried.
+- `lectic models` List available models for providers with detected
+  credentials.
+
+  Providers with API keys in the environment are queried. The `chatgpt`
+  provider is listed if you have previously logged in (it is not an API
+  key-based provider).
 
 - `lectic script` Run an ES module file using Lectic’s internal Bun JS
   runtime. Works as a hashbang interpreter, useful for writing
@@ -3606,6 +4274,21 @@ and any included configuration files.
   [Macros](../automation/01_macros.qmd).
 - `hooks`: A list of hook definitions. See
   [Hooks](../automation/02_hooks.qmd).
+- `sandbox`: A default sandbox command string applied to all `exec`
+  tools and local `mcp_command` tools, unless overridden by
+  `interlocutor.sandbox` or a tool’s own `sandbox` setting.
+
+------------------------------------------------------------------------
+
+## The `kit` Object
+
+A kit is a named list of tools that can be reused from an interlocutor’s
+`tools` array using `- kit: <name>`.
+
+- `name`: (Required) The kit name.
+- `tools`: (Required) An array of tool definitions.
+- `description`: (Optional) Short documentation shown in editor hovers
+  and autocomplete.
 
 ------------------------------------------------------------------------
 
@@ -3628,7 +4311,8 @@ configuration.
 - `sandbox`: A command string (e.g. `/path/to/script.sh` or
   `wrapper.sh arg1`) to wrap execution for all `exec` tools and local
   `mcp_command` tools used by this interlocutor, unless overridden by
-  the tool’s own `sandbox` setting.
+  the tool’s own `sandbox` setting. This overrides any top-level
+  `sandbox` setting.
 
 ### Model Configuration
 
@@ -3732,10 +4416,13 @@ Connect to Model Context Protocol servers.
 - One of: `mcp_command`, `mcp_ws`, `mcp_sse`, or `mcp_shttp`.
 - `args`: Arguments for `mcp_command`.
 - `env`: Environment variables for `mcp_command`.
+- `headers`: A map of custom headers for `mcp_shttp`. Values support
+  `file:` and `exec:`.
 - `sandbox`: Optional wrapper command to isolate `mcp_command` servers.
 - `roots`: Optional list of root objects for file access (each with
   `uri` and optional `name`).
-- `exclude`: Optional list of server tool names to hide.
+- `exclude`: Optional list of server tool names to blacklist.
+- `only`: Optional list of server tool names to whitelist.
 
 #### Other tool keys
 
@@ -3785,71 +4472,105 @@ in a key name.
 - `env`: (Optional) A dictionary of environment variables to be set when
   the hook runs.
 
+# LSP Server Reference
+
+
 # LSP Server
 
+Lectic includes a Language Server Protocol (LSP) server that makes
+editing `.lec` files more pleasant. It provides completions,
+diagnostics, folding, and other features that help you write correct
+configurations and navigate conversations.
 
-Lectic includes a small Language Server Protocol (LSP) server that
-provides completion for directives, macros, and common YAML header
-fields, plus hovers. It is stdio only.
+Start the server with:
 
-Overview - Command: `lectic lsp` - Transport: stdio (no `--node-ipc` or
-`--socket`) - Features: `textDocument/completion`, `textDocument/hover`,
-diagnostics, document symbols (outline), workspace symbols, folding
-ranges, code actions, semantic tokens, go to definition - Triggers: `:`,
-`[` in directive brackets, and `-` in tools arrays - Insertions -
-Directives use snippets and place the cursor inside brackets (or at the
-end for reset): `:cmd[${0:command}]`, `:ask[$0]`, `:aside[$0]`,
-`:reset[]$0`. - Macro names are suggested on `:` and insert as
-directives: `:name[]$0`. - Inside brackets of `:ask[...]` and
-`:aside[...]`, only interlocutor names are offered. - Matching:
-case‑insensitive; typed prefix after `:` or inside `[` is respected. -
-Fences: no suggestions inside `::` or `:::` runs - Trigger filtering:
-only `:ask[`/`:aside[` produce bracket completions
-
-Where completions come from - Directives: built‑in suggestions for
-`:cmd`, `:ask`, `:aside`, and `:reset`. - Macro names: merged from the
-same places and precedence as the CLI (higher wins): 1) System config:
-`${LECTIC_CONFIG}/lectic.yaml` 2) Workspace config: `lectic.yaml` in the
-document directory 3) The document’s YAML header - YAML header fields: -
-`interlocutor` / `interlocutors` blocks: top‑level interlocutor
-properties such as `name`, `prompt`, `provider`, `model`, `temperature`,
-`max_tokens`, `max_tool_use`, `thinking_effort`, `thinking_budget`,
-`tools`, and `nocache`. - `model`: provider‑appropriate model names. -
-`tools` array items: tool kinds after a bare `-`. - `kit: ...`: merged
-kit names from system/workspace/header. - `agent: ...`: merged
-interlocutor names. - `native: ...`: supported native types (`search`,
-`code`). - Interlocutors: collected from the merged header as above,
-combining `interlocutor` and `interlocutors`. - De‑duplication is
-case‑insensitive on name. Higher‑precedence entry wins. - The server
-shows a simple preview in the completion item.
-
-Behavior examples - Type `-` on a line inside `tools:` → suggestions for
-tool kinds (exec, sqlite, mcp\_\*, native, kit, …). - Type `:` →
-suggestions for directives and macro names. - Type `:su` (with a
-`summarize` macro defined) → `summarize` appears and inserts
-`:summarize[]$0`. - Type `:ask[` or `:aside[` → invoke completion to see
-interlocutor names; selecting a name replaces only the text inside the
-`[`…`]`. - Type `::` or `:::` → no suggestions (reserved for directive
-fences). - Place the cursor on a directive (e.g., `:name[]`,
-`:ask[Name]`) or a name field in the YAML header (e.g.,
-`name: Assistant`) and invoke “Go to Definition” to jump to the relevant
-definition. If multiple definitions exist (e.g., a local override of a
-workspace or system interlocutor), the LSP returns all locations,
-prioritized by proximity (local \> workspace \> system).
-
-Neovim setup (vim.lsp.start) - Minimal startup for the current buffer:
-
-``` lua
-local client_id = vim.lsp.start({
-  name = "lectic",
-  cmd = { "lectic", "lsp" },
-  root_dir = vim.fs.root(0, { ".git", "lectic.yaml" })
-             or vim.fn.getcwd(),
-  single_file_support = true,
-})
+``` bash
+lectic lsp
 ```
 
-- Auto‑start for `.lec` (and optionally markdown) files:
+The server uses stdio transport and works with any LSP-capable editor.
+See [Editor Integration](../03_editor_integration.qmd) for setup
+instructions.
+
+## Features
+
+### Completions
+
+The LSP suggests completions as you type:
+
+- **Directives**: Type `:` to see built-in directives (`:cmd`, `:env`,
+  `:verbatim`, `:once`, `:discard`, `:attach`, `:ask`, `:aside`,
+  `:reset`) and any macros you’ve defined.
+- **Interlocutor names**: Inside `:ask[` or `:aside[`, the LSP suggests
+  names from your configuration.
+- **YAML header fields**: In the frontmatter, get suggestions for
+  interlocutor properties (`provider`, `model`, `thinking_effort`,
+  etc.), tool types, kit names, and model names.
+- **Tool types**: Type `-` inside a `tools:` array to see available tool
+  kinds (`exec`, `sqlite`, `mcp_command`, `native`, etc.).
+
+Completions are case-insensitive and respect any prefix you’ve typed.
+
+### Diagnostics
+
+The server catches errors before you run the file:
+
+- **YAML syntax errors**: Malformed frontmatter is flagged immediately.
+- **Missing required fields**: An interlocutor without a `name` or
+  `prompt` triggers an error.
+- **Unknown properties**: A typo like `promt` instead of `prompt` shows
+  a warning.
+- **Duplicate names**: If you define two interlocutors or macros with
+  the same name, the LSP warns you. (The later definition wins at
+  runtime.)
+
+### Folding
+
+Tool calls and inline attachments can be long. The LSP provides folding
+ranges so your editor can collapse them:
+
+``` markdown
+:::Assistant
+
+<tool-call with="search">        ← Fold starts here
+...                              ← Hidden when folded
+</tool-call>                     ← Fold ends here
+
+Based on the search results...
+:::
+```
+
+Both Neovim and VS Code plugins enable folding by default.
+
+### Hover Information
+
+Hover over elements to see documentation:
+
+- **Directives**: Hover on built-in directives to see what they do.
+- **Macros**: Hover on a macro directive to preview its expansion.
+- **Tool calls**: Hover on a `<tool-call>` block to see a summary.
+
+### Go to Definition
+
+Jump to where things are defined:
+
+- Place your cursor on a macro name and invoke “Go to Definition” to
+  jump to the macro’s definition in your config.
+- Works for interlocutors, kits, and macros.
+- If multiple definitions exist (e.g., a local override of a system
+  config), the LSP returns all locations, prioritized by proximity.
+
+### Document Outline
+
+The LSP provides document symbols showing the conversation structure:
+messages, interlocutor responses, and configuration sections. Use your
+editor’s outline view to navigate long conversations.
+
+## Editor Setup
+
+### Neovim
+
+Auto-start the LSP for `.lec` files:
 
 ``` lua
 vim.api.nvim_create_autocmd("FileType", {
@@ -3866,37 +4587,55 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 ```
 
-- Using completion
-  - With nvim‑cmp (recommended), LSP completion pops on `:` and `-`.
-  - Inside brackets, invoke completion manually (`Ctrl‑x Ctrl‑o`) if
-    your setup is not configured to trigger automatically.
+For LSP-based folding:
 
-VS Code setup - The server is an external stdio LSP. You can connect to
-it from a VS Code extension. The repository includes
-`extra/lectic.vscode` for a ready‑made extension.
+``` lua
+vim.opt.foldmethod = 'expr'
+vim.opt.foldexpr = 'v:lua.vim.lsp.foldexpr()'
+```
 
-Diagnostics - The server publishes diagnostics on open/change. - Header
-field validation covers missing or mistyped interlocutor properties
-(name, prompt, model, provider, etc.). Unknown top‑level properties on
-an interlocutor are reported as warnings (for example,
-`Unknown property "mood" on interlocutor A.`). - Duplicate names in the
-document header are warned with precise ranges. Later entries win at
-runtime; the warning helps catch mistakes. - Duplicates originating only
-from included configs may be reported with a coarse header-range
-warning.
+With nvim-cmp, completions appear automatically on `:` and `-`. For
+bracket completions (interlocutor names), you may need to invoke
+completion manually with `<C-Space>` or `<C-x><C-o>`.
 
-Folding - The LSP provides folding ranges for tool‑call and
-inline‑attachment blocks. A block must be a serialized
-`<tool-call ...> ... </tool-call>` or
-`<inline-attachment ...> ... </inline-attachment>` that appears as a
-direct child of an interlocutor container directive (`:::Name`).
+### VS Code
 
-Hovers - Hover over a directive (e.g., `:ask[...]`) to see a short
-description. - Hover on a macro directive name (e.g., `:summarize[]`) to
-preview the macro expansion.
+Install the extension from `extra/lectic.vscode` or download the VSIX
+from [releases](https://github.com/gleachkr/Lectic/releases). The
+extension starts the LSP automatically for `.lec` files.
 
-Notes - Completion previews are static; the server does not expand
-macros or read files referenced by `file:`.
+### Other Editors
+
+Any editor that supports LSP over stdio can use the Lectic server. The
+command is `lectic lsp` with no arguments. See your editor’s
+documentation for how to configure external language servers.
+
+## Technical Details
+
+### Completion Sources
+
+Completions are merged from multiple configuration sources, with later
+sources taking precedence:
+
+1.  System config: `$LECTIC_CONFIG/lectic.yaml`
+2.  Workspace config: `lectic.yaml` in the document’s directory
+3.  The document’s YAML header
+
+This matches the precedence used at runtime, so what you see in
+completions reflects what will actually be available.
+
+### Triggers
+
+- `:` triggers directive and macro completions
+- `[` after `:ask` or `:aside` triggers interlocutor name completions
+- `-` in a `tools:` array triggers tool type completions
+
+### Limitations
+
+- Completion previews are static. The server doesn’t expand `exec:` or
+  read `file:` references when showing previews.
+- No completions are offered inside `:::` fences (those are response
+  blocks, not meant for editing).
 
 
 
@@ -3992,11 +4731,15 @@ sources.
 
 ## Tool Kits
 
-Reuse tool sets across interlocutors by defining named kits:
+Reuse tool sets across interlocutors by defining named kits.
+
+Kits can also include an optional `description`, which is shown in
+editor hovers and autocomplete.
 
 ``` yaml
 kits:
   - name: typescript_tools
+    description: TypeScript checks (tsc + eslint)
     tools:
       - exec: tsc --noEmit
         name: typecheck
@@ -4111,7 +4854,7 @@ tools:
   Prompts](../context_management/03_external_prompts.qmd) for semantics.
 - `sandbox`: A command string to wrap execution
   (e.g. `/path/to/script.sh` or `wrapper.sh arg1`). See safety below.
-  Overrides any interlocutor-level sandbox.
+  Overrides any interlocutor-level or top-level sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the
@@ -4258,8 +5001,9 @@ scripts.
 For example, `extra/sandbox/bwrap-sandbox.sh` uses Bubblewrap to create
 a minimal, isolated environment with a temporary home directory.
 
-You can also set a default `sandbox` on the `interlocutor` object. If
-set, it applies to all `exec` tools that don’t specify their own.
+You can also set a default sandbox at the top level (`sandbox`) or on
+the `interlocutor` object. If set, it applies to all `exec` tools that
+don’t specify their own. Tool-level `sandbox` wins over both defaults.
 
 
 
@@ -4269,6 +5013,27 @@ The `sqlite` tool gives your LLM the ability to query SQLite databases
 directly. This is a powerful way to provide access to structured data,
 allowing the LLM to perform data analysis, answer questions from a
 knowledge base, or check the state of an application.
+
+> [!NOTE]
+>
+> ### Why not just use `exec: sqlite3`?
+>
+> You could give the LLM a shell command like `exec: sqlite3 ./data.db`,
+> but the built-in `sqlite` tool does more:
+>
+> - **Schema introspection**: Lectic reads the database schema and
+>   includes it in the tool description, so the LLM knows what tables
+>   and columns exist without you having to explain them.
+> - **Result limiting**: Large query results can overwhelm the context
+>   window. The `limit` parameter caps response size and returns an
+>   error if exceeded, prompting the LLM to write a more selective
+>   query.
+> - **YAML output**: Results are formatted as YAML, which LLMs tend to
+>   parse more reliably than raw SQL output.
+> - **Atomic transactions**: Each tool call runs in a transaction. If
+>   anything fails, changes are rolled back.
+> - **No external binary**: Lectic uses Bun’s built-in SQLite support,
+>   so you don’t need `sqlite3` installed.
 
 ## Configuration
 
@@ -4393,9 +5158,22 @@ Protocol (MCP)](https://modelcontextprotocol.io). This allows you to
 connect your LLM to a vast and growing ecosystem of pre-built tools and
 services.
 
-You can find lists of available servers here: - [Official MCP Server
-List](https://github.com/modelcontextprotocol/servers) - [Awesome MCP
-Servers](https://github.com/punkpeye/awesome-mcp-servers)
+## What is MCP?
+
+MCP is a standard protocol for connecting LLMs to external tools and
+data sources. Instead of writing custom integrations for every service,
+you can use any MCP-compatible server. Servers exist for GitHub,
+databases, file systems, web browsers, and much more.
+
+The protocol handles the details of how tools describe themselves and
+how results are returned. Lectic speaks MCP, so you can drop in any
+compatible server and the LLM can use its tools immediately.
+
+You can find lists of available servers here:
+
+- [Official MCP Server
+  List](https://github.com/modelcontextprotocol/servers)
+- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
 
 ## Configuration
 
@@ -4444,6 +5222,29 @@ tools:
     mcp_shttp: https://mcp.context7.com/mcp
 ```
 
+#### Authentication for Streamable HTTP
+
+The `mcp_shttp` transport supports both custom headers and dynamic OAuth
+2.0.
+
+Custom headers can be provided using the `headers` key. Header values
+support `file:` and `exec:` sources, which is useful for securely
+loading tokens or computing authentication headers on the fly.
+
+``` yaml
+tools:
+  - name: github_mcp
+    mcp_shttp: https://api.githubcopilot.com/mcp
+    headers:
+      Authorization: exec:bash -c 'echo "Bearer $(pass github_token)"'
+```
+
+If a server requires OAuth 2.0 and supports the MCP OAuth flow, Lectic
+will automatically handle the authorization process. When an
+unauthorized request is made, Lectic will open your default browser to
+complete the login, and then securely persist the resulting tokens in
+your data directory.
+
 ### Server Resources and Content References
 
 If you give an MCP tool a `name` (e.g., `name: brave`), you can access
@@ -4457,7 +5258,7 @@ For example, to access a `repo` resource from a server named `github`:
 The LLM is also given a tool to list the available resources from the
 server.
 
-### Excluding server tools
+### Blacklisting and whitelisting server tools
 
 You can hide specific tools that a server exposes by listing their names
 under `exclude`.
@@ -4470,6 +5271,21 @@ tools:
       - dangerous_tool
       - low_value_tool
 ```
+
+You can also limit access to a specific set of tools that a server
+exposes by listing their names under `only`.
+
+``` yaml
+tools:
+  - name: github
+    mcp_ws: wss://example.org/mcp
+    only:
+      - safe_tool
+      - high_value_tool
+```
+
+If you specify both options at once, you’ll get exactly the tools from
+the `only` list that aren’t also excluded.
 
 ## Safety and trust
 
@@ -4498,8 +5314,10 @@ See the documentation for the [Exec Tool](./02_exec.qmd) for more
 details on how sandboxing scripts work, and the [Custom
 Sandboxing](../cookbook/06_custom_sandboxing.qmd) recipe for examples.
 
-You can also set a default `sandbox` on the `interlocutor` object. If
-set, it applies to all local MCP tools that don’t specify their own.
+You can also set a default sandbox at the top level (`sandbox`) or on
+the `interlocutor` object. If set, it applies to all local `mcp_command`
+tools that don’t specify their own. Tool-level `sandbox` wins over both
+defaults.
 
 
 
@@ -4591,6 +5409,34 @@ A logical approach. We will proceed with passive scans.
 :::
 ```
 
+## Recursion
+
+Agents can call other agents, and those agents can call back. There’s no
+built-in limit on recursion depth, so be thoughtful about your
+configurations. An agent that calls itself (or creates a cycle) will
+keep going until it decides to stop or hits a token limit.
+
+For example, Spock could have a tool that calls Kirk:
+
+``` yaml
+interlocutors:
+  - name: Kirk
+    prompt: You are Captain Kirk.
+    tools:
+      - agent: Spock
+        name: consult_spock
+
+  - name: Spock
+    prompt: You are Mr. Spock.
+    tools:
+      - agent: Kirk
+        name: consult_captain
+```
+
+This is powerful for workflows where agents need to collaborate, but it
+requires clear instructions in the prompts about when to delegate and
+when to answer directly.
+
 
 
 # Other Tools: `think`, `serve`, and `native`
@@ -4649,15 +5495,20 @@ for tourism, career opportunities, or something else?
 
 ## The `serve` Tool
 
-The `serve` tool allows the LLM to spin up a simple, single-use web
-server to present content, such as an HTML file or a small web
-application it has generated.
+The `serve` tool lets the LLM show you interactive content—HTML pages,
+visualizations, small web apps—directly in your browser. This is
+Lectic’s answer to “artifacts” features you might have seen in web-based
+LLM interfaces.
+
+Why use this instead of just writing HTML to a file? With `serve`, the
+content appears in your browser immediately. You don’t need to find the
+file and open it. The LLM can generate a data visualization, a diagram,
+or a playable game and you see it right away.
 
 When the LLM uses this tool, Lectic starts a server on the specified
-port. It will then attempt to open the page in your default web browser.
-The server shuts down automatically after the first request is served.
-While the page is loading, Lectic waits for the first request—so the
-conversation resumes once your browser has loaded the page.
+port and opens the page in your default browser. The server shuts down
+automatically after the first request is served, and the conversation
+resumes once your browser has loaded the page.
 
 ### Configuration
 
@@ -4728,4 +5579,6 @@ tools:
 - **Anthropic**: Supports `search` only.
 - **OpenAI**: Supports both `search` and `code` via the `openai`
   provider (not the legacy `openai/chat` provider).
+- **ChatGPT**: Supports both `search` and `code` via the `chatgpt`
+  provider (ChatGPT subscription, Codex backend).
 

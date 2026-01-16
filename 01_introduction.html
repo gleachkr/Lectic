@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -394,6 +400,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#introduction-to-lectic" id="toc-introduction-to-lectic" class="nav-link active" data-scroll-target="#introduction-to-lectic">Introduction to Lectic</a>
   <ul class="collapse">
+  <li><a href="#what-problems-does-lectic-solve" id="toc-what-problems-does-lectic-solve" class="nav-link" data-scroll-target="#what-problems-does-lectic-solve">What Problems Does Lectic Solve?</a></li>
   <li><a href="#core-principles" id="toc-core-principles" class="nav-link" data-scroll-target="#core-principles">Core Principles</a>
   <ul class="collapse">
   <li><a href="#plain-text-all-the-way-down" id="toc-plain-text-all-the-way-down" class="nav-link" data-scroll-target="#plain-text-all-the-way-down">Plain text all the way down</a></li>
@@ -416,6 +423,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="introduction-to-lectic" class="level1">
 <h1>Introduction to Lectic</h1>
 <p>Lectic is a unixy LLM toolbox. It treats conversations as plain text files, which means you can version control them, grep them, pipe them, email them, and edit them in whatever editor you like.</p>
+<section id="what-problems-does-lectic-solve" class="level2">
+<h2 class="anchored" data-anchor-id="what-problems-does-lectic-solve">What Problems Does Lectic Solve?</h2>
+<p>Most LLM tools ask you to work in <em>their</em> environment—a chat window, a dedicated IDE, a web app. Lectic takes the opposite approach: it brings LLMs into <em>your</em> environment. The conversation is a file. You edit it with your editor. You run a command. The response appears.</p>
+<p>This matters when you want to:</p>
+<ul>
+<li><strong>Keep your workflow.</strong> You already have an editor you like, a terminal you’ve customized, scripts you’ve written. Lectic fits into that setup instead of replacing it.</li>
+<li><strong>Control your data.</strong> Conversations are human-readable files on your disk. Back them up however you want. Delete them when you’re done. Email them if you want to. No cloud sync you didn’t ask for.</li>
+<li><strong>Automate LLM interactions.</strong> Because Lectic is a command-line tool, you can script it, pipe to it, run it from cron jobs or git hooks.</li>
+<li><strong>Experiment freely.</strong> Branch a conversation with git. Try different prompts. Diff the results.</li>
+</ul>
+<p>The “conversation as file” approach is underexplored. Many “agentic” coding tools are reinventing editor affordances in awkward ways—custom UIs for editing, bespoke diff viewers, their own version of undo, or evan a vim mode. Lectic sidesteps all of that. Your editor already does those things.</p>
+</section>
 <section id="core-principles" class="level2">
 <h2 class="anchored" data-anchor-id="core-principles">Core Principles</h2>
 <section id="plain-text-all-the-way-down" class="level3">
@@ -424,13 +443,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><strong>Version control</strong>: Track changes with git, branch experiments, diff conversations.</li>
 <li><strong>Search</strong>: <code>grep</code> across your conversation history.</li>
-<li><strong>Process</strong>: Pipe conversations through other tools. Combine lectic with <code>sed</code>, <code>pandoc</code>, or anything else.</li>
+<li><strong>Process</strong>: Pipe conversations through other tools. Combine Lectic with <code>sed</code>, <code>pandoc</code>, or anything else.</li>
 <li><strong>Back up</strong>: Copy files. Sync with rsync. Store wherever you want.</li>
 </ul>
 </section>
 <section id="bring-your-own-editor" class="level3">
 <h3 class="anchored" data-anchor-id="bring-your-own-editor">Bring your own editor</h3>
-<p>Lectic includes an LSP server that provides completions, diagnostics, hover information, go-to-definition, and folding for <code>.lec</code> files. You can use lectic with Neovim, VS Code, or any editor that speaks LSP.</p>
+<p>Lectic includes an LSP server that provides completions, diagnostics, hover information, go-to-definition, and folding for <code>.lec</code> files. You can use Lectic with Neovim, VS Code, or any editor that speaks LSP.</p>
 <p>For editors without LSP support, the basic workflow still works: edit a file, run <code>lectic -i file.lec</code>, and the response is appended.</p>
 </section>
 <section id="bring-your-own-language" class="level3">
@@ -443,18 +462,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Lectic provides a small set of building blocks:</p>
 <ul>
 <li><strong><code>:cmd</code></strong>: Run a command and include its output.</li>
+<li><strong><code>:attach</code></strong>: Create an inline attachment from expanded content.</li>
+<li><strong><code>:env</code></strong>: Read an environment variable.</li>
+<li><strong><code>:verbatim</code></strong>: Include text without macro expansion.</li>
+<li><strong><code>:once</code></strong>: Expand content only in the final message.</li>
+<li><strong><code>:discard</code></strong>: Evaluate content for side effects, discard output.</li>
 <li><strong><code>:ask</code> / <code>:aside</code></strong>: Switch between interlocutors.</li>
 <li><strong><code>:reset</code></strong>: Clear conversation context.</li>
 <li><strong>Macros</strong>: Reusable text expansions.</li>
 <li><strong>Hooks</strong>: Run code on events (message sent, tool called, etc.).</li>
 <li><strong>Tools</strong>: Give the LLM capabilities (shell, database, MCP servers).</li>
 </ul>
-<p>You can put these together to build all sorts of AI applications: coding assistants, reseach and analysis workflows, orchestrated multi-agent swarms, or simple one-shot command line text processing tools. Take a look at the <a href="./cookbook/index.html">Cookbook</a> for some detailed recipes.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>What’s an “interlocutor”?
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Lectic calls LLM configurations “interlocutors” because they’re participants in a conversation. An interlocutor has a name, a prompt, and optionally tools and other settings. You can have multiple interlocutors in one conversation—each with different capabilities or personalities.</p>
+</div>
+</div>
+<p>You combine these to build what you need: coding assistants, research workflows, multi-agent systems, or simple one-shot text processing. See the <a href="./cookbook/index.html">Cookbook</a> for detailed recipes.</p>
 </section>
 </section>
 <section id="quick-example" class="level2">
 <h2 class="anchored" data-anchor-id="quick-example">Quick Example</h2>
-<p>A minimal conversation:</p>
+<p>A minimal conversation file:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">interlocutor:</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">  name: Assistant</span></span>
@@ -468,7 +505,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>4</span>
 <span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>A more interesting one:</p>
+<p>The <code>---</code> block at the top is YAML configuration. Below it, you write your message. The <code>:::Assistant</code> block is where the LLM’s response appears—Lectic appends it when you run the command.</p>
+<p>A more interesting setup with tools:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
@@ -480,8 +518,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">name</span><span class="kw">:</span><span class="at"> search</span></span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Review the error handling in src/main.ts. Are there any uncaught</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>exceptions?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The assistant can read files and search the codebase to answer.</p>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>exceptions?</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>:::Assistant</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tool-call</span><span class="ot"> with</span><span class="op">=</span><span class="st">"read_file"</span><span class="dt">&gt;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">arguments</span><span class="dt">&gt;&lt;</span><span class="kw">argv</span><span class="dt">&gt;</span><span class="co">[</span><span class="ot">"src/main.ts"</span><span class="co">]</span><span class="dt">&lt;/</span><span class="kw">argv</span><span class="dt">&gt;&lt;/</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">results</span><span class="dt">&gt;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">result</span><span class="ot"> type</span><span class="op">=</span><span class="st">"text"</span><span class="dt">&gt;</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>┆<span class="dt">&lt;</span><span class="kw">stdout</span><span class="dt">&gt;</span>// contents of main.ts...<span class="dt">&lt;/</span><span class="kw">stdout</span><span class="dt">&gt;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">result</span><span class="dt">&gt;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">results</span><span class="dt">&gt;</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tool-call</span><span class="dt">&gt;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>Looking at the code, I can see several places where exceptions might not</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>be caught...</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The assistant reads files and searches the codebase to answer your question. Tool calls appear inline in the response so you can see exactly what happened.</p>
 </section>
 <section id="next-steps" class="level2">
 <h2 class="anchored" data-anchor-id="next-steps">Next Steps</h2>
@@ -492,7 +546,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><a href="./tools/01_overview.html">Tools</a>: Give your LLM capabilities.</li>
 <li><a href="./cookbook/index.html">Cookbook</a>: Ready-to-use recipes for common workflows.</li>
 </ul>
-<p>All of the documentation concatinated into a single markdown file can be found <a href="./llms-full.md">here</a></p>
+<p>All documentation concatenated into a single markdown file can be found <a href="./llms-full.md">here</a>.</p>
 
 
 </section>

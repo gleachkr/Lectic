@@ -316,6 +316,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -359,7 +365,11 @@ ul.task-list li input[type="checkbox"] {
   <ul>
   <li><a href="#cookbook" id="toc-cookbook" class="nav-link active" data-scroll-target="#cookbook">Cookbook</a>
   <ul class="collapse">
-  <li><a href="#recipes" id="toc-recipes" class="nav-link" data-scroll-target="#recipes">Recipes</a></li>
+  <li><a href="#getting-started" id="toc-getting-started" class="nav-link" data-scroll-target="#getting-started">Getting Started</a></li>
+  <li><a href="#multi-agent-workflows" id="toc-multi-agent-workflows" class="nav-link" data-scroll-target="#multi-agent-workflows">Multi-Agent Workflows</a></li>
+  <li><a href="#state-and-memory" id="toc-state-and-memory" class="nav-link" data-scroll-target="#state-and-memory">State and Memory</a></li>
+  <li><a href="#security-and-isolation" id="toc-security-and-isolation" class="nav-link" data-scroll-target="#security-and-isolation">Security and Isolation</a></li>
+  <li><a href="#advanced-techniques" id="toc-advanced-techniques" class="nav-link" data-scroll-target="#advanced-techniques">Advanced Techniques</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -373,16 +383,38 @@ ul.task-list li input[type="checkbox"] {
 <section id="cookbook" class="level1">
 <h1>Cookbook</h1>
 <p>This section contains practical recipes showing how to combine Lectic’s primitives to build useful workflows. Each recipe is self-contained and can be adapted to your needs.</p>
-<section id="recipes" class="level2">
-<h2 class="anchored" data-anchor-id="recipes">Recipes</h2>
+<section id="getting-started" class="level2">
+<h2 class="anchored" data-anchor-id="getting-started">Getting Started</h2>
+<p>If you’re new to Lectic, start with these:</p>
 <ul>
-<li><a href="../cookbook/01_coding_assistant.html">Coding Assistant</a>: An agentic setup with shell tools, TypeScript checking, and human-in-the-loop confirmation.</li>
-<li><a href="../cookbook/02_commit_messages.html">Git Commit Messages</a>: A custom subcommand that generates commit messages from staged changes.</li>
-<li><a href="../cookbook/03_research_perspectives.html">Research with Multiple Perspectives</a>: Using multiple interlocutors to get different viewpoints on a problem.</li>
-<li><a href="../cookbook/04_memory.html">Conversation Memory</a>: Persisting conversations to SQLite and retrieving relevant context.</li>
-<li><a href="../cookbook/05_context_compaction.html">Context Compaction</a>: Automatically summarizing and resetting context when token limits approach.</li>
-<li><a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a>: Isolate tool execution using wrapper scripts like Bubblewrap.</li>
-<li><a href="../cookbook/07_control_flow_macros.html">Control Flow with Macros</a>: Implement advanced logic like loops, conditionals, and maps using recursive macros.</li>
+<li><p><strong><a href="../cookbook/01_coding_assistant.html">Coding Assistant</a></strong> — Give your LLM shell access, type checking, and linting. Includes a confirmation dialog so you approve tool calls before they run.</p></li>
+<li><p><strong><a href="../cookbook/02_commit_messages.html">Git Commit Messages</a></strong> — A <code>lectic commit</code> subcommand that generates conventional commit messages from your staged changes. A good example of building small, focused tools.</p></li>
+</ul>
+</section>
+<section id="multi-agent-workflows" class="level2">
+<h2 class="anchored" data-anchor-id="multi-agent-workflows">Multi-Agent Workflows</h2>
+<ul>
+<li><strong><a href="../cookbook/03_research_perspectives.html">Research with Multiple Perspectives</a></strong> — Define multiple interlocutors with different personalities (researcher, critic, synthesizer) and use <code>:ask</code> and <code>:aside</code> to get different viewpoints on a problem.</li>
+</ul>
+</section>
+<section id="state-and-memory" class="level2">
+<h2 class="anchored" data-anchor-id="state-and-memory">State and Memory</h2>
+<ul>
+<li><p><strong><a href="../cookbook/04_memory.html">Conversation Memory</a></strong> — Two approaches to persistence: automatically recording everything to SQLite, or giving the LLM an explicit “remember” tool. An advanced recipe that shows the power of hooks.</p></li>
+<li><p><strong><a href="../cookbook/05_context_compaction.html">Context Compaction</a></strong> — Automatically summarize and reset context when token usage gets high. Useful for long-running conversations that would otherwise hit context limits.</p></li>
+</ul>
+</section>
+<section id="security-and-isolation" class="level2">
+<h2 class="anchored" data-anchor-id="security-and-isolation">Security and Isolation</h2>
+<ul>
+<li><strong><a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a></strong> — Isolate tool execution using wrapper scripts. Covers logging, Bubblewrap isolation, and stateful “shadow workspaces.” Essential reading if you’re giving LLMs write access to your system.</li>
+</ul>
+</section>
+<section id="advanced-techniques" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-techniques">Advanced Techniques</h2>
+<ul>
+<li><p><strong><a href="../cookbook/07_control_flow_macros.html">Control Flow with Macros</a></strong> — Implement loops, conditionals, and map operations using recursive macros. This is power-user territory—most workflows don’t need this, but it shows what’s possible.</p></li>
+<li><p><strong><a href="../cookbook/08_skills_subcommand.html">Agent Skills Support</a></strong> — Build a subcommand that exposes the <a href="https://agentskills.io">Agent Skills</a> format, letting your LLM load capabilities on demand through progressive disclosure.</p></li>
 </ul>
 
 

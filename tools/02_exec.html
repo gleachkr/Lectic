@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -456,7 +462,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>exec</code>: (Required) The command or inline script to execute.</li>
 <li><code>name</code>: An optional name for the tool.</li>
 <li><code>usage</code>: A string with instructions for the LLM. It also accepts <code>file:</code> and <code>exec:</code> sources. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for semantics.</li>
-<li><code>sandbox</code>: A command string to wrap execution (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>). See safety below. Overrides any interlocutor-level sandbox.</li>
+<li><code>sandbox</code>: A command string to wrap execution (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>). See safety below. Overrides any interlocutor-level or top-level sandbox.</li>
 <li><code>timeoutSeconds</code>: Seconds to wait before aborting a long‑running call.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
 <li><code>schema</code>: A map of parameter name → description. When present, the tool takes named string parameters (exposed as env vars). When absent, the tool instead takes a required <code>arguments</code> array of strings.</li>
@@ -560,7 +566,7 @@ Warning
 <p>You can include arguments in the sandbox string (e.g.&nbsp;<code>bwrap.sh --net</code>).</p>
 <p>See the <a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a> cookbook recipe for a detailed guide on writing your own sandbox scripts.</p>
 <p>For example, <code>extra/sandbox/bwrap-sandbox.sh</code> uses Bubblewrap to create a minimal, isolated environment with a temporary home directory.</p>
-<p>You can also set a default <code>sandbox</code> on the <code>interlocutor</code> object. If set, it applies to all <code>exec</code> tools that don’t specify their own.</p>
+<p>You can also set a default sandbox at the top level (<code>sandbox</code>) or on the <code>interlocutor</code> object. If set, it applies to all <code>exec</code> tools that don’t specify their own. Tool-level <code>sandbox</code> wins over both defaults.</p>
 
 
 </section>

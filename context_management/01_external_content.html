@@ -351,6 +351,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Control Flow With Macros</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/08_skills_subcommand.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Agent Skills Support</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -400,7 +406,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#uri-schemes" id="toc-uri-schemes" class="nav-link" data-scroll-target="#uri-schemes">URI Schemes</a></li>
   <li><a href="#advanced-uri-features" id="toc-advanced-uri-features" class="nav-link" data-scroll-target="#advanced-uri-features">Advanced URI Features</a></li>
   </ul></li>
-  <li><a href="#command-output-via-cmd-directive" id="toc-command-output-via-cmd-directive" class="nav-link" data-scroll-target="#command-output-via-cmd-directive">Command Output via <code>:cmd</code> Directive</a></li>
+  <li><a href="#command-output-via-cmd" id="toc-command-output-via-cmd" class="nav-link" data-scroll-target="#command-output-via-cmd">Command Output via <code>:cmd</code></a>
+  <ul class="collapse">
+  <li><a href="#when-cmd-runs" id="toc-when-cmd-runs" class="nav-link" data-scroll-target="#when-cmd-runs">When <code>:cmd</code> runs</a></li>
+  <li><a href="#execution-environment" id="toc-execution-environment" class="nav-link" data-scroll-target="#execution-environment">Execution environment</a></li>
+  <li><a href="#use-cases" id="toc-use-cases" class="nav-link" data-scroll-target="#use-cases">Use cases</a></li>
+  </ul></li>
+  <li><a href="#inline-attachments-with-attach" id="toc-inline-attachments-with-attach" class="nav-link" data-scroll-target="#inline-attachments-with-attach">Inline Attachments with <code>:attach</code></a>
+  <ul class="collapse">
+  <li><a href="#combining-attach-with-cmd" id="toc-combining-attach-with-cmd" class="nav-link" data-scroll-target="#combining-attach-with-cmd">Combining <code>:attach</code> with <code>:cmd</code></a></li>
+  <li><a href="#how-inline-attachments-work" id="toc-how-inline-attachments-work" class="nav-link" data-scroll-target="#how-inline-attachments-work">How inline attachments work</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 </nav>
@@ -474,14 +490,100 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 </section>
 </section>
-<section id="command-output-via-cmd-directive" class="level2">
-<h2 class="anchored" data-anchor-id="command-output-via-cmd-directive">Command Output via <code>:cmd</code> Directive</h2>
-<p>Use <code>:cmd[...]</code> to execute a shell command and capture its stdout and stderr. Lectic runs the command with the Bun shell. The result is returned as an inline attachment that appears at the very top of the next assistant block.</p>
-<p>How it works - When you run lectic, any <code>:cmd[...]</code> found in the last user message is executed, and the result is forwarded to the LLM. - The result is also inserted as an inline attachment chunk at the beginning of the generated assistant block. It looks like an XML block beginning with <code>&lt;inline-attachment ...&gt;</code>. It includes the command and its content (stdout, or an error wrapper that includes stdout and stderr). - During provider serialization, this attachment is treated as if it were a user message that immediately precedes the assistant’s round. This keeps provider caches stable and avoids recomputing earlier commands. - Older <code>:cmd[...]</code> directives are not re-executed. Their cached attachments remain part of the transcript and are reused across runs.</p>
-<p>Use cases - System information: <code>What can you tell me about my system? :cmd[uname -a]</code> - Project state: <code>Write a commit message: :cmd[git diff --staged]</code> - Data analysis: <code>Compute the average: :cmd[cat data.csv | awk '...']</code></p>
-<p>Notes - Output is wrapped in XML. On success, stdout is included. On failure, an <code>&lt;error&gt;</code> wrapper includes both stdout and stderr. - <code>:cmd</code> runs with Bun’s <code>$</code> shell in the current working directory. Standard Lectic environment variables like <code>LECTIC_FILE</code> are available. By contrast, single‑line <code>exec</code> tools run without a shell; invoke a shell explicitly if you need shell features. - line breaks inside of <code>:cmd</code> are ignored so that if a <code>:cmd</code> happens to line-wrap, the newline doesn’t affect the command to be executed.</p>
+<section id="command-output-via-cmd" class="level2">
+<h2 class="anchored" data-anchor-id="command-output-via-cmd">Command Output via <code>:cmd</code></h2>
+<p>Use <code>:cmd[...]</code> to execute a shell command and insert its output directly into your message. Think of it as a built-in <a href="../automation/01_macros.html">macro</a> that runs a command and pastes in the result.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>What can you tell me about my system? :cmd<span class="co">[</span><span class="ot">uname -a</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>When Lectic processes this, it runs <code>uname -a</code> and replaces the <code>:cmd[...]</code> directive with the command’s output wrapped in XML:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">stdout</span><span class="ot"> from=</span><span class="st">"uname -a"</span>&gt;Linux myhost 6.1.0 ...&lt;/<span class="kw">stdout</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If the command fails (non-zero exit code), you get an error wrapper instead:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">error</span>&gt;Something went wrong when executing a command:&lt;<span class="kw">stdout</span><span class="ot"> from=</span><span class="st">"bad-cmd"</span>&gt;</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">stdout</span>&gt;&lt;<span class="kw">stderr</span><span class="ot"> from=</span><span class="st">"bad-cmd"</span>&gt;bad-cmd: command not found&lt;/<span class="kw">stderr</span>&gt;&lt;/<span class="kw">error</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="when-cmd-runs" class="level3">
+<h3 class="anchored" data-anchor-id="when-cmd-runs">When <code>:cmd</code> runs</h3>
+<p><code>:cmd</code> directives are expanded at the beginning of each user turn. You can also expand them with an <a href="../reference/03_lsp.html">LSP</a> code action. If you want a <code>:cmd</code> directive to expand only once, you can wrap it in <code>:attach[..]</code> (see below) which will store the results in the lectic document as an attachment, or you can implement some other caching mechanism using the macro system.</p>
+</section>
+<section id="execution-environment" class="level3">
+<h3 class="anchored" data-anchor-id="execution-environment">Execution environment</h3>
+<ul>
+<li><code>:cmd</code> runs with Bun’s <code>$</code> shell in the current working directory.</li>
+<li>Standard Lectic environment variables like <code>LECTIC_FILE</code> are available.</li>
+<li>Line breaks inside <code>:cmd[...]</code> are ignored, so wrapped commands work:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>:cmd[find . -name "*.ts" </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>     <span class="pp">|</span> head -20]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="use-cases" class="level3">
+<h3 class="anchored" data-anchor-id="use-cases">Use cases</h3>
+<ul>
+<li><strong>System information</strong>: <code>What can you tell me about my system? :cmd[uname -a]</code></li>
+<li><strong>Project state</strong>: <code>Write a commit message: :cmd[git diff --staged]</code></li>
+<li><strong>Data snippets</strong>: <code>Analyze this: :cmd[head -50 data.csv]</code></li>
+</ul>
+</section>
+</section>
+<section id="inline-attachments-with-attach" class="level2">
+<h2 class="anchored" data-anchor-id="inline-attachments-with-attach">Inline Attachments with <code>:attach</code></h2>
+<p>While <code>:cmd</code> inserts command output directly into your message text, sometimes you want to provide context that appears as a separate attachment — for example, to keep the conversation transcript cleaner or to control caching behavior.</p>
+<p>The <code>:attach[...]</code> directive creates an <strong>inline attachment</strong>. The content inside the brackets is stored in the assistant’s response block (after macro expansion) and sent to the LLM as additional user context.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Here's the current state of the config:</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:config_status_macro[]</span><span class="co">]</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>What do you think of this configuration?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>When Lectic processes this, it creates an inline attachment that appears at the top of the assistant’s response:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"attach"</span>&gt;</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;&lt;/<span class="kw">command</span>&gt;</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">content</span><span class="ot"> type=</span><span class="st">"text/plain"</span>&gt;</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>┆server:</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>┆  port: 8080</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>┆  host: localhost</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">content</span>&gt;</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">inline-attachment</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="combining-attach-with-cmd" class="level3">
+<h3 class="anchored" data-anchor-id="combining-attach-with-cmd">Combining <code>:attach</code> with <code>:cmd</code></h3>
+<p>You can compose <code>:attach</code> and <code>:cmd</code> to get the best of both worlds — run a command and store its output as an attachment:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="an">Review this diff:</span><span class="co"> :attach[:cmd[git diff --staged]]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This executes <code>git diff --staged</code>, then wraps the result as an inline attachment. The attachment is cached in the transcript, so re-running Lectic won’t re-execute the command.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>When to use <code>:cmd</code> vs <code>:attach[:cmd[...]]</code>
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Use <strong><code>:cmd[...]</code></strong> when you want command output inlined directly in your message. The output becomes part of the message text.</p>
+<p>Use <strong><code>:attach[:cmd[...]]</code></strong> when you want the output stored as a cached attachment. This is useful for large outputs or when you want to preserve provider cache efficiency (for example, if the output of <code>:cmd</code> might change in between user turns).</p>
+</div>
+</div>
+</section>
+<section id="how-inline-attachments-work" class="level3">
+<h3 class="anchored" data-anchor-id="how-inline-attachments-work">How inline attachments work</h3>
+<p>Inline attachments serve two purposes:</p>
+<ol type="1">
+<li><p><strong>Caching</strong>: Results are stored in the file, so re-running Lectic doesn’t re-execute commands or re-process content. Only <code>:attach</code> directives in the most recent user message are processed.</p></li>
+<li><p><strong>Context positioning</strong>: When sending the conversation to the provider, attachments are treated as if they were a user message immediately preceding the assistant’s response. This keeps provider caches stable.</p></li>
+</ol>
+<p>Inline attachments appear in the <code>.lec</code> file as XML blocks inside the assistant response. Editor plugins typically fold them by default to reduce visual clutter.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Inline attachments are managed by Lectic. Don’t edit them by hand — if you need to re-run a command, delete the attachment and add a new <code>:attach</code> directive in your latest message.</p>
+</div>
+</div>
 
 
+</section>
 </section>
 </section>
 
