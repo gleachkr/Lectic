@@ -1,11 +1,11 @@
 import type { RootContent } from "mdast"
 import {
-    parseReferences,
-    parseDirectives,
-    parseBlocks,
-    nodeContentRaw,
-    nodeRaw,
-    replaceDirectives,
+  parseReferences,
+  parseDirectives,
+  parseBlocks,
+  nodeContentRaw,
+  nodeRaw,
+  replaceDirectives,
 } from "../parsing/markdown"
 import {
   expandMacrosWithAttachments,
@@ -20,12 +20,7 @@ import {
   isSerializedInlineAttachment,
   type InlineAttachment,
 } from "./inlineAttachment"
-
-export type MessageLink = {
-    text : string
-    URI  : string
-    title? : string
-}
+import type { MessageLink } from "./link"
 
 export type MessageDirective = {
     name: string

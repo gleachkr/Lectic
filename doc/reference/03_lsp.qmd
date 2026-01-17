@@ -25,7 +25,8 @@ The server uses stdio transport and works with any LSP-capable editor. See
 The LSP suggests completions as you type:
 
 - **Directives**: Type `:` to see built-in directives (`:cmd`, `:env`,
-  `:verbatim`, `:once`, `:discard`, `:attach`, `:ask`, `:aside`, `:reset`)
+  `:fetch`, `:verbatim`, `:once`, `:discard`, `:attach`, `:ask`, `:aside`,
+  `:reset`)
   and any macros you've defined.
 - **Interlocutor names**: Inside `:ask[` or `:aside[`, the LSP suggests
   names from your configuration.

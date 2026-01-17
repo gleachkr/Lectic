@@ -25,6 +25,7 @@ describe("completions (unit)", () => {
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     expect(hasLabel(arr, "cmd")).toBeTrue()
     expect(hasLabel(arr, "env")).toBeTrue()
+    expect(hasLabel(arr, "fetch")).toBeTrue()
     expect(hasLabel(arr, "verbatim")).toBeTrue()
     expect(hasLabel(arr, "once")).toBeTrue()
     expect(hasLabel(arr, "discard")).toBeTrue()

@@ -1,8 +1,9 @@
 import { PDFDocument } from "pdf-lib"
 import type { Lectic } from "../types/lectic"
 import type { Tool, ToolCall } from "../types/tool"
-import type { MessageLink, UserMessage } from "../types/message"
-import { MessageAttachment, type MessageAttachmentPart, } from "../types/attachment"
+import type { UserMessage } from "../types/message"
+import type { MessageLink } from "../types/link"
+import { MessageAttachment, type MessageAttachmentPart } from "../types/attachment"
 import { destrictify, type JSONSchema } from "../types/schema.ts"
 
 export function wrapText({text, name} : { text : string, name: string}) {

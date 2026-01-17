@@ -1,5 +1,5 @@
-import { expandEnv} from "../utils/replace.ts"
-import type { MessageLink } from "./message"
+import { expandEnv } from "../utils/replace.ts"
+import type { MessageLink } from "./link"
 import type { BunFile } from "bun"
 import { Glob } from "bun"
 import { MCPTool } from "../tools/mcp.ts"

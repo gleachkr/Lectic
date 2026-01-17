@@ -70,6 +70,7 @@ scripting language. Your existing scripts and tools integrate directly.
 Lectic provides a small set of building blocks:
 
 - **`:cmd`**: Run a command and include its output.
+- **`:fetch`**: Inline external content (file/URL) as text.
 - **`:attach`**: Create an inline attachment from expanded content.
 - **`:env`**: Read an environment variable.
 - **`:verbatim`**: Include text without macro expansion.

@@ -33,6 +33,16 @@ export const DIRECTIVE_DOCS: DirectiveDoc[] = [
     sortText: "01_cmd",
   },
   {
+    key: "fetch",
+    title: "fetch a URI or markdown link and inline its text",
+    body:
+      "Fetch the referenced content and inline it as <file ...> blocks. " +
+      "Accepts either a plain URI/path (e.g. ./README.md) or a markdown " +
+      "link/autolink (e.g. <https://...> or [t](./x)).",
+    insert: ":fetch[${0:uri_or_link}]",
+    sortText: "01_fetch",
+  },
+  {
     key: "env",
     title: "expand an environment variable",
     body:

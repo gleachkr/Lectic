@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { expandMacros } from "./macro"
 import { Macro } from "../types/macro"
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync }
+  from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -226,5 +227,27 @@ describe("expandMacros", () => {
         } finally {
             rmSync(dir, { recursive: true, force: true })
         }
+    })
+
+    test("builtin :fetch reads local file by path", async () => {
+        const dir = mkdtempSync(join(tmpdir(), "lectic-fetch-"))
+        const p = join(dir, "x.txt")
+        try {
+            writeFileSync(p, "Hello")
+            const out = await expandMacros(`:fetch[${p}]`, {})
+            expect(out).toContain("<file")
+            expect(out).toContain("Hello")
+        } finally {
+            rmSync(dir, { recursive: true, force: true })
+        }
+    })
+
+    test("builtin :fetch supports nested macros", async () => {
+        const macros = {
+            u: new Macro({ name: "u", expansion: "data:text/plain,Hi" }),
+        }
+        const out = await expandMacros(":fetch[:u[]]", macros)
+        expect(out).toContain("<file")
+        expect(out).toContain("Hi")
     })
 })

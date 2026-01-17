@@ -1,11 +1,13 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
-import type { Parent, Root, RootContent } from "mdast"
+import type { Image, Link, Parent, Root, RootContent } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 import { $ } from "bun"
 import { Macro } from "../types/macro"
 import { lecticEnv } from "../utils/xdg"
 import type { InlineAttachment } from "../types/inlineAttachment"
+import { parseReferences, nodeContentRaw } from "./markdown"
+import { MessageAttachment } from "../types/attachment"
 
 const processor = remark().use(remarkDirective)
 
@@ -108,6 +110,105 @@ function messageEnvToEnv(messageEnv?: MacroMessageEnv): Record<string, string> {
   }
 }
 
+function escapeXmlAttr(raw: string): string {
+  return raw.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+}
+
+type FetchTarget = {
+  uri: string
+  title: string
+}
+
+function parseFetchTarget(raw: string): FetchTarget | null {
+  const refs = parseReferences(raw)
+
+  if (refs.length === 0) {
+    const uri = raw.trim()
+    if (uri.length === 0) return null
+    return { uri, title: uri }
+  }
+
+  if (refs.length !== 1) {
+    throw new Error(
+      `:fetch[...] expects exactly one markdown link, got ${refs.length}`
+    )
+  }
+
+  const ref = refs[0] as Link | Image
+  const uri = ref.url
+  if (typeof uri !== "string" || uri.length === 0) return null
+
+  const title = ref.type === "link"
+    ? nodeContentRaw(ref, raw)
+    : (ref.alt ?? "")
+
+  return { uri, title: title.length > 0 ? title : uri }
+}
+
+function isTextLikeMime(mt: string | null | undefined): boolean {
+  if (!mt) return false
+  if (mt === "text/plain") return true
+  if (mt === "application/json") return true
+  if (mt.endsWith("+json")) return true
+  if (mt === "application/xml") return true
+  if (mt.endsWith("+xml")) return true
+  return false
+}
+
+async function builtinFetch(bodyRaw: string): Promise<string> {
+  const target = parseFetchTarget(bodyRaw)
+  if (!target) {
+    return "<error>:fetch requires a URI or markdown link</error>"
+  }
+
+  const atts = MessageAttachment.fromGlob({
+    text: target.title,
+    URI: target.uri,
+  })
+
+  const out: string[] = []
+
+  for (const att of atts) {
+    if (!(await att.exists())) {
+      out.push(
+        `<error>Could not fetch ${escapeXmlAttr(att.URI)}: not found</error>`
+      )
+      continue
+    }
+
+    const parts = await att.getParts()
+    if (parts.length === 0) {
+      out.push(
+        `<error>Could not fetch ${escapeXmlAttr(att.URI)}: empty result</error>`
+      )
+      continue
+    }
+
+    for (const part of parts) {
+      const mt = part.mimetype
+      if (!isTextLikeMime(mt)) {
+        const shown = mt ?? "unknown"
+        out.push(
+          `<error>Media type ${shown} is not supported by :fetch. ` +
+            `Use a markdown link instead.</error>`
+        )
+        continue
+      }
+
+      const titleAttr = escapeXmlAttr(part.title)
+      const uriAttr = escapeXmlAttr(part.URI)
+      const typeAttr = mt ? ` type="${escapeXmlAttr(mt)}"` : ""
+      const text = Buffer.from(part.bytes).toString()
+      out.push(
+        `<file title="${titleAttr}" uri="${uriAttr}"${typeAttr}>` +
+          `${text}</file>`
+      )
+    }
+  }
+
+  return out.join("\n")
+}
+
 async function builtinCmd(cmdTextRaw: string): Promise<string> {
   // Execute the bracket content as a Bun shell command.
   // Newlines are ignored so wrapped commands don't change meaning.
@@ -118,8 +219,8 @@ async function builtinCmd(cmdTextRaw: string): Promise<string> {
   const rawCmd = { raw: cmdText }
   const result = await $`${rawCmd}`.nothrow().quiet()
 
-  // HTML escaping
-  const fromAttr = cmdText.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+  // XML attribute escaping
+  const fromAttr = escapeXmlAttr(cmdText)
 
   if (result.exitCode === 0) {
     return (
@@ -158,7 +259,7 @@ export async function expandMacrosWithAttachments(
   messageEnv?: MacroMessageEnv
 ): Promise<MacroExpansionResult> {
   const hasMacros = Object.keys(macros).length > 0
-  const hasBuiltin = /:(cmd|env|verbatim|once|discard)\[/i.test(text)
+  const hasBuiltin = /:(cmd|env|fetch|verbatim|once|discard|clear)\[/i.test(text)
   const mayHaveAttach = isFinalMessage(messageEnv) && /:attach\[/i.test(text)
 
   if (!hasMacros && !hasBuiltin && !mayHaveAttach) {
@@ -242,6 +343,21 @@ export async function expandMacrosWithAttachments(
         }
         case "cmd": {
           return await builtinCmd(String(argRaw))
+        }
+        case "fetch": {
+          const hasArgAttr = node.attributes?.["ARG"] != null
+          const body = hasArgAttr
+            ? String(argRaw)
+            : (content.start !== null && content.end !== null)
+              ? await expandChildrenInRange(
+                node.children as RootContent[],
+                content.start,
+                content.end,
+                childDepth + 1
+              )
+              : ""
+
+          return await builtinFetch(body)
         }
         case "verbatim": {
           return String(argRaw)

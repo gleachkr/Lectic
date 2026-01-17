@@ -111,6 +111,25 @@ My home directory is :env[HOME]
  If the variable is not set, `:env` expands to an
 empty string.
 
+### `:fetch` — Inline External Content as Text
+
+Fetch content from a local path or URI and inline it into your message as a
+`<file ...>` block.
+
+This is similar to using a Markdown link for attachments, but it produces
+inline text (which composes naturally with other macros).
+
+Examples:
+
+```markdown
+:fetch[./README.md]
+:fetch[<https://example.com>]
+:fetch[[notes](./notes.md)]
+```
+
+For non-text content (images, PDFs, etc.), prefer Markdown links so Lectic can
+attach the bytes to the provider request.
+
 ### `:verbatim` — Prevent Expansion
 
 Returns the raw child text without expanding any macros inside it.
@@ -328,14 +347,14 @@ macros:
 Usage:
 
 ```markdown
-:cache[:summarize[:cat[file.txt]]]
+:cache[:summarize[:fetch[file.txt]]]
 ```
 
 1. `:cache`'s `pre` runs. If the cache exists for the raw text of the
    children, it returns the cached summary. Lectic replaces the `:cache`
    block with this text and is done.
 2. If `pre` returns nothing (cache miss), Lectic enters the children.
-3. `:cat` expands to the file content.
+3. `:fetch` expands to the file content.
 4. `:summarize` processes that content.
 5. Finally, `:cache`'s `post` runs. `ARG` contains the summary. It writes
    `ARG` to the cache and outputs it.

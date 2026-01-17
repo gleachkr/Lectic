@@ -144,10 +144,14 @@ describe('UserMessage', () => {
             expect(message.content).toBe('A message with Hello, World! `:greet[]`.');
         });
 
-        it('should leave non-macro directives untouched during expansion', async () => {
-            const message = new UserMessage({ content: 'Before :attach[some stuff] and :greet[] after' });
+        it('should leave unknown directives untouched during expansion', async () => {
+            const message = new UserMessage({
+                content: 'Before :unknown[some stuff] and :greet[] after'
+            });
             await message.expandMacros(macros);
-            expect(message.content).toBe('Before :attach[some stuff] and Hello, World! after');
+            expect(message.content).toBe(
+                'Before :unknown[some stuff] and Hello, World! after'
+            );
         });
 
         it('trims final newline after macro expansion', async () => {
