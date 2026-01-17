@@ -25,7 +25,7 @@ local highlight_timer = vim.uv.new_timer()
 vim.api.nvim_create_autocmd("SafeState", {
     callback = function()
         highlight_timer:stop()
-        highlight_timer:start(1000, vim.schedule_wrap(function()
+        highlight_timer:start(1000, 0, vim.schedule_wrap(function()
             require('lectic.highlight').highlight_blocks()
         end))
     end
