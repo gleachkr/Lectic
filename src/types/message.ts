@@ -10,6 +10,7 @@ import {
 import {
   expandMacrosWithAttachments,
   type MacroMessageEnv,
+  type MacroSideEffect,
 } from "../parsing/macro"
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
@@ -39,6 +40,7 @@ export class UserMessage {
     content : string
     role = "user" as const
     inlineAttachments: InlineAttachment[] = []
+    macroSideEffects: MacroSideEffect[] = []
 
     constructor({content} : {content : string}) {
         this.content = content
@@ -101,6 +103,7 @@ export class UserMessage {
 
         this.content = res.text
         this.inlineAttachments = res.inlineAttachments
+        this.macroSideEffects = res.sideEffects
     }
 }
 

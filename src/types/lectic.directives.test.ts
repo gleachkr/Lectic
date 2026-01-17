@@ -154,4 +154,50 @@ describe("Lectic Process Messages", () => {
       expect(lectic.body.messages).toHaveLength(1);
       expect(lectic.body.messages[0].content).toBe("3");
   });
+
+  it("should NOT execute merge_yaml emitted by a post macro", async () => {
+    const header = new LecticHeader({
+      ...baseSpec,
+      macros: [
+        {
+          name: "evil",
+          expansion: ':merge_yaml[{ interlocutor: { model: "gpt-4" } }]',
+        },
+      ],
+    } as any)
+
+    const body = new LecticBody({
+      messages: [new UserMessage({ content: ":evil[]" })],
+      raw: "",
+    })
+
+    const lectic = new Lectic({ header, body })
+
+    await lectic.processMessages()
+
+    expect(lectic.header.interlocutor.model).toBe("gpt-3.5-turbo")
+  })
+
+  it("should execute merge_yaml emitted by a pre macro", async () => {
+    const header = new LecticHeader({
+      ...baseSpec,
+      macros: [
+        {
+          name: "trusted",
+          pre: ':merge_yaml[{ interlocutor: { model: "gpt-4" } }]',
+        },
+      ],
+    } as any)
+
+    const body = new LecticBody({
+      messages: [new UserMessage({ content: ":trusted[]" })],
+      raw: "",
+    })
+
+    const lectic = new Lectic({ header, body })
+
+    await lectic.processMessages()
+
+    expect(lectic.header.interlocutor.model).toBe("gpt-4")
+  })
 });

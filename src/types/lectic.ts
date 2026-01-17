@@ -335,26 +335,20 @@ export class Lectic {
                     MESSAGE_INDEX : idx + 1,
                     MESSAGES_LENGTH : this.body.messages.length
                 })
-                for (const directive of message.containedDirectives()) {
-                    switch (directive.name) {
+                for (const effect of message.macroSideEffects) {
+                    switch (effect.kind) {
                         case "ask": {
-                            this.header.setSpeaker(directive.text)
+                            // `:aside` performs this effect only if it's in the last message
+                            this.header.setSpeaker(effect.name)
                             break
                         }
-                        case "aside": {
-                            if (idx === last) this.header.setSpeaker(directive.text)
-                            break
-                        }
-                        case "reset" : {
+                        case "reset": {
                             if (idx < last) messages = this.body.messages.slice(idx + 1)
                             break
                         }
-                        case "merge_yaml" : {
-                            this.applyYaml(directive.text)
-                            break
-                        }
-                        case "temp_merge_yaml" : {
-                            if (idx === last) this.applyYaml(directive.text)
+                        case "merge_yaml": {
+                            // `:temp_merge_yaml` performs this effect only if it's in the last message
+                            this.applyYaml(effect.yaml)
                             break
                         }
                     }

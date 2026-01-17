@@ -1,6 +1,6 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
-import type { Image, Link, Parent, Root, RootContent } from "mdast"
+import type { Image, Link, Root, RootContent } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 import { $ } from "bun"
 import { Macro } from "../types/macro"
@@ -11,14 +11,6 @@ import { MessageAttachment } from "../types/attachment"
 
 const processor = remark().use(remarkDirective)
 
-const skipped = new Set([
-  "ask",
-  "aside",
-  "reset",
-  "merge_yaml",
-  "temp_merge_yaml",
-])
-
 export type MacroMessageEnv = {
   MESSAGE_INDEX: number
   MESSAGES_LENGTH: number
@@ -26,21 +18,6 @@ export type MacroMessageEnv = {
 
 function isFinalMessage(messageEnv?: MacroMessageEnv): boolean {
   return !!messageEnv && messageEnv.MESSAGE_INDEX === messageEnv.MESSAGES_LENGTH
-}
-
-function skipDirective(node: TextDirective, messageEnv?: MacroMessageEnv) {
-  const nameLower = node.name.toLowerCase()
-
-  // Don't expand under reserved directives.
-  if (skipped.has(nameLower)) return true
-
-  // Don't expand under :attach, unless we're processing the final message.
-  // This prevents re-running attachment macros from older messages.
-  if (nameLower === "attach" && !isFinalMessage(messageEnv)) {
-    return true
-  }
-
-  return false
 }
 
 function offsetOrThrow(
@@ -239,9 +216,15 @@ async function builtinCmd(cmdTextRaw: string): Promise<string> {
   )
 }
 
+export type MacroSideEffect =
+  | { kind: "reset" }
+  | { kind: "merge_yaml"; yaml: string }
+  | { kind: "ask"; name: string }
+
 export type MacroExpansionResult = {
   text: string
   inlineAttachments: InlineAttachment[]
+  sideEffects: MacroSideEffect[]
 }
 
 export async function expandMacros(
@@ -259,14 +242,16 @@ export async function expandMacrosWithAttachments(
   messageEnv?: MacroMessageEnv
 ): Promise<MacroExpansionResult> {
   const hasMacros = Object.keys(macros).length > 0
-  const hasBuiltin = /:(cmd|env|fetch|verbatim|once|discard|clear)\[/i.test(text)
-  const mayHaveAttach = isFinalMessage(messageEnv) && /:attach\[/i.test(text)
+  const hasBuiltin =
+    /:(cmd|env|fetch|verbatim|once|discard|attach|ask|aside|reset|merge_yaml|temp_merge_yaml)\[/i
+      .test(text)
 
-  if (!hasMacros && !hasBuiltin && !mayHaveAttach) {
-    return { text, inlineAttachments: [] }
+  if (!hasMacros && !hasBuiltin) {
+    return { text, inlineAttachments: [], sideEffects: [] }
   }
 
   const inlineAttachments: InlineAttachment[] = []
+  const sideEffects: MacroSideEffect[] = []
 
   const expandTextInternal = async (
     raw: string,
@@ -296,7 +281,9 @@ export async function expandMacrosWithAttachments(
         }
 
         out.push(raw.slice(cursor, start))
-        out.push(await expandNode(child, raw, childDepth))
+        out.push(
+          await expandNode(child, raw, childDepth)
+        )
         cursor = end
       }
 
@@ -311,14 +298,6 @@ export async function expandMacrosWithAttachments(
     ): Promise<string> => {
       const nameLower = node.name.toLowerCase()
 
-      if (skipDirective(node, messageEnv)) {
-        if (nameLower === "attach") {
-            return ""
-        } else {
-            return sliceNodeRaw(node as unknown as RootContent, rawText)
-        }
-      }
-
       const originalRaw = sliceNodeRaw(node as unknown as RootContent, rawText)
 
       const attrsEnv = attrsToEnv(node.attributes)
@@ -332,45 +311,17 @@ export async function expandMacrosWithAttachments(
 
       // Built-ins (pre)
       switch (nameLower) {
-        case "env": {
-          const envVar = String(argRaw).trim()
-          const env = {
-            ...process.env,
-            ...lecticEnv,
-            ...baseEnv,
-          } as Record<string, string | undefined>
-          return env[envVar] ?? ""
-        }
-        case "cmd": {
-          return await builtinCmd(String(argRaw))
-        }
-        case "fetch": {
-          const hasArgAttr = node.attributes?.["ARG"] != null
-          const body = hasArgAttr
-            ? String(argRaw)
-            : (content.start !== null && content.end !== null)
-              ? await expandChildrenInRange(
-                node.children as RootContent[],
-                content.start,
-                content.end,
-                childDepth + 1
-              )
-              : ""
-
-          return await builtinFetch(body)
-        }
         case "verbatim": {
           return String(argRaw)
         }
         case "once": {
           if (!isFinalMessage(messageEnv)) return ""
-          if (content.start === null || content.end === null) return ""
-          return await expandChildrenInRange(
-            node.children as RootContent[],
-            content.start,
-            content.end,
-            childDepth + 1
-          )
+          break
+        }
+        case "attach" : {
+          // we skip expanding under attach if we're not on the final message
+          if (!isFinalMessage(messageEnv)) return ""
+          break
         }
       }
 
@@ -385,7 +336,10 @@ export async function expandMacrosWithAttachments(
 
         const preResult = await macro.expandPre(preEnv)
         if (preResult !== undefined) {
-          return await expandTextInternal(preResult, childDepth + 1)
+          return await expandTextInternal(
+            preResult,
+            childDepth + 1
+          )
         }
       }
 
@@ -401,23 +355,77 @@ export async function expandMacrosWithAttachments(
         )
       }
 
-      // :attach (special)
-      if (nameLower === "attach") {
-        if (isFinalMessage(messageEnv)) {
-          inlineAttachments.push({
-            kind: "attach",
-            command: "",
-            content: childrenExpanded,
-            mimetype: "text/plain",
-          })
-        }
-
-        return ""
-      }
-
       // Built-ins (post)
-      if (nameLower === "discard") {
-        return ""
+      switch (nameLower) {
+        case "env": {
+          const envVar = childrenExpanded.trim()
+          const env = {
+            ...process.env,
+            ...lecticEnv,
+            ...baseEnv,
+          } as Record<string, string | undefined>
+          return env[envVar] ?? ""
+        }
+        case "cmd": {
+          return await builtinCmd(childrenExpanded)
+        }
+        case "fetch": {
+          return await builtinFetch(childrenExpanded)
+        }
+        case "attach" : {
+          if (childrenExpanded.length > 0) {
+            inlineAttachments.push({
+              kind: "attach",
+              command: "",
+              content: childrenExpanded,
+              mimetype: "text/plain",
+            })
+          }
+
+          return ""
+        }
+        case "once" : {
+          return childrenExpanded
+        }
+        case "discard" : {
+          return ""
+        }
+        case "reset": {
+          sideEffects.push({ kind: "reset" })
+          return ""
+        }
+        case "merge_yaml": {
+          sideEffects.push({
+            kind: "merge_yaml",
+            yaml: childrenExpanded,
+          })
+          return ""
+        }
+        case "temp_merge_yaml": {
+          if (isFinalMessage(messageEnv)) {
+            sideEffects.push({
+              kind: "merge_yaml",
+              yaml: childrenExpanded,
+            })
+          }
+          return ""
+        }
+        case "ask": {
+          sideEffects.push({
+            kind: "ask",
+            name: childrenExpanded.trim(),
+          })
+          return ""
+        }
+        case "aside": {
+          if (isFinalMessage(messageEnv)) {
+            sideEffects.push({
+              kind: "ask",
+              name: childrenExpanded.trim(),
+            })
+          }
+          return ""
+        }
       }
 
       // Macro post
@@ -468,24 +476,22 @@ export async function expandMacrosWithAttachments(
 
       if (node.type === "textDirective") {
         return await expandTextDirective(
-          node as unknown as TextDirective,
+          node,
           rawText,
           childDepth
         )
       }
 
       if ("children" in node) {
-        const parent = node as Parent
-        if (parent.children.length === 0) {
+        
+        if (node.children.length === 0) {
           return sliceNodeRaw(node, rawText)
         }
 
-        const start = startOffset(node)
-        const end = endOffset(node)
         return await expandChildrenInRange(
-          parent.children as RootContent[],
-          start,
-          end,
+          node.children,
+          startOffset(node),
+          endOffset(node),
           childDepth + 1
         )
       }
@@ -493,7 +499,12 @@ export async function expandMacrosWithAttachments(
       return sliceNodeRaw(node, rawText)
     }
 
-    return await expandChildrenInRange(ast.children, 0, raw.length, depth)
+    return await expandChildrenInRange(
+      ast.children,
+      0,
+      raw.length,
+      depth
+    )
   }
 
   const out = await expandTextInternal(text, 0)
@@ -504,8 +515,9 @@ export async function expandMacrosWithAttachments(
     return {
       text: out.replace(/\r?\n$/, ""),
       inlineAttachments,
+      sideEffects,
     }
   }
 
-  return { text: out, inlineAttachments }
+  return { text: out, inlineAttachments, sideEffects }
 }
