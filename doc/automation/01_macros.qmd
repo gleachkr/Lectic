@@ -191,8 +191,8 @@ attributes to the macro directive. These attributes are injected into the
 environment of `exec:` expansions when they run.
 
 - `:name[]{FOO="bar"}` sets the variable `FOO` to `bar`.
-- `:name[]{EMPTY}` sets the variable `EMPTY` to be undefined.
-  If you need an empty string value, write `:name[]{EMPTY=""}`.
+- `:name[]{EMPTY}` sets the variable `EMPTY` to the empty string.
+  `:name[]{EMPTY=""}` is equivalent. 
 
 
 Notes:
