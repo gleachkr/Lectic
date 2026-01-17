@@ -127,6 +127,7 @@ export function emitUserMessageEvent(
   const baseEnv: Record<string, string> = {
     LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name,
     LECTIC_MODEL: lectic.header.interlocutor.model ?? "default",
+    MESSAGES_LENGTH: String(lectic.body.messages.length)
   }
 
   if (text) baseEnv["USER_MESSAGE"] = text

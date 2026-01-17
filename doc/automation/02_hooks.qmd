@@ -76,6 +76,8 @@ passed. However, the hook may receive content via standard input.
     - Standard Lectic variables like `LECTIC_FILE`, `LECTIC_CONFIG`,
       `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, and `LECTIC_TEMP` are
       also set when available.
+    - `MESSAGES_LENGTH`: The length of the array of messages, including the
+      current user message.
   - When: Just before the request is sent to the LLM provider.
 
 - `assistant_message`
