@@ -304,7 +304,6 @@ export abstract class Backend<TMessage, TFinal> {
       const m = lectic.body.messages[i]
 
       if (m.role === "user" && lastIsUser && i === lastIdx) {
-        const cleanMsg = m.cleanSideEffects()
         const hookAttachments = emitUserMessageEvent(m.content, lectic)
         const directiveAttachments = emitInlineAttachments(m)
 
@@ -314,7 +313,7 @@ export abstract class Backend<TMessage, TFinal> {
         // inline attachments.
         inlinePreface = [...hookAttachments, ...directiveAttachments]
 
-        const { messages: newMsgs } = await this.handleMessage(cleanMsg, lectic, {
+        const { messages: newMsgs } = await this.handleMessage(m, lectic, {
           inlineAttachments: inlinePreface,
         })
         messages.push(...newMsgs)

@@ -1,6 +1,6 @@
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
-import type { Image, Link, Root, RootContent } from "mdast"
+import type { RootContent } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 import { $ } from "bun"
 import { Macro } from "../types/macro"
@@ -58,8 +58,8 @@ function directiveContentInfo(
     return { raw: "", start: null, end: null }
   }
 
-  const first = node.children[0] as RootContent
-  const last = node.children[node.children.length - 1] as RootContent
+  const first = node.children[0]
+  const last = node.children[node.children.length - 1]
 
   const start = startOffset(first)
   const end = endOffset(last)
@@ -111,7 +111,7 @@ function parseFetchTarget(raw: string): FetchTarget | null {
     )
   }
 
-  const ref = refs[0] as Link | Image
+  const ref = refs[0]
   const uri = ref.url
   if (typeof uri !== "string" || uri.length === 0) return null
 
@@ -261,7 +261,7 @@ export async function expandMacrosWithAttachments(
       throw new Error("Macro recursion depth limit exceeded")
     }
 
-    const ast = processor.parse(raw) as Root
+    const ast = processor.parse(raw)
 
     const expandChildrenInRange = async (
       children: RootContent[],
@@ -298,7 +298,7 @@ export async function expandMacrosWithAttachments(
     ): Promise<string> => {
       const nameLower = node.name.toLowerCase()
 
-      const originalRaw = sliceNodeRaw(node as unknown as RootContent, rawText)
+      const originalRaw = sliceNodeRaw(node, rawText)
 
       const attrsEnv = attrsToEnv(node.attributes)
       const baseEnv: Record<string, string | undefined> = {
@@ -348,7 +348,7 @@ export async function expandMacrosWithAttachments(
       let childrenExpanded = content.raw
       if (content.start !== null && content.end !== null) {
         childrenExpanded = await expandChildrenInRange(
-          node.children as RootContent[],
+          node.children,
           content.start,
           content.end,
           childDepth + 1
@@ -448,8 +448,8 @@ export async function expandMacrosWithAttachments(
         content.end !== null &&
         childrenExpanded !== content.raw
       ) {
-        const dirStart = startOffset(node as unknown as RootContent)
-        const dirEnd = endOffset(node as unknown as RootContent)
+        const dirStart = startOffset(node)
+        const dirEnd = endOffset(node)
 
         return (
           rawText.slice(dirStart, content.start) +
