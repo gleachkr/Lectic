@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.8.26">
+<meta name="generator" content="quarto-1.8.27">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -72,7 +72,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -409,6 +409,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#cmd-execute-a-command" id="toc-cmd-execute-a-command" class="nav-link" data-scroll-target="#cmd-execute-a-command"><code>:cmd</code> — Execute a Command</a></li>
   <li><a href="#env-read-environment-variables" id="toc-env-read-environment-variables" class="nav-link" data-scroll-target="#env-read-environment-variables"><code>:env</code> — Read Environment Variables</a></li>
+  <li><a href="#fetch-inline-external-content-as-text" id="toc-fetch-inline-external-content-as-text" class="nav-link" data-scroll-target="#fetch-inline-external-content-as-text"><code>:fetch</code> — Inline External Content as Text</a></li>
   <li><a href="#verbatim-prevent-expansion" id="toc-verbatim-prevent-expansion" class="nav-link" data-scroll-target="#verbatim-prevent-expansion"><code>:verbatim</code> — Prevent Expansion</a></li>
   <li><a href="#once-expand-only-in-final-message" id="toc-once-expand-only-in-final-message" class="nav-link" data-scroll-target="#once-expand-only-in-final-message"><code>:once</code> — Expand Only in Final Message</a></li>
   <li><a href="#discard-evaluate-and-discard" id="toc-discard-evaluate-and-discard" class="nav-link" data-scroll-target="#discard-evaluate-and-discard"><code>:discard</code> — Evaluate and Discard</a></li>
@@ -512,31 +513,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>My home directory is :env<span class="co">[</span><span class="ot">HOME</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If the variable is not set, <code>:env</code> expands to an empty string.</p>
 </section>
+<section id="fetch-inline-external-content-as-text" class="level3">
+<h3 class="anchored" data-anchor-id="fetch-inline-external-content-as-text"><code>:fetch</code> — Inline External Content as Text</h3>
+<p>Fetch content from a local path or URI and inline it into your message as a <code>&lt;file ...&gt;</code> block.</p>
+<p>This is similar to using a Markdown link for attachments, but it produces inline text (which composes naturally with other macros).</p>
+<p>Examples:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>:fetch<span class="co">[</span><span class="ot">./README.md</span><span class="co">]</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>:fetch<span class="co">[</span><span class="ot">&lt;https://example.com&gt;</span><span class="co">]</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>:fetch[<span class="co">[</span><span class="ot">notes</span><span class="co">](./notes.md)</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>For non-text content (images, PDFs, etc.), prefer Markdown links so Lectic can attach the bytes to the provider request.</p>
+</section>
 <section id="verbatim-prevent-expansion" class="level3">
 <h3 class="anchored" data-anchor-id="verbatim-prevent-expansion"><code>:verbatim</code> — Prevent Expansion</h3>
 <p>Returns the raw child text without expanding any macros inside it.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>Here's an example of macro syntax: :verbatim<span class="co">[</span><span class="ot">:cmd[echo hello]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Here's an example of macro syntax: :verbatim<span class="co">[</span><span class="ot">:cmd[echo hello]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Expands to:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Here's an example of macro syntax: :cmd<span class="co">[</span><span class="ot">echo hello</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>Here's an example of macro syntax: :cmd<span class="co">[</span><span class="ot">echo hello</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The inner <code>:cmd</code> is not executed — it appears literally in the output.</p>
 </section>
 <section id="once-expand-only-in-final-message" class="level3">
 <h3 class="anchored" data-anchor-id="once-expand-only-in-final-message"><code>:once</code> — Expand Only in Final Message</h3>
 <p>Only expands its children when processing the final (most recent) user message. In earlier messages, it expands to nothing.</p>
 <p>This is useful for commands that should only run once, not be re-executed every time context is rebuilt:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>:once<span class="co">[</span><span class="ot">:cmd[expensive-analysis-script]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>:once<span class="co">[</span><span class="ot">:cmd[expensive-analysis-script]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When you add a new message and re-run Lectic, the <code>:once</code> directive in older messages will produce no output, while the one in your latest message will execute.</p>
 </section>
 <section id="discard-evaluate-and-discard" class="level3">
 <h3 class="anchored" data-anchor-id="discard-evaluate-and-discard"><code>:discard</code> — Evaluate and Discard</h3>
 <p>Expands and evaluates its children (including any commands), but discards the output entirely. Useful for side effects.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>:discard<span class="co">[</span><span class="ot">:cmd[echo "logged" &gt;&gt; activity.log]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>:discard<span class="co">[</span><span class="ot">:cmd[echo "logged" &gt;&gt; activity.log]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The command runs and writes to the log file, but nothing appears in the conversation. You can combine <code>:once</code> and <code>:discard</code> for cases where you only want the macro to run once, and you don’t want to pass the output to the LLM.</p>
 </section>
 <section id="attach-create-inline-attachment" class="level3">
 <h3 class="anchored" data-anchor-id="attach-create-inline-attachment"><code>:attach</code> — Create Inline Attachment</h3>
 <p>Captures its expanded children as an inline attachment stored in the assistant’s response block. Only processed in the final message.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:cmd[git diff --staged]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:cmd[git diff --staged]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>See <a href="../context_management/01_external_content.html#inline-attachments-with-attach">External Content</a> for full details on how inline attachments work and when to use them.</p>
 </section>
 </section>
@@ -557,17 +568,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>You can pass environment variables to a macro’s expansion by adding attributes to the macro directive. These attributes are injected into the environment of <code>exec:</code> expansions when they run.</p>
 <ul>
 <li><code>:name[]{FOO="bar"}</code> sets the variable <code>FOO</code> to <code>bar</code>.</li>
-<li><code>:name[]{EMPTY}</code> sets the variable <code>EMPTY</code> to be undefined. If you need an empty string value, write <code>:name[]{EMPTY=""}</code>.</li>
+<li><code>:name[]{EMPTY}</code> sets the variable <code>EMPTY</code> to the empty string. <code>:name[]{EMPTY=""}</code> is equivalent.</li>
 </ul>
 <p>Notes: - Single‑line <code>exec:</code> commands are not run through a shell. If you need shell features, invoke a shell explicitly, e.g., <code>exec: bash -c 'echo "Hello, $TARGET"'</code>. - In single‑line commands, variables in the command string are expanded before execution. For multi‑line scripts, variables are available to the script via the environment.</p>
 <section id="example" class="level4">
 <h4 class="anchored" data-anchor-id="example">Example</h4>
 <p><strong>Configuration:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> greet</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">expansion</span><span class="kw">:</span><span class="at"> exec: bash -c 'echo "Hello, $TARGET!"'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> greet</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">expansion</span><span class="kw">:</span><span class="at"> exec: bash -c 'echo "Hello, $TARGET!"'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Conversation:</strong></p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>:greet[]{TARGET="World"}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>:greet[]{TARGET="World"}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When Lectic processes this, the directive will be replaced by the output of the <code>exec</code> command, which is “Hello, World!”.</p>
 </section>
 </section>
@@ -655,31 +666,31 @@ Tip
 <section id="example-caching" class="level3">
 <h3 class="anchored" data-anchor-id="example-caching">Example: Caching</h3>
 <p>This design allows for powerful compositions, such as a caching macro that wraps expensive operations.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> cache</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co">    # Check for cache hit. If found, cat the file.</span></span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">    # If not found, the script produces no output (empty string),</span></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co">    # so Lectic proceeds to expand the children.</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="fu">    pre</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>      if [ -f "/tmp/cache/$HASH" ]; then</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>        cat "/tmp/cache/$HASH"</span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>      fi</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co">    # If we reached post, it means pre didn't return anything (cache miss).</span></span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co">    # We now have the result of the children in ARG. Save it and output it.</span></span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="fu">    post</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)</span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>      mkdir -p /tmp/cache</span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>      echo "$ARG" &gt; "/tmp/cache/$HASH"</span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>      echo "$ARG"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> cache</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">    # Check for cache hit. If found, cat the file.</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">    # If not found, the script produces no output (empty string),</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co">    # so Lectic proceeds to expand the children.</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="fu">    pre</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>      if [ -f "/tmp/cache/$HASH" ]; then</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>        cat "/tmp/cache/$HASH"</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>      fi</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="co">    # If we reached post, it means pre didn't return anything (cache miss).</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="co">    # We now have the result of the children in ARG. Save it and output it.</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="fu">    post</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>      HASH=$(echo "$ARG" | md5sum | cut -d' ' -f1)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>      mkdir -p /tmp/cache</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>      echo "$ARG" &gt; "/tmp/cache/$HASH"</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>      echo "$ARG"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Usage:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>:cache<span class="co">[</span><span class="ot">:summarize[:cat[file.txt]</span><span class="co">]</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>:cache<span class="co">[</span><span class="ot">:summarize[:fetch[file.txt]</span><span class="co">]</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ol type="1">
 <li><code>:cache</code>’s <code>pre</code> runs. If the cache exists for the raw text of the children, it returns the cached summary. Lectic replaces the <code>:cache</code> block with this text and is done.</li>
 <li>If <code>pre</code> returns nothing (cache miss), Lectic enters the children.</li>
-<li><code>:cat</code> expands to the file content.</li>
+<li><code>:fetch</code> expands to the file content.</li>
 <li><code>:summarize</code> processes that content.</li>
 <li>Finally, <code>:cache</code>’s <code>post</code> runs. <code>ARG</code> contains the summary. It writes <code>ARG</code> to the cache and outputs it.</li>
 </ol>

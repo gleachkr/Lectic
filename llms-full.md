@@ -70,6 +70,7 @@ scripting language. Your existing scripts and tools integrate directly.
 Lectic provides a small set of building blocks:
 
 - **`:cmd`**: Run a command and include its output.
+- **`:fetch`**: Inline external content (file/URL) as text.
 - **`:attach`**: Create an inline attachment from expanded content.
 - **`:env`**: Read an environment variable.
 - **`:verbatim`**: Include text without macro expansion.
@@ -1266,6 +1267,25 @@ My home directory is :env[HOME]
 
 If the variable is not set, `:env` expands to an empty string.
 
+### `:fetch` — Inline External Content as Text
+
+Fetch content from a local path or URI and inline it into your message
+as a `<file ...>` block.
+
+This is similar to using a Markdown link for attachments, but it
+produces inline text (which composes naturally with other macros).
+
+Examples:
+
+``` markdown
+:fetch[./README.md]
+:fetch[<https://example.com>]
+:fetch[[notes](./notes.md)]
+```
+
+For non-text content (images, PDFs, etc.), prefer Markdown links so
+Lectic can attach the bytes to the provider request.
+
 ### `:verbatim` — Prevent Expansion
 
 Returns the raw child text without expanding any macros inside it.
@@ -1349,8 +1369,8 @@ attributes to the macro directive. These attributes are injected into
 the environment of `exec:` expansions when they run.
 
 - `:name[]{FOO="bar"}` sets the variable `FOO` to `bar`.
-- `:name[]{EMPTY}` sets the variable `EMPTY` to be undefined. If you
-  need an empty string value, write `:name[]{EMPTY=""}`.
+- `:name[]{EMPTY}` sets the variable `EMPTY` to the empty string.
+  `:name[]{EMPTY=""}` is equivalent.
 
 Notes: - Single‑line `exec:` commands are not run through a shell. If
 you need shell features, invoke a shell explicitly, e.g.,
@@ -1488,14 +1508,14 @@ macros:
 Usage:
 
 ``` markdown
-:cache[:summarize[:cat[file.txt]]]
+:cache[:summarize[:fetch[file.txt]]]
 ```
 
 1.  `:cache`’s `pre` runs. If the cache exists for the raw text of the
     children, it returns the cached summary. Lectic replaces the
     `:cache` block with this text and is done.
 2.  If `pre` returns nothing (cache miss), Lectic enters the children.
-3.  `:cat` expands to the file content.
+3.  `:fetch` expands to the file content.
 4.  `:summarize` processes that content.
 5.  Finally, `:cache`’s `post` runs. `ARG` contains the summary. It
     writes `ARG` to the cache and outputs it.
@@ -1583,6 +1603,8 @@ are passed. However, the hook may receive content via standard input.
     - Standard Lectic variables like `LECTIC_FILE`, `LECTIC_CONFIG`,
       `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, and `LECTIC_TEMP`
       are also set when available.
+    - `MESSAGES_LENGTH`: The length of the array of messages, including
+      the current user message.
   - When: Just before the request is sent to the LLM provider.
 - `assistant_message`
   - Standard Input: The raw markdown text of the conversation body up to
@@ -4499,8 +4521,8 @@ instructions.
 The LSP suggests completions as you type:
 
 - **Directives**: Type `:` to see built-in directives (`:cmd`, `:env`,
-  `:verbatim`, `:once`, `:discard`, `:attach`, `:ask`, `:aside`,
-  `:reset`) and any macros you’ve defined.
+  `:fetch`, `:verbatim`, `:once`, `:discard`, `:attach`, `:ask`,
+  `:aside`, `:reset`) and any macros you’ve defined.
 - **Interlocutor names**: Inside `:ask[` or `:aside[`, the LSP suggests
   names from your configuration.
 - **YAML header fields**: In the frontmatter, get suggestions for
