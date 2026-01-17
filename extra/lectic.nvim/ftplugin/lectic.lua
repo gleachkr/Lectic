@@ -18,15 +18,20 @@ vim.opt_local.foldexpr='v:lua.vim.lsp.foldexpr()'
 
 vim.opt_local.foldtext='v:lua.vim.lsp.foldtext()'
 
-require('lectic.highlight').highlight_blocks()
+local bufnr = vim.api.nvim_get_current_buf()
+
+require('lectic.highlight').highlight_blocks(bufnr)
 
 local highlight_timer = vim.uv.new_timer()
 
 vim.api.nvim_create_autocmd("SafeState", {
+    buffer = bufnr,
     callback = function()
         highlight_timer:stop()
         highlight_timer:start(1000, 0, vim.schedule_wrap(function()
-            require('lectic.highlight').highlight_blocks()
+            if vim.api.nvim_buf_is_loaded(bufnr) then
+                require('lectic.highlight').highlight_blocks(bufnr)
+            end
         end))
     end
 })

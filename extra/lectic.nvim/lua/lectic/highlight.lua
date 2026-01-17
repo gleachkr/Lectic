@@ -8,14 +8,13 @@ vim.api.nvim_set_hl(0, 'LecticBlock', {
 -- Create a namespace for our extmarks
 local ns_id = vim.api.nvim_create_namespace('lectic_highlight')
 
-function M.highlight_blocks()
-    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+function M.highlight_blocks(bufnr)
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     local in_block = false
     local start_line = nil
-    local bufnr = vim.api.nvim_get_current_buf()
 
     -- Clear existing extmarks
-    M.remove_highlight_blocks()
+    M.remove_highlight_blocks(bufnr)
 
     -- Identify blocks and apply highlighting
     for i, line in ipairs(lines) do
@@ -50,8 +49,7 @@ function M.highlight_blocks()
 end
 
 
-function M.remove_highlight_blocks()
-    local bufnr = vim.api.nvim_get_current_buf()
+function M.remove_highlight_blocks(bufnr)
     vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 end
 
