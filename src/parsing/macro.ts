@@ -158,7 +158,7 @@ export async function expandMacrosWithAttachments(
   messageEnv?: MacroMessageEnv
 ): Promise<MacroExpansionResult> {
   const hasMacros = Object.keys(macros).length > 0
-  const hasBuiltin = /:(cmd|env|verbatim|once|discard|clear)\[/i.test(text)
+  const hasBuiltin = /:(cmd|env|verbatim|once|discard)\[/i.test(text)
   const mayHaveAttach = isFinalMessage(messageEnv) && /:attach\[/i.test(text)
 
   if (!hasMacros && !hasBuiltin && !mayHaveAttach) {
@@ -211,7 +211,11 @@ export async function expandMacrosWithAttachments(
       const nameLower = node.name.toLowerCase()
 
       if (skipDirective(node, messageEnv)) {
-        return sliceNodeRaw(node as unknown as RootContent, rawText)
+        if (nameLower === "attach") {
+            return ""
+        } else {
+            return sliceNodeRaw(node as unknown as RootContent, rawText)
+        }
       }
 
       const originalRaw = sliceNodeRaw(node as unknown as RootContent, rawText)
