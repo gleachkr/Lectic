@@ -16,6 +16,7 @@ export default defineConfig(
   {
     ignores: [
       'doc/**',
+      'extra/lectic-run.js', // eslint has a hard time understanding #!/usr/bin/env -S lectic script
       'extra/lectic.vscode/out/**',
     ],
   },
@@ -56,8 +57,6 @@ export default defineConfig(
       ],
 
       // Prefer strict equality except for "nullish" checks.
-      // Keeping this as a warning for now (there are a few legacy `==`
-      // uses in the codebase).
       eqeqeq: ['warn', 'always', { null: 'ignore' }],
     },
   },
