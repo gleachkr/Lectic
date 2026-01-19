@@ -139,11 +139,6 @@ export function emitUserMessageEvent(
   return runHooks(allHooks, "user_message", baseEnv)
 }
 
-export function emitInlineAttachments(msg: UserMessage): InlineAttachment[] {
-  // These are the attachments generated during macro expansion
-  return msg.inlineAttachments
-}
-
 export type ToolRegistry = Record<string, Tool>
 
 export type ToolCallEntry = { id?: string; name: string; args: unknown }
@@ -292,8 +287,8 @@ export abstract class Backend<TMessage, TFinal> {
   async *evaluate(lectic: Lectic): AsyncIterable<string | Message> {
     const messages: TMessage[] = []
 
-    // Only execute :cmd directives and user_message hooks if the last
-    // message is a user message.
+    // Only execute user_message hooks and inject attachments when handling
+    // a final user message
     const lastIdx = lectic.body.messages.length - 1
     const lastIsUser =
       lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
@@ -305,7 +300,9 @@ export abstract class Backend<TMessage, TFinal> {
 
       if (m.role === "user" && lastIsUser && i === lastIdx) {
         const hookAttachments = emitUserMessageEvent(m.content, lectic)
-        const directiveAttachments = emitInlineAttachments(m)
+        // these are attachments generated during macro expansion and
+        // directive handling
+        const directiveAttachments = m.inlineAttachments
 
         // XXX: Make sure to keep transcript order aligned with the
         // provider-visible order. This prevents the initial request from
