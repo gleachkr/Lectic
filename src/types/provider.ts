@@ -19,12 +19,12 @@ export function getDefaultProvider() : LLMProvider {
 }
 
 export function isLLMProvider(raw : unknown) : raw is LLMProvider {
-    return raw == LLMProvider.Anthropic ||
-        raw == LLMProvider.AnthropicBedrock ||
-        raw == LLMProvider.OpenAI ||
-        raw == LLMProvider.Ollama ||
-        raw == LLMProvider.OpenRouter ||
-        raw == LLMProvider.OpenAIResponses ||
-        raw == LLMProvider.ChatGPT ||
-        raw == LLMProvider.Gemini
+    return raw === LLMProvider.Anthropic ||
+        raw === LLMProvider.AnthropicBedrock ||
+        raw === LLMProvider.OpenAI ||
+        raw === LLMProvider.Ollama ||
+        raw === LLMProvider.OpenRouter ||
+        raw === LLMProvider.OpenAIResponses ||
+        raw === LLMProvider.ChatGPT ||
+        raw === LLMProvider.Gemini
 }

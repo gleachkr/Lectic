@@ -110,7 +110,7 @@ describe("Identity keys include roots and sandbox", () => {
           headers: { "X-Custom": "Value" }
         } as any);
         
-        const transport = lastTransport as any;
+        const transport = lastTransport;
         expect(transport._fetch).toBeDefined();
         
         // Trigger the fetch
@@ -141,7 +141,7 @@ describe("Identity keys include roots and sandbox", () => {
         headers: { "Authorization": "exec:echo Bearer 123" }
       } as any);
 
-      const transport = lastTransport as any;
+      const transport = lastTransport;
       expect(transport._fetch).toBeDefined();
 
       // Trigger the fetch
@@ -205,7 +205,7 @@ describe("Identity keys include roots and sandbox", () => {
       // Let's rely on inspection of the internal state if possible, or just
       // assume if it didn't throw and matched the other tests logic, it worked.
       // Better: we can inspect the `_serverParams` property by casting to any
-      const config = (lastTransport as any)._serverParams
+      const config = lastTransport._serverParams
       expect(config).toBeDefined()
       expect(config.command).toBe("wrapper")
       expect(config.args).toEqual(["--flag", "server-cmd", "server-arg"])

@@ -176,7 +176,7 @@ async function handleReverse(opts: ParseOpts) {
                         output += `${node.value.trim()}\n\n`
                     } else {
                         // Cast to RootContent (mdast node)
-                        currentMarkdownNodes.push(node as RootContent)
+                        currentMarkdownNodes.push(node)
                     }
                 }
                 flushMarkdown()

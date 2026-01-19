@@ -244,45 +244,50 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
     }
 
     switch (schema.type) {
-        case "string":
+        case "string": {
             if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
-                throw new Error(`Invalid string value: ${arg}`);
+                throw new Error(`Invalid string value: ${arg}`)
             }
-            return escapeTags(arg);
+            return escapeTags(arg)
+        }
 
-        case "boolean":
+        case "boolean": {
             if (typeof arg !== "boolean") {
-                throw new Error(`Invalid boolean value: ${arg}`);
+                throw new Error(`Invalid boolean value: ${arg}`)
             }
-            return arg.toString();
+            return arg.toString()
+        }
 
-        case "null":
+        case "null": {
             if (arg !== null) {
-                throw new Error(`Invalid null value: ${arg}`);
+                throw new Error(`Invalid null value: ${arg}`)
             }
-            return "";
+            return ""
+        }
 
-        case "number":
+        case "number": {
             if (typeof arg !== "number" || 
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
-                throw new Error(`Invalid number value: ${arg}`);
+                throw new Error(`Invalid number value: ${arg}`)
             }
-            return arg.toString();
+            return arg.toString()
+        }
 
-        case "integer":
+        case "integer": {
             if (!(typeof arg === "number" && Number.isInteger(arg)) || 
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
-                throw new Error(`Invalid integer value: ${arg}`);
+                throw new Error(`Invalid integer value: ${arg}`)
             }
-            return arg.toString();
+            return arg.toString()
+        }
 
-        case "array":
+        case "array": {
             if (!Array.isArray(arg)) {
-                throw new Error(`Invalid array value: ${arg}`);
+                throw new Error(`Invalid array value: ${arg}`)
             }
             // If items is a string schema with a contentMediaType, surface it
             // on the <item> tag so editor tooling can pick it up from the
@@ -290,13 +295,14 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
             const itemAttr = "type" in schema.items && schema.items.type === "string" && schema.items.contentMediaType
                 ? ` contentMediaType="${schema.items.contentMediaType}"`
                 : ""
-            return `<array>${arg.map(item => `<item${itemAttr}>${serialize(item, schema.items)}</item>`).join('')}</array>`;
+            return `<array>${arg.map(item => `<item${itemAttr}>${serialize(item, schema.items)}</item>`).join('')}</array>`
+        }
 
-        case "object":
+        case "object": {
             if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
-                throw new Error(`Invalid object value: ${arg}`);
+                throw new Error(`Invalid object value: ${arg}`)
             }
-            const properties = schema.properties;
+            const properties = schema.properties
             return `<object>${Object.keys(properties)
                     .map(key => {
                         if (!(key in arg)) return ""
@@ -304,10 +310,11 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
                         const attr = "type" in keySchema && keySchema.type === "string" && keySchema.contentMediaType
                             ? ` contentMediaType="${keySchema.contentMediaType}"`
                             : ""
-                        return `<${key}${attr}>${serialize((arg as { [key] : unknown })[key], properties[key])}</${key}>`;
-                    }).join('')}</object>`;
+                        return `<${key}${attr}>${serialize((arg as { [key] : unknown })[key], properties[key])}</${key}>`
+                    }).join('')}</object>`
 
-        default: throw new Error("type" in schema ? `Unknown schema type: ${schema["type"]}`: "Couldn't read Schema: no type");
+        }
+        default: throw new Error("type" in schema ? `Unknown schema type: ${schema["type"]}`: "Couldn't read Schema: no type")
     }
 }
 
@@ -325,66 +332,72 @@ export function validateAgainstSchema(arg: unknown , schema: JSONSchema) : boole
     }
 
     switch (schema.type) {
-        case "string":
+        case "string": {
             if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
-                throw new Error(`Invalid string value: ${arg}`);
+                throw new Error(`Invalid string value: ${arg}`)
             }
-            return true;
+            return true
+        }
 
-        case "boolean":
+        case "boolean": {
             if (typeof arg !== "boolean") {
-                throw new Error(`Invalid boolean value: ${arg}`);
+                throw new Error(`Invalid boolean value: ${arg}`)
             }
-            return true;
+            return true
+        }
 
-        case "null":
+        case "null": {
             if (arg !== null) {
-                throw new Error(`Invalid null value: ${arg}`);
+                throw new Error(`Invalid null value: ${arg}`)
             }
-            return true;
+            return true
+        }
 
-        case "number":
+        case "number": {
             if (typeof arg !== "number" || 
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
-                throw new Error(`Invalid number value: ${arg}`);
+                throw new Error(`Invalid number value: ${arg}`)
             }
-            return true;
+            return true
+        }
 
-        case "integer":
+        case "integer": {
             if (!(typeof arg === "number" && Number.isInteger(arg)) || 
                 (schema.enum && !schema.enum.includes(arg)) || 
                 (schema.minimum !== undefined && arg < schema.minimum) || 
                 (schema.maximum !== undefined && arg > schema.maximum)) {
-                throw new Error(`Invalid integer value: ${arg}`);
+                throw new Error(`Invalid integer value: ${arg}`)
             }
-            return true;
+            return true
+        }
 
-        case "array":
+        case "array": {
             if (!Array.isArray(arg)) {
-                throw new Error(`Invalid array value: ${arg}`);
+                throw new Error(`Invalid array value: ${arg}`)
             }
-            return arg.every(item => validateAgainstSchema(item, schema.items));
+            return arg.every(item => validateAgainstSchema(item, schema.items))
+        }
 
-
-        case "object":
+        case "object": {
             if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
-                throw new Error(`Invalid object value: ${arg}`);
+                throw new Error(`Invalid object value: ${arg}`)
             }
-            const properties = schema.properties;
-            const required = schema.required || [];
+            const properties = schema.properties
+            const required = schema.required || []
             for (const key of required) {
                 if (!(key in arg)) {
-                    throw new Error(`Missing required property: ${key}`);
+                    throw new Error(`Missing required property: ${key}`)
                 }
             }
             return Object.keys(arg).every(key => {
                         if (!(key in properties)) return true
-                        return validateAgainstSchema((arg as { [key] : unknown })[key], properties[key]);
-                    });
+                        return validateAgainstSchema((arg as { [key] : unknown })[key], properties[key])
+                    })
+        }
         default:
-            throw new Error("Unknown schema type");
+            throw new Error("Unknown schema type")
     }
 }
 
@@ -425,81 +438,83 @@ export function deserialize(xml: string, schema: JSONSchema): unknown {
             if (!looksEscaped) throw new Error("Invalid serialized string")
             const unescaped = unescapeTags(xml)
             if (schema.enum && !schema.enum.includes(unescaped)) {
-                throw new Error("Invalid serialized string");
+                throw new Error("Invalid serialized string")
             }
-            return unescaped;
+            return unescaped
         }
 
         case "null":
-            xml = xml.trim();
-            if (xml === "") return null;
-            throw new Error("Invalid serialized null");
+            xml = xml.trim()
+            if (xml === "") return null
+            throw new Error("Invalid serialized null")
 
         case "boolean":
-            xml = xml.trim();
-            if (xml === "true") return true;
-            if (xml === "false") return false;
-            throw new Error("Invalid serialized boolean");
+            xml = xml.trim()
+            if (xml === "true") return true
+            if (xml === "false") return false
+            throw new Error("Invalid serialized boolean")
 
         case "number": {
-            xml = xml.trim();
-            const num = Number(xml);
+            xml = xml.trim()
+            const num = Number(xml)
             if (isNaN(num) 
                 || (schema.minimum !== undefined && num < schema.minimum) 
                 || (schema.maximum !== undefined && num > schema.maximum)
                 || (schema.enum && !schema.enum.includes(num))) {
-                throw new Error("Invalid serialized number");
+                throw new Error("Invalid serialized number")
             }
-            return num;
+            return num
         }
 
         case "integer": {
-            xml = xml.trim();
-            const num = Number(xml);
+            xml = xml.trim()
+            const num = Number(xml)
             if (isNaN(num) 
                 || !Number.isInteger(num) 
                 || (schema.minimum !== undefined && num < schema.minimum) 
                 || (schema.maximum !== undefined && num > schema.maximum)
                 || (schema.enum && !schema.enum.includes(num))) {
-                throw new Error("Invalid serialized integer");
+                throw new Error("Invalid serialized integer")
             }
-            return num;
+            return num
         }
 
         case "array": {
-            const inner = unwrap(xml, "array");
-            const items: unknown[] = [];
+            const inner = unwrap(xml, "array")
+            const items: unknown[] = []
             const elements = extractElements(inner)
             for (const item of elements) {
-                items.push(deserialize(unwrap(item, "item"), schema.items));
+                items.push(deserialize(unwrap(item, "item"), schema.items))
             }
-            return items;
+            return items
         }
         
         case "object": {
-            const inner = unwrap(xml, "object");
-            const obj: Record<string, unknown> = {};
+            const inner = unwrap(xml, "object")
+            const obj: Record<string, unknown> = {}
             const elements = extractElements(inner)
             for (const element of elements) {
                 // Extract only the tag name, ignoring any attributes.
-                const keyNameRegex = /^<([a-zA-Z][a-zA-Z0-9_]*)\b/;
+                const keyNameRegex = /^<([a-zA-Z][a-zA-Z0-9_]*)\b/
                 const keyMatch = keyNameRegex.exec(element)
                 if (keyMatch === null) {
                     //should be unreachable
-                    throw new Error(`Malformed object key: "${element}" on ${xml}`);
+                    throw new Error(`Malformed object key: "${element}" on ${xml}`)
                 }
                 const key = keyMatch[1]
                 if (!(key in schema.properties)) {
-                    throw new Error(`Unrecognized property: ${key} on ${xml}`);
+                    throw new Error(`Unrecognized property: ${key} on ${xml}`)
                 }
                 if (key in obj) {
-                    throw new Error(`Duplicated property: ${key} on ${xml}`);
+                    throw new Error(`Duplicated property: ${key} on ${xml}`)
                 }
                 obj[key] = deserialize(unwrap(element, key), schema.properties[key])
             }
-            return obj;
+            return obj
         }
 
-        default: throw new Error("type" in schema ? `Unknown schema type: ${schema["type"]}`: "Couldn't read Schema: no type");
+        default: {
+            throw new Error("type" in schema ? `Unknown schema type: ${schema["type"]}`: "Couldn't read Schema: no type")
+        }
     }
 }

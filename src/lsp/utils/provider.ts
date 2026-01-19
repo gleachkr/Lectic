@@ -17,9 +17,9 @@ export async function effectiveProviderForPath(
 ): Promise<LLMProvider | null> {
   try {
     const mergeRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
-    const spec = mergeRes.spec as unknown
+    const spec = mergeRes.spec
 
-    const root = isObjectRecord(spec) ? spec as Record<string, unknown> : {}
+    const root = isObjectRecord(spec) ? spec : {}
 
     const toProv = (p: unknown): LLMProvider | null => {
       if (isLLMProvider(p)) return p
@@ -28,7 +28,7 @@ export async function effectiveProviderForPath(
 
     if (path[0] === 'interlocutor') {
       const inter = isObjectRecord(root['interlocutor'])
-        ? root['interlocutor'] as Record<string, unknown>
+        ? root['interlocutor']
         : undefined
       const p = inter?.['provider']
       return toProv(p)
@@ -36,10 +36,10 @@ export async function effectiveProviderForPath(
 
     if (path[0] === 'interlocutors' && typeof path[1] === 'number') {
       // Identify local name at the given index from local YAML AST
-      const list = getValue(localDoc as unknown, 'interlocutors')
+      const list = getValue(localDoc, 'interlocutors')
       const seq = (list as { items?: unknown })
       const items = Array.isArray(seq?.items) ? seq.items as unknown[] : []
-      const it = items[path[1] as number]
+      const it = items[path[1]]
       const localName = stringOf(getValue(it, 'name'))
 
       // Find merged entry by name and return its provider

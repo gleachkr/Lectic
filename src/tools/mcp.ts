@@ -88,21 +88,21 @@ function isMCPSpecSSE(raw : unknown) : raw is MCPSpecSSE {
     return raw !== null &&
         typeof raw === "object" &&
         "mcp_sse" in raw && 
-        typeof raw.mcp_sse == "string" 
+        typeof raw.mcp_sse === "string" 
 }
 
 function isMCPSpecWebsocket(raw : unknown) : raw is MCPSpecWebsocket {
     return raw !== null &&
         typeof raw === "object" &&
         "mcp_ws" in raw && 
-        typeof raw.mcp_ws == "string" 
+        typeof raw.mcp_ws === "string" 
 }
 
 function isMCPSpecStreamableHttp(raw : unknown) : raw is MCPSpecStreamableHTTP {
     return raw !== null &&
         typeof raw === "object" &&
         "mcp_shttp" in raw && 
-        typeof raw.mcp_shttp == "string" &&
+        typeof raw.mcp_shttp === "string" &&
         ("headers" in raw 
             ? raw.headers !== null && typeof raw.headers === "object" 
             && Object.values(raw.headers).every(v => typeof v === "string")
@@ -341,7 +341,7 @@ export class MCPTool extends Tool {
                     }
                     transport = new StdioClientTransport({
                         command: sandboxParts[0], 
-                        args: [...sandboxParts.slice(1), spec.mcp_command, ...((spec.args || []) as string[]) ],
+                        args: [...sandboxParts.slice(1), spec.mcp_command, ...(spec.args || []) ],
                         env: {...getDefaultEnvironment(), ...spec.env}
                     })
                  } else { 
@@ -390,7 +390,7 @@ export class MCPTool extends Tool {
             }
 
             if (spec.roots) {
-                (spec.roots as MCPRoot[]).map(validateRoot)
+                spec.roots.map(validateRoot)
                 client.setRequestHandler(ListRootsRequestSchema, (_request, _extra) => {
                     return {
                         roots: spec.roots,

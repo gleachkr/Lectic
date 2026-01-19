@@ -34,9 +34,9 @@ export function bodyToMessages(raw : string, header : LecticHeader) : Message[] 
     let cur = ""
 
     for (const node of ast.children) {
-        if (node.type == "containerDirective") {
+        if (node.type === "containerDirective") {
             messages.push(new UserMessage({ content: cur }))
-            const interlocutor = header.interlocutors.find(i => i.name == node.name)
+            const interlocutor = header.interlocutors.find(i => i.name === node.name)
             if (interlocutor === undefined) throw Error(`interlocutor ${node.name} can't be found!`)
             cur = ""
             messages.push(new AssistantMessage({ content: nodeContentRaw(node, raw), interlocutor }))

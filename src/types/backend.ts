@@ -1,6 +1,6 @@
 import { Logger } from "../logging/logger"
 import { Lectic, type HasModel } from "./lectic"
-import { type Message, UserMessage } from "./message"
+import { type Message } from "./message"
 import { Hook, type HookEvents } from "./hook"
 import { serializeCall, ToolCallResults, type Tool, type ToolCall} from "./tool"
 import { LLMProvider } from "./provider"

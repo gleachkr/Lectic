@@ -20,9 +20,9 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
         typeof raw === "object" &&
         "sqlite" in raw &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
-        ("limit" in raw ? typeof raw.limit=== "number" : true) &&
-        ("details" in raw ? typeof raw.details=== "string" : true) &&
-        ("readonly" in raw ? typeof raw.readonly == "boolean" : true) &&
+        ("limit" in raw ? typeof raw.limit === "number" : true) &&
+        ("details" in raw ? typeof raw.details === "string" : true) &&
+        ("readonly" in raw ? typeof raw.readonly === "boolean" : true) &&
         ("extensions" in raw 
             ? typeof raw.extensions === "string" ||
               Array.isArray(raw.extensions) && raw.extensions.every(ext => typeof ext === "string")

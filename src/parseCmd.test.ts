@@ -24,7 +24,7 @@ describe('parseCmd', () => {
 
     afterAll(() => {
         Logger.write = originalWrite
-        try { unlinkSync(testFile) } catch {}
+        try { unlinkSync(testFile) } catch { /* Ignore */ }
     })
 
     it('should parse a simple lectic file to JSON', async () => {

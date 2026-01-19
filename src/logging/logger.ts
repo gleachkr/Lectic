@@ -44,7 +44,7 @@ export const Logger : {
 
     async write(output) {
         const outfile = this.outfile
-        if (typeof output == "string") {
+        if (typeof output === "string") {
             await new Promise<void>((resolve, reject) => {
                 outfile.write(output, (err?: Error | null) => err ? reject(err) : resolve())
             })

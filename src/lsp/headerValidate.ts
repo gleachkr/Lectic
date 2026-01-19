@@ -137,7 +137,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
 
     // tools
     if ("tools" in raw) {
-      const tools = raw["tools"] as unknown
+      const tools = raw["tools"]
       if (!(Array.isArray(tools))) {
         issues.push({
           code: "interlocutor.tools.type",
@@ -157,7 +157,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
 
     // hooks
     if ("hooks" in raw) {
-      const hooks = raw["hooks"] as unknown
+      const hooks = raw["hooks"]
       if (!(Array.isArray(hooks))) {
         issues.push({
           code: "interlocutor.hooks.type",

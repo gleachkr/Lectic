@@ -121,7 +121,7 @@ export class MessageAttachment {
             let mimetype = this.file.type.replace(/^text\/.+$/,"text/plain")
             const bytes = await this.file.bytes()
             if (mimetype === "application/octet-stream" &&
-                bytes.find(x => x == 0x0) == undefined)  {
+                bytes.find(x => x === 0x0) === undefined)  {
                 // if there are no null bytes, it's probably not a binary. Guess text/plain
                 mimetype = "text/plain"
             }
@@ -148,8 +148,8 @@ export class MessageAttachment {
                     ? part.mimeType?.replace(/^text\/.+$/,"text/plain") ?? "text/plain"
                     : part.mimeType || "application/octet-stream"
                 const bytes = "blob" in part
-                    ? Uint8Array.fromBase64(part.blob as string)
-                    : Buffer.from(part.text as string)
+                    ? Uint8Array.fromBase64(part.blob)
+                    : Buffer.from(part.text)
                 return new MessageAttachmentPart({
                     bytes, mimetype, 
                     URI : this.URI, 

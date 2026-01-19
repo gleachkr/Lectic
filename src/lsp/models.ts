@@ -1,4 +1,4 @@
-import type { Diagnostic, Range } from "vscode-languageserver"
+import type { Diagnostic } from "vscode-languageserver"
 import { DiagnosticSeverity } from "vscode-languageserver/node"
 import { LLMProvider } from "../types/provider"
 import { AnthropicBackend } from "../backends/anthropic"
@@ -161,7 +161,7 @@ export async function computeModelDiagnostics(
         const list = getValue(localDoc, 'interlocutors')
         const seq = (list as { items?: unknown })
         const arr = Array.isArray(seq?.items) ? (seq.items as unknown[]) : []
-        const it = arr[f.path[1] as number]
+        const it = arr[f.path[1]]
         modelName = stringOf(getValue(it, 'model'))
       }
     } catch { /* ignore */ }
@@ -170,7 +170,7 @@ export async function computeModelDiagnostics(
 
     if (!models.includes(modelName)) {
       diags.push({
-        range: f.range as Range,
+        range: f.range,
         severity: DiagnosticSeverity.Warning,
         source: 'lectic',
         message: `Unknown model for ${prov}.`

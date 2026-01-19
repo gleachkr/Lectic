@@ -73,7 +73,7 @@ export class LecticHeader {
     sandbox? : string
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
-            const maybeExists = spec.interlocutors?.find(inter => inter.name == spec.interlocutor.name)
+            const maybeExists = spec.interlocutors?.find(inter => inter.name === spec.interlocutor.name)
             this.interlocutor =  spec.interlocutor
             this.interlocutors = maybeExists
                 ? [this.interlocutor, ... (spec.interlocutors?.filter(i => i.name !== maybeExists.name) ?? [])]
