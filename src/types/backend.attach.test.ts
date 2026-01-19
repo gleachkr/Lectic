@@ -1,6 +1,5 @@
 import { describe, it, expect } from "bun:test"
 import { UserMessage } from "./message"
-import { emitInlineAttachments } from "./backend"
 
 describe("UserMessage inlineAttachments", () => {
   it("collects :attach content as an inline attachment", async () => {
@@ -28,7 +27,7 @@ describe("emitInlineAttachments", () => {
     // Simulate this being the last message, so :cmd is expanded within :attach.
     await msg.expandMacros([], { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
 
-    const out = emitInlineAttachments(msg)
+    const out = msg.inlineAttachments
 
     expect(out).toHaveLength(3)
     expect(out[0].kind).toBe("attach")
