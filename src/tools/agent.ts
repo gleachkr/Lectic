@@ -75,22 +75,45 @@ export class AgentTool extends Tool {
 
         const backend = getBackend(this.agent)
         const result = Logger.fromStream(backend.evaluate(lectic))
-        for await (const chunk of result.chunks) { void chunk }
-        if (this.raw_output) {
-            return ToolCallResults(await result.string)
-        } else {
-            const assistantMessage = new AssistantMessage({
-                content: await result.string,
-                interlocutor: this.agent
-            })
-            const interactions = assistantMessage.parseAssistantContent().interactions
-            const sanitizedText = interactions.map((interaction) => {
-                const callstring = interaction.calls
-                    .map((call) => `<toolcall name=${call.name}/>`)
-                    .join("\n\n")
-                return `${interaction.text}\n\n${callstring}`
-            }).join('\n')
-            return ToolCallResults(sanitizedText, "text/markdown")
+
+        // Drain the stream to completion. Note that Logger.fromStream
+        // intentionally suppresses generator exceptions and instead surfaces
+        // them by rejecting the `string` and `rest` promises.
+        for await (const _chunk of result.chunks) {
+          // no-op
         }
+
+        // IMPORTANT: Always observe `rest` as well as `string`. Otherwise,
+        // a rejected `rest` promise can become an unhandled rejection (Bun
+        // treats that as fatal), causing the whole Lectic process to exit
+        // mid-transcript.
+        const [stringRes, restRes] = await Promise.allSettled([
+          result.string,
+          result.rest,
+        ])
+
+        if (stringRes.status === "rejected") throw stringRes.reason
+        if (restRes.status === "rejected") throw restRes.reason
+
+        const agentOutput = stringRes.value
+
+        if (this.raw_output) {
+          return ToolCallResults(agentOutput)
+        }
+
+        const assistantMessage = new AssistantMessage({
+          content: agentOutput,
+          interlocutor: this.agent,
+        })
+        const interactions = assistantMessage.parseAssistantContent().interactions
+        const sanitizedText = interactions.map((interaction) => {
+            const callstring = interaction.calls
+              .map((call) => `<toolcall name=${call.name}/>`)
+              .join("\n\n")
+            return `${interaction.text}\n\n${callstring}`
+          })
+          .join("\n")
+
+        return ToolCallResults(sanitizedText, "text/markdown")
     }
 }
