@@ -1,6 +1,6 @@
 import type { Message } from "./message"
 import * as YAML from "yaml"
-import { Tool } from "./tool"
+import { type Tool } from "./tool"
 import { validateInterlocutor, type Interlocutor } from "./interlocutor"
 import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
 import { validateHookSpec, Hook, type HookSpec } from "./hook"

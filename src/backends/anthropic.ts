@@ -6,7 +6,7 @@ import type { BackendCompletion, BackendUsage, } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
 import type { ToolCall, ToolCallResult } from "../types/tool"
-import { MessageAttachmentPart } from "../types/attachment"
+import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
   systemPrompt,

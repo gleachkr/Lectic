@@ -210,7 +210,7 @@ class DocumentAnalyzer {
       return this.cachedFolding.folding
     }
     // Otherwise, wait until a cached version is available
-    return await new Promise((resolve) => {
+    return new Promise((resolve) => {
       this.foldingWaiters.push(resolve)
     })
   }
@@ -219,7 +219,7 @@ class DocumentAnalyzer {
     if (this.cachedBundle && this.cachedBundle.version === this.currentVersion) {
       return this.cachedBundle.bundle
     }
-    return await new Promise((resolve) => {
+    return new Promise((resolve) => {
       this.bundleWaiters.push(resolve)
     })
   }
@@ -339,7 +339,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
   connection.onDefinition(async (params: DefinitionParams): Promise<Location[] | null> => {
     const doc = docs.get(params.textDocument.uri)
     if (!doc) return null
-    return await resolveDefinition(params.textDocument.uri, doc.text, params.position)
+    return resolveDefinition(params.textDocument.uri, doc.text, params.position)
   })
 
   connection.onCompletion(async (params: CompletionParams) => {
@@ -349,7 +349,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const analyzer = analyzers.get(params.textDocument.uri)
     if (!analyzer) return null
     const bundle = await analyzer.getBundle()
-    return await computeCompletions(
+    return computeCompletions(
       params.textDocument.uri,
       doc.text,
       params.position,
@@ -373,7 +373,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const analyzer = analyzers.get(params.textDocument.uri)
     if (!analyzer) return null
     const bundle = await analyzer.getBundle()
-    return await computeHover(
+    return computeHover(
       doc.text,
       params.position,
       docDirOf(params.textDocument.uri),
@@ -385,11 +385,11 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const uri = params.textDocument.uri
     const analyzer = analyzers.get(uri)
     if (!analyzer) return []
-    return await analyzer.getFolding()
+    return analyzer.getFolding()
   })
 
   connection.onWorkspaceSymbol(async (_params: WorkspaceSymbolParams) => {
-    return await buildWorkspaceSymbols(workspaceRoots)
+    return buildWorkspaceSymbols(workspaceRoots)
   })
 
   connection.onCodeAction(async (params: CodeActionParams) => {
@@ -416,7 +416,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const u = new URL(uri)
     const docDir = u.protocol === "file:" ? dirname(u.pathname) : undefined
 
-    return await resolveCodeAction(action, doc.text, docDir)
+    return resolveCodeAction(action, doc.text, docDir)
   })
 
   // Semantic tokens (full and range)

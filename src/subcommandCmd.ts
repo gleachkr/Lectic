@@ -17,7 +17,7 @@ export async function tryRunSubcommand(command: string, args: string[]) {
             // filter to executables
             .filter(file => statSync(file).mode & constants.S_IXUSR)
         if (matches.length > 1) {
-            Logger.write(`multiple commands available: \n ${matches}\n`);
+            await Logger.write(`multiple commands available: \n ${matches}\n`)
             break
         } 
         if (matches.length < 1) continue
@@ -26,8 +26,8 @@ export async function tryRunSubcommand(command: string, args: string[]) {
     }
 
     // Not found
-    Logger.write(`error: couldn't identify command '${command}'\n`);
-    process.exit(1);
+    await Logger.write(`error: couldn't identify command '${command}'\n`)
+    process.exit(1)
 }
 
 async function runExecutable(path: string, args: string[]) {
@@ -43,7 +43,9 @@ async function runExecutable(path: string, args: string[]) {
         process.exit(exitCode);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        Logger.write(`error: failed to execute subcommand '${path}': ${msg}\n`);
-        process.exit(1);
+        await Logger.write(
+            `error: failed to execute subcommand '${path}': ${msg}\n`
+        )
+        process.exit(1)
     }
 }

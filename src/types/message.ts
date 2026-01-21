@@ -14,7 +14,7 @@ import {
 import type { ToolCall } from "./tool"
 import type { Macro } from "./macro"
 import type { Interlocutor } from "./interlocutor"
-import { deserializeCall, getSerializedCallName, isSerializedCall, Tool } from "./tool"
+import { deserializeCall, getSerializedCallName, isSerializedCall, type Tool } from "./tool"
 import {
   deserializeInlineAttachment,
   isSerializedInlineAttachment,

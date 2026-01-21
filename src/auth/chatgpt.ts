@@ -161,7 +161,7 @@ export class ChatGPTAuth {
 
             if (code) {
               resolve(code)
-              setTimeout(() => server.stop(), 100)
+              setTimeout(() => { void server.stop() }, 100)
               return new Response(
                 "Authentication successful! You can close this window and " +
                   "return to Lectic."
@@ -169,7 +169,7 @@ export class ChatGPTAuth {
             }
 
             reject(new Error("No code received"))
-            setTimeout(() => server.stop(), 100)
+            setTimeout(() => { void server.stop() }, 100)
             return new Response("Authentication failed", { status: 400 })
           }
           return new Response("Not found", { status: 404 })
@@ -191,7 +191,7 @@ export class ChatGPTAuth {
     const code = await codePromise
     Logger.debug("auth", "Authorization code received. Exchanging for tokens...")
 
-    return await this.exchangeCode(code, verifier)
+    return this.exchangeCode(code, verifier)
   }
 
   private async exchangeCode(code: string, verifier: string): Promise<TokenSet> {

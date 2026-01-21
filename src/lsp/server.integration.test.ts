@@ -5,7 +5,7 @@ import { StreamMessageReader, StreamMessageWriter }
 import { createMessageConnection } from "vscode-jsonrpc"
 import { startLspWithStreams } from "./server"
 
-async function collect<T>(p: Promise<T>) { return await p }
+async function collect<T>(p: Promise<T>) { return p }
 
 describe("LSP integration", () => {
   test("completion on ':' includes directive snippets", async () => {
@@ -45,7 +45,7 @@ describe("LSP integration", () => {
     const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n  - name: plan\n    expansion: file:./plan.txt\n---\nBody\n:`
     const path = "/tmp/test-doc.lec"
     const uri = `file://${path}`
-    client.sendNotification(
+    await client.sendNotification(
       "textDocument/didOpen",
       {
         textDocument: {
@@ -112,7 +112,7 @@ describe("LSP integration", () => {
     const text = `---\n---\nBody\n:as`;
     const path = "/tmp/test-doc.lec"
     const uri = `file://${path}`
-    client.sendNotification("textDocument/didOpen", {
+    await client.sendNotification("textDocument/didOpen", {
       textDocument: { uri, languageId: "markdown", version: 1, text }
     })
 
@@ -160,7 +160,7 @@ describe("LSP integration", () => {
     const text = `---\ninterlocutors:\n  - name: Boggle\n    prompt: hello\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n  - name: plan\n    expansion: file:./plan.txt\n---\nBody\n:macro[su]`;
     const path = "/tmp/test-doc.lec"
     const uri = `file://${path}`
-    client.sendNotification("textDocument/didOpen", {
+    await client.sendNotification("textDocument/didOpen", {
       textDocument: { uri, languageId: "markdown", version: 1, text }
     })
 
@@ -210,7 +210,7 @@ describe("LSP integration", () => {
     const text = `---\ninterlocutors:\n  - name: Boggle\n    prompt: hello\n  - name: Oggle\n    prompt: hi\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\nBody\n:ask[Bo]`;
     const path = "/tmp/test-doc.lec"
     const uri = `file://${path}`
-    client.sendNotification("textDocument/didOpen", {
+    await client.sendNotification("textDocument/didOpen", {
       textDocument: { uri, languageId: "markdown", version: 1, text }
     })
 
@@ -255,7 +255,7 @@ describe("LSP integration", () => {
     const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n---\nBody\n:su`;
     const path = "/tmp/test-doc.lec"
     const uri = `file://${path}`
-    client.sendNotification("textDocument/didOpen", {
+    await client.sendNotification("textDocument/didOpen", {
       textDocument: { uri, languageId: "markdown", version: 1, text }
     })
 
@@ -297,7 +297,7 @@ describe("LSP integration", () => {
     const text = `---\n---\nBody\n::`;
     const path = "/tmp/test-doc.lec"
     const uri = `file://${path}`
-    client.sendNotification("textDocument/didOpen", {
+    await client.sendNotification("textDocument/didOpen", {
       textDocument: { uri, languageId: "markdown", version: 1, text }
     })
 
@@ -333,7 +333,7 @@ describe("LSP integration", () => {
     const text = `---\ninterlocutors:\n  - name: Oggle\n    prompt: hi\nmacros:\n  - name: summarize\n    expansion: exec:echo\n---\nText\n\n:::Oggle\nhi\n:::\n`;
     const path = "/tmp/test-doc.lec"
     const uri = `file://${path}`
-    client.sendNotification("textDocument/didOpen", {
+    await client.sendNotification("textDocument/didOpen", {
       textDocument: { uri, languageId: "markdown", version: 1, text }
     })
 

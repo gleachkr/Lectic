@@ -5,27 +5,27 @@ import { getBackend } from "./backends/util"
 import { runHooks } from "./types/backend"
 import { version } from "../package.json"
 import { lecticEnv } from "./utils/xdg";
-import { Lectic } from "./types/lectic"
+import { type Lectic } from "./types/lectic"
 import { program, type OptionValues } from 'commander'
 import { getIncludes, getLecticString } from "./utils/cli"
 
-function validateOptions(opts : OptionValues) {
+async function validateOptions(opts: OptionValues) {
     if (opts["quiet"]) {
         if (opts["short"]) {
-            Logger.write("You can't combine --short and --quiet");
+            await Logger.write("You can't combine --short and --quiet")
             process.exit(1)
         }
         if (opts["Short"]) {
-            Logger.write("You can't combine --Short and --quiet");
+            await Logger.write("You can't combine --Short and --quiet")
             process.exit(1)
         }
     }
     if (opts["inplace"] && opts["file"]) {
-        Logger.write("You can't combine --file and --inplace");
+        await Logger.write("You can't combine --file and --inplace")
         process.exit(1)
     }
     if (opts["version"]) {
-        Logger.write(`${version}\n`) 
+        await Logger.write(`${version}\n`)
         process.exit(0)
     }
 }
@@ -36,7 +36,7 @@ export async function generate() {
 
     let headerPrinted = false
 
-    validateOptions(opts)
+    await validateOptions(opts)
 
     if (opts["log"]) Logger.logfile = opts["log"]
 
@@ -75,9 +75,11 @@ export async function generate() {
         if (!program.opts()["Short"]) {
             await Logger.write(header)
             headerPrinted = true
-            const closeHeader = () => { 
+            const closeHeader = () => {
                 // no point in updating lectic.body.raw, we're exiting.
-                Logger.write(footer).then(() => process.exit(0)) 
+                void Logger.write(footer)
+                    .then(() => process.exit(0))
+                    .catch(() => process.exit(1))
             }
             process.on('SIGTERM', closeHeader)
             process.on('SIGINT', closeHeader)

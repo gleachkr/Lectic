@@ -124,7 +124,7 @@ async function linkHover(
 ): Promise<Hover | null> {
   const hit = linkTargetAtPositionFromBundle(docText, pos, bundle)
   if (hit) {
-    return await linkPreview(docText, hit.startOff, hit.endOff, docDir)
+    return linkPreview(docText, hit.startOff, hit.endOff, docDir)
   }
   return null
 }
@@ -133,7 +133,7 @@ async function linkPreview(docText: string, startOff: number, endOff: number, do
   const url = docText.slice(startOff, endOff)
   const norm = normalizeUrl(url, docDir)
   const range = LspRange.create(offsetToPosition(docText, startOff), offsetToPosition(docText, endOff))
-  return await linkPreviewWith(norm, range, docDir)
+  return linkPreviewWith(norm, range, docDir)
 }
 
 import type { Range } from "vscode-languageserver"

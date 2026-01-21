@@ -3,7 +3,7 @@ import remarkDirective from "remark-directive"
 import type { RootContent } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 import { $ } from "bun"
-import { Macro } from "../types/macro"
+import { type Macro } from "../types/macro"
 import { lecticEnv } from "../utils/xdg"
 import type { InlineAttachment } from "../types/inlineAttachment"
 import { parseReferences, nodeContentRaw } from "./markdown"
@@ -336,7 +336,7 @@ export async function expandMacrosWithAttachments(
 
         const preResult = await macro.expandPre(preEnv)
         if (preResult !== undefined) {
-          return await expandTextInternal(
+          return expandTextInternal(
             preResult,
             childDepth + 1
           )
@@ -367,10 +367,10 @@ export async function expandMacrosWithAttachments(
           return env[envVar] ?? ""
         }
         case "cmd": {
-          return await builtinCmd(childrenExpanded)
+          return builtinCmd(childrenExpanded)
         }
         case "fetch": {
-          return await builtinFetch(childrenExpanded)
+          return builtinFetch(childrenExpanded)
         }
         case "attach" : {
           if (childrenExpanded.length > 0) {
@@ -475,7 +475,7 @@ export async function expandMacrosWithAttachments(
       }
 
       if (node.type === "textDirective") {
-        return await expandTextDirective(
+        return expandTextDirective(
           node,
           rawText,
           childDepth
@@ -488,7 +488,7 @@ export async function expandMacrosWithAttachments(
           return sliceNodeRaw(node, rawText)
         }
 
-        return await expandChildrenInRange(
+        return expandChildrenInRange(
           node.children,
           startOffset(node),
           endOffset(node),
@@ -499,7 +499,7 @@ export async function expandMacrosWithAttachments(
       return sliceNodeRaw(node, rawText)
     }
 
-    return await expandChildrenInRange(
+    return expandChildrenInRange(
       ast.children,
       0,
       raw.length,

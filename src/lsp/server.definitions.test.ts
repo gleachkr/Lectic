@@ -4,7 +4,7 @@ import { StreamMessageReader, StreamMessageWriter } from "vscode-jsonrpc/node"
 import { createMessageConnection } from "vscode-jsonrpc"
 import { startLspWithStreams } from "./server"
 
-async function collect<T>(p: Promise<T>) { return await p }
+async function collect<T>(p: Promise<T>) { return p }
 
 function openDoc(client: any, uri: string, text: string) {
   client.sendNotification("textDocument/didOpen", {

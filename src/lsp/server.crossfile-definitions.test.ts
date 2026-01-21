@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
 
-async function collect<T>(p: Promise<T>) { return await p }
+async function collect<T>(p: Promise<T>) { return p }
 
 function openDoc(client: any, uri: string, text: string) {
   client.sendNotification("textDocument/didOpen", {

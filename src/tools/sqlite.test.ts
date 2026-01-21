@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { SQLiteTool } from "./sqlite";
-import { ToolCallResult } from "../types/tool";
+import { type ToolCallResult } from "../types/tool";
 import * as YAML from "yaml";
 
 function texts(results: ToolCallResult[]) {

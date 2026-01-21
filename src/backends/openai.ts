@@ -3,8 +3,8 @@ import type { Message } from "../types/message"
 import type { HasModel, Lectic } from "../types/lectic"
 import type { BackendCompletion, BackendUsage } from "../types/backend"
 import { Backend } from "../types/backend"
-import { LLMProvider } from "../types/provider"
-import { MessageAttachmentPart } from "../types/attachment"
+import { type LLMProvider } from "../types/provider"
+import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
   systemPrompt,

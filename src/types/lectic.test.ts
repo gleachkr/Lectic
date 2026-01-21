@@ -131,7 +131,7 @@ describe('LecticHeader', () => {
           }
         };
         const header = new LecticHeader(spec);
-        const test = async () => await header.initialize();
+        const test = async () => header.initialize();
         expect(test).toThrow('The tool provided by {"unsupported_tool":"some_value"} wasn\'t recognized.');
     });
 
@@ -147,7 +147,7 @@ describe('LecticHeader', () => {
           }
         };
         const header = new LecticHeader(spec);
-        const test = async () => await header.initialize();
+        const test = async () => header.initialize();
         expect(test).toThrow('the name tool is being used twice. Each tool needs a unique name');
     });
 
@@ -208,7 +208,7 @@ describe('LecticHeader', () => {
         interlocutor: { name: 'Tester', prompt: 'p', tools: [ { kit: 'nope' } ] }
       }
       const header = new LecticHeader(spec as any)
-      const test = async () => await header.initialize()
+      const test = async () => header.initialize()
       expect(test).toThrow('Unknown kit reference: nope')
     })
 
@@ -221,7 +221,7 @@ describe('LecticHeader', () => {
         interlocutor: { name: 'Tester', prompt: 'p', tools: [ { kit: 'a' } ] }
       }
       const header = new LecticHeader(spec as any)
-      const test = async () => await header.initialize()
+      const test = async () => header.initialize()
       expect(test).toThrow('Kit expansion cycle detected at a')
     })
 

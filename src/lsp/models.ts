@@ -19,7 +19,9 @@ class ModelRegistry {
   start() {
     if (this.started) return
     this.started = true
-    this.refreshAll()
+    void this.refreshAll().catch(() => {
+      // Background refresh; failures are non-fatal.
+    })
   }
 
   onUpdate(cb: () => void): () => void {

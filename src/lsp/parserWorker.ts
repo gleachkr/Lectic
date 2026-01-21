@@ -9,8 +9,9 @@ import type { FoldResult, DiagnosticsResult, WorkerMessage, BundleResult } from 
 // Bun's Worker uses the web worker API. We listen for messages and
 // post results back to the parent. We do not retain any global state.
 
-
-self.addEventListener("message", async (ev: MessageEvent<WorkerMessage>) => {
+async function handleWorkerMessage(
+  ev: MessageEvent<WorkerMessage>
+): Promise<void> {
   const msg = ev.data
   if (msg.type !== "analyze") return
   try {
@@ -87,4 +88,8 @@ self.addEventListener("message", async (ev: MessageEvent<WorkerMessage>) => {
     }
     self.postMessage(diagMsg)
   }
+}
+
+self.addEventListener("message", (ev: MessageEvent<WorkerMessage>) => {
+  void handleWorkerMessage(ev)
 })

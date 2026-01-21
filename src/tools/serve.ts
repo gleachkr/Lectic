@@ -60,7 +60,7 @@ export class ServeTool extends Tool {
             routes: {
                 "/": {
                     GET: () => {
-                        server.stop()
+                        void server.stop()
                         unblock()
                         return new Response(page, {
                             headers: {
@@ -75,7 +75,9 @@ export class ServeTool extends Tool {
                 return new Response("Not Found", { status: 404 })
             }
         })
-        open(`localhost:${this.serve_on_port}`)
+        void open(`localhost:${this.serve_on_port}`).catch(() => {
+            // Ignore browser-open errors.
+        })
         await blocker
         return ToolCallResults("page is now available")
     }

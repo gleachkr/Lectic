@@ -16,6 +16,7 @@ export default defineConfig(
   {
     ignores: [
       'doc/**',
+      '.worktrees/**',
       'extra/lectic-run.js', // eslint has a hard time understanding #!/usr/bin/env -S lectic script
       'extra/lectic.vscode/out/**',
     ],
@@ -56,6 +57,18 @@ export default defineConfig(
         },
       ],
 
+      // Prefer `import { type Foo } from '...'` for type-only imports.
+      //
+      // With TS's `verbatimModuleSyntax`, this avoids accidental runtime
+      // imports and helps keep tree-shaking predictable.
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        {
+          prefer: 'type-imports',
+          fixStyle: 'inline-type-imports',
+        },
+      ],
+
       // Prefer strict equality except for "nullish" checks.
       eqeqeq: ['warn', 'always', { null: 'ignore' }],
     },
@@ -67,6 +80,26 @@ export default defineConfig(
     rules: {
       // Catch unnecessary casts like `x as T` when x is already T.
       '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+
+      // A few high-value type-aware rules from recommendedTypeChecked.
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-floating-promises': [
+        'error',
+        {
+          ignoreIIFE: true,
+          ignoreVoid: true,
+        },
+      ],
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: {
+            arguments: true,
+            attributes: false,
+          },
+        },
+      ],
+      '@typescript-eslint/return-await': ['error', 'in-try-catch'],
     },
   },
 

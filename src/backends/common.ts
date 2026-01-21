@@ -66,7 +66,7 @@ export async function pdfFragment(
         const newPDF = await PDFDocument.create()
         const pages = await newPDF.copyPages(origPDF, range)
         pages.forEach(page => newPDF.addPage(page))
-        return await newPDF.save()
+        return newPDF.save()
 }
 
 // Decide whether a mimetype should be treated as an attachment (binary-ish)
@@ -123,7 +123,7 @@ export async function gatherMessageAttachmentParts(
 ): Promise<MessageAttachmentPart[]> {
   const links = msg.containedLinks().flatMap(MessageAttachment.fromGlob)
   const parts: MessageAttachmentPart[] = []
-  for await (const link of links) {
+  for (const link of links) {
     if (await link.exists()) {
       parts.push(...await link.getParts())
     }

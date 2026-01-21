@@ -31,9 +31,11 @@ export class FilePersistedOAuthClientProvider implements OAuthClientProvider {
         this._onRedirect =
             onRedirect ||
             ((url) => {
-            console.log(`Opening browser for authorization: ${url.toString()}`);
-            open(url.toString());
-        });
+            console.log(`Opening browser for authorization: ${url.toString()}`)
+            void open(url.toString()).catch(() => {
+                // Ignore browser-open errors.
+            })
+        })
     }
 
     private _onRedirect: (url: URL) => void;
@@ -129,8 +131,8 @@ export async function waitForOAuthCallback(port: number): Promise<string> {
                         isResolved = true;
                         // Allow response to be sent before stopping
                         setTimeout(() => {
-                            server.stop();
-                            resolve(code);
+                            void server.stop()
+                            resolve(code)
                         }, 500);
                     }
 
@@ -149,8 +151,8 @@ export async function waitForOAuthCallback(port: number): Promise<string> {
                     if (!isResolved) {
                         isResolved = true;
                         setTimeout(() => {
-                            server.stop();
-                            reject(new Error(`OAuth authorization failed: ${error}`));
+                            void server.stop()
+                            reject(new Error(`OAuth authorization failed: ${error}`))
                         }, 500);
                     }
 

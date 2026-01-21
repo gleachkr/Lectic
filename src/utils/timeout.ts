@@ -31,14 +31,16 @@ export function withTimeout<T, P = unknown>(
   const ms = Math.floor(seconds * 1000);
 
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(async () => {
-      try {
-        const payload = await opts?.onTimeout?.();
-        reject(new TimeoutError<P>(seconds, label, payload));
-      } catch {
-        reject(new TimeoutError(seconds, label));
-      }
-    }, ms);
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const payload = await opts?.onTimeout?.()
+          reject(new TimeoutError<P>(seconds, label, payload))
+        } catch {
+          reject(new TimeoutError(seconds, label))
+        }
+      })()
+    }, ms)
 
     let settled = false;
     work

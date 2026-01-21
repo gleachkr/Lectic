@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { ExecTool } from "./exec";
-import { ToolCallResult } from "../types/tool";
+import { type ToolCallResult } from "../types/tool";
 
 function texts(results: ToolCallResult[]) {
   return results.map((r) => r.toBlock());

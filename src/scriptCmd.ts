@@ -14,8 +14,10 @@ function usage(): string {
 
 export async function scriptCmd(args: string[]) {
     if (args.length === 0 || (args.length === 1 && (args[0] === '-h' || args[0] === '--help'))) {
-        if (args.length === 0) Logger.write("error: script requires a module path\n")
-        Logger.write(usage())
+        if (args.length === 0) {
+            await Logger.write("error: script requires a module path\n")
+        }
+        await Logger.write(usage())
         process.exit(args.length === 0 ? 1 : 0)
     }
 
@@ -35,7 +37,9 @@ export async function scriptCmd(args: string[]) {
         mod = await import(modUrl)
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
-        Logger.write(`error: failed to import script module '${scriptPath}': ${msg}\n${usage()}`)
+        await Logger.write(
+            `error: failed to import script module '${scriptPath}': ${msg}\n${usage()}`
+        )
         process.exit(1)
     }
 
@@ -46,7 +50,7 @@ export async function scriptCmd(args: string[]) {
             await Promise.resolve(entryFn())
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
-            Logger.write(`error: script default function threw: ${msg}\n`)
+            await Logger.write(`error: script default function threw: ${msg}\n`)
             process.exit(1)
         }
     }

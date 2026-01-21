@@ -9,7 +9,7 @@ export async function loadFrom<T>(something: T, env: Record<string, string | und
             if (!path) {
                 throw new Error("File path cannot be empty.");
             }
-            return await Bun.file(path).text();
+            return Bun.file(path).text();
         } else if (something.slice(0, 5) === "exec:") {
             const command = something.slice(5).trim();
             if (!command) {

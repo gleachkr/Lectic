@@ -1,9 +1,9 @@
 import { Logger } from "../logging/logger"
-import { Lectic, type HasModel } from "./lectic"
+import { type Lectic, type HasModel } from "./lectic"
 import { type Message } from "./message"
-import { Hook, type HookEvents } from "./hook"
+import { type Hook, type HookEvents } from "./hook"
 import { serializeCall, ToolCallResults, type Tool, type ToolCall} from "./tool"
-import { LLMProvider } from "./provider"
+import { type LLMProvider } from "./provider"
 import {
   inlineNotFinal,
   inlineReset,

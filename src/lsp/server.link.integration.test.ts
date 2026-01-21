@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
 
-async function collect<T>(p: Promise<T>) { return await p }
+async function collect<T>(p: Promise<T>) { return p }
 
 describe("LSP link integrations", () => {
   test("no link target completion (leave to editor)", async () => {
@@ -29,7 +29,7 @@ describe("LSP link integrations", () => {
 
       const doc = `---\n---\nSee [file]()`
       const uri = `file://${join(root, "doc.lec")}`
-      client.sendNotification("textDocument/didOpen", {
+      await client.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "markdown", version: 1, text: doc }
       })
 
@@ -66,7 +66,7 @@ describe("LSP link integrations", () => {
 
       const doc = `---\n---\nSee [file](alpha.txt)`
       const uri = `file://${join(root, "doc.lec")}`
-      client.sendNotification("textDocument/didOpen", {
+      await client.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "markdown", version: 1, text: doc }
       })
 
@@ -104,7 +104,7 @@ describe("LSP link integrations", () => {
 
       const doc = `---\n---\nSee [file](file://$PWD/env.txt)`
       const uri = `file://${join(root, "doc.lec")}`
-      client.sendNotification("textDocument/didOpen", {
+      await client.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "markdown", version: 1, text: doc }
       })
 
@@ -141,7 +141,7 @@ describe("LSP link integrations", () => {
 
       const doc = `---\n---\nSee [dir](sub/)`
       const uri = `file://${join(root, "doc.lec")}`
-      client.sendNotification("textDocument/didOpen", {
+      await client.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "markdown", version: 1, text: doc }
       })
 
@@ -177,7 +177,7 @@ describe("LSP link integrations", () => {
 
       const doc = `---\n---\nSee [glob](*.txt)`
       const uri = `file://${join(root, "doc.lec")}`
-      client.sendNotification("textDocument/didOpen", {
+      await client.sendNotification("textDocument/didOpen", {
         textDocument: { uri, languageId: "markdown", version: 1, text: doc }
       })
 

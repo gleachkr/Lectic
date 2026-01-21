@@ -1,5 +1,5 @@
-import { LLMProvider, isLLMProvider } from "./provider"
-import { Tool } from "./tool"
+import { type LLMProvider, isLLMProvider } from "./provider"
+import { type Tool } from "./tool"
 import { type HookSpec, type Hook, isHookSpecList } from "./hook"
 import { Messages } from "../constants/messages"
 

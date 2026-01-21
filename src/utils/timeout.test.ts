@@ -17,16 +17,25 @@ describe("withTimeout", () => {
   });
 
   it("rejects underlying error before timeout", async () => {
-    const err = new Error("boom");
-    await expect(withTimeout(Promise.reject(err), 1)).rejects.toBe(err);
-  });
+    const err = new Error("boom")
+    try {
+      await withTimeout(Promise.reject(err), 1)
+      throw new Error("expected rejection")
+    } catch (e) {
+      expect(e).toBe(err)
+    }
+  })
 
   it("times out when work takes too long", async () => {
-    const seconds = 0.05; // 50ms
-    await expect(withTimeout(delay(100, 1), seconds)).rejects.toEqual(
-      new TimeoutError(seconds, "command"),
-    );
-  });
+    const seconds = 0.05 // 50ms
+    try {
+      await withTimeout(delay(100, 1), seconds)
+      throw new Error("expected timeout")
+    } catch (e) {
+      expect(e).toBeInstanceOf(TimeoutError)
+      expect(e).toEqual(new TimeoutError(seconds, "command"))
+    }
+  })
 
   it("uses custom label in message", async () => {
     const seconds = 0.01;
