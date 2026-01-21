@@ -21,11 +21,14 @@ import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { strictify } from "../types/schema.ts"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
+  "gpt-5.2",
   "gpt-5.1",
   "gpt-5.1-codex",
   "gpt-5.1-codex-mini",
+  "gpt-5.1-codex-max",
   "gpt-5.1-chat-latest",
   "gpt-5",
+  "gpt-5-codex",
   "gpt-4.1",
 ]
 
