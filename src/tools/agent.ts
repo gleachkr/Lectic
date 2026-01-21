@@ -63,9 +63,6 @@ export class AgentTool extends Tool {
     async call({ content }: { content: string }) : Promise<ToolCallResult[]> {
         this.validateArguments({ content });
         const message = new UserMessage({ content })
-        if (message.containedDirectives().length > 0) {
-            throw Error("directives are not allowed in agent calls")
-        }
         const lectic = new Lectic({
             header: new LecticHeader({interlocutor: this.agent, interlocutors: this.interlocutors}),
             body: new LecticBody({ messages: [message], raw: content }),
@@ -74,6 +71,9 @@ export class AgentTool extends Tool {
         await lectic.header.initialize()
 
         const backend = getBackend(this.agent)
+        // backend.evaluate doesn't process directives - those are handled
+        // during macro expansion. If that ever changes, we need to sanatize
+        // this call to remove directives.
         const result = Logger.fromStream(backend.evaluate(lectic))
 
         // Drain the stream to completion. Note that Logger.fromStream
