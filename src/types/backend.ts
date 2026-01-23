@@ -284,7 +284,7 @@ export abstract class Backend<TMessage, TFinal> {
     lectic: Lectic
   }): Promise<void>
 
-  async *evaluate(lectic: Lectic): AsyncIterable<string | Message> {
+  async *evaluate(lectic: Lectic): AsyncIterable<string> {
     const messages: TMessage[] = []
 
     // Only execute user_message hooks and inject attachments when handling
@@ -334,7 +334,7 @@ export abstract class Backend<TMessage, TFinal> {
     messages: TMessage[]
     lectic: Lectic & HasModel
     inlinePreface: InlineAttachment[]
-  }): AsyncGenerator<string | Message> {
+  }): AsyncGenerator<string> {
     const { messages, lectic } = opt
 
     const registry = lectic.header.interlocutor.registry ?? {}

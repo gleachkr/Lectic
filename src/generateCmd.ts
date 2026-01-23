@@ -6,6 +6,7 @@ import { runHooks } from "./types/backend"
 import { version } from "../package.json"
 import { lecticEnv } from "./utils/xdg";
 import { type Lectic } from "./types/lectic"
+import { AssistantMessage } from "./types/message"
 import { program, type OptionValues } from 'commander'
 import { getIncludes, getLecticString } from "./utils/cli"
 
@@ -87,17 +88,18 @@ export async function generate() {
 
         const recordingStream = (async function* () {
             for await (const chunk of backend.evaluate(lectic)) {
-                // Only append text strings to the raw body, ignore non-string return values
-                if (typeof chunk === 'string') {
-                    lectic.body.raw += chunk
-                }
+                lectic.body.raw += chunk
                 yield chunk
             }
         })()
 
         const result = Logger.fromStream(recordingStream)
         await Logger.write(result.chunks)
-        await result.rest
+
+        lectic.body.messages.push(new AssistantMessage({
+            content: result.string,
+            interlocutor: lectic.header.interlocutor,
+        }))
 
         if (!program.opts()["Short"]) { await Logger.write(footer) }
         if (lectic) lectic.body.raw += footer
@@ -106,7 +108,7 @@ export async function generate() {
             Logger.outfile = createWriteStream(opts["inplace"])
             await Logger.write(`${lecticString.trim()}\n\n`)
             await Logger.write(header)
-            await result.string.then(string => Logger.write(string))
+            await Logger.write(result.string)
             await Logger.write(footer)
         }
         process.exit(0)

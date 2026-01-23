@@ -76,26 +76,12 @@ export class AgentTool extends Tool {
         // this call to remove directives.
         const result = Logger.fromStream(backend.evaluate(lectic))
 
-        // Drain the stream to completion. Note that Logger.fromStream
-        // intentionally suppresses generator exceptions and instead surfaces
-        // them by rejecting the `string` and `rest` promises.
+        // Drain the stream to completion.
         for await (const _chunk of result.chunks) {
           // no-op
         }
 
-        // IMPORTANT: Always observe `rest` as well as `string`. Otherwise,
-        // a rejected `rest` promise can become an unhandled rejection (Bun
-        // treats that as fatal), causing the whole Lectic process to exit
-        // mid-transcript.
-        const [stringRes, restRes] = await Promise.allSettled([
-          result.string,
-          result.rest,
-        ])
-
-        if (stringRes.status === "rejected") throw stringRes.reason
-        if (restRes.status === "rejected") throw restRes.reason
-
-        const agentOutput = stringRes.value
+        const agentOutput = result.string
 
         if (this.raw_output) {
           return ToolCallResults(agentOutput)

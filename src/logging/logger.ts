@@ -26,8 +26,8 @@ export const Logger : {
     debug(context : string, logged: unknown) : void,
     outfile: Writable
     write(output : string | AsyncIterable<string>) : Promise<void>
-    fromStream<A>(generator : AsyncIterable<string | A>) 
-        : { chunks : AsyncIterable<string>, string : Promise<string>, rest : Promise<A[]> }
+    fromStream(generator : AsyncIterable<string>) 
+        : { chunks : AsyncIterable<string>, readonly string : string }
 } = {
 
     logfile: null,
@@ -57,41 +57,18 @@ export const Logger : {
         }
     },
 
-    // XXX: from stream is a bit of a legacy method here, but it lets us
-    // potentially yield things other than strings during the lectic execution,
-    // as `rest`, which is a nice to have, so I leave it here.
-    fromStream<A>(generator : AsyncIterable<string | A>) {
-        let resolver1 : (result : A[]) => void
-        let rejector1 : (result : unknown) => void
-        let resolver2 : (result : string) => void
-        let rejector2 : (result : unknown) => void
-        const accumulator : A[] = []
+    fromStream(generator : AsyncIterable<string>) {
         let theString = ""
-        const rest : Promise<A[]> = new Promise((resolve, reject) => {
-            resolver1 = resolve
-            rejector1 = reject
-        })
-        const string : Promise<string> = new Promise((resolve, reject) => {
-            resolver2 = resolve
-            rejector2 = reject
-        })
         const chunks = async function*() {
-            try {
-                for await (const x of generator) {
-                    if (typeof x === "string") { 
-                        yield x 
-                        theString += x
-                    }
-                    else { accumulator.push(x) }
-                }
-            } catch (e) {
-                rejector1(e)
-                rejector2(e)
-            } finally {
-                resolver1(accumulator)
-                resolver2(theString)
+            for await (const chunk of generator) {
+                theString += chunk
+                yield chunk
             }
         }
-        return { chunks: chunks(), rest, string }
+
+        return {
+            chunks: chunks(),
+            get string() { return theString },
+        }
     }
 }
