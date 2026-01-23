@@ -4,7 +4,7 @@ import { type Tool } from "./tool"
 import { validateInterlocutor, type Interlocutor } from "./interlocutor"
 import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
 import { validateHookSpec, Hook, type HookSpec } from "./hook"
-import { isMessage, UserMessage } from "./message"
+import { UserMessage } from "./message"
 import { isExecToolSpec, ExecTool, type ExecToolSpec } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool, type SQLiteToolSpec } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
@@ -287,17 +287,6 @@ export class LecticBody {
     }
 }
 
-export function isLecticBody(raw: unknown): raw is LecticBody {
-    return raw !== null &&
-        typeof raw === 'object' &&
-        'messages' in raw &&
-        Array.isArray(raw.messages) &&
-        raw.messages.every(isMessage) &&
-        'raw' in raw &&
-        typeof raw.raw === 'string' &&
-        'snapshot' in raw
-}
-
 export type HasModel = { header : { interlocutor : { model : string } } }
 
 export class Lectic {
@@ -357,13 +346,4 @@ export class Lectic {
         }
         this.body.messages = messages
     }
-}
-
-export function isLectic(raw: unknown): raw is Lectic {
-    return raw !== null &&
-        typeof raw === 'object' &&
-        'header' in raw &&
-        'body' in raw &&
-        (raw.header instanceof LecticHeader) &&
-        isLecticBody(raw.body)
 }
