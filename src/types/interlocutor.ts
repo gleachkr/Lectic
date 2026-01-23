@@ -3,6 +3,10 @@ import { type Tool } from "./tool"
 import { type HookSpec, type Hook, isHookSpecList } from "./hook"
 import { Messages } from "../constants/messages"
 
+export type A2AAgentConfig = {
+    id?: string
+    description?: string
+}
 // TODO Possibly this should be a union type over per-backend interfaces.
 export type Interlocutor = {
     prompt : string
@@ -20,6 +24,9 @@ export type Interlocutor = {
     thinking_budget?: number
     thinking_effort?: "none" | "low" | "medium" | "high"
     sandbox?: string
+
+    // Optional a2a configuration (used by `lectic a2a`).
+    a2a?: A2AAgentConfig
 }
 
 export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
