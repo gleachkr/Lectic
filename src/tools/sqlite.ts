@@ -1,6 +1,6 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Database } from "bun:sqlite"
-import { parse, show } from "sql-parser-cst"
+import { parse, show, cstVisitor } from "sql-parser-cst"
 import { expandEnv } from "../utils/replace";
 import * as YAML from "yaml"
 import { isHookSpecList, type HookSpec } from "../types/hook";
@@ -30,6 +30,13 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
         ) &&
         ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
+
+const isDangerous = cstVisitor({
+    attach_database_stmt : () => { throw new Error("ATTACH statements are not allowed") },
+    detach_database_stmt : () => { throw new Error("DETACH statements are not allowed") },
+    pragma_stmt: () => { throw new Error("PRAGMA statements are not allowed") },
+    vacuum_stmt: () => { throw new Error("VACUUM statements are not allowed.") },
+})
 
 const description = `
 This tool gives you access to an sqlite database. You can provide well-formed SQLite script, and you will receive the results, encoded as YAML.
@@ -110,6 +117,9 @@ export class SQLiteTool extends Tool {
             includeSpaces: true,
             includeNewlines: true,
         })
+
+        // check for a few forbidden types of statements
+        isDangerous(parsed)
 
         const rslts : string[] = []
         const processStatements = this.db.transaction(statements => {

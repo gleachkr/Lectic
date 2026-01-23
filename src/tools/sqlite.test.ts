@@ -200,3 +200,77 @@ describe("SQLiteTool serialization and limits", () => {
   });
 
 });
+
+describe("SQLiteTool statement safety", () => {
+  it("rejects ATTACH statements", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe1" });
+    expect(
+      tool.call({ query: "ATTACH DATABASE 'evil.db' AS evil;" })
+    ).rejects.toThrow(/ATTACH statements are not allowed/i);
+  });
+
+  it("rejects ATTACH without the DATABASE keyword", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe1b" });
+    expect(tool.call({ query: "ATTACH 'evil.db' AS evil;" })).rejects.toThrow(
+      /ATTACH statements are not allowed/i
+    );
+  });
+
+  it("rejects DETACH statements", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe2" });
+    expect(
+      tool.call({ query: "DETACH DATABASE evil;" })
+    ).rejects.toThrow(/DETACH statements are not allowed/i);
+  });
+
+  it("rejects PRAGMA statements (case-insensitive)", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe3" });
+    expect(
+      tool.call({ query: "pRaGmA user_version;" })
+    ).rejects.toThrow(/PRAGMA statements are not allowed/i);
+  });
+
+  it("rejects VACUUM statements", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe4" });
+    expect(tool.call({ query: "VACUUM;" })).rejects.toThrow(
+      /VACUUM statements are not allowed/i
+    );
+  });
+
+  it("rejects VACUUM INTO statements", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe4b" });
+    expect(
+      tool.call({ query: "VACUUM INTO 'evil.db';" })
+    ).rejects.toThrow(/VACUUM statements are not allowed/i);
+  });
+
+  it("does not reject PRAGMA keyword in strings or comments", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe5" });
+    const res = await tool.call({
+      query: "SELECT 'PRAGMA' AS x; -- PRAGMA is in a comment\nSELECT 1 AS y;",
+    });
+
+    const outs = texts(res);
+    const parsed = outs.map((o) => YAML.parse(o));
+    expect(parsed).toEqual([[{ x: "PRAGMA" }], [{ y: 1 }]]);
+  });
+
+  it("blocks dangerous statements before executing any statements", async () => {
+    const tool = new SQLiteTool({ sqlite: ":memory:", name: "safe6" });
+
+    expect(
+      tool.call({
+        query:
+          "CREATE TABLE t(x INTEGER);\n" +
+          "ATTACH DATABASE 'evil.db' AS evil;\n" +
+          "INSERT INTO t VALUES (1);",
+      })
+    ).rejects.toThrow(/ATTACH statements are not allowed/i);
+
+    const res = await tool.call({
+      query:
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='t';",
+    });
+    expect(YAML.parse(texts(res)[0])).toEqual([]);
+  });
+});
