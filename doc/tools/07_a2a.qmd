@@ -1,0 +1,57 @@
+# Tools: Agent2Agent (A2A)
+
+The `a2a` tool lets your Lectic interlocutor call a remote agent that
+implements the Agent2Agent (A2A) protocol.
+
+This is useful for:
+
+- Testing the built-in `lectic a2a` server
+- Delegating work to an external agent process
+
+## Configuration
+
+You configure an A2A tool by providing the base URL for the agent.
+
+If your agent card is served at:
+
+- `http://HOST:PORT/agents/<id>/.well-known/agent-card.json`
+
+then set the tool URL to:
+
+- `http://HOST:PORT/agents/<id>`
+
+Example:
+
+```yaml
+tools:
+  - name: remote_agent
+    a2a: http://127.0.0.1:41240/agents/assistant
+```
+
+Optional settings:
+
+- `stream`: prefer streaming (`message/sendStream`). Defaults to `true`.
+
+## Tool call parameters
+
+The tool exposes these parameters:
+
+- `text` (required): user text to send to the agent.
+- `contextId` (optional): A2A context id to continue a conversation.
+  - If omitted, the agent starts a new conversation.
+  - If explicitly `null`, the tool omits the field (same effect as omit).
+- `taskId` (optional): A2A task id (rarely needed).
+- `stream` (optional): override streaming for this call.
+
+## Output format
+
+The tool returns two results:
+
+1. `text/plain`: the agent response text
+2. `application/json`: call metadata
+
+The metadata includes:
+
+- `contextId`, `taskId`: identifiers you can reuse
+- `agent`: the agent name from its agent card
+- `baseUrl`, `streaming`: call metadata

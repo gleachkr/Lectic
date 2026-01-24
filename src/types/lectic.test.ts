@@ -4,6 +4,7 @@ import { SQLiteTool } from '../tools/sqlite';
 import { ThinkTool } from '../tools/think';
 import { ServeTool } from '../tools/serve';
 import { AgentTool } from '../tools/agent';
+import { A2ATool } from '../tools/a2a';
 import { expect, it, describe } from "bun:test";
 
 describe('LecticHeader', () => {
@@ -121,6 +122,20 @@ describe('LecticHeader', () => {
         const interlocutor = header.interlocutors[0];
         expect(interlocutor.registry?.['caller']).toBeInstanceOf(AgentTool);
       });
+
+    it('should correctly initialize an A2ATool', async () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          tools: [{ a2a: 'http://127.0.0.1:41240/agents/test', name: 'remote' }]
+        }
+      };
+      const header = new LecticHeader(spec as any);
+      await header.initialize();
+      const interlocutor = header.interlocutor;
+      expect(interlocutor.registry?.['remote']).toBeInstanceOf(A2ATool);
+    });
 
     it('should throw an error for unrecognized tool specs', async () => {
         const spec = {

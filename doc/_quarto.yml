@@ -43,6 +43,8 @@ website:
             href: ./tools/04_mcp.qmd
           - text: Agent
             href: ./tools/05_agent.qmd
+          - text: A2A
+            href: ./tools/07_a2a.qmd
           - text: Other Tools
             href: ./tools/06_other_tools.qmd
       - section: Automation

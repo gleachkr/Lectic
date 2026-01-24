@@ -269,6 +269,7 @@ const TOOL_SPEC_KEYS = [
   "mcp_sse",
   "mcp_shttp",
   "agent",
+  "a2a",
   "think_about",
   "serve_on_port",
   "native",

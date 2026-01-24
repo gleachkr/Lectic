@@ -11,6 +11,7 @@ command, query a database, call another agent, or reach out to a service.
 | [`sqlite`](./03_sqlite.qmd) | Query SQLite databases | `sqlite: ./data.db` |
 | [`mcp`](./04_mcp.qmd) | Connect to MCP servers | `mcp_command: npx ...` |
 | [`agent`](./05_agent.qmd) | Call another interlocutor | `agent: OtherName` |
+| [`a2a`](./07_a2a.qmd) | Call a remote A2A agent | `a2a: http://.../agents/<id>` |
 | [`think`](./06_other_tools.qmd#the-think-tool) | Private reasoning scratchpad | `think_about: the problem` |
 | [`serve`](./06_other_tools.qmd#the-serve-tool) | Serve HTML to browser | `serve_on_port: 8080` |
 | [`native`](./06_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
@@ -142,6 +143,9 @@ Each tool type has its own detailed guide:
 
 - **[Agent](./05_agent.qmd)**: Multi-LLM workflows. One interlocutor can
   delegate to another, enabling specialized agents.
+
+- **[A2A](./07_a2a.qmd)**: Talk to remote agents using the
+  Agent2Agent (A2A) protocol.
 
 - **[Other Tools](./06_other_tools.qmd)**: The `think` tool for reasoning,
   `serve` for rendering HTML, and `native` for provider built-ins like
