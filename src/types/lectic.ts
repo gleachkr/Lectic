@@ -198,7 +198,10 @@ export class LecticHeader {
             } else if (isA2AToolSpec(spec)) {
                 const loadedSpec: A2AToolSpec = { ...spec }
                 loadedSpec.usage = await loadFrom(spec.usage)
-                register(new A2ATool(loadedSpec))
+
+                const tool = new A2ATool(loadedSpec)
+                await tool.init()
+                register(tool)
             } else if (isMCPSpec(spec)) {
                 const loadedSpec = { ...spec }
                 if ("mcp_command" in loadedSpec) {

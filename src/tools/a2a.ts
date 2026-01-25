@@ -6,15 +6,19 @@ import type {
   TextPart,
 } from "@a2a-js/sdk"
 
-import { 
-    ClientFactory, 
-    type Client as A2AClient 
-} from "@a2a-js/sdk/client"
+import { join } from "node:path"
+
+import { ClientFactory, type Client as A2AClient }
+  from "@a2a-js/sdk/client"
 
 import { Tool, ToolCallResult } from "../types/tool"
 import type { JSONSchema } from "../types/schema"
 import { isHookSpecList, type HookSpec } from "../types/hook"
 import { isObjectRecord } from "../types/guards"
+import { lecticCacheDir } from "../utils/xdg"
+import { cachedJson, writeJsonCacheFile }
+  from "../utils/cache"
+import { withTimeout } from "../utils/timeout"
 
 export type A2AToolSpec = {
   a2a: string
@@ -42,6 +46,7 @@ type ClientEntry = {
   card: AgentCard
 }
 
+
 function isKinded(v: unknown): v is Record<string, unknown> & {
   kind: string
 } {
@@ -66,6 +71,10 @@ export class A2ATool extends Tool {
 
   private readonly baseUrl: string
   private readonly streamDefault: boolean
+  private readonly baseDescription: string
+
+  private card?: AgentCard
+  private initDone = false
 
   private static count = 0
   private static clientByUrl: Record<string, Promise<ClientEntry>> = {}
@@ -81,11 +90,13 @@ export class A2ATool extends Tool {
 
     const usage = spec.usage ? `\n\n${spec.usage}` : ""
 
-    this.description =
+    this.baseDescription =
       "Use this tool to send a message to a remote A2A agent." +
       " To continue the same conversation, pass the same contextId" +
       " (and taskId if present) returned by earlier calls." +
       usage
+
+    this.description = this.baseDescription
   }
 
   description: string
@@ -129,6 +140,101 @@ export class A2ATool extends Tool {
 
   required = ["text"]
 
+  private agentCardCachePath(): string {
+    const hashed = Bun.hash(this.baseUrl)
+    return join(lecticCacheDir(), "a2a", "agent-cards", `${hashed}.json`)
+  }
+
+  private formatAgentCard(card: AgentCard): string {
+    const lines: string[] = []
+
+    lines.push("Remote agent (from agent card):")
+    lines.push(`- baseUrl: ${this.baseUrl}`)
+    lines.push(`- name: ${card.name}`)
+
+    const desc = card.description
+    if (desc) {
+      lines.push(`- description: ${desc}`)
+    }
+
+    const version = card.version
+    if (version) {
+      lines.push(`- version: ${version}`)
+    }
+
+    const protocolVersion = card.protocolVersion
+    if (protocolVersion) {
+      lines.push(`- protocolVersion: ${protocolVersion}`)
+    }
+
+    const providerOrg = card.provider?.organization
+    if (providerOrg) {
+      lines.push(`- provider: ${providerOrg}`)
+    }
+
+    const skills = card.skills
+    if (skills && skills.length > 0) {
+      lines.push("- skills:")
+
+      for (const skill of skills.slice(0, 10)) {
+        const name = skill.name ?? skill.id ?? "unknown"
+        const sdesc = skill.description
+
+        if (sdesc) {
+          lines.push(`  - ${name}: ${sdesc}`)
+        } else {
+          lines.push(`  - ${name}`)
+        }
+      }
+
+      if (skills.length > 10) {
+        lines.push(`  - ... (${skills.length - 10} more)`)
+      }
+    }
+
+    return lines.join("\n")
+  }
+
+  private async fetchAgentCard(): Promise<AgentCard> {
+    const factory = new ClientFactory()
+    const client = await factory.createFromUrl(this.baseUrl)
+    return client.getAgentCard()
+  }
+
+  async init(): Promise<void> {
+    if (this.initDone) return
+    this.initDone = true
+
+    const cachePath = this.agentCardCachePath()
+    const timeoutSeconds = 2
+
+    try {
+      const { value: card } = await cachedJson<AgentCard>({
+        path: cachePath,
+        load: async () => {
+          const card = await withTimeout(
+            this.fetchAgentCard(),
+            timeoutSeconds,
+            "A2A agent card",
+          )
+
+          this.card = card
+          return card
+        },
+      })
+
+      this.card = card
+      this.description =
+        `${this.baseDescription}\n\n${this.formatAgentCard(card)}`
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      this.description =
+        `${this.baseDescription}\n\n` +
+        `Remote agent info error: ${msg}. ` +
+        `No agent info available.`
+    }
+  }
+
   private async getClientEntry(): Promise<ClientEntry> {
     const key = this.baseUrl
 
@@ -137,7 +243,22 @@ export class A2ATool extends Tool {
         const factory = new ClientFactory()
 
         const client = await factory.createFromUrl(this.baseUrl)
-        const card = await client.getAgentCard()
+
+        const cachedCard = this.card
+        const hadCard = cachedCard !== undefined
+        const card = hadCard ? cachedCard : await client.getAgentCard()
+        this.card = card
+
+        if (!hadCard) {
+          try {
+            await writeJsonCacheFile({
+              path: this.agentCardCachePath(),
+              value: card,
+            })
+          } catch {
+            // Ignore cache write errors.
+          }
+        }
 
         return { client, card }
       })()
