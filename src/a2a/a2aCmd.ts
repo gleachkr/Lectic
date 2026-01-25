@@ -124,7 +124,7 @@ export async function a2aCmd(opts: {
 
   if (agentInterlocutors.length === 0) {
     throw new Error(
-      "No A2A agents configured. Add interlocutor.agent.a2a to lectic.yaml."
+      "No A2A agents configured. Add interlocutor.a2a to lectic.yaml."
     )
   }
 
