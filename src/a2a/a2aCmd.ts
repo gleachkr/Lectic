@@ -16,7 +16,10 @@ import type { Interlocutor } from "../types/interlocutor"
 
 import { A2A_CONTEXT_ID_RE } from "./contextId"
 import { A2AAgentHandler } from "./a2aAgentHandler"
-import { startA2AServer, type A2AServerAgent } from "./a2aServer"
+import {
+  startA2AServer,
+  type A2AServerAgent,
+} from "./a2aServer"
 import {
   computeWorkspaceKey,
   PersistedAgentRuntime,
@@ -51,6 +54,7 @@ function buildAgentCard(opt: {
   port: number
   agentId: string
   interlocutor: Interlocutor
+  tokenRequired: boolean
 }): AgentCard {
   const url = `http://${opt.host}:${opt.port}/agents/${opt.agentId}/a2a/jsonrpc`
 
@@ -58,7 +62,7 @@ function buildAgentCard(opt: {
     opt.interlocutor.a2a?.description ??
     `Lectic agent exposed from interlocutor ${opt.interlocutor.name}.`
 
-  return {
+  const card: AgentCard = {
     name: opt.interlocutor.name,
     description,
     protocolVersion: "0.3.0",
@@ -80,12 +84,26 @@ function buildAgentCard(opt: {
       },
     ],
   }
+
+  if (opt.tokenRequired) {
+    card.securitySchemes = {
+      lecticBearer: {
+        type: "http",
+        scheme: "bearer",
+      },
+    }
+
+    card.security = [{ lecticBearer: [] }]
+  }
+
+  return card
 }
 
 export async function a2aCmd(opts: {
   root: string
   host: string
   port: number
+  token?: string
 }): Promise<void> {
   const root = resolve(opts.root)
   process.chdir(root)
@@ -124,13 +142,14 @@ export async function a2aCmd(opts: {
       port: opts.port,
       agentId,
       interlocutor: inter,
+      tokenRequired: typeof opts.token === "string" && opts.token.length > 0,
     })
 
     const runtime = new PersistedAgentRuntime({
       agentId,
       interlocutorName: inter.name,
       baseSpec,
-      transcriptRoot: lecticStateDir(),
+      transcriptRoot: `${lecticStateDir()}/a2a/`,
       workspaceKey,
     })
 
@@ -140,7 +159,12 @@ export async function a2aCmd(opts: {
     agents.set(agentId, { agentId, handler, card, transport })
   }
 
-  const server = startA2AServer({ host: opts.host, port: opts.port, agents })
+  const server = startA2AServer({
+    host: opts.host,
+    port: opts.port,
+    agents,
+    token: opts.token,
+  })
   const actualPort = server.port
 
   if (actualPort !== opts.port) {
@@ -154,6 +178,17 @@ export async function a2aCmd(opts: {
     `Lectic A2A server running on http://${opts.host}:${actualPort} ` +
       `(${agents.size} agent(s))`
   )
+
+  if (opts.host !== "127.0.0.1" && opts.host !== "localhost") {
+    console.warn(
+      "Warning: you are binding the A2A server to a non-loopback address. " +
+        "Consider using --token and/or a reverse proxy with TLS."
+    )
+  }
+
+  if (opts.token) {
+    console.log("Auth: bearer token required for /a2a/jsonrpc")
+  }
 
   for (const agentId of agents.keys()) {
     console.log(

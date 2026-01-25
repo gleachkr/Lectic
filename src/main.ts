@@ -75,6 +75,10 @@ program
 .requiredOption('--root <path>', 'Workspace root (process.chdir to this path)')
 .option('--host <host>', 'Bind host', '127.0.0.1')
 .option('--port <port>', 'Bind port', (v) => parseInt(v, 10), 41240)
+.option(
+    '--token <token>',
+    'Require Authorization: Bearer <token> for JSON-RPC requests'
+)
 .action(a2aCmd)
 
 program.parse()

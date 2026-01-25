@@ -1,6 +1,5 @@
 import type {
   AgentCard,
-  Message,
   MessageSendParams,
   Part,
   TextPart,
@@ -8,8 +7,12 @@ import type {
 
 import { join } from "node:path"
 
-import { ClientFactory, type Client as A2AClient }
-  from "@a2a-js/sdk/client"
+import {
+  ClientFactory,
+  ClientFactoryOptions,
+  JsonRpcTransportFactory,
+  type Client as A2AClient,
+} from "@a2a-js/sdk/client"
 
 import { Tool, ToolCallResult } from "../types/tool"
 import type { JSONSchema } from "../types/schema"
@@ -18,6 +21,7 @@ import { isObjectRecord } from "../types/guards"
 import { lecticCacheDir } from "../utils/xdg"
 import { cachedJson, writeJsonCacheFile }
   from "../utils/cache"
+import { loadFrom } from "../utils/loader"
 import { withTimeout } from "../utils/timeout"
 
 export type A2AToolSpec = {
@@ -25,6 +29,11 @@ export type A2AToolSpec = {
   name?: string
   usage?: string
   stream?: boolean
+
+  // Like MCP Streamable HTTP headers: supports file:/exec: via loadFrom.
+  // Values are loaded at request time.
+  headers?: Record<string, string>
+
   hooks?: HookSpec[]
 }
 
@@ -37,6 +46,10 @@ export function isA2AToolSpec(raw: unknown): raw is A2AToolSpec {
     ("name" in raw ? typeof raw.name === "string" : true) &&
     ("usage" in raw ? typeof raw.usage === "string" : true) &&
     ("stream" in raw ? typeof raw.stream === "boolean" : true) &&
+    ("headers" in raw
+      ? isObjectRecord(raw.headers) &&
+        Object.values(raw.headers).every((v) => typeof v === "string")
+      : true) &&
     ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
   )
 }
@@ -45,7 +58,6 @@ type ClientEntry = {
   client: A2AClient
   card: AgentCard
 }
-
 
 function isKinded(v: unknown): v is Record<string, unknown> & {
   kind: string
@@ -61,10 +73,6 @@ function partsToText(parts: Part[]): string {
   return texts.join("")
 }
 
-function extractMessageText(message: Message): string {
-  return partsToText(message.parts)
-}
-
 export class A2ATool extends Tool {
   name: string
   kind = "a2a"
@@ -72,12 +80,13 @@ export class A2ATool extends Tool {
   private readonly baseUrl: string
   private readonly streamDefault: boolean
   private readonly baseDescription: string
+  private readonly headerSources?: Record<string, string>
 
   private card?: AgentCard
   private initDone = false
 
   private static count = 0
-  private static clientByUrl: Record<string, Promise<ClientEntry>> = {}
+  private static clientByKey: Record<string, Promise<ClientEntry>> = {}
 
   constructor(spec: A2AToolSpec) {
     super(spec.hooks)
@@ -85,6 +94,7 @@ export class A2ATool extends Tool {
     this.name = spec.name ?? `a2a_tool_${A2ATool.count}`
     this.baseUrl = spec.a2a
     this.streamDefault = spec.stream ?? true
+    this.headerSources = spec.headers
 
     A2ATool.count++
 
@@ -152,6 +162,11 @@ export class A2ATool extends Tool {
     lines.push(`- baseUrl: ${this.baseUrl}`)
     lines.push(`- name: ${card.name}`)
 
+    const headerNames = Object.keys(this.headerSources ?? {})
+    if (headerNames.length > 0) {
+      lines.push(`- requestHeaders: ${headerNames.join(", ")}`)
+    }
+
     const desc = card.description
     if (desc) {
       lines.push(`- description: ${desc}`)
@@ -170,6 +185,38 @@ export class A2ATool extends Tool {
     const providerOrg = card.provider?.organization
     if (providerOrg) {
       lines.push(`- provider: ${providerOrg}`)
+    }
+
+    const sec = (card as unknown as { security?: unknown }).security
+    if (Array.isArray(sec) && sec.length > 0) {
+      lines.push("- security:")
+
+      for (const entry of sec.slice(0, 5)) {
+        if (!isObjectRecord(entry)) continue
+        const schemes = Object.entries(entry)
+          .map(([k, v]) => {
+            const scopes = Array.isArray(v)
+              ? v.filter((s) => typeof s === "string")
+              : []
+
+            if (scopes.length > 0) return `${k} (${scopes.join(", ")})`
+            return k
+          })
+          .join(" + ")
+
+        if (schemes) lines.push(`  - ${schemes}`)
+      }
+
+      if (sec.length > 5) {
+        lines.push(`  - ... (${sec.length - 5} more)`)
+      }
+
+      if (headerNames.length === 0) {
+        lines.push(
+          "- warning: agent declares security requirements; " +
+            "configure request headers for this tool or calls may fail"
+        )
+      }
     }
 
     const skills = card.skills
@@ -195,8 +242,60 @@ export class A2ATool extends Tool {
     return lines.join("\n")
   }
 
+  private createFetchWithHeaders(): typeof fetch {
+    const headerSources = this.headerSources
+    if (!headerSources || Object.keys(headerSources).length === 0) {
+      return fetch
+    }
+
+    const originalFetch = fetch
+
+    const wrapped = Object.assign(
+      async function (input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1]) {
+        const baseHeaders =
+          init?.headers ??
+          (input instanceof Request ? input.headers : undefined)
+
+        const headers = new Headers(baseHeaders)
+
+        for (const [key, src] of Object.entries(headerSources)) {
+          const loaded = await loadFrom(src)
+          if (typeof loaded === "string") {
+            const v = loaded.trim()
+            if (v) headers.set(key, v)
+          }
+        }
+
+        return originalFetch(input, { ...init, headers })
+      },
+      originalFetch
+    )
+
+    return wrapped
+  }
+
+  private createClientFactory(): ClientFactory {
+    const customFetch = this.createFetchWithHeaders()
+
+    if (customFetch === fetch) {
+      return new ClientFactory()
+    }
+
+    const transportFactory = new JsonRpcTransportFactory({
+      fetchImpl: customFetch,
+    })
+
+    const factoryOptions = ClientFactoryOptions.createFrom(
+      ClientFactoryOptions.default,
+      { transports: [transportFactory] },
+    )
+
+    return new ClientFactory(factoryOptions)
+  }
+
   private async fetchAgentCard(): Promise<AgentCard> {
-    const factory = new ClientFactory()
+    const factory = this.createClientFactory()
     const client = await factory.createFromUrl(this.baseUrl)
     return client.getAgentCard()
   }
@@ -235,12 +334,23 @@ export class A2ATool extends Tool {
     }
   }
 
-  private async getClientEntry(): Promise<ClientEntry> {
-    const key = this.baseUrl
+  private clientCacheKey(): string {
+    return String(
+      Bun.hash(
+        JSON.stringify({
+          baseUrl: this.baseUrl,
+          headers: this.headerSources ?? null,
+        })
+      )
+    )
+  }
 
-    if (!(key in A2ATool.clientByUrl)) {
-      A2ATool.clientByUrl[key] = (async () => {
-        const factory = new ClientFactory()
+  private async getClientEntry(): Promise<ClientEntry> {
+    const key = this.clientCacheKey()
+
+    if (!(key in A2ATool.clientByKey)) {
+      A2ATool.clientByKey[key] = (async () => {
+        const factory = this.createClientFactory()
 
         const client = await factory.createFromUrl(this.baseUrl)
 
@@ -264,7 +374,7 @@ export class A2ATool extends Tool {
       })()
     }
 
-    return A2ATool.clientByUrl[key]
+    return A2ATool.clientByKey[key]
   }
 
   private async sendBlocking(
@@ -280,7 +390,7 @@ export class A2ATool extends Tool {
     if (result.kind === "message") {
       const msg = result
       return {
-        text: extractMessageText(msg),
+        text: partsToText(msg.parts),
         contextId: msg.contextId,
         taskId: msg.taskId,
       }
@@ -294,7 +404,7 @@ export class A2ATool extends Tool {
       const statusMsg = task.status?.message
       if (statusMsg && statusMsg.kind === "message") {
         return {
-          text: extractMessageText(statusMsg),
+          text: partsToText(statusMsg.parts),
           contextId: ctx,
           taskId: tid,
         }
@@ -326,7 +436,7 @@ export class A2ATool extends Tool {
       if (eventRaw.kind === "message") {
         const msg = eventRaw
         return {
-          text: extractMessageText(msg),
+          text: partsToText(msg.parts),
           contextId: msg.contextId,
           taskId: msg.taskId,
         }

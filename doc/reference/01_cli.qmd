@@ -42,6 +42,15 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   console.log("Hello from a lectic script!")
   ```
 
+- `lectic a2a`
+  Start an A2A (JSON-RPC + SSE) server exposing configured agents.
+
+  Options:
+  - `--root <path>`: Workspace root (process.chdir to this path).
+  - `--host <host>`: Bind host. Default: `127.0.0.1`.
+  - `--port <port>`: Bind port. Default: `41240`.
+  - `--token <token>`: If set, require `Authorization: Bearer <token>`.
+
 ## Custom Subcommands
 
 Lectic supports git-style custom subcommands. If you invoke

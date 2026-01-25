@@ -137,6 +137,26 @@ describe('LecticHeader', () => {
       expect(interlocutor.registry?.['remote']).toBeInstanceOf(A2ATool);
     });
 
+    it('supports A2A headers config', async () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          tools: [{
+            a2a: 'http://127.0.0.1:41240/agents/test',
+            name: 'remote',
+            headers: {
+              Authorization: 'Bearer test',
+            },
+          }]
+        }
+      };
+      const header = new LecticHeader(spec as any);
+      await header.initialize();
+      const interlocutor = header.interlocutor;
+      expect(interlocutor.registry?.['remote']).toBeInstanceOf(A2ATool);
+    });
+
     it('should throw an error for unrecognized tool specs', async () => {
         const spec = {
           interlocutor: {

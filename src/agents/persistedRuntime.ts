@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto"
 import { createWriteStream } from "node:fs"
 import { mkdir, readFile, realpath } from "node:fs/promises"
 import { dirname, join } from "node:path"
@@ -23,7 +22,7 @@ export function a2aTranscriptPath(p: TranscriptPathParams): string {
 
 export async function computeWorkspaceKey(root: string): Promise<string> {
   const resolved = await realpath(root)
-  return createHash("sha256").update(resolved).digest("hex")
+  return String(Bun.hash(resolved))
 }
 
 function isMessageOnlyChunk(chunk: string): boolean {
@@ -92,12 +91,11 @@ export class PersistedAgentRuntime {
   }
 
   transcriptPath(contextId: string): string {
-    return a2aTranscriptPath({
-      stateDir: this.transcriptRoot,
-      workspaceKey: this.workspaceKey,
-      agentId: this.agentId,
-      contextId,
-    })
+    return join(
+        this.transcriptRoot, 
+        this.workspaceKey, 
+        this.agentId, 
+        `${contextId}.lec`)
   }
 
   async ensureTranscriptFile(path: string): Promise<void> {
@@ -106,7 +104,8 @@ export class PersistedAgentRuntime {
     try {
       await readFile(path)
     } catch {
-      await Bun.write(path, `---\n${YAML.stringify({interlocutor: { name : this.interlocutorName }})}\n---`)
+      // YAML.stringify has a terminating newline
+      await Bun.write(path, `---\n${YAML.stringify({interlocutor: { name : this.interlocutorName }})}---`)
     }
   }
 

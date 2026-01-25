@@ -31,6 +31,19 @@ tools:
 Optional settings:
 
 - `stream`: prefer streaming (`message/sendStream`). Defaults to `true`.
+- `headers`: extra HTTP headers to attach to every A2A request.
+  - Header values support `file:` and `exec:` sources (same as MCP).
+  - Avoid hardcoding secrets directly in YAML.
+
+Example (bearer token loaded from an external command):
+
+```yaml
+tools:
+  - name: prod_agent
+    a2a: https://example.com/agents/assistant
+    headers:
+      Authorization: exec:bash -lc 'echo "Bearer $(pass a2a/token)"'
+```
 
 ## Tool call parameters
 

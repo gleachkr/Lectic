@@ -29,9 +29,15 @@ export type StartA2AServerOptions = {
   host: string
   port: number
   agents: Map<string, A2AServerAgent>
+  token?: string
 }
 
 export type BunServer = ReturnType<typeof Bun.serve>
+
+function isAuthorized(req: Request, token: string): boolean {
+  const auth = req.headers.get("authorization")
+  return auth === `Bearer ${token}`
+}
 
 export function startA2AServer(opt: StartA2AServerOptions): BunServer {
   return Bun.serve({
@@ -64,6 +70,13 @@ export function startA2AServer(opt: StartA2AServerOptions): BunServer {
 
         if (req.method !== "POST") {
           return new Response("method not allowed", { status: 405 })
+        }
+
+        if (opt.token && !isAuthorized(req, opt.token)) {
+          return new Response("unauthorized", {
+            status: 401,
+            headers: { "WWW-Authenticate": "Bearer" },
+          })
         }
 
         const bodyText = await req.text()
