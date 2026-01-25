@@ -58,10 +58,15 @@ The tool exposes these parameters:
 
 ## Output format
 
-The tool returns two results:
+The tool returns:
 
 1. `text/plain`: the agent response text
-2. `application/json`: call metadata
+2. 0 or more additional results extracted from A2A message parts and
+   artifact updates:
+   - `application/pdf`, `image/*`, etc. are returned as `data:` URLs when
+     provided as bytes, or as a normal URL when provided as a URI.
+   - `application/json` results are emitted for `data` parts.
+3. `application/json`: call metadata
 
 The metadata includes:
 

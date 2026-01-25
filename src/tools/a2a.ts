@@ -1,8 +1,11 @@
 import type {
   AgentCard,
+  Message,
   MessageSendParams,
   Part,
   TextPart,
+  FilePart,
+  DataPart,
 } from "@a2a-js/sdk"
 
 import { join } from "node:path"
@@ -75,11 +78,65 @@ function partsToText(parts: Part[]): string {
   return texts.join("")
 }
 
+type ExtractedParts = {
+  text: string
+  results: ToolCallResult[]
+}
+
+function filePartToResult(part: FilePart): ToolCallResult | null {
+  const f = part.file
+  const mime = f.mimeType || "application/octet-stream"
+
+  if ("bytes" in f && typeof f.bytes === "string" && f.bytes.length > 0) {
+    const uri = `data:${mime};base64,${f.bytes}`
+    return new ToolCallResult(uri, mime)
+  }
+
+  if ("uri" in f && typeof f.uri === "string" && f.uri.length > 0) {
+    return new ToolCallResult(f.uri, mime)
+  }
+
+  return null
+}
+
+function dataPartToResult(part: DataPart): ToolCallResult {
+  // DataPart is structured data. Surface it explicitly rather than forcing
+  // the caller to reverse-engineer the original A2A event.
+  return new ToolCallResult(
+    JSON.stringify(part.data, null, 2),
+    "application/json",
+  )
+}
+
+function extractParts(parts: Part[]): ExtractedParts {
+  const results: ToolCallResult[] = []
+
+  for (const p of parts) {
+    if (p.kind === "file") {
+      const r = filePartToResult(p)
+      if (r) results.push(r)
+      continue
+    }
+
+    if (p.kind === "data") {
+      results.push(dataPartToResult(p))
+      continue
+    }
+  }
+
+  return { text: partsToText(parts), results }
+}
+
+function extractMessageParts(message: Message): ExtractedParts {
+  return extractParts(message.parts)
+}
+
 export class A2ATool extends Tool {
   name: string
   kind = "a2a"
 
   private readonly baseUrl: string
+  private readonly clientBaseUrl: string
   private readonly streamDefault: boolean
   private readonly baseDescription: string
   private readonly headerSources?: Record<string, string>
@@ -95,6 +152,7 @@ export class A2ATool extends Tool {
 
     this.name = spec.name ?? `a2a_tool_${A2ATool.count}`
     this.baseUrl = spec.a2a
+    this.clientBaseUrl = spec.a2a.endsWith("/") ? spec.a2a : `${spec.a2a}/`
     this.streamDefault = spec.stream ?? true
     this.headerSources = spec.headers
 
@@ -153,7 +211,7 @@ export class A2ATool extends Tool {
   required = ["text"]
 
   private agentCardCachePath(): string {
-    const hashed = Bun.hash(this.baseUrl)
+    const hashed = Bun.hash(this.clientBaseUrl)
     return join(lecticCacheDir(), "a2a", "agent-cards", `${hashed}.json`)
   }
 
@@ -265,7 +323,7 @@ export class A2ATool extends Tool {
 
   private async fetchAgentCard(): Promise<AgentCard> {
     const factory = this.createClientFactory()
-    const client = await factory.createFromUrl(this.baseUrl)
+    const client = await factory.createFromUrl(this.clientBaseUrl)
     return client.getAgentCard()
   }
 
@@ -307,7 +365,7 @@ export class A2ATool extends Tool {
     return String(
       Bun.hash(
         JSON.stringify({
-          baseUrl: this.baseUrl,
+          baseUrl: this.clientBaseUrl,
           headers: this.headerSources ?? null,
         })
       )
@@ -321,7 +379,7 @@ export class A2ATool extends Tool {
       A2ATool.clientByKey[key] = (async () => {
         const factory = this.createClientFactory()
 
-        const client = await factory.createFromUrl(this.baseUrl)
+        const client = await factory.createFromUrl(this.clientBaseUrl)
 
         const cachedCard = this.card
         const hadCard = cachedCard !== undefined
@@ -349,8 +407,15 @@ export class A2ATool extends Tool {
   private async sendBlocking(
     client: A2AClient,
     params: MessageSendParams
-  ): Promise<{ text: string; contextId?: string; taskId?: string }> {
+  ): Promise<{
+    text: string
+    results: ToolCallResult[]
+    contextId?: string
+    taskId?: string
+  }> {
     const result = await client.sendMessage(params)
+
+    const results: ToolCallResult[] = []
 
     if (!isKinded(result)) {
       throw new Error(`Unexpected A2A response: ${JSON.stringify(result)}`)
@@ -358,8 +423,12 @@ export class A2ATool extends Tool {
 
     if (result.kind === "message") {
       const msg = result
+      const extracted = extractMessageParts(msg)
+      results.push(...extracted.results)
+
       return {
-        text: partsToText(msg.parts),
+        text: extracted.text,
+        results,
         contextId: msg.contextId,
         taskId: msg.taskId,
       }
@@ -372,8 +441,12 @@ export class A2ATool extends Tool {
 
       const statusMsg = task.status?.message
       if (statusMsg && statusMsg.kind === "message") {
+        const extracted = extractMessageParts(statusMsg)
+        results.push(...extracted.results)
+
         return {
-          text: partsToText(statusMsg.parts),
+          text: extracted.text,
+          results,
           contextId: ctx,
           taskId: tid,
         }
@@ -381,6 +454,7 @@ export class A2ATool extends Tool {
 
       return {
         text: JSON.stringify(task),
+        results,
         contextId: ctx,
         taskId: tid,
       }
@@ -392,10 +466,16 @@ export class A2ATool extends Tool {
   private async sendStreaming(
     client: A2AClient,
     params: MessageSendParams
-  ): Promise<{ text: string; contextId?: string; taskId?: string }> {
+  ): Promise<{
+    text: string
+    results: ToolCallResult[]
+    contextId?: string
+    taskId?: string
+  }> {
     const stream = client.sendMessageStream(params)
 
     let text = ""
+    const results: ToolCallResult[] = []
     let contextId: string | undefined
     let taskId: string | undefined
 
@@ -404,8 +484,12 @@ export class A2ATool extends Tool {
 
       if (eventRaw.kind === "message") {
         const msg = eventRaw
+        const extracted = extractMessageParts(msg)
+        results.push(...extracted.results)
+
         return {
-          text: partsToText(msg.parts),
+          text: extracted.text,
+          results,
           contextId: msg.contextId,
           taskId: msg.taskId,
         }
@@ -423,9 +507,13 @@ export class A2ATool extends Tool {
         contextId = upd.contextId
         taskId = upd.taskId
 
-        const chunk = partsToText(upd.artifact.parts)
-        if (upd.append) text += chunk
-        else text = chunk
+        const extracted = extractParts(upd.artifact.parts)
+        results.push(...extracted.results)
+
+        if (extracted.text.length > 0) {
+          if (upd.append) text += extracted.text
+          else text = extracted.text
+        }
 
         continue
       }
@@ -437,17 +525,19 @@ export class A2ATool extends Tool {
 
         const msg = upd.status?.message
         if (msg && msg.kind === "message") {
-          text = partsToText(msg.parts)
+          const extracted = extractMessageParts(msg)
+          results.push(...extracted.results)
+          text = extracted.text
         }
 
         if (upd.final) {
-          return { text, contextId, taskId }
+          return { text, results, contextId, taskId }
         }
       }
     }
 
-    if (text.length > 0) {
-      return { text, contextId, taskId }
+    if (text.length > 0 || results.length > 0) {
+      return { text, results, contextId, taskId }
     }
 
     throw new Error("A2A stream ended without a final response")
@@ -479,7 +569,12 @@ export class A2ATool extends Tool {
       },
     }
 
-    const { text, contextId: outContextId, taskId: outTaskId } =
+    const {
+      text,
+      results: partResults,
+      contextId: outContextId,
+      taskId: outTaskId,
+    } =
       wantStream
         ? await this.sendStreaming(entry.client, params)
         : await this.sendBlocking(entry.client, params)
@@ -494,6 +589,7 @@ export class A2ATool extends Tool {
 
     return [
       new ToolCallResult(text, "text/plain"),
+      ...partResults,
       new ToolCallResult(JSON.stringify(details, null, 2), "application/json"),
     ]
   }
