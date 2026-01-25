@@ -8,7 +8,8 @@ import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websoc
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import { expandEnv } from "../utils/replace";
-import { loadFrom } from "../utils/loader";
+import { createFetchWithHeaderSources }
+  from "../utils/fetchWithHeaders";
 import { isHookSpecList, type HookSpec } from "../types/hook";
 import { FilePersistedOAuthClientProvider, waitForOAuthCallback } from "./mcpOAuth";
 
@@ -376,16 +377,9 @@ export class MCPTool extends Tool {
 
                 transport = new StreamableHTTPClientTransport(new URL(spec.mcp_shttp), { 
                     authProvider,
-                    fetch: "headers" in spec && spec.headers ? async (input, init) => {
-                        const headers = new Headers(init?.headers);
-                        await Promise.all(Object.entries(spec.headers!).map(async ([key, value]) => {
-                             const loaded = await loadFrom(value)
-                             if (typeof loaded === "string") {
-                                 headers.append(key, loaded.trim());
-                             }
-                        }));
-                        return fetch(input, { ...init, headers });
-                   } : undefined 
+                    fetch: "headers" in spec && spec.headers
+                      ? createFetchWithHeaderSources(spec.headers)
+                      : undefined,
                 })
             }
 

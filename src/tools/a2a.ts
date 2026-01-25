@@ -21,8 +21,10 @@ import { isObjectRecord } from "../types/guards"
 import { lecticCacheDir } from "../utils/xdg"
 import { cachedJson, writeJsonCacheFile }
   from "../utils/cache"
-import { loadFrom } from "../utils/loader"
 import { withTimeout } from "../utils/timeout"
+import {
+  createFetchWithHeaderSources,
+} from "../utils/fetchWithHeaders"
 
 export type A2AToolSpec = {
   a2a: string
@@ -242,41 +244,8 @@ export class A2ATool extends Tool {
     return lines.join("\n")
   }
 
-  private createFetchWithHeaders(): typeof fetch {
-    const headerSources = this.headerSources
-    if (!headerSources || Object.keys(headerSources).length === 0) {
-      return fetch
-    }
-
-    const originalFetch = fetch
-
-    const wrapped = Object.assign(
-      async function (input: Parameters<typeof fetch>[0],
-        init?: Parameters<typeof fetch>[1]) {
-        const baseHeaders =
-          init?.headers ??
-          (input instanceof Request ? input.headers : undefined)
-
-        const headers = new Headers(baseHeaders)
-
-        for (const [key, src] of Object.entries(headerSources)) {
-          const loaded = await loadFrom(src)
-          if (typeof loaded === "string") {
-            const v = loaded.trim()
-            if (v) headers.set(key, v)
-          }
-        }
-
-        return originalFetch(input, { ...init, headers })
-      },
-      originalFetch
-    )
-
-    return wrapped
-  }
-
   private createClientFactory(): ClientFactory {
-    const customFetch = this.createFetchWithHeaders()
+    const customFetch = createFetchWithHeaderSources(this.headerSources)
 
     if (customFetch === fetch) {
       return new ClientFactory()
@@ -468,7 +437,7 @@ export class A2ATool extends Tool {
 
         const msg = upd.status?.message
         if (msg && msg.kind === "message") {
-          text = extractMessageText(msg)
+          text = partsToText(msg.parts)
         }
 
         if (upd.final) {
