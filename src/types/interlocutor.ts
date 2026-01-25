@@ -8,10 +8,6 @@ export type A2AAgentConfig = {
     description?: string
 }
 
-export type AgentConfig = {
-    a2a?: A2AAgentConfig
-}
-
 // TODO Possibly this should be a union type over per-backend interfaces.
 export type Interlocutor = {
     prompt : string
@@ -31,7 +27,7 @@ export type Interlocutor = {
     sandbox?: string
 
     // Optional agent configuration (used by `lectic a2a`).
-    agent?: AgentConfig
+    a2a?: A2AAgentConfig
 }
 
 export function validateInterlocutor(raw : unknown) : raw is Interlocutor {

@@ -82,6 +82,8 @@ export class A2AAgentHandler implements A2ARequestHandler {
     return out
   }
 
+  // this is excessively complicated right now, to exercise some actual
+  // streaming functionality.
   async *sendMessageStream(
     params: MessageSendParams,
     _context?: ServerCallContext
