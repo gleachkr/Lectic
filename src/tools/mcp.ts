@@ -3,7 +3,6 @@ import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema, ObjectSchema } from "../types/schema"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
-import { SSEClientTransport} from "@modelcontextprotocol/sdk/client/sse.js"
 import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -18,10 +17,6 @@ type MCPSpecSTDIO = {
     args?: string[]
     env?: Record<string, string>
     sandbox?: string 
-}
-
-type MCPSpecSSE = {
-    mcp_sse: string
 }
 
 type MCPSpecStreamableHTTP = {
@@ -52,7 +47,7 @@ function validateRoot(root : MCPRoot) {
     }
 }
 
-type MCPSpec = (MCPSpecSTDIO | MCPSpecSSE | MCPSpecWebsocket | MCPSpecStreamableHTTP) & { 
+type MCPSpec = (MCPSpecSTDIO | MCPSpecWebsocket | MCPSpecStreamableHTTP) & { 
     name?: string
     roots?: MCPRoot[]
     exclude?: string[]
@@ -85,13 +80,6 @@ function isMCPSpecSTDIO(raw : unknown) : raw is MCPSpecSTDIO {
          )
 }
 
-function isMCPSpecSSE(raw : unknown) : raw is MCPSpecSSE {
-    return raw !== null &&
-        typeof raw === "object" &&
-        "mcp_sse" in raw && 
-        typeof raw.mcp_sse === "string" 
-}
-
 function isMCPSpecWebsocket(raw : unknown) : raw is MCPSpecWebsocket {
     return raw !== null &&
         typeof raw === "object" &&
@@ -113,7 +101,6 @@ function isMCPSpecStreamableHttp(raw : unknown) : raw is MCPSpecStreamableHTTP {
 
 export function isMCPSpec(raw : unknown) : raw is MCPSpec {
     return (isMCPSpecSTDIO(raw) || 
-            isMCPSpecSSE(raw) || 
             isMCPSpecWebsocket(raw) || 
             isMCPSpecStreamableHttp(raw)) && 
            ("name" in raw ? typeof raw.name === "string" : true) &&
@@ -353,8 +340,6 @@ export class MCPTool extends Tool {
                     })
                 }
             }
-            else if ("mcp_sse" in spec)
-                transport = new SSEClientTransport(new URL(spec.mcp_sse))
             else if ("mcp_ws" in spec)
                 transport = new WebSocketClientTransport(new URL(spec.mcp_ws))
             else {

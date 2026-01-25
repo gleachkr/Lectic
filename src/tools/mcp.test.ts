@@ -50,7 +50,7 @@ beforeEach(() => {
 describe("MCPTool.fromSpec registration and namespacing", () => {
   it("registers by explicit name and adds list_resources", async () => {
     const tools = await MCPTool.fromSpec({
-      mcp_sse: "http://example.com",
+      mcp_shttp: "http://example.com",
       name: "foo",
     } as any);
     const names = tools.map((t: any) => t.name).sort();
@@ -64,7 +64,7 @@ describe("MCPTool.fromSpec registration and namespacing", () => {
   });
 
   it("uses generated prefix when name is absent", async () => {
-    const tools = await MCPTool.fromSpec({ mcp_sse: "http://example.com" } as any);
+    const tools = await MCPTool.fromSpec({ mcp_shttp: "http://example.com" } as any);
     const names = tools.map((t: any) => t.name).sort();
     // count starts at 0 in beforeEach
     expect(names).toContain("mcp_server_0_search");
@@ -79,12 +79,12 @@ describe("MCPTool.fromSpec registration and namespacing", () => {
 describe("Identity keys include roots and sandbox", () => {
   it("different roots => different clients for same URL", async () => {
     const a = await MCPTool.fromSpec({
-      mcp_sse: "http://example.com",
+      mcp_shttp: "http://example.com",
       name: "a",
       roots: [{ uri: "file:///tmp" }],
     } as any);
     const b = await MCPTool.fromSpec({
-      mcp_sse: "http://example.com",
+      mcp_shttp: "http://example.com",
       name: "b",
       roots: [{ uri: "file:///home" }],
     } as any);
@@ -222,7 +222,7 @@ describe("Client reuse", () => {
       connects += 1;
     };
     // First call
-    const spec: any = { mcp_sse: "http://example.com", name: "foo" };
+    const spec: any = { mcp_shttp: "http://example.com", name: "foo" };
     const t1 = await MCPTool.fromSpec(spec);
     const c1 = (t1.find((t: any) => t.name === "foo_search") as any).client;
     // Second call with identical spec
@@ -274,7 +274,7 @@ describe("Exclude filtering", () => {
     });
     try {
       const tools = await MCPTool.fromSpec({
-        mcp_sse: "http://example.com",
+        mcp_shttp: "http://example.com",
         name: "ns",
         exclude: ["dangerous"],
       } as any);
@@ -297,7 +297,7 @@ describe("Exclude filtering", () => {
     });
     try {
       const tools = await MCPTool.fromSpec({
-        mcp_sse: "http://example.com",
+        mcp_shttp: "http://example.com",
         exclude: ["dangerous"],
       } as any);
       const names = tools.map((t: any) => t.name).sort();
