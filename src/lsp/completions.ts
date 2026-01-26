@@ -34,7 +34,6 @@ const TOOL_KINDS: Array<{ key: string, detail: string, sort: string }> = [
   { key: 'sqlite',       detail: 'SQLite database query tool',            sort: '02_sqlite' },
   { key: 'mcp_command',  detail: 'Local MCP server tool',                 sort: '20_mcp_command' },
   { key: 'mcp_ws',       detail: 'WebSocket MCP server tool',             sort: '21_mcp_ws' },
-  { key: 'mcp_sse',      detail: 'SSE MCP server tool',                   sort: '22_mcp_sse' },
   { key: 'mcp_shttp',    detail: 'Streamable HTTP MCP tool',              sort: '23_mcp_shttp' },
   { key: 'agent',        detail: 'Interlocutor-as-tool agent',            sort: '10_agent' },
   { key: 'a2a',          detail: 'A2A remote agent tool',                 sort: '10_a2a' },

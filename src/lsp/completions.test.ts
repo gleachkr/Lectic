@@ -126,7 +126,6 @@ describe("completions (unit)", () => {
     const arr = Array.isArray(items) ? items : (items?.items ?? [])
     const labels = new Set(arr.map((x: any) => x.label))
     expect(labels.has("mcp_ws")).toBeTrue()
-    expect(labels.has("mcp_sse")).toBeTrue()
     expect(labels.has("exec")).toBeFalse()
   })
 

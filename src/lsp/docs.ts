@@ -266,7 +266,6 @@ const TOOL_SPEC_KEYS = [
   "sqlite",
   "mcp_command",
   "mcp_ws",
-  "mcp_sse",
   "mcp_shttp",
   "agent",
   "a2a",

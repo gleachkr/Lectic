@@ -55,7 +55,6 @@ managed by Lectic for the duration of the session.
 You can also connect to running MCP servers.
 
 - `mcp_ws`: The URL for a remote server using a WebSocket connection.
-- `mcp_sse`: The URL for a remote server using Server-Sent Events.
 - `mcp_shttp`: The URL for a remote server using Streamable HTTP.
 
 For example:
