@@ -160,7 +160,7 @@ describe("A2ATool part and artifact surfacing", () => {
         stream: false,
       })
 
-      const results = await tool.call({ text: "hi" })
+      const results = await tool.call({ op: "sendMsg", text: "hi" })
 
       expect(results[0].mimetype).toBe("text/plain")
       expect(results[0].content).toBe("hello")
@@ -325,7 +325,7 @@ describe("A2ATool part and artifact surfacing", () => {
         stream: true,
       })
 
-      const results = await tool.call({ text: "hi" })
+      const results = await tool.call({ op: "sendMsg", text: "hi" })
 
       expect(results[0].mimetype).toBe("text/plain")
       expect(results[0].content).toBe("done")

@@ -6,6 +6,9 @@ import type {
   TextPart,
   FilePart,
   DataPart,
+  Task,
+  TaskState,
+  Artifact,
 } from "@a2a-js/sdk"
 
 import { join } from "node:path"
@@ -131,6 +134,57 @@ function extractMessageParts(message: Message): ExtractedParts {
   return extractParts(message.parts)
 }
 
+function isTaskFinalEnough(state: TaskState): boolean {
+  return (
+    state === "completed" ||
+    state === "failed" ||
+    state === "canceled" ||
+    state === "rejected" ||
+    state === "input-required" ||
+    state === "auth-required"
+  )
+}
+
+function isTaskPollable(state: TaskState): boolean {
+  return state === "submitted" || state === "working"
+}
+
+function extractArtifacts(artifacts: Artifact[] | undefined): ExtractedParts {
+  const results: ToolCallResult[] = []
+  const texts: string[] = []
+
+  for (const a of artifacts ?? []) {
+    const extracted = extractParts(a.parts)
+    results.push(...extracted.results)
+    if (extracted.text.length > 0) texts.push(extracted.text)
+  }
+
+  return { text: texts.join("\n"), results }
+}
+
+function extractTaskOutput(task: Task): ExtractedParts {
+  const results: ToolCallResult[] = []
+
+  const statusMsg = task.status?.message
+  const fromStatus =
+    statusMsg && statusMsg.kind === "message"
+      ? extractMessageParts(statusMsg)
+      : { text: "", results: [] }
+
+  results.push(...fromStatus.results)
+
+  const fromArtifacts = extractArtifacts(task.artifacts)
+  results.push(...fromArtifacts.results)
+
+  const text = fromStatus.text.length > 0 ? fromStatus.text : fromArtifacts.text
+
+  return { text, results }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export class A2ATool extends Tool {
   name: string
   kind = "a2a"
@@ -161,9 +215,11 @@ export class A2ATool extends Tool {
     const usage = spec.usage ? `\n\n${spec.usage}` : ""
 
     this.baseDescription =
-      "Use this tool to send a message to a remote A2A agent." +
-      " To continue the same conversation, pass the same contextId" +
-      " (and taskId if present) returned by earlier calls." +
+      "Use this tool to call a remote A2A agent." +
+      " Use op=sendMsg to send user text." +
+      " Use op=getTask to resume/poll a long-running task via tasks/get." +
+      " To continue the same conversation, pass the same contextId returned" +
+      " by earlier calls." +
       usage
 
     this.description = this.baseDescription
@@ -172,43 +228,35 @@ export class A2ATool extends Tool {
   description: string
 
   parameters: { [key: string]: JSONSchema } = {
+    op: {
+      type: "string",
+      enum: ["sendMsg", "getTask"],
+      description:
+        "Operation mode. sendMsg = message/send or message/sendStream. " +
+        "getTask = tasks/get polling for long-running tasks.",
+    },
     text: {
       type: "string",
-      description: "The user text to send to the A2A agent.",
+      description:
+        "User text to send to the A2A agent (required when op=sendMsg).",
     },
     contextId: {
-      anyOf: [
-        {
-          type: "string",
-          description:
-            "A2A contextId to continue an existing conversation. " +
-            "If omitted, a new conversation is started.",
-        },
-        { type: "null" },
-      ],
-      description: "Conversation context id (optional).",
+      type: "string",
+      description:
+        "A2A contextId to continue an existing conversation (optional).",
     },
     taskId: {
-      anyOf: [
-        {
-          type: "string",
-          description:
-            "A2A taskId to continue an existing task (rarely needed).",
-        },
-        { type: "null" },
-      ],
-      description: "Task id (optional).",
+      type: "string",
+      description:
+        "A2A taskId. Required when op=getTask; optional when op=sendMsg.",
     },
     stream: {
-      anyOf: [
-        { type: "boolean", description: "Use streaming if true." },
-        { type: "null" },
-      ],
-      description: "Override streaming behavior.",
+      type: "boolean",
+      description: "Override streaming behavior (send only).",
     },
   }
 
-  required = ["text"]
+  required = ["op"]
 
   private agentCardCachePath(): string {
     const hashed = Bun.hash(this.clientBaseUrl)
@@ -247,18 +295,13 @@ export class A2ATool extends Tool {
       lines.push(`- provider: ${providerOrg}`)
     }
 
-    const sec = (card as unknown as { security?: unknown }).security
+    const sec = card.security
     if (Array.isArray(sec) && sec.length > 0) {
       lines.push("- security:")
 
       for (const entry of sec.slice(0, 5)) {
-        if (!isObjectRecord(entry)) continue
         const schemes = Object.entries(entry)
-          .map(([k, v]) => {
-            const scopes = Array.isArray(v)
-              ? v.filter((s) => typeof s === "string")
-              : []
-
+          .map(([k, scopes]) => {
             if (scopes.length > 0) return `${k} (${scopes.join(", ")})`
             return k
           })
@@ -404,14 +447,100 @@ export class A2ATool extends Tool {
     return A2ATool.clientByKey[key]
   }
 
-  private async sendBlocking(
+  private async pollTask(
     client: A2AClient,
-    params: MessageSendParams
+    startTask: Task,
+  ): Promise<{ task: Task; polls: number; pollError?: string }> {
+    const tid = startTask.id
+
+    let task = startTask
+
+    const pollIntervalMs = 200
+    const pollMaxPolls = 20
+    const pollMaxMs = 5000
+
+    const start = Date.now()
+    let polls = 0
+    let pollError: string | undefined
+
+    while (isTaskPollable(task.status.state)) {
+      if (polls >= pollMaxPolls) break
+      if (Date.now() - start >= pollMaxMs) break
+
+      try {
+        task = await client.getTask({ id: tid })
+        polls++
+      } catch (e) {
+        pollError = e instanceof Error ? e.message : String(e)
+        break
+      }
+
+      if (!isTaskPollable(task.status.state)) break
+      await delay(pollIntervalMs)
+    }
+
+    return { task, polls, pollError }
+  }
+
+  private async getTaskBlocking(
+    client: A2AClient,
+    taskId: string,
   ): Promise<{
     text: string
     results: ToolCallResult[]
     contextId?: string
     taskId?: string
+    taskState?: TaskState
+  }> {
+    const results: ToolCallResult[] = []
+
+    const startTask = await client.getTask({ id: taskId })
+    const { task, polls, pollError } = await this.pollTask(client, startTask)
+
+    const extracted = extractTaskOutput(task)
+    results.push(...extracted.results)
+
+    let text = extracted.text
+
+    if (text.length === 0) {
+      if (pollError) {
+        text =
+          `A2A task ${taskId} returned without a message. ` +
+          `Polling tasks/get failed: ${pollError}`
+      } else if (isTaskFinalEnough(task.status.state)) {
+        text =
+          `A2A task ${taskId} finished with state ${task.status.state}, ` +
+          "but did not provide a status message."
+      } else if (isTaskPollable(task.status.state)) {
+        text =
+          `A2A task ${taskId} is still ${task.status.state} ` +
+          `after ${polls} polls. You can retry later using op=getTask ` +
+          "with the returned taskId."
+      } else {
+        text =
+          `A2A task ${taskId} reached state ${task.status.state} ` +
+          "without providing a status message."
+      }
+    }
+
+    return {
+      text,
+      results,
+      contextId: task.contextId,
+      taskId: task.id,
+      taskState: task.status.state,
+    }
+  }
+
+  private async sendBlocking(
+    client: A2AClient,
+    params: MessageSendParams,
+  ): Promise<{
+    text: string
+    results: ToolCallResult[]
+    contextId?: string
+    taskId?: string
+    taskState?: TaskState
   }> {
     const result = await client.sendMessage(params)
 
@@ -435,28 +564,52 @@ export class A2ATool extends Tool {
     }
 
     if (result.kind === "task") {
-      const task = result
-      const ctx = task.contextId
-      const tid = task.id
+      const startTask = result as Task
+      const tid = startTask.id
 
-      const statusMsg = task.status?.message
-      if (statusMsg && statusMsg.kind === "message") {
-        const extracted = extractMessageParts(statusMsg)
-        results.push(...extracted.results)
+      let task = startTask
+      let polls = 0
+      let pollError: string | undefined
 
-        return {
-          text: extracted.text,
-          results,
-          contextId: ctx,
-          taskId: tid,
+      if (isTaskPollable(task.status.state)) {
+        const polled = await this.pollTask(client, startTask)
+        task = polled.task
+        polls = polled.polls
+        pollError = polled.pollError
+      }
+
+      const extracted = extractTaskOutput(task)
+      results.push(...extracted.results)
+
+      let text = extracted.text
+
+      if (text.length === 0) {
+        if (pollError) {
+          text =
+            `A2A task ${tid} returned without a message. ` +
+            `Polling tasks/get failed: ${pollError}`
+        } else if (isTaskFinalEnough(task.status.state)) {
+          text =
+            `A2A task ${tid} finished with state ${task.status.state}, ` +
+            "but did not provide a status message."
+        } else if (isTaskPollable(task.status.state)) {
+          text =
+            `A2A task ${tid} is still ${task.status.state} ` +
+            `after ${polls} polls. You can retry later using op=getTask ` +
+            "with the returned taskId."
+        } else {
+          text =
+            `A2A task ${tid} reached state ${task.status.state} ` +
+            "without providing a status message."
         }
       }
 
       return {
-        text: JSON.stringify(task),
+        text,
         results,
-        contextId: ctx,
-        taskId: tid,
+        contextId: task.contextId,
+        taskId: task.id,
+        taskState: task.status.state,
       }
     }
 
@@ -465,12 +618,13 @@ export class A2ATool extends Tool {
 
   private async sendStreaming(
     client: A2AClient,
-    params: MessageSendParams
+    params: MessageSendParams,
   ): Promise<{
     text: string
     results: ToolCallResult[]
     contextId?: string
     taskId?: string
+    taskState?: TaskState
   }> {
     const stream = client.sendMessageStream(params)
 
@@ -478,6 +632,7 @@ export class A2ATool extends Tool {
     const results: ToolCallResult[] = []
     let contextId: string | undefined
     let taskId: string | undefined
+    let taskState: TaskState | undefined
 
     for await (const eventRaw of stream) {
       if (!isKinded(eventRaw)) continue
@@ -492,6 +647,7 @@ export class A2ATool extends Tool {
           results,
           contextId: msg.contextId,
           taskId: msg.taskId,
+          taskState,
         }
       }
 
@@ -499,6 +655,7 @@ export class A2ATool extends Tool {
         const task = eventRaw
         contextId = task.contextId
         taskId = task.id
+        taskState = task.status.state
         continue
       }
 
@@ -530,67 +687,116 @@ export class A2ATool extends Tool {
           text = extracted.text
         }
 
+        taskState = upd.status.state
+
         if (upd.final) {
-          return { text, results, contextId, taskId }
+          return { text, results, contextId, taskId, taskState }
         }
       }
     }
 
     if (text.length > 0 || results.length > 0) {
-      return { text, results, contextId, taskId }
+      return { text, results, contextId, taskId, taskState }
     }
 
     throw new Error("A2A stream ended without a final response")
   }
 
   async call(args: {
-    text: string
-    contextId?: string | null
-    taskId?: string | null
-    stream?: boolean | null
+    op: "sendMsg" | "getTask"
+    text?: string
+    contextId?: string
+    taskId?: string
+    stream?: boolean
   }): Promise<ToolCallResult[]> {
     this.validateArguments(args)
 
     const entry = await this.getClientEntry()
 
-    const contextId = args.contextId === null ? undefined : args.contextId
-    const taskId = args.taskId === null ? undefined : args.taskId
+    const op = args.op
 
-    const wantStream = args.stream ?? this.streamDefault
+    if (op === "getTask") {
+      if (!args.taskId) {
+        throw new Error("Missing required argument for op=getTask: taskId")
+      }
 
-    const params: MessageSendParams = {
-      message: {
-        kind: "message",
-        role: "user",
-        messageId: crypto.randomUUID(),
-        contextId,
-        taskId,
-        parts: [{ kind: "text", text: args.text }],
-      },
+      const {
+        text,
+        results: partResults,
+        contextId: outContextId,
+        taskId: outTaskId,
+        taskState: outTaskState,
+      } = await this.getTaskBlocking(entry.client, args.taskId)
+
+      const details = {
+        agent: entry.card.name,
+        baseUrl: this.baseUrl,
+        op,
+        streaming: false,
+        contextId: outContextId,
+        taskId: outTaskId,
+        taskState: outTaskState,
+      }
+
+      return [
+        new ToolCallResult(text, "text/plain"),
+        ...partResults,
+        new ToolCallResult(
+          JSON.stringify(details, null, 2),
+          "application/json",
+        ),
+      ]
     }
 
-    const {
-      text,
-      results: partResults,
-      contextId: outContextId,
-      taskId: outTaskId,
-    } =
-      wantStream
-        ? await this.sendStreaming(entry.client, params)
-        : await this.sendBlocking(entry.client, params)
+    if (op === "sendMsg") {
+      const contextId = args.contextId
+      const taskId = args.taskId
 
-    const details = {
-      agent: entry.card.name,
-      baseUrl: this.baseUrl,
-      streaming: wantStream,
-      contextId: outContextId,
-      taskId: outTaskId,
+      const wantStream = args.stream ?? this.streamDefault
+
+      if (!args.text || args.text.trim().length === 0) {
+        throw new Error("Missing required argument for op=sendMsg: text")
+      }
+
+      const params: MessageSendParams = {
+        message: {
+          kind: "message",
+          role: "user",
+          messageId: crypto.randomUUID(),
+          contextId,
+          taskId,
+          parts: [{ kind: "text", text: args.text }],
+        },
+      }
+
+      const {
+        text,
+        results: partResults,
+        contextId: outContextId,
+        taskId: outTaskId,
+        taskState: outTaskState,
+      } =
+        wantStream
+          ? await this.sendStreaming(entry.client, params)
+          : await this.sendBlocking(entry.client, params)
+
+      const details = {
+        agent: entry.card.name,
+        baseUrl: this.baseUrl,
+        op,
+        streaming: wantStream,
+        contextId: outContextId,
+        taskId: outTaskId,
+        taskState: outTaskState,
+      }
+
+      return [
+        new ToolCallResult(text, "text/plain"),
+        ...partResults,
+        new ToolCallResult(JSON.stringify(details, null, 2), "application/json"),
+      ]
     }
 
-    return [
-      new ToolCallResult(text, "text/plain"),
-      ...partResults,
-      new ToolCallResult(JSON.stringify(details, null, 2), "application/json"),
-    ]
+    throw new Error(`Unknown op: ${op}`)
   }
 }

@@ -49,12 +49,15 @@ tools:
 
 The tool exposes these parameters:
 
-- `text` (required): user text to send to the agent.
+- `op` (required): operation mode.
+  - `sendMsg`: send user text via `message/send` (or `message/sendStream`).
+  - `getTask`: poll a long-running task via `tasks/get`.
+- `text` (required for `op=sendMsg`): user text to send to the agent.
 - `contextId` (optional): A2A context id to continue a conversation.
-  - If omitted, the agent starts a new conversation.
-  - If explicitly `null`, the tool omits the field (same effect as omit).
-- `taskId` (optional): A2A task id (rarely needed).
-- `stream` (optional): override streaming for this call.
+- `taskId`:
+  - required for `op=getTask`
+  - optional for `op=sendMsg` (some agents may attach messages to a task)
+- `stream` (optional): override streaming for `op=sendMsg`.
 
 ## Output format
 
