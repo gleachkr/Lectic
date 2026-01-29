@@ -118,6 +118,7 @@ export class OpenAIResponsesBackend extends Backend<
   defaultModel: string
   apiKey: string
   url?: string
+  cache_retention: boolean = true
 
   constructor(opt: {
     apiKey: string
@@ -272,7 +273,7 @@ export class OpenAIResponsesBackend extends Backend<
       input: messages,
       model,
       include: ["reasoning.encrypted_content", "code_interpreter_call.outputs"],
-      prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
+      prompt_cache_retention: this.cache_retention && SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
         ? "24h"
         : undefined,
       temperature: lectic.header.interlocutor.temperature,

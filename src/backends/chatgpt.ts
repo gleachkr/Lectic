@@ -49,6 +49,7 @@ export class ChatGPTBackend extends OpenAIResponsesBackend {
       defaultModel: "gpt-5.1-codex",
     })
     this.auth = new ChatGPTAuth()
+    this.cache_retention = false
   }
 
   get client() {
