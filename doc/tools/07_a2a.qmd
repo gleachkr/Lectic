@@ -31,6 +31,9 @@ tools:
 Optional settings:
 
 - `stream`: prefer streaming (`message/sendStream`). Defaults to `true`.
+- `maxWaitSeconds`: when streaming, max seconds to wait for the call to
+  reach a final event before returning early with `taskId` so you can
+  poll using `getTask`. Defaults to `5`.
 - `headers`: extra HTTP headers to attach to every A2A request.
   - Header values support `file:` and `exec:` sources (same as MCP).
   - Avoid hardcoding secrets directly in YAML.
@@ -58,6 +61,8 @@ The tool exposes these parameters:
   - required for `op=getTask`
   - optional for `op=sendMsg` (some agents may attach messages to a task)
 - `stream` (optional): override streaming for `op=sendMsg`.
+- `maxWaitSeconds` (optional): override the streaming max-wait for this
+  call. When exceeded, the tool returns early with a `taskId`.
 
 ## Output format
 

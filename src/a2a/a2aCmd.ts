@@ -104,6 +104,7 @@ export async function a2aCmd(opts: {
   host: string
   port: number
   token?: string
+  maxTasksPerContext?: number
 }): Promise<void> {
   const root = resolve(opts.root)
   process.chdir(root)
@@ -153,7 +154,11 @@ export async function a2aCmd(opts: {
       workspaceKey,
     })
 
-    const handler = new A2AAgentHandler({ runtime, card })
+    const handler = new A2AAgentHandler({
+      runtime,
+      card,
+      maxTasksPerContext: opts.maxTasksPerContext,
+    })
     const transport = new JsonRpcTransportHandler(handler)
 
     agents.set(agentId, { agentId, handler, card, transport })

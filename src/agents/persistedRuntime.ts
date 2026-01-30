@@ -9,6 +9,8 @@ import { Lectic, LecticBody, LecticHeader, type LecticHeaderSpec }
 import { UserMessage } from "../types/message"
 import { KeyedMutex } from "../utils/mutex"
 
+const GLOBAL_MUTEX = new KeyedMutex()
+
 export type TranscriptPathParams = {
   stateDir: string
   workspaceKey: string
@@ -65,8 +67,6 @@ function ensureTrailingNewlines(text: string, count: number): string {
   return have >= count ? "" : "\n".repeat(count - have)
 }
 
-const GLOBAL_MUTEX = new KeyedMutex()
-
 export type PersistedAgentRuntimeOptions = {
   agentId: string
   interlocutorName: string
@@ -109,10 +109,13 @@ export class PersistedAgentRuntime {
     }
   }
 
-  async *runStreamingTurn(opt: {
-    contextId: string
-    userText: string
-  }): AsyncGenerator<string, void, undefined> {
+  async *runStreamingTurn(
+    opt: {
+      contextId: string
+      userText: string
+    },
+    mode: "message" | "raw" = "message",
+  ): AsyncGenerator<string, void, undefined> {
     const lockKey = `${this.agentId}:${opt.contextId}`
     const release = await GLOBAL_MUTEX.acquire(lockKey)
 
@@ -156,7 +159,10 @@ export class PersistedAgentRuntime {
         for await (const chunk of backend.evaluate(lectic)) {
           await writeChunk(stream, chunk)
           lectic.body.raw += chunk
-          if (isMessageOnlyChunk(chunk)) yield chunk
+
+          if (mode === "raw" || isMessageOnlyChunk(chunk)) {
+            yield chunk
+          }
         }
       } catch (e) {
         if (opened) {
@@ -179,12 +185,23 @@ export class PersistedAgentRuntime {
     }
   }
 
+  async runBlockingTurnRaw(opt: {
+    contextId: string
+    userText: string
+  }): Promise<string> {
+    let out = ""
+    for await (const chunk of this.runStreamingTurn(opt, "raw")) {
+      out += chunk
+    }
+    return out
+  }
+
   async runBlockingTurn(opt: {
     contextId: string
     userText: string
   }): Promise<string> {
     let out = ""
-    for await (const chunk of this.runStreamingTurn(opt)) {
+    for await (const chunk of this.runStreamingTurn(opt, "message")) {
       out += chunk
     }
     return out

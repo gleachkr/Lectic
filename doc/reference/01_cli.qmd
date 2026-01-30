@@ -50,6 +50,8 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   - `--host <host>`: Bind host. Default: `127.0.0.1`.
   - `--port <port>`: Bind port. Default: `41240`.
   - `--token <token>`: If set, require `Authorization: Bearer <token>`.
+  - `--max-tasks-per-context <n>`: Maximum number of task snapshots to
+    keep in memory per contextId. Default: `50`.
 
 ## Custom Subcommands
 

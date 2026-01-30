@@ -337,4 +337,156 @@ describe("A2ATool part and artifact surfacing", () => {
       void server.stop()
     }
   })
+
+  test("streaming returns early when maxWaitSeconds is exceeded", async () => {
+    const cacheDir = await mkdtemp(join(tmpdir(), "lectic-a2a-test-"))
+    process.env["LECTIC_CACHE"] = cacheDir
+
+    const host = "127.0.0.1"
+    const agentId = "test-stream-timeout"
+
+    let card!: AgentCard
+
+    const handler: A2ARequestHandler = {
+      async getAgentCard(): Promise<AgentCard> {
+        return card
+      },
+
+      async getAuthenticatedExtendedAgentCard(): Promise<AgentCard> {
+        throw new Error("unsupported")
+      },
+
+      async sendMessage(
+        _params: MessageSendParams,
+      ): Promise<Message | Task> {
+        throw new Error("not used")
+      },
+
+      async *sendMessageStream(
+        params: MessageSendParams,
+      ): AsyncGenerator<
+        Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent,
+        void,
+        undefined
+      > {
+        const ctx = params.message.contextId
+        const taskId = crypto.randomUUID()
+
+        const task: Task = {
+          kind: "task",
+          id: taskId,
+          contextId: ctx || crypto.randomUUID(),
+          status: { state: "working" },
+        }
+
+        yield task
+
+        await new Promise((r) => setTimeout(r, 100))
+
+        const finalMessage: Message = {
+          kind: "message",
+          role: "agent",
+          messageId: crypto.randomUUID(),
+          contextId: task.contextId,
+          taskId,
+          parts: [{ kind: "text", text: "done" }],
+        }
+
+        const statusUpdate: TaskStatusUpdateEvent = {
+          kind: "status-update",
+          taskId,
+          contextId: task.contextId,
+          final: true,
+          status: {
+            state: "completed",
+            message: finalMessage,
+          },
+        }
+
+        yield statusUpdate
+      },
+
+      async getTask(): Promise<Task> {
+        throw new Error("unsupported")
+      },
+
+      async cancelTask(): Promise<Task> {
+        throw new Error("unsupported")
+      },
+
+      async setTaskPushNotificationConfig() {
+        throw new Error("unsupported")
+      },
+
+      async getTaskPushNotificationConfig() {
+        throw new Error("unsupported")
+      },
+
+      async listTaskPushNotificationConfigs() {
+        throw new Error("unsupported")
+      },
+
+      async deleteTaskPushNotificationConfig() {
+        throw new Error("unsupported")
+      },
+
+      async *resubscribe() {
+        throw new Error("unsupported")
+        yield undefined as never
+      },
+    }
+
+    const agents = new Map<string, A2AServerAgent>()
+
+    const server = startA2AServer({
+      host,
+      port: 0,
+      agents,
+    })
+
+    const port = server.port
+    if (port === undefined) {
+      throw new Error("Expected server.port to be set")
+    }
+
+    try {
+      card = mkCard({
+        host,
+        port,
+        agentId,
+        streaming: true,
+      })
+
+      const transport = new JsonRpcTransportHandler(handler)
+      agents.set(agentId, { agentId, handler, card, transport })
+
+      const tool = new A2ATool({
+        a2a: `http://${host}:${port}/agents/${agentId}`,
+        name: "remote",
+        stream: true,
+      })
+
+      const results = await tool.call({
+        op: "sendMsg",
+        text: "hi",
+        maxWaitSeconds: 0.01,
+      })
+
+      expect(results[0].mimetype).toBe("text/plain")
+      expect(results[0].content).toContain("task")
+
+      const metaRaw = findResult(results, "application/json")
+      expect(metaRaw).toBeDefined()
+
+      const meta = JSON.parse(metaRaw?.content ?? "{}") as {
+        taskId?: string
+        taskState?: string
+      }
+
+      expect(typeof meta.taskId).toBe("string")
+      expect(meta.taskState).toBe("working")
+    } finally {
+      void server.stop()
+    }
+  })
 })

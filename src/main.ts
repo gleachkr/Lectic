@@ -79,6 +79,12 @@ program
     '--token <token>',
     'Require Authorization: Bearer <token> for JSON-RPC requests'
 )
+.option(
+    '--max-tasks-per-context <n>',
+    'Maximum number of tasks to keep per contextId (default 50)',
+    (v) => parseInt(v, 10),
+    50,
+)
 .action(a2aCmd)
 
 program.parse()

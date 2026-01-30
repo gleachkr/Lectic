@@ -30,6 +30,13 @@ export type StartA2AServerOptions = {
   port: number
   agents: Map<string, A2AServerAgent>
   token?: string
+
+  // Bun defaults to a 10s idle timeout, which is too aggressive for
+  // streaming A2A responses (SSE) and for slower model providers.
+  //
+  // If unset, we keep Bun's default for non-A2A endpoints, but we still
+  // disable the timeout per-request for /a2a/jsonrpc.
+  idleTimeoutSeconds?: number
 }
 
 export type BunServer = ReturnType<typeof Bun.serve>
@@ -43,8 +50,9 @@ export function startA2AServer(opt: StartA2AServerOptions): BunServer {
   return Bun.serve({
     hostname: opt.host,
     port: opt.port,
+    idleTimeout: opt.idleTimeoutSeconds,
 
-    async fetch(req) {
+    async fetch(req, server) {
       const url = new URL(req.url)
       const path = url.pathname
 
@@ -64,6 +72,10 @@ export function startA2AServer(opt: StartA2AServerOptions): BunServer {
 
       const rpcMatch = /^\/agents\/([^/]+)\/a2a\/jsonrpc$/.exec(path)
       if (rpcMatch) {
+        // A2A can legitimately keep connections open for a long time.
+        // Disable Bun's idle timeout for these requests to avoid spurious
+        // disconnects while the agent is thinking.
+        server.timeout(req, 0)
         const agentId = rpcMatch[1]
         const agent = opt.agents.get(agentId)
         if (!agent) return new Response("not found", { status: 404 })

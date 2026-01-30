@@ -38,6 +38,10 @@ export type A2AToolSpec = {
   usage?: string
   stream?: boolean
 
+  // When streaming, max seconds to wait for a terminal event before
+  // returning early with taskId/contextId.
+  maxWaitSeconds?: number
+
   // Like MCP Streamable HTTP headers: supports file:/exec: via loadFrom.
   // Values are loaded at request time.
   headers?: Record<string, string>
@@ -57,6 +61,11 @@ export function isA2AToolSpec(raw: unknown): raw is A2AToolSpec {
     ("headers" in raw
       ? isObjectRecord(raw.headers) &&
         Object.values(raw.headers).every((v) => typeof v === "string")
+      : true) &&
+    ("maxWaitSeconds" in raw
+      ? typeof raw.maxWaitSeconds === "number" &&
+        Number.isFinite(raw.maxWaitSeconds) &&
+        raw.maxWaitSeconds >= 0
       : true) &&
     ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
   )
@@ -185,6 +194,8 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+const DEFAULT_MAX_WAIT_SECONDS = 5
+
 export class A2ATool extends Tool {
   name: string
   kind = "a2a"
@@ -192,6 +203,7 @@ export class A2ATool extends Tool {
   private readonly baseUrl: string
   private readonly clientBaseUrl: string
   private readonly streamDefault: boolean
+  private readonly maxWaitSecondsDefault: number
   private readonly baseDescription: string
   private readonly headerSources?: Record<string, string>
 
@@ -208,6 +220,8 @@ export class A2ATool extends Tool {
     this.baseUrl = spec.a2a
     this.clientBaseUrl = spec.a2a.endsWith("/") ? spec.a2a : `${spec.a2a}/`
     this.streamDefault = spec.stream ?? true
+    this.maxWaitSecondsDefault =
+      spec.maxWaitSeconds ?? DEFAULT_MAX_WAIT_SECONDS
     this.headerSources = spec.headers
 
     A2ATool.count++
@@ -253,6 +267,14 @@ export class A2ATool extends Tool {
     stream: {
       type: "boolean",
       description: "Override streaming behavior (send only).",
+    },
+    maxWaitSeconds: {
+      type: "number",
+      minimum: 0,
+      description:
+        "Max seconds to wait for a streaming call to finish. " +
+        "If exceeded, the tool returns early with taskId/contextId so " +
+        "you can resume via op=getTask.",
     },
   }
 
@@ -619,6 +641,7 @@ export class A2ATool extends Tool {
   private async sendStreaming(
     client: A2AClient,
     params: MessageSendParams,
+    maxWaitSeconds: number,
   ): Promise<{
     text: string
     results: ToolCallResult[]
@@ -626,7 +649,16 @@ export class A2ATool extends Tool {
     taskId?: string
     taskState?: TaskState
   }> {
-    const stream = client.sendMessageStream(params)
+    // Important:
+    // We use an AbortController so we can return early without blocking on
+    // the underlying stream shutdown. Awaiting iter.return() can block until
+    // the remote agent finishes streaming.
+    const abort = new AbortController()
+
+    const stream = client.sendMessageStream(params, { signal: abort.signal })
+    type StreamData<T> =
+      T extends AsyncGenerator<infer Y, infer _, infer _> ? Y : never
+    const iter = stream[Symbol.asyncIterator]()
 
     let text = ""
     const results: ToolCallResult[] = []
@@ -634,8 +666,14 @@ export class A2ATool extends Tool {
     let taskId: string | undefined
     let taskState: TaskState | undefined
 
-    for await (const eventRaw of stream) {
-      if (!isKinded(eventRaw)) continue
+    const processEvent = (eventRaw: StreamData<typeof stream>): {
+      text: string
+      results: ToolCallResult[]
+      contextId?: string
+      taskId?: string
+      taskState?: TaskState
+    } | null => {
+      if (!isKinded(eventRaw)) return null
 
       if (eventRaw.kind === "message") {
         const msg = eventRaw
@@ -656,7 +694,7 @@ export class A2ATool extends Tool {
         contextId = task.contextId
         taskId = task.id
         taskState = task.status.state
-        continue
+        return null
       }
 
       if (eventRaw.kind === "artifact-update") {
@@ -672,7 +710,7 @@ export class A2ATool extends Tool {
           else text = extracted.text
         }
 
-        continue
+        return null
       }
 
       if (eventRaw.kind === "status-update") {
@@ -681,7 +719,7 @@ export class A2ATool extends Tool {
         taskId = upd.taskId
 
         const msg = upd.status?.message
-        if (msg && msg.kind === "message") {
+        if (msg && isKinded(msg) && msg.kind === "message") {
           const extracted = extractMessageParts(msg)
           results.push(...extracted.results)
           text = extracted.text
@@ -692,7 +730,98 @@ export class A2ATool extends Tool {
         if (upd.final) {
           return { text, results, contextId, taskId, taskState }
         }
+
+        return null
       }
+
+      return null
+    }
+
+    const timeoutResult = (): {
+      text: string
+      results: ToolCallResult[]
+      contextId?: string
+      taskId?: string
+      taskState?: TaskState
+    } => {
+      const state = taskState ?? "working"
+
+      if (text.length > 0) {
+        return { text, results, contextId, taskId, taskState }
+      }
+
+      if (taskId) {
+        return {
+          text:
+            `A2A task ${taskId} is still ${state} after ` +
+            `${maxWaitSeconds} seconds. ` +
+            "You can retry later using op=getTask with this taskId.",
+          results,
+          contextId,
+          taskId,
+          taskState,
+        }
+      }
+
+      return {
+        text:
+          `A2A stream did not finish within ${maxWaitSeconds} seconds.`,
+        results,
+        contextId,
+        taskId,
+        taskState,
+      }
+    }
+
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let timeoutHit = false
+
+    try {
+      const first = await withTimeout(iter.next(), 2, "A2A stream initial event")
+
+      if (first.done) {
+        throw new Error("A2A stream ended without any events")
+      }
+
+      const firstRes = processEvent(first.value)
+      if (firstRes) return firstRes
+
+      const maxWaitMs = Math.floor(Math.max(0, maxWaitSeconds) * 1000)
+
+      if (maxWaitMs <= 0) {
+        timeoutHit = true
+        abort.abort()
+        return timeoutResult()
+      }
+
+      timer = setTimeout(() => {
+        timeoutHit = true
+        abort.abort()
+      }, maxWaitMs)
+
+      while (true) {
+        const next = await iter.next()
+
+        if (next.done) {
+          break
+        }
+
+        const res = processEvent(next.value)
+        if (res) return res
+      }
+    } catch (e) {
+      if (timeoutHit) {
+        if (isObjectRecord(e) && e["name"] === "AbortError") {
+          return timeoutResult()
+        }
+      }
+
+      throw e
+    } finally {
+      if (timer) clearTimeout(timer)
+
+      // Don't await: it can block until the remote stream completes.
+      void iter.return?.().catch(() => {})
     }
 
     if (text.length > 0 || results.length > 0) {
@@ -708,6 +837,7 @@ export class A2ATool extends Tool {
     contextId?: string
     taskId?: string
     stream?: boolean
+    maxWaitSeconds?: number
   }): Promise<ToolCallResult[]> {
     this.validateArguments(args)
 
@@ -753,6 +883,7 @@ export class A2ATool extends Tool {
       const taskId = args.taskId
 
       const wantStream = args.stream ?? this.streamDefault
+      const maxWaitSeconds = args.maxWaitSeconds ?? this.maxWaitSecondsDefault
 
       if (!args.text || args.text.trim().length === 0) {
         throw new Error("Missing required argument for op=sendMsg: text")
@@ -762,7 +893,7 @@ export class A2ATool extends Tool {
         message: {
           kind: "message",
           role: "user",
-          messageId: crypto.randomUUID(),
+          messageId: Bun.randomUUIDv7(),
           contextId,
           taskId,
           parts: [{ kind: "text", text: args.text }],
@@ -777,7 +908,7 @@ export class A2ATool extends Tool {
         taskState: outTaskState,
       } =
         wantStream
-          ? await this.sendStreaming(entry.client, params)
+          ? await this.sendStreaming(entry.client, params, maxWaitSeconds)
           : await this.sendBlocking(entry.client, params)
 
       const details = {

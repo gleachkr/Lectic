@@ -2,6 +2,8 @@ import type {
   AgentCard,
   Message,
   MessageSendParams,
+  Part,
+  TextPart,
   Task,
   TaskArtifactUpdateEvent,
   TaskStatusUpdateEvent,
@@ -11,8 +13,6 @@ import type {
   GetTaskPushNotificationConfigParams,
   ListTaskPushNotificationConfigParams,
   DeleteTaskPushNotificationConfigParams,
-  Part,
-  TextPart,
 } from "@a2a-js/sdk"
 
 import { A2AError, type A2ARequestHandler } from "@a2a-js/sdk/server"
@@ -20,23 +20,64 @@ import type { ServerCallContext } from "@a2a-js/sdk/server"
 
 import { resolveA2AContextId } from "./contextId"
 import type { PersistedAgentRuntime } from "../agents/persistedRuntime"
+import { TurnRunner } from "../agents/turnRunner"
+import {
+  TurnTaskStore,
+  type TurnTaskSnapshot,
+  type TurnTaskState,
+} from "../agents/turnTasks"
+
+// message/send may return either a Message (fast completion) or a Task.
+//
+// We keep the default fast-path window small so that slow model providers
+// don't cause the entire request to block (and potentially time out).
+const DEFAULT_FAST_PATH_MS = 5000
+const DEFAULT_MAX_TASKS_PER_CONTEXT = 50
 
 function extractTextFromParts(parts: Part[]): string {
-  const texts = parts
+  return parts
     .filter((p): p is TextPart => p.kind === "text")
     .map((p) => p.text)
+    .join("")
+}
 
-  if (texts.length === 0) return ""
-  return texts.join("\n")
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isTerminalState(state: TurnTaskState): boolean {
+  return state === "completed" || state === "failed"
 }
 
 export class A2AAgentHandler implements A2ARequestHandler {
-  private readonly runtime: PersistedAgentRuntime
   private readonly card: AgentCard
+  private readonly tasks: TurnTaskStore
+  private readonly fastPathMs: number
 
-  constructor(opt: { runtime: PersistedAgentRuntime; card: AgentCard }) {
-    this.runtime = opt.runtime
+  constructor(opt: {
+    runtime: PersistedAgentRuntime
+    card: AgentCard
+    maxTasksPerContext?: number
+    fastPathMs?: number
+  }) {
     this.card = opt.card
+
+    const runner = new TurnRunner({
+      runtime: {
+        interlocutorName: opt.runtime.interlocutorName,
+        runBlockingTurnRaw: (args) => opt.runtime.runBlockingTurnRaw(args),
+      },
+    })
+
+    this.tasks = new TurnTaskStore({
+      maxTasksPerContext:
+        opt.maxTasksPerContext ?? DEFAULT_MAX_TASKS_PER_CONTEXT,
+      runTurn: async (args) => {
+        return runner.runTurn(args)
+      },
+    })
+
+    this.fastPathMs = opt.fastPathMs ?? DEFAULT_FAST_PATH_MS
   }
 
   async getAgentCard(): Promise<AgentCard> {
@@ -49,41 +90,194 @@ export class A2AAgentHandler implements A2ARequestHandler {
     throw A2AError.unsupportedOperation("agent/getAuthenticatedExtendedCard")
   }
 
-  async sendMessage(
-    params: MessageSendParams,
-    _context?: ServerCallContext
-  ): Promise<Message | Task> {
-    const incoming = params.message
-
-    let contextId: string
+  private resolveContextId(input?: string | null): string {
     try {
-      contextId = resolveA2AContextId(incoming.contextId)
+      return resolveA2AContextId(input)
     } catch (e) {
       throw A2AError.invalidParams(
         e instanceof Error ? e.message : "Invalid contextId"
       )
     }
+  }
 
-    const userText = extractTextFromParts(incoming.parts)
+  private parseIncomingSend(params: MessageSendParams): {
+    contextId: string
+    userText: string
+  } {
+    const incoming = params.message
 
-    const assistantText = await this.runtime.runBlockingTurn({
+    const contextId = this.resolveContextId(incoming.contextId)
+    this.validateClientTaskId(incoming.taskId)
+
+    return {
       contextId,
-      userText,
-    })
+      userText: extractTextFromParts(incoming.parts),
+    }
+  }
 
-    const out: Message = {
+  private validateClientTaskId(taskId?: string | null): void {
+    if (taskId == null) return
+
+    if (!this.tasks.hasTask(taskId)) {
+      throw A2AError.invalidParams(
+        `Unknown taskId ${JSON.stringify(taskId)}. Use tasks/get to poll ` +
+          "an existing task, or omit taskId when sending a new message."
+      )
+    }
+
+    throw A2AError.invalidParams(
+      `Client-supplied taskId ${JSON.stringify(taskId)} is not supported for ` +
+        "message/send. This server always creates a new task per turn. " +
+        "Use tasks/get to poll existing tasks."
+    )
+  }
+
+  private mkTextMessage(opt: {
+    role: "user" | "agent"
+    messageId: string
+    contextId: string
+    taskId: string
+    text: string
+  }): Message {
+    return {
       kind: "message",
-      role: "agent",
-      messageId: crypto.randomUUID(),
-      contextId,
-      parts: [{ kind: "text", text: assistantText }],
+      role: opt.role,
+      messageId: opt.messageId,
+      contextId: opt.contextId,
+      taskId: opt.taskId,
+      parts: [{ kind: "text", text: opt.text }],
+    }
+  }
+
+  private snapshotToUserMessage(snap: TurnTaskSnapshot): Message {
+    return this.mkTextMessage({
+      role: "user",
+      messageId: snap.userMessageId,
+      contextId: snap.contextId,
+      taskId: snap.taskId,
+      text: snap.userText,
+    })
+  }
+
+  private snapshotToAgentMessages(snap: TurnTaskSnapshot): Message[] {
+    const out: Message[] = []
+
+    for (let i = 0; i < snap.messageChunks.length; i++) {
+      const messageId = snap.agentMessageIds[i] ?? Bun.randomUUIDv7()
+
+      out.push(
+        this.mkTextMessage({
+          role: "agent",
+          messageId,
+          contextId: snap.contextId,
+          taskId: snap.taskId,
+          text: snap.messageChunks[i],
+        })
+      )
     }
 
     return out
   }
 
-  // this is excessively complicated right now, to exercise some actual
-  // streaming functionality.
+  private snapshotToTerminalAgentMessage(snap: TurnTaskSnapshot): Message {
+    if (snap.messageChunks.length > 0) {
+      const idx = snap.messageChunks.length - 1
+      const messageId = snap.agentMessageIds[idx] ?? Bun.randomUUIDv7()
+
+      return this.mkTextMessage({
+        role: "agent",
+        messageId,
+        contextId: snap.contextId,
+        taskId: snap.taskId,
+        text: snap.finalMessage,
+      })
+    }
+
+    const fallbackText =
+      snap.error && snap.error.length > 0 ? `Task failed: ${snap.error}` : ""
+
+    return this.mkTextMessage({
+      role: "agent",
+      messageId: `${snap.taskId}-terminal`,
+      contextId: snap.contextId,
+      taskId: snap.taskId,
+      text: fallbackText,
+    })
+  }
+
+  private snapshotToTask(snap: TurnTaskSnapshot): Task {
+    const userMessage = this.snapshotToUserMessage(snap)
+    const agentMessages = this.snapshotToAgentMessages(snap)
+
+    const task: Task = {
+      kind: "task",
+      id: snap.taskId,
+      contextId: snap.contextId,
+      status: {
+        state: snap.state,
+        timestamp: snap.updatedAt,
+      },
+      history: [userMessage, ...agentMessages],
+    }
+
+    if (isTerminalState(snap.state)) {
+      task.status.message = this.snapshotToTerminalAgentMessage(snap)
+    }
+
+    return task
+  }
+
+  private statusUpdateEvent(opt: {
+    taskId: string
+    contextId: string
+    state: TurnTaskState
+    timestamp: string
+    final: boolean
+    message?: Message
+  }): TaskStatusUpdateEvent {
+    return {
+      kind: "status-update",
+      taskId: opt.taskId,
+      contextId: opt.contextId,
+      final: opt.final,
+      status: {
+        state: opt.state,
+        timestamp: opt.timestamp,
+        message: opt.message,
+      },
+    }
+  }
+
+  private async fastPathMessage(taskId: string): Promise<Message | null> {
+    const deadline = this.fastPathMs
+    if (deadline <= 0) return null
+
+    const terminal = await Promise.race<TurnTaskSnapshot | null>([
+      this.tasks.waitFor(taskId, (s) => isTerminalState(s.state)),
+      delay(deadline).then(() => null),
+    ])
+
+    if (!terminal || terminal.state !== "completed") return null
+
+    return this.snapshotToTerminalAgentMessage(terminal)
+  }
+
+  async sendMessage(
+    params: MessageSendParams,
+    _context?: ServerCallContext
+  ): Promise<Message | Task> {
+    const { contextId, userText } = this.parseIncomingSend(params)
+
+    const handle = this.tasks.enqueueTurn({ contextId, userText })
+
+    if (handle.startedImmediately) {
+      const msg = await this.fastPathMessage(handle.taskId)
+      if (msg) return msg
+    }
+
+    return this.snapshotToTask(handle.snapshot())
+  }
+
   async *sendMessageStream(
     params: MessageSendParams,
     _context?: ServerCallContext
@@ -92,92 +286,55 @@ export class A2AAgentHandler implements A2ARequestHandler {
     void,
     undefined
   > {
-    const incoming = params.message
+    const { contextId, userText } = this.parseIncomingSend(params)
 
-    let contextId: string
-    try {
-      contextId = resolveA2AContextId(incoming.contextId)
-    } catch (e) {
-      throw A2AError.invalidParams(
-        e instanceof Error ? e.message : "Invalid contextId"
-      )
+    const handle = this.tasks.enqueueTurn({ contextId, userText })
+
+    yield this.snapshotToTask(handle.snapshot())
+
+    const started = await handle.waitForStarted()
+
+    if (started.startedAt) {
+      yield this.statusUpdateEvent({
+        taskId: started.taskId,
+        contextId: started.contextId,
+        state: "working",
+        timestamp: started.startedAt,
+        final: false,
+      })
     }
 
-    const taskId = crypto.randomUUID()
+    const terminal = await handle.waitForTerminal()
 
-    const userMessage: Message = {
-      ...incoming,
-      contextId,
-      taskId,
-      role: "user",
-    }
-
-    const task: Task = {
-      kind: "task",
-      id: taskId,
-      contextId,
-      status: {
-        state: "submitted",
-        timestamp: new Date().toISOString(),
-      },
-      history: [userMessage],
-    }
-
-    yield task
-
-    const userText = extractTextFromParts(incoming.parts)
-
-    let assistantText = ""
-
-    for await (const chunk of this.runtime.runStreamingTurn({
-      contextId,
-      userText,
-    })) {
-      assistantText += chunk
-
-      const ev: TaskArtifactUpdateEvent = {
-        kind: "artifact-update",
-        taskId,
-        contextId,
-        append: true,
-        artifact: {
-          artifactId: "assistant-text",
-          parts: [{ kind: "text", text: chunk }],
-        },
-      }
-
-      yield ev
-    }
-
-    const assistantMessage: Message = {
-      kind: "message",
-      role: "agent",
-      messageId: crypto.randomUUID(),
-      taskId,
-      contextId,
-      parts: [{ kind: "text", text: assistantText }],
-    }
-
-    const statusUpdate: TaskStatusUpdateEvent = {
-      kind: "status-update",
-      taskId,
-      contextId,
+    yield this.statusUpdateEvent({
+      taskId: terminal.taskId,
+      contextId: terminal.contextId,
+      state: terminal.state,
+      timestamp: terminal.updatedAt,
       final: true,
-      status: {
-        state: "input-required",
-        timestamp: new Date().toISOString(),
-        message: assistantMessage,
-      },
-    }
-
-    yield statusUpdate
+      message: this.snapshotToTerminalAgentMessage(terminal),
+    })
   }
 
   async getTask(
-    _params: TaskQueryParams,
+    params: TaskQueryParams,
     _context?: ServerCallContext
   ): Promise<Task> {
-    throw A2AError.unsupportedOperation("tasks/get")
+    const taskId = (params as { id?: string }).id
+
+    if (!taskId) {
+      throw A2AError.invalidParams("Missing required parameter: id")
+    }
+
+    const snap = this.tasks.getSnapshot(taskId)
+
+    if (!snap) {
+      throw A2AError.invalidParams(
+        `Unknown taskId ${JSON.stringify(taskId)} (expired or never existed).`
+      )
+    }
+
+    return this.snapshotToTask(snap)
   }
 
   async cancelTask(
