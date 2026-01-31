@@ -53,6 +53,35 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   - `--max-tasks-per-context <n>`: Maximum number of task snapshots to
     keep in memory per contextId. Default: `50`.
 
+  Monitoring endpoints (HTTP):
+
+  Cross-agent:
+
+  - `GET /monitor/agents`
+    - Lists configured agents.
+  - `GET /monitor/tasks`
+    - Returns recent task snapshots across all agents.
+    - Optional query: `?agentId=<id>&contextId=<id>`.
+  - `GET /monitor/tasks/<taskId>`
+    - Returns a single task snapshot, searching across all agents.
+  - `GET /monitor/events`
+    - Server-Sent Events stream of task lifecycle events.
+    - Optional query: `?agentId=<id>&contextId=<id>`.
+
+  Per-agent:
+
+  - `GET /monitor/agents/<id>/tasks`
+    - Returns recent task snapshots.
+    - Optional query: `?contextId=<id>`.
+  - `GET /monitor/agents/<id>/tasks/<taskId>`
+    - Returns a single task snapshot.
+  - `GET /monitor/agents/<id>/events`
+    - Server-Sent Events stream of task lifecycle events.
+    - Optional query: `?contextId=<id>`.
+
+  If `--token` is set, the monitoring endpoints require
+  `Authorization: Bearer <token>`.
+
 ## Custom Subcommands
 
 Lectic supports git-style custom subcommands. If you invoke

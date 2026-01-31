@@ -58,7 +58,11 @@ describe("A2AAgentHandler task support", () => {
   test("sendMessageStream yields state transitions (no artifact text)", async () => {
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async () => "hello\n",
+      runTurn: async (args: {
+        onAssistantPassText?: (text: string) => void
+      }) => {
+        args.onAssistantPassText?.("hello\n")
+      },
     } as unknown as PersistedAgentRuntime
 
     const handler = new A2AAgentHandler({
@@ -77,20 +81,30 @@ describe("A2AAgentHandler task support", () => {
       "task",
       "status-update",
       "status-update",
+      "status-update",
     ])
 
     const task = events[0] as unknown as Task
     expect(task.status.state).toBe("submitted")
 
     const working = events[1] as unknown as {
-      status: { state: string }
+      status: { state: string; message?: unknown }
       final: boolean
     }
 
     expect(working.status.state).toBe("working")
     expect(working.final).toBe(false)
 
-    const done = events[2] as unknown as {
+    const chunk = events[2] as unknown as {
+      status: { state: string; message?: { kind?: string } }
+      final: boolean
+    }
+
+    expect(chunk.status.state).toBe("working")
+    expect(chunk.final).toBe(false)
+    expect(chunk.status.message?.kind).toBe("message")
+
+    const done = events[3] as unknown as {
       status: { state: string }
       final: boolean
     }
@@ -102,7 +116,11 @@ describe("A2AAgentHandler task support", () => {
   test("message/send fast path returns Message and task is still stored", async () => {
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async () => "final\n",
+      runTurn: async (args: {
+        onAssistantPassText?: (text: string) => void
+      }) => {
+        args.onAssistantPassText?.("final\n")
+      },
     } as unknown as PersistedAgentRuntime
 
     const handler = new A2AAgentHandler({
@@ -132,10 +150,14 @@ describe("A2AAgentHandler task support", () => {
 
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async (args: { contextId: string; userText: string }) => {
+      runTurn: async (args: {
+        contextId: string
+        userText: string
+        onAssistantPassText?: (text: string) => void
+      }) => {
         calls.push(args.userText)
         await new Promise((r) => setTimeout(r, 20))
-        return `reply:${args.userText}`
+        args.onAssistantPassText?.(`reply:${args.userText}`)
       },
     } as unknown as PersistedAgentRuntime
 
@@ -162,9 +184,12 @@ describe("A2AAgentHandler task support", () => {
   test("GC trims old terminal tasks per context", async () => {
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async (args: { userText: string }) => {
+      runTurn: async (args: {
+        userText: string
+        onAssistantPassText?: (text: string) => void
+      }) => {
         await new Promise((r) => setTimeout(r, 5))
-        return `reply:${args.userText}`
+        args.onAssistantPassText?.(`reply:${args.userText}`)
       },
     } as unknown as PersistedAgentRuntime
 
@@ -211,7 +236,7 @@ describe("A2AAgentHandler task support", () => {
   test("client-supplied unknown taskId is rejected", async () => {
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async () => "ok",
+      runTurn: async () => {},
     } as unknown as PersistedAgentRuntime
 
     const handler = new A2AAgentHandler({
@@ -234,7 +259,7 @@ describe("A2AAgentHandler task support", () => {
   test("client-supplied existing taskId is also rejected", async () => {
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async () => "ok",
+      runTurn: async () => {},
     } as unknown as PersistedAgentRuntime
 
     const handler = new A2AAgentHandler({
@@ -260,7 +285,7 @@ describe("A2AAgentHandler task support", () => {
   test("failed tasks show failed state and an error message", async () => {
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async () => {
+      runTurn: async () => {
         throw new Error("boom")
       },
     } as unknown as PersistedAgentRuntime
@@ -285,7 +310,7 @@ describe("A2AAgentHandler task support", () => {
   test("tasks/get rejects missing id", async () => {
     const runtime = {
       interlocutorName: "Agent",
-      runBlockingTurnRaw: async () => "ok",
+      runTurn: async () => {},
     } as unknown as PersistedAgentRuntime
 
     const handler = new A2AAgentHandler({

@@ -1,4 +1,6 @@
 import { createWriteStream } from "node:fs"
+
+import { normalizeAgentText } from "./agentText"
 import { mkdir, readFile, realpath } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import * as YAML from "yaml"
@@ -27,13 +29,6 @@ export async function computeWorkspaceKey(root: string): Promise<string> {
   return String(Bun.hash(resolved))
 }
 
-function isMessageOnlyChunk(chunk: string): boolean {
-  const trimmed = chunk.trimStart()
-  return (
-    !trimmed.startsWith("<tool-call") &&
-    !trimmed.startsWith("<inline-attachment")
-  )
-}
 
 async function writeChunk(
   stream: ReturnType<typeof createWriteStream>,
@@ -109,13 +104,11 @@ export class PersistedAgentRuntime {
     }
   }
 
-  async *runStreamingTurn(
-    opt: {
-      contextId: string
-      userText: string
-    },
-    mode: "message" | "raw" = "message",
-  ): AsyncGenerator<string, void, undefined> {
+  async runTurn(opt: {
+    contextId: string
+    userText: string
+    onAssistantPassText?: (text: string) => void
+  }): Promise<void> {
     const lockKey = `${this.agentId}:${opt.contextId}`
     const release = await GLOBAL_MUTEX.acquire(lockKey)
 
@@ -156,13 +149,17 @@ export class PersistedAgentRuntime {
         opened = true
         lectic.body.raw += prefix
 
-        for await (const chunk of backend.evaluate(lectic)) {
+        for await (const chunk of backend.evaluate(lectic, {
+          onAssistantPassText: (text) => {
+            const norm = normalizeAgentText(text)
+
+            if (norm.trim().length === 0) return
+
+            opt.onAssistantPassText?.(norm)
+          },
+        })) {
           await writeChunk(stream, chunk)
           lectic.body.raw += chunk
-
-          if (mode === "raw" || isMessageOnlyChunk(chunk)) {
-            yield chunk
-          }
         }
       } catch (e) {
         if (opened) {
@@ -185,25 +182,4 @@ export class PersistedAgentRuntime {
     }
   }
 
-  async runBlockingTurnRaw(opt: {
-    contextId: string
-    userText: string
-  }): Promise<string> {
-    let out = ""
-    for await (const chunk of this.runStreamingTurn(opt, "raw")) {
-      out += chunk
-    }
-    return out
-  }
-
-  async runBlockingTurn(opt: {
-    contextId: string
-    userText: string
-  }): Promise<string> {
-    let out = ""
-    for await (const chunk of this.runStreamingTurn(opt, "message")) {
-      out += chunk
-    }
-    return out
-  }
 }

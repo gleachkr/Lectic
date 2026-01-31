@@ -236,6 +236,17 @@ export type BackendCompletion<TFinal> = {
   final: Promise<TFinal>
 }
 
+export type AssistantPassInfo = {
+  loopCount: number
+  finalPassCount: number
+  hasToolCalls: boolean
+  usage: BackendUsage | undefined
+}
+
+export type BackendEvaluateOptions = {
+  onAssistantPassText?: (text: string, info: AssistantPassInfo) => void
+}
+
 export abstract class Backend<TMessage, TFinal> {
   abstract provider: LLMProvider
   abstract defaultModel: string
@@ -284,7 +295,10 @@ export abstract class Backend<TMessage, TFinal> {
     lectic: Lectic
   }): Promise<void>
 
-  async *evaluate(lectic: Lectic): AsyncIterable<string> {
+  async *evaluate(
+    lectic: Lectic,
+    opt?: BackendEvaluateOptions
+  ): AsyncIterable<string> {
     const messages: TMessage[] = []
 
     // Only execute user_message hooks and inject attachments when handling
@@ -327,6 +341,7 @@ export abstract class Backend<TMessage, TFinal> {
       messages,
       lectic: lectic as Lectic & HasModel,
       inlinePreface,
+      onAssistantPassText: opt?.onAssistantPassText,
     })
   }
 
@@ -334,6 +349,7 @@ export abstract class Backend<TMessage, TFinal> {
     messages: TMessage[]
     lectic: Lectic & HasModel
     inlinePreface: InlineAttachment[]
+    onAssistantPassText?: (text: string, info: AssistantPassInfo) => void
   }): AsyncGenerator<string> {
     const { messages, lectic } = opt
 
@@ -366,6 +382,13 @@ export abstract class Backend<TMessage, TFinal> {
 
       const hasToolCalls = this.finalHasToolCalls(reply)
       const usage = this.finalUsage(reply)
+
+      opt.onAssistantPassText?.(assistant, {
+        loopCount,
+        finalPassCount,
+        hasToolCalls,
+        usage,
+      })
 
       pendingHookRes = emitAssistantMessageEvent(assistant, lectic, {
         toolUseDone: !hasToolCalls,

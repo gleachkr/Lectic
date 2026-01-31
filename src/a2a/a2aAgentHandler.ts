@@ -20,9 +20,11 @@ import type { ServerCallContext } from "@a2a-js/sdk/server"
 
 import { resolveA2AContextId } from "./contextId"
 import type { PersistedAgentRuntime } from "../agents/persistedRuntime"
-import { TurnRunner } from "../agents/turnRunner"
+
+import { normalizeAgentText } from "../agents/agentText"
 import {
   TurnTaskStore,
+  type TurnTaskEvent,
   type TurnTaskSnapshot,
   type TurnTaskState,
 } from "../agents/turnTasks"
@@ -62,18 +64,20 @@ export class A2AAgentHandler implements A2ARequestHandler {
   }) {
     this.card = opt.card
 
-    const runner = new TurnRunner({
-      runtime: {
-        interlocutorName: opt.runtime.interlocutorName,
-        runBlockingTurnRaw: (args) => opt.runtime.runBlockingTurnRaw(args),
-      },
-    })
-
     this.tasks = new TurnTaskStore({
       maxTasksPerContext:
         opt.maxTasksPerContext ?? DEFAULT_MAX_TASKS_PER_CONTEXT,
       runTurn: async (args) => {
-        return runner.runTurn(args)
+        await opt.runtime.runTurn({
+          contextId: args.contextId,
+          userText: args.userText,
+          onAssistantPassText: (text) => {
+            const norm = normalizeAgentText(text)
+            if (norm.trim().length === 0) return
+
+            args.onChunk(norm)
+          },
+        })
       },
     })
 
@@ -88,6 +92,28 @@ export class A2AAgentHandler implements A2ARequestHandler {
     _context?: ServerCallContext
   ): Promise<AgentCard> {
     throw A2AError.unsupportedOperation("agent/getAuthenticatedExtendedCard")
+  }
+
+  // Monitoring / debugging support
+
+  listContextIds(): string[] {
+    return this.tasks.listContextIds()
+  }
+
+  listTaskIds(contextId: string): string[] {
+    return this.tasks.listTaskIds(contextId)
+  }
+
+  listTaskSnapshots(opt?: { contextId?: string }): TurnTaskSnapshot[] {
+    return this.tasks.listTaskSnapshots(opt)
+  }
+
+  getTaskSnapshot(taskId: string): TurnTaskSnapshot | undefined {
+    return this.tasks.getSnapshot(taskId)
+  }
+
+  onTaskEvent(listener: (ev: TurnTaskEvent) => void): () => void {
+    return this.tasks.onEvent(listener)
   }
 
   private resolveContextId(input?: string | null): string {
@@ -289,42 +315,113 @@ export class A2AAgentHandler implements A2ARequestHandler {
     const { contextId, userText } = this.parseIncomingSend(params)
 
     const handle = this.tasks.enqueueTurn({ contextId, userText })
+    const taskId = handle.taskId
 
-    yield this.snapshotToTask(handle.snapshot())
+    const pending: TurnTaskEvent[] = []
+    let notify: (() => void) | undefined
 
-    const started = await handle.waitForStarted()
+    const unsub = this.tasks.onEvent((ev) => {
+      if (ev.snapshot.taskId !== taskId) return
 
-    if (started.startedAt) {
-      yield this.statusUpdateEvent({
-        taskId: started.taskId,
-        contextId: started.contextId,
-        state: "working",
-        timestamp: started.startedAt,
-        final: false,
+      pending.push(ev)
+      notify?.()
+    })
+
+    const nextEvent = async (): Promise<TurnTaskEvent> => {
+      if (pending.length > 0) {
+        const ev = pending.shift()
+        if (!ev) throw new Error("missing task event")
+        return ev
+      }
+
+      await new Promise<void>((resolve) => {
+        notify = () => {
+          notify = undefined
+          resolve()
+        }
       })
+
+      const ev = pending.shift()
+      if (!ev) throw new Error("missing task event")
+      return ev
     }
 
-    const terminal = await handle.waitForTerminal()
+    try {
+      yield this.snapshotToTask(handle.snapshot())
 
-    yield this.statusUpdateEvent({
-      taskId: terminal.taskId,
-      contextId: terminal.contextId,
-      state: terminal.state,
-      timestamp: terminal.updatedAt,
-      final: true,
-      message: this.snapshotToTerminalAgentMessage(terminal),
-    })
+      const started = await handle.waitForStarted()
+
+      if (started.startedAt) {
+        yield this.statusUpdateEvent({
+          taskId: started.taskId,
+          contextId: started.contextId,
+          state: "working",
+          timestamp: started.startedAt,
+          final: false,
+        })
+      }
+
+      let sentChunks = 0
+      let terminal: TurnTaskSnapshot | undefined
+
+      while (true) {
+        const ev = await nextEvent()
+        if (ev.kind !== "updated") continue
+
+        const snap = ev.snapshot
+
+        for (let i = sentChunks; i < snap.messageChunks.length; i++) {
+          const messageId = snap.agentMessageIds[i] ?? Bun.randomUUIDv7()
+
+          const msg = this.mkTextMessage({
+            role: "agent",
+            messageId,
+            contextId: snap.contextId,
+            taskId: snap.taskId,
+            text: snap.messageChunks[i],
+          })
+
+          yield this.statusUpdateEvent({
+            taskId: snap.taskId,
+            contextId: snap.contextId,
+            state: "working",
+            timestamp: snap.updatedAt,
+            final: false,
+            message: msg,
+          })
+        }
+
+        sentChunks = snap.messageChunks.length
+
+        if (isTerminalState(snap.state)) {
+          terminal = snap
+          break
+        }
+      }
+
+      if (!terminal) {
+        // Should be unreachable, but keep the logic explicit.
+        terminal = await handle.waitForTerminal()
+      }
+
+      yield this.statusUpdateEvent({
+        taskId: terminal.taskId,
+        contextId: terminal.contextId,
+        state: terminal.state,
+        timestamp: terminal.updatedAt,
+        final: true,
+        message: this.snapshotToTerminalAgentMessage(terminal),
+      })
+    } finally {
+      unsub()
+    }
   }
 
   async getTask(
     params: TaskQueryParams,
     _context?: ServerCallContext
   ): Promise<Task> {
-    const taskId = (params as { id?: string }).id
-
-    if (!taskId) {
-      throw A2AError.invalidParams("Missing required parameter: id")
-    }
+    const taskId = params.id
 
     const snap = this.tasks.getSnapshot(taskId)
 

@@ -23,7 +23,7 @@ import {
 import { Tool, ToolCallResult } from "../types/tool"
 import type { JSONSchema } from "../types/schema"
 import { isHookSpecList, type HookSpec } from "../types/hook"
-import { isObjectRecord } from "../types/guards"
+import { isKinded, isObjectRecord } from "../types/guards"
 import { lecticCacheDir } from "../utils/xdg"
 import { cachedJson, writeJsonCacheFile }
   from "../utils/cache"
@@ -74,12 +74,6 @@ export function isA2AToolSpec(raw: unknown): raw is A2AToolSpec {
 type ClientEntry = {
   client: A2AClient
   card: AgentCard
-}
-
-function isKinded(v: unknown): v is Record<string, unknown> & {
-  kind: string
-} {
-  return isObjectRecord(v) && typeof v["kind"] === "string"
 }
 
 function partsToText(parts: Part[]): string {

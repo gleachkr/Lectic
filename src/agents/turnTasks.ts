@@ -24,7 +24,19 @@ export type TurnTaskSnapshot = {
 export type RunTurn = (opt: {
   contextId: string
   userText: string
-}) => Promise<{ messageChunks: string[]; finalMessage: string }>
+  onChunk: (chunk: string) => void
+}) => Promise<void>
+
+export type TurnTaskEventKind = "created" | "updated"
+
+export type TurnTaskEvent = {
+  kind: TurnTaskEventKind
+  snapshot: TurnTaskSnapshot
+
+  // For kind=updated
+  prevState?: TurnTaskState
+  stateChanged: boolean
+}
 
 type Waiter = {
   predicate: (snap: TurnTaskSnapshot) => boolean
@@ -100,9 +112,55 @@ export class TurnTaskStore {
   private readonly contextOrder = new Map<string, string[]>()
   private readonly contextWorkers = new Set<string>()
 
+  private readonly listeners = new Set<(ev: TurnTaskEvent) => void>()
+
   constructor(opt: { runTurn: RunTurn; maxTasksPerContext: number }) {
     this.runTurn = opt.runTurn
     this.maxTasksPerContext = opt.maxTasksPerContext
+  }
+
+  onEvent(listener: (ev: TurnTaskEvent) => void): () => void {
+    this.listeners.add(listener)
+
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
+
+  private emit(ev: TurnTaskEvent): void {
+    for (const fn of this.listeners) {
+      try {
+        fn(ev)
+      } catch {
+        // Ignore monitoring errors.
+      }
+    }
+  }
+
+  listContextIds(): string[] {
+    return [...this.contextOrder.keys()]
+  }
+
+  listTaskIds(contextId: string): string[] {
+    return [...(this.contextOrder.get(contextId) ?? [])]
+  }
+
+  listTaskSnapshots(opt?: { contextId?: string }): TurnTaskSnapshot[] {
+    const contextId = opt?.contextId
+
+    if (contextId) {
+      return this.listTaskIds(contextId)
+        .map((taskId) => this.getSnapshot(taskId))
+        .filter((s): s is TurnTaskSnapshot => s !== undefined)
+    }
+
+    const out: TurnTaskSnapshot[] = []
+
+    for (const cid of this.listContextIds()) {
+      out.push(...this.listTaskSnapshots({ contextId: cid }))
+    }
+
+    return out
   }
 
   hasTask(taskId: string): boolean {
@@ -135,6 +193,12 @@ export class TurnTaskStore {
     }
 
     this.tasksById.set(taskId, rec)
+
+    this.emit({
+      kind: "created",
+      snapshot: cloneSnapshot(rec),
+      stateChanged: false,
+    })
 
     const order = this.contextOrder.get(opt.contextId) ?? []
     order.push(taskId)
@@ -201,16 +265,20 @@ export class TurnTaskStore {
       })
 
       try {
-        const result = await this.runTurn({
+        await this.runTurn({
           contextId,
           userText: rec.userText,
+          onChunk: (chunk) => {
+            this.update(taskId, (r) => {
+              r.messageChunks.push(chunk)
+              r.agentMessageIds.push(Bun.randomUUIDv7())
+              r.finalMessage = chunk
+              r.updatedAt = nowIso()
+            })
+          },
         })
 
         this.update(taskId, (r) => {
-          r.messageChunks = [...result.messageChunks]
-          r.agentMessageIds = result.messageChunks.map(() => Bun.randomUUIDv7())
-          r.finalMessage = result.finalMessage
-
           r.state = "completed"
           r.endedAt = nowIso()
           r.updatedAt = r.endedAt
@@ -237,6 +305,8 @@ export class TurnTaskStore {
     const rec = this.tasksById.get(taskId)
     if (!rec) return
 
+    const prevState = rec.state
+
     fn(rec)
 
     const snap = cloneSnapshot(rec)
@@ -249,6 +319,13 @@ export class TurnTaskStore {
     }
 
     rec.waiters = remaining
+
+    this.emit({
+      kind: "updated",
+      snapshot: snap,
+      prevState,
+      stateChanged: prevState !== snap.state,
+    })
   }
 
   async waitFor(
