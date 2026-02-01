@@ -492,19 +492,6 @@ export function startA2AServer(opt: StartA2AServerOptions): Bun.Server<unknown> 
       "/monitor/agents/:agentId/events": {
         GET: handleMonitorAgentEvents,
       },
-
-      // Legacy aliases.
-      "/agents/:agentId/monitor/tasks": {
-        GET: handleMonitorAgentTasks,
-      },
-
-      "/agents/:agentId/monitor/tasks/:taskId": {
-        GET: handleMonitorAgentTask,
-      },
-
-      "/agents/:agentId/monitor/events": {
-        GET: handleMonitorAgentEvents,
-      },
     },
 
     fetch() {
