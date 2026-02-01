@@ -58,6 +58,7 @@ function getCollapsedText(raw: string): string {
         case "think": icon = " "; break
         case "serve": icon = "󰖟 "; break
         case "agent": icon = "󰚩 "; break
+        case "a2a": icon = "⇄ "; break
       }
       return `${icon} ${name}`
     } else {

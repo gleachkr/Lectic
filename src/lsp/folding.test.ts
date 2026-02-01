@@ -79,6 +79,13 @@ describe("folding ranges (collapsedText)", () => {
     expect(ranges[0].collapsedText).toBe("  my_db")
   })
 
+  test("a2a tool-call shows icon and name when NERD_FONT=1", async () => {
+    process.env["NERD_FONT"] = "1"
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with="remote" kind="a2a">\n<results>\n</results>\n</tool-call>\n:::\n`
+    const ranges = await buildFoldingRanges(text)
+    expect(ranges[0].collapsedText).toBe("⇄  remote")
+  })
+
   test("tool-call shows text and name when NERD_FONT is not 1", async () => {
     process.env["NERD_FONT"] = "0"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with="my_db" kind="sqlite">\n<results>\n</results>\n</tool-call>\n:::\n`
