@@ -307,6 +307,47 @@ describe("A2AAgentHandler task support", () => {
     expect(part.text).toContain("boom")
   })
 
+  test("tasks/resubscribe streams final status update", async () => {
+    const runtime = {
+      interlocutorName: "Agent",
+      runTurn: async (args: {
+        onAssistantPassText?: (text: string) => void
+      }) => {
+        await new Promise((r) => setTimeout(r, 20))
+        args.onAssistantPassText?.("final")
+      },
+    } as unknown as PersistedAgentRuntime
+
+    const handler = new A2AAgentHandler({
+      runtime,
+      card: mkCard(),
+      fastPathMs: 0,
+    })
+
+    const t1 = (await handler.sendMessage(mkSendParams({ text: "hi" }))) as Task
+
+    const events: Array<{ kind: string }> = []
+
+    for await (const ev of handler.resubscribe({ id: t1.id } as never)) {
+      events.push(ev as { kind: string })
+    }
+
+    const final = events.find(
+      (e) =>
+        e.kind === "status-update" &&
+        (e as unknown as { final?: boolean }).final === true,
+    ) as unknown as {
+      status: { state: string; message?: { kind?: string; parts?: unknown[] } }
+    } | undefined
+
+    expect(final).toBeDefined()
+    expect(final?.status.state).toBe("completed")
+    expect(final?.status.message?.kind).toBe("message")
+
+    const part = final?.status.message?.parts?.[0] as { text?: string }
+    expect(part.text).toBe("final")
+  })
+
   test("tasks/get rejects missing id", async () => {
     const runtime = {
       interlocutorName: "Agent",

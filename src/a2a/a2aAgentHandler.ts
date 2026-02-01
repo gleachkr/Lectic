@@ -304,21 +304,19 @@ export class A2AAgentHandler implements A2ARequestHandler {
     return this.snapshotToTask(handle.snapshot())
   }
 
-  async *sendMessageStream(
-    params: MessageSendParams,
-    _context?: ServerCallContext
-  ): AsyncGenerator<
-    Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent,
-    void,
-    undefined
-  > {
-    const { contextId, userText } = this.parseIncomingSend(params)
+  private unknownTaskId(taskId: string): never {
+    throw A2AError.invalidParams(
+      `Unknown taskId ${JSON.stringify(taskId)} (expired or never existed).`
+    )
+  }
 
-    const handle = this.tasks.enqueueTurn({ contextId, userText })
-    const taskId = handle.taskId
-
+  private createTaskEventWaiter(taskId: string): {
+    nextEvent: () => Promise<TurnTaskEvent | null>
+    unsubscribe: () => void
+  } {
     const pending: TurnTaskEvent[] = []
     let notify: (() => void) | undefined
+    let closed = false
 
     const unsub = this.tasks.onEvent((ev) => {
       if (ev.snapshot.taskId !== taskId) return
@@ -327,48 +325,133 @@ export class A2AAgentHandler implements A2ARequestHandler {
       notify?.()
     })
 
-    const nextEvent = async (): Promise<TurnTaskEvent> => {
-      if (pending.length > 0) {
-        const ev = pending.shift()
-        if (!ev) throw new Error("missing task event")
-        return ev
-      }
-
-      await new Promise<void>((resolve) => {
-        notify = () => {
-          notify = undefined
-          resolve()
-        }
-      })
-
-      const ev = pending.shift()
-      if (!ev) throw new Error("missing task event")
-      return ev
+    const unsubscribe = () => {
+      if (closed) return
+      closed = true
+      unsub()
+      notify?.()
     }
 
-    try {
-      yield this.snapshotToTask(handle.snapshot())
+    const nextEvent = async (): Promise<TurnTaskEvent | null> => {
+      while (true) {
+        const ev = pending.shift()
+        if (ev) return ev
+        if (closed) return null
 
-      const started = await handle.waitForStarted()
-
-      if (started.startedAt) {
-        yield this.statusUpdateEvent({
-          taskId: started.taskId,
-          contextId: started.contextId,
-          state: "working",
-          timestamp: started.startedAt,
-          final: false,
+        await new Promise<void>((resolve) => {
+          notify = () => {
+            notify = undefined
+            resolve()
+          }
         })
       }
+    }
 
-      let sentChunks = 0
-      let terminal: TurnTaskSnapshot | undefined
+    return { nextEvent, unsubscribe }
+  }
+
+  private async *streamTask(opt: {
+    taskId: string
+    replayChunks: boolean
+    emitWorkingFromInitial: boolean
+  }): AsyncGenerator<Task | TaskStatusUpdateEvent, void, undefined> {
+    const taskId = opt.taskId
+
+    if (!this.tasks.hasTask(taskId)) {
+      this.unknownTaskId(taskId)
+    }
+
+    const waiter = this.createTaskEventWaiter(taskId)
+
+    try {
+      const initial = this.tasks.getSnapshot(taskId)
+
+      if (!initial) {
+        this.unknownTaskId(taskId)
+      }
+
+      yield this.snapshotToTask(initial)
+
+      let sentChunks = opt.replayChunks ? 0 : initial.messageChunks.length
+      let workingEmitted = false
+
+      if (
+        opt.emitWorkingFromInitial &&
+        initial.state === "working" &&
+        initial.startedAt
+      ) {
+        yield this.statusUpdateEvent({
+          taskId: initial.taskId,
+          contextId: initial.contextId,
+          state: "working",
+          timestamp: initial.startedAt,
+          final: false,
+        })
+
+        workingEmitted = true
+      }
+
+      if (opt.replayChunks) {
+        for (let i = 0; i < initial.messageChunks.length; i++) {
+          const messageId = initial.agentMessageIds[i] ?? Bun.randomUUIDv7()
+
+          const msg = this.mkTextMessage({
+            role: "agent",
+            messageId,
+            contextId: initial.contextId,
+            taskId: initial.taskId,
+            text: initial.messageChunks[i],
+          })
+
+          yield this.statusUpdateEvent({
+            taskId: initial.taskId,
+            contextId: initial.contextId,
+            state: "working",
+            timestamp: initial.updatedAt,
+            final: false,
+            message: msg,
+          })
+        }
+
+        sentChunks = initial.messageChunks.length
+      }
+
+      if (isTerminalState(initial.state)) {
+        yield this.statusUpdateEvent({
+          taskId: initial.taskId,
+          contextId: initial.contextId,
+          state: initial.state,
+          timestamp: initial.updatedAt,
+          final: true,
+          message: this.snapshotToTerminalAgentMessage(initial),
+        })
+
+        return
+      }
 
       while (true) {
-        const ev = await nextEvent()
+        const ev = await waiter.nextEvent()
+        if (!ev) return
         if (ev.kind !== "updated") continue
 
         const snap = ev.snapshot
+
+        if (
+          !workingEmitted &&
+          ev.stateChanged &&
+          snap.state === "working" &&
+          snap.startedAt
+        ) {
+          yield this.statusUpdateEvent({
+            taskId: snap.taskId,
+            contextId: snap.contextId,
+            state: "working",
+            timestamp: snap.startedAt,
+            final: false,
+          })
+
+          workingEmitted = true
+        }
 
         for (let i = sentChunks; i < snap.messageChunks.length; i++) {
           const messageId = snap.agentMessageIds[i] ?? Bun.randomUUIDv7()
@@ -394,27 +477,40 @@ export class A2AAgentHandler implements A2ARequestHandler {
         sentChunks = snap.messageChunks.length
 
         if (isTerminalState(snap.state)) {
-          terminal = snap
-          break
+          yield this.statusUpdateEvent({
+            taskId: snap.taskId,
+            contextId: snap.contextId,
+            state: snap.state,
+            timestamp: snap.updatedAt,
+            final: true,
+            message: this.snapshotToTerminalAgentMessage(snap),
+          })
+
+          return
         }
       }
-
-      if (!terminal) {
-        // Should be unreachable, but keep the logic explicit.
-        terminal = await handle.waitForTerminal()
-      }
-
-      yield this.statusUpdateEvent({
-        taskId: terminal.taskId,
-        contextId: terminal.contextId,
-        state: terminal.state,
-        timestamp: terminal.updatedAt,
-        final: true,
-        message: this.snapshotToTerminalAgentMessage(terminal),
-      })
     } finally {
-      unsub()
+      waiter.unsubscribe()
     }
+  }
+
+  async *sendMessageStream(
+    params: MessageSendParams,
+    _context?: ServerCallContext
+  ): AsyncGenerator<
+    Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent,
+    void,
+    undefined
+  > {
+    const { contextId, userText } = this.parseIncomingSend(params)
+
+    const handle = this.tasks.enqueueTurn({ contextId, userText })
+
+    yield* this.streamTask({
+      taskId: handle.taskId,
+      replayChunks: true,
+      emitWorkingFromInitial: true,
+    })
   }
 
   async getTask(
@@ -470,14 +566,17 @@ export class A2AAgentHandler implements A2ARequestHandler {
   }
 
   async *resubscribe(
-    _params: TaskIdParams,
+    params: TaskIdParams,
     _context?: ServerCallContext
   ): AsyncGenerator<
     Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent,
     void,
     undefined
   > {
-    throw A2AError.unsupportedOperation("tasks/resubscribe")
-    yield undefined as never
+    yield* this.streamTask({
+      taskId: params.id,
+      replayChunks: false,
+      emitWorkingFromInitial: false,
+    })
   }
 }
