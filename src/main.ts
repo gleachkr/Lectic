@@ -51,15 +51,18 @@ program
 program
 .command('script')
 .description(
-    'Experimental: run a JS/TS module as a hashbang-style script. The module '
-    + 'may export a default function to be executed.'
+    'Experimental: bundle then run a JS/TS/JSX/TSX module as a '
+    + 'hashbang-style script. Supports HTTP(S) imports during bundling. If '
+    + 'the module exports a default function, it will be executed after '
+    + 'import.'
 )
 .allowExcessArguments(true)
 .passThroughOptions()
 .helpOption(false)
 .argument('[args...]', 'Module path followed by any script args')
 .action(async (args: string[]) => {
-    await scriptCmd(args)
+    const code = await scriptCmd(args)
+    process.exit(code)
 })
 
 program

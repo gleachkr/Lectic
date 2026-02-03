@@ -42,9 +42,29 @@ lectic hello
 
 ### JavaScript/TypeScript via `lectic script`
 
-Lectic bundles a Bun runtime, so you can write subcommands in JavaScript or
-TypeScript without installing anything extra. Use `lectic script` as your
-shebang interpreter.
+Lectic bundles a Bun runtime, so you can write subcommands in JavaScript,
+TypeScript, JSX, or TSX without installing anything extra.
+
+`lectic script` works well as a shebang interpreter, and it bundles your
+script before executing it. This lets you use explicit remote `https://...`
+imports without a local `node_modules` (and `http://` is allowed only for
+localhost).
+
+For TSX/JSX scripts using React's automatic runtime, include an explicit
+`import React from "https://..."` so Lectic can resolve the implicit
+`react/jsx-runtime` / `react/jsx-dev-runtime` imports.
+
+Bundled output is cached on disk under `$LECTIC_CACHE/scripts/`.
+The cache key includes the script contents, the Bun version, and an
+internal plugin version. Delete that directory to force a re-bundle.
+
+Note: remote imports are treated as pinned by URL. Changes on the remote
+server will not invalidate the cache automatically.
+
+Prefer versioned URLs so builds are reproducible. For example, when using
+esm.sh, import `react@18.3.1` instead of `react`:
+
+`import React from "https://esm.sh/react@18.3.1"`
 
 Create `~/.config/lectic/lectic-calc`:
 
@@ -76,8 +96,12 @@ lectic calc 1 + 2
 ## Why `lectic script`?
 
 You get Bun's full capabilities without installing Bun separately. This
-includes built-in YAML parsing, HTTP servers, SQLite, fetch, and much more.
-See [Bun's documentation](https://bun.sh/docs) for what's available.
+includes built-in YAML parsing, HTTP servers, SQLite, `fetch`, and much
+more. See [Bun's documentation](https://bun.sh/docs) for what's available.
+
+Because Lectic bundles your script first, you can also write
+self-contained TSX/JSX scripts that pull dependencies from explicit
+`https://...` imports.
 
 This is especially useful for writing more complex subcommands that would
 be awkward in Bash.

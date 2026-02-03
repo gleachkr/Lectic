@@ -31,9 +31,9 @@ while keeping the base prompt small. It follows the skills spec's
 
 ## The subcommand
 
-Lectic resolves `lectic <command>` using git-style subcommands. We will create
-an executable named `lectic-skills.ts` (TypeScript), using Lectic's built-in
-script interpreter.
+Lectic resolves `lectic <command>` using git-style subcommands. We will
+create an executable named `lectic-skills.ts` (TypeScript), using Lectic's
+built-in script runner (`lectic script`).
 
 Copy the repository's `extra/lectic-skills.ts` to your config directory:
 

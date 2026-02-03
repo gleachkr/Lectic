@@ -32,9 +32,31 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   key-based provider).
 
 - `lectic script`
-  Run an ES module file using Lectic's internal Bun JS runtime. Works as
-  a hashbang interpreter, useful for writing subcommands (see below),
-  [hooks](../automation/02_hooks.qmd), and [exec tools](../tools/02_exec.qmd).
+  Bundle and run a JS/TS/JSX/TSX module using Lectic's internal Bun
+  runtime. Works as a hashbang interpreter, useful for writing
+  subcommands (see below), [hooks](../automation/02_hooks.qmd), and
+  [exec tools](../tools/02_exec.qmd).
+
+  During bundling, Lectic supports explicit remote imports via
+  `https://...` URLs (and `http://` for localhost only), in order to easily
+  support writing self-contained single-file scripts.
+
+  For TSX/JSX scripts using React's automatic runtime, include an explicit
+  `import React from "https://..."` so Lectic can resolve the implicit
+  `react/jsx-runtime` / `react/jsx-dev-runtime` imports.
+
+  Bundled output is cached on disk under `$LECTIC_CACHE/scripts/`.
+  The cache key includes the script contents, the Bun version, and an
+  internal plugin version. Delete that directory to force a re-bundle.
+
+  Note: remote imports are treated as pinned by URL. Changes on the
+  remote server will not invalidate the cache automatically.
+
+  Prefer versioned URLs so builds are reproducible. For example, when
+  using esm.sh, import `react@18.3.1` instead of `react`:
+
+  `import React from "https://esm.sh/react@18.3.1"`
+
   For example:
 
   ```bash
