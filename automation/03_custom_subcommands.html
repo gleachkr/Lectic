@@ -259,6 +259,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../tools/07_a2a.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A2A</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Other Tools</span></a>
   </div>
@@ -450,7 +456,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="javascripttypescript-via-lectic-script" class="level3">
 <h3 class="anchored" data-anchor-id="javascripttypescript-via-lectic-script">JavaScript/TypeScript via <code>lectic script</code></h3>
-<p>Lectic bundles a Bun runtime, so you can write subcommands in JavaScript or TypeScript without installing anything extra. Use <code>lectic script</code> as your shebang interpreter.</p>
+<p>Lectic bundles a Bun runtime, so you can write subcommands in JavaScript, TypeScript, JSX, or TSX without installing anything extra.</p>
+<p><code>lectic script</code> works well as a shebang interpreter, and it bundles your script before executing it. This lets you use explicit remote <code>https://...</code> imports without a local <code>node_modules</code> (and <code>http://</code> is allowed only for localhost).</p>
+<p>For TSX/JSX scripts using React’s automatic runtime, include an explicit <code>import React from "https://..."</code> so Lectic can resolve the implicit <code>react/jsx-runtime</code> / <code>react/jsx-dev-runtime</code> imports.</p>
+<p>Bundled output is cached on disk under <code>$LECTIC_CACHE/scripts/</code>. The cache key includes the script contents, the Bun version, and an internal plugin version. Delete that directory to force a re-bundle.</p>
+<p>Note: remote imports are treated as pinned by URL. Changes on the remote server will not invalidate the cache automatically.</p>
+<p>Prefer versioned URLs so builds are reproducible. For example, when using esm.sh, import <code>react@18.3.1</code> instead of <code>react</code>:</p>
+<p><code>import React from "https://esm.sh/react@18.3.1"</code></p>
 <p>Create <code>~/.config/lectic/lectic-calc</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode javascript code-with-copy"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env -S lectic script</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -480,7 +492,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p>You get Bun’s full capabilities without installing Bun separately. This includes built-in YAML parsing, HTTP servers, SQLite, fetch, and much more. See <a href="https://bun.sh/docs">Bun’s documentation</a> for what’s available.</p>
+<p>You get Bun’s full capabilities without installing Bun separately. This includes built-in YAML parsing, HTTP servers, SQLite, <code>fetch</code>, and much more. See <a href="https://bun.sh/docs">Bun’s documentation</a> for what’s available.</p>
+<p>Because Lectic bundles your script first, you can also write self-contained TSX/JSX scripts that pull dependencies from explicit <code>https://...</code> imports.</p>
 <p>This is especially useful for writing more complex subcommands that would be awkward in Bash.</p>
 </div>
 </div>

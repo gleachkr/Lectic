@@ -259,6 +259,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../tools/07_a2a.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A2A</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Other Tools</span></a>
   </div>
@@ -455,16 +461,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>agent: OtherName</code></td>
 </tr>
 <tr class="odd">
+<td><a href="../tools/07_a2a.html"><code>a2a</code></a></td>
+<td>Call a remote A2A agent</td>
+<td><code>a2a: http://.../agents/&lt;id&gt;</code></td>
+</tr>
+<tr class="even">
 <td><a href="../tools/06_other_tools.html#the-think-tool"><code>think</code></a></td>
 <td>Private reasoning scratchpad</td>
 <td><code>think_about: the problem</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="../tools/06_other_tools.html#the-serve-tool"><code>serve</code></a></td>
 <td>Serve HTML to browser</td>
 <td><code>serve_on_port: 8080</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="../tools/06_other_tools.html#native-tools"><code>native</code></a></td>
 <td>Provider built-ins (search, code)</td>
 <td><code>native: search</code></td>
@@ -569,6 +580,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><strong><a href="../tools/03_sqlite.html">SQLite</a></strong>: Direct database queries. Schema is auto-introspected and provided to the LLM.</p></li>
 <li><p><strong><a href="../tools/04_mcp.html">MCP</a></strong>: Model Context Protocol servers. Connect to a growing ecosystem of pre-built tools and services.</p></li>
 <li><p><strong><a href="../tools/05_agent.html">Agent</a></strong>: Multi-LLM workflows. One interlocutor can delegate to another, enabling specialized agents.</p></li>
+<li><p><strong><a href="../tools/07_a2a.html">A2A</a></strong>: Talk to remote agents using the Agent2Agent (A2A) protocol.</p></li>
 <li><p><strong><a href="../tools/06_other_tools.html">Other Tools</a></strong>: The <code>think</code> tool for reasoning, <code>serve</code> for rendering HTML, and <code>native</code> for provider built-ins like web search.</p></li>
 </ul>
 <div class="callout callout-style-default callout-note callout-titled">

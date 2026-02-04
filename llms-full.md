@@ -1923,9 +1923,29 @@ lectic hello
 
 ### JavaScript/TypeScript via `lectic script`
 
-Lectic bundles a Bun runtime, so you can write subcommands in JavaScript
-or TypeScript without installing anything extra. Use `lectic script` as
-your shebang interpreter.
+Lectic bundles a Bun runtime, so you can write subcommands in
+JavaScript, TypeScript, JSX, or TSX without installing anything extra.
+
+`lectic script` works well as a shebang interpreter, and it bundles your
+script before executing it. This lets you use explicit remote
+`https://...` imports without a local `node_modules` (and `http://` is
+allowed only for localhost).
+
+For TSX/JSX scripts using React’s automatic runtime, include an explicit
+`import React from "https://..."` so Lectic can resolve the implicit
+`react/jsx-runtime` / `react/jsx-dev-runtime` imports.
+
+Bundled output is cached on disk under `$LECTIC_CACHE/scripts/`. The
+cache key includes the script contents, the Bun version, and an internal
+plugin version. Delete that directory to force a re-bundle.
+
+Note: remote imports are treated as pinned by URL. Changes on the remote
+server will not invalidate the cache automatically.
+
+Prefer versioned URLs so builds are reproducible. For example, when
+using esm.sh, import `react@18.3.1` instead of `react`:
+
+`import React from "https://esm.sh/react@18.3.1"`
 
 Create `~/.config/lectic/lectic-calc`:
 
@@ -1959,9 +1979,13 @@ lectic calc 1 + 2
 > ### Why `lectic script`?
 >
 > You get Bun’s full capabilities without installing Bun separately.
-> This includes built-in YAML parsing, HTTP servers, SQLite, fetch, and
-> much more. See [Bun’s documentation](https://bun.sh/docs) for what’s
-> available.
+> This includes built-in YAML parsing, HTTP servers, SQLite, `fetch`,
+> and much more. See [Bun’s documentation](https://bun.sh/docs) for
+> what’s available.
+>
+> Because Lectic bundles your script first, you can also write
+> self-contained TSX/JSX scripts that pull dependencies from explicit
+> `https://...` imports.
 >
 > This is especially useful for writing more complex subcommands that
 > would be awkward in Bash.
@@ -3974,7 +3998,7 @@ skills while keeping the base prompt small. It follows the skills spec’s
 
 Lectic resolves `lectic <command>` using git-style subcommands. We will
 create an executable named `lectic-skills.ts` (TypeScript), using
-Lectic’s built-in script interpreter.
+Lectic’s built-in script runner (`lectic script`).
 
 Copy the repository’s `extra/lectic-skills.ts` to your config directory:
 
@@ -4169,15 +4193,78 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   provider is listed if you have previously logged in (it is not an API
   key-based provider).
 
-- `lectic script` Run an ES module file using Lectic’s internal Bun JS
-  runtime. Works as a hashbang interpreter, useful for writing
-  subcommands (see below), [hooks](../automation/02_hooks.qmd), and
-  [exec tools](../tools/02_exec.qmd). For example:
+- `lectic script` Bundle and run a JS/TS/JSX/TSX module using Lectic’s
+  internal Bun runtime. Works as a hashbang interpreter, useful for
+  writing subcommands (see below), [hooks](../automation/02_hooks.qmd),
+  and [exec tools](../tools/02_exec.qmd).
+
+  During bundling, Lectic supports explicit remote imports via
+  `https://...` URLs (and `http://` for localhost only), in order to
+  easily support writing self-contained single-file scripts.
+
+  For TSX/JSX scripts using React’s automatic runtime, include an
+  explicit `import React from "https://..."` so Lectic can resolve the
+  implicit `react/jsx-runtime` / `react/jsx-dev-runtime` imports.
+
+  Bundled output is cached on disk under `$LECTIC_CACHE/scripts/`. The
+  cache key includes the script contents, the Bun version, and an
+  internal plugin version. Delete that directory to force a re-bundle.
+
+  Note: remote imports are treated as pinned by URL. Changes on the
+  remote server will not invalidate the cache automatically.
+
+  Prefer versioned URLs so builds are reproducible. For example, when
+  using esm.sh, import `react@18.3.1` instead of `react`:
+
+  `import React from "https://esm.sh/react@18.3.1"`
+
+  For example:
 
   ``` bash
   #!/bin/env -S lectic script
   console.log("Hello from a lectic script!")
   ```
+
+- `lectic a2a` Start an A2A (JSON-RPC + SSE) server exposing configured
+  agents.
+
+  Options:
+
+  - `--root <path>`: Workspace root (process.chdir to this path).
+  - `--host <host>`: Bind host. Default: `127.0.0.1`.
+  - `--port <port>`: Bind port. Default: `41240`.
+  - `--token <token>`: If set, require `Authorization: Bearer <token>`.
+  - `--max-tasks-per-context <n>`: Maximum number of task snapshots to
+    keep in memory per contextId. Default: `50`.
+
+  Monitoring endpoints (HTTP):
+
+  Cross-agent:
+
+  - `GET /monitor/agents`
+    - Lists configured agents.
+  - `GET /monitor/tasks`
+    - Returns recent task snapshots across all agents.
+    - Optional query: `?agentId=<id>&contextId=<id>`.
+  - `GET /monitor/tasks/<taskId>`
+    - Returns a single task snapshot, searching across all agents.
+  - `GET /monitor/events`
+    - Server-Sent Events stream of task lifecycle events.
+    - Optional query: `?agentId=<id>&contextId=<id>`.
+
+  Per-agent:
+
+  - `GET /monitor/agents/<id>/tasks`
+    - Returns recent task snapshots.
+    - Optional query: `?contextId=<id>`.
+  - `GET /monitor/agents/<id>/tasks/<taskId>`
+    - Returns a single task snapshot.
+  - `GET /monitor/agents/<id>/events`
+    - Server-Sent Events stream of task lifecycle events.
+    - Optional query: `?contextId=<id>`.
+
+  If `--token` is set, the monitoring endpoints require
+  `Authorization: Bearer <token>`.
 
 ## Custom Subcommands
 
@@ -4435,7 +4522,7 @@ Call another interlocutor as a tool.
 
 Connect to Model Context Protocol servers.
 
-- One of: `mcp_command`, `mcp_ws`, `mcp_sse`, or `mcp_shttp`.
+- One of: `mcp_command`, `mcp_ws`, or `mcp_shttp`.
 - `args`: Arguments for `mcp_command`.
 - `env`: Environment variables for `mcp_command`.
 - `headers`: A map of custom headers for `mcp_shttp`. Values support
@@ -4675,6 +4762,7 @@ service.
 | [`sqlite`](./03_sqlite.qmd) | Query SQLite databases | `sqlite: ./data.db` |
 | [`mcp`](./04_mcp.qmd) | Connect to MCP servers | `mcp_command: npx ...` |
 | [`agent`](./05_agent.qmd) | Call another interlocutor | `agent: OtherName` |
+| [`a2a`](./07_a2a.qmd) | Call a remote A2A agent | `a2a: http://.../agents/<id>` |
 | [`think`](./06_other_tools.qmd#the-think-tool) | Private reasoning scratchpad | `think_about: the problem` |
 | [`serve`](./06_other_tools.qmd#the-serve-tool) | Serve HTML to browser | `serve_on_port: 8080` |
 | [`native`](./06_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
@@ -4810,6 +4898,9 @@ Each tool type has its own detailed guide:
 
 - **[Agent](./05_agent.qmd)**: Multi-LLM workflows. One interlocutor can
   delegate to another, enabling specialized agents.
+
+- **[A2A](./07_a2a.qmd)**: Talk to remote agents using the Agent2Agent
+  (A2A) protocol.
 
 - **[Other Tools](./06_other_tools.qmd)**: The `think` tool for
   reasoning, `serve` for rendering HTML, and `native` for provider
@@ -5233,7 +5324,6 @@ managed by Lectic for the duration of the session.
 You can also connect to running MCP servers.
 
 - `mcp_ws`: The URL for a remote server using a WebSocket connection.
-- `mcp_sse`: The URL for a remote server using Server-Sent Events.
 - `mcp_shttp`: The URL for a remote server using Streamable HTTP.
 
 For example:
@@ -5603,4 +5693,92 @@ tools:
   provider (not the legacy `openai/chat` provider).
 - **ChatGPT**: Supports both `search` and `code` via the `chatgpt`
   provider (ChatGPT subscription, Codex backend).
+
+
+
+# Tools: Agent2Agent (A2A)
+
+The `a2a` tool lets your Lectic interlocutor call a remote agent that
+implements the Agent2Agent (A2A) protocol.
+
+This is useful for:
+
+- Testing the built-in `lectic a2a` server
+- Delegating work to an external agent process
+
+## Configuration
+
+You configure an A2A tool by providing the base URL for the agent.
+
+If your agent card is served at:
+
+- `http://HOST:PORT/agents/<id>/.well-known/agent-card.json`
+
+then set the tool URL to:
+
+- `http://HOST:PORT/agents/<id>`
+
+Example:
+
+``` yaml
+tools:
+  - name: remote_agent
+    a2a: http://127.0.0.1:41240/agents/assistant
+```
+
+Optional settings:
+
+- `stream`: prefer streaming (`message/sendStream`). Defaults to `true`.
+- `maxWaitSeconds`: when streaming, max seconds to wait for the call to
+  reach a final event before returning early with `taskId` so you can
+  poll using `getTask`. Defaults to `5`.
+- `headers`: extra HTTP headers to attach to every A2A request.
+  - Header values support `file:` and `exec:` sources (same as MCP).
+  - Avoid hardcoding secrets directly in YAML.
+
+Example (bearer token loaded from an external command):
+
+``` yaml
+tools:
+  - name: prod_agent
+    a2a: https://example.com/agents/assistant
+    headers:
+      Authorization: exec:bash -lc 'echo "Bearer $(pass a2a/token)"'
+```
+
+## Tool call parameters
+
+The tool exposes these parameters:
+
+- `op` (required): operation mode.
+  - `sendMsg`: send user text via `message/send` (or
+    `message/sendStream`).
+  - `getTask`: poll a long-running task via `tasks/get`.
+- `text` (required for `op=sendMsg`): user text to send to the agent.
+- `contextId` (optional): A2A context id to continue a conversation.
+- `taskId`:
+  - required for `op=getTask`
+  - optional for `op=sendMsg` (some agents may attach messages to a
+    task)
+- `stream` (optional): override streaming for `op=sendMsg`.
+- `maxWaitSeconds` (optional): override the streaming max-wait for this
+  call. When exceeded, the tool returns early with a `taskId`.
+
+## Output format
+
+The tool returns:
+
+1.  `text/plain`: the agent response text
+2.  0 or more additional results extracted from A2A message parts and
+    artifact updates:
+    - `application/pdf`, `image/*`, etc. are returned as `data:` URLs
+      when provided as bytes, or as a normal URL when provided as a URI.
+    - `application/json` results are emitted for `data` parts.
+3.  `application/json`: call metadata
+
+The metadata includes:
+
+- `contextId`, `taskId`: identifiers you can reuse
+- `agent`: the agent name from its agent card
+- `baseUrl`, `streaming`: call metadata
 

@@ -259,6 +259,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
+  <a href="../tools/07_a2a.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A2A</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
   <a href="../tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Other Tools</span></a>
   </div>
@@ -436,9 +442,65 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul></li>
 <li><p><code>lectic models</code> List available models for providers with detected credentials.</p>
 <p>Providers with API keys in the environment are queried. The <code>chatgpt</code> provider is listed if you have previously logged in (it is not an API key-based provider).</p></li>
-<li><p><code>lectic script</code> Run an ES module file using Lectic’s internal Bun JS runtime. Works as a hashbang interpreter, useful for writing subcommands (see below), <a href="../automation/02_hooks.html">hooks</a>, and <a href="../tools/02_exec.html">exec tools</a>. For example:</p>
+<li><p><code>lectic script</code> Bundle and run a JS/TS/JSX/TSX module using Lectic’s internal Bun runtime. Works as a hashbang interpreter, useful for writing subcommands (see below), <a href="../automation/02_hooks.html">hooks</a>, and <a href="../tools/02_exec.html">exec tools</a>.</p>
+<p>During bundling, Lectic supports explicit remote imports via <code>https://...</code> URLs (and <code>http://</code> for localhost only), in order to easily support writing self-contained single-file scripts.</p>
+<p>For TSX/JSX scripts using React’s automatic runtime, include an explicit <code>import React from "https://..."</code> so Lectic can resolve the implicit <code>react/jsx-runtime</code> / <code>react/jsx-dev-runtime</code> imports.</p>
+<p>Bundled output is cached on disk under <code>$LECTIC_CACHE/scripts/</code>. The cache key includes the script contents, the Bun version, and an internal plugin version. Delete that directory to force a re-bundle.</p>
+<p>Note: remote imports are treated as pinned by URL. Changes on the remote server will not invalidate the cache automatically.</p>
+<p>Prefer versioned URLs so builds are reproducible. For example, when using esm.sh, import <code>react@18.3.1</code> instead of <code>react</code>:</p>
+<p><code>import React from "https://esm.sh/react@18.3.1"</code></p>
+<p>For example:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/env -S lectic script</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">console.log</span><span class="er">(</span><span class="st">"Hello from a lectic script!"</span><span class="kw">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<li><p><code>lectic a2a</code> Start an A2A (JSON-RPC + SSE) server exposing configured agents.</p>
+<p>Options:</p>
+<ul>
+<li><code>--root &lt;path&gt;</code>: Workspace root (process.chdir to this path).</li>
+<li><code>--host &lt;host&gt;</code>: Bind host. Default: <code>127.0.0.1</code>.</li>
+<li><code>--port &lt;port&gt;</code>: Bind port. Default: <code>41240</code>.</li>
+<li><code>--token &lt;token&gt;</code>: If set, require <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+<li><code>--max-tasks-per-context &lt;n&gt;</code>: Maximum number of task snapshots to keep in memory per contextId. Default: <code>50</code>.</li>
+</ul>
+<p>Monitoring endpoints (HTTP):</p>
+<p>Cross-agent:</p>
+<ul>
+<li><code>GET /monitor/agents</code>
+<ul>
+<li>Lists configured agents.</li>
+</ul></li>
+<li><code>GET /monitor/tasks</code>
+<ul>
+<li>Returns recent task snapshots across all agents.</li>
+<li>Optional query: <code>?agentId=&lt;id&gt;&amp;contextId=&lt;id&gt;</code>.</li>
+</ul></li>
+<li><code>GET /monitor/tasks/&lt;taskId&gt;</code>
+<ul>
+<li>Returns a single task snapshot, searching across all agents.</li>
+</ul></li>
+<li><code>GET /monitor/events</code>
+<ul>
+<li>Server-Sent Events stream of task lifecycle events.</li>
+<li>Optional query: <code>?agentId=&lt;id&gt;&amp;contextId=&lt;id&gt;</code>.</li>
+</ul></li>
+</ul>
+<p>Per-agent:</p>
+<ul>
+<li><code>GET /monitor/agents/&lt;id&gt;/tasks</code>
+<ul>
+<li>Returns recent task snapshots.</li>
+<li>Optional query: <code>?contextId=&lt;id&gt;</code>.</li>
+</ul></li>
+<li><code>GET /monitor/agents/&lt;id&gt;/tasks/&lt;taskId&gt;</code>
+<ul>
+<li>Returns a single task snapshot.</li>
+</ul></li>
+<li><code>GET /monitor/agents/&lt;id&gt;/events</code>
+<ul>
+<li>Server-Sent Events stream of task lifecycle events.</li>
+<li>Optional query: <code>?contextId=&lt;id&gt;</code>.</li>
+</ul></li>
+</ul>
+<p>If <code>--token</code> is set, the monitoring endpoints require <code>Authorization: Bearer &lt;token&gt;</code>.</p></li>
 </ul>
 </section>
 <section id="custom-subcommands" class="level2">
