@@ -10,7 +10,9 @@ import { expandEnv } from "../utils/replace";
 import { createFetchWithHeaderSources }
   from "../utils/fetchWithHeaders";
 import { isHookSpecList, type HookSpec } from "../types/hook";
-import { FilePersistedOAuthClientProvider, waitForOAuthCallback } from "./mcpOAuth";
+import { FilePersistedOAuthClientProvider, waitForOAuthCallback }
+  from "./mcpOAuth";
+import { version as lecticVersion } from "../../package.json";
 
 type MCPSpecSTDIO = {
     mcp_command: string
@@ -310,7 +312,7 @@ export class MCPTool extends Tool {
         } else {
             client = new Client({
                 name: "Lectic",
-                version: "0.0.0" // should draw this from package.json
+                version: lecticVersion,
             }, {
                 capabilities: {
                     ...spec.roots ? {roots: {}} : {}

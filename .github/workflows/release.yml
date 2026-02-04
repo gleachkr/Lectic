@@ -6,7 +6,80 @@ on:
       - "v*.*.*"
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sanity check tag matches package.json version
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"          # e.g. v0.0.1
+          EXPECTED="${TAG#v}"               # e.g. 0.0.1
+
+          PKG_VERSION="$(node -p 'require("./package.json").version')"
+
+          if [[ "$PKG_VERSION" != "$EXPECTED" ]]; then
+            echo "Tag $TAG does not match package.json version $PKG_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+          OUT="${RUNNER_TEMP}/release-notes.md"
+
+          if [[ ! -f CHANGELOG.md ]]; then
+            echo "Missing CHANGELOG.md at repository root" >&2
+            exit 1
+          fi
+
+          set +e
+          awk -v tag="$TAG" '
+            $0 ~ "^##[[:space:]]+" tag "([[:space:]]|$)" {found=1; next}
+            found && $0 ~ "^##[[:space:]]+" {exit}
+            found {print}
+            END {if (!found) exit 42}
+          ' CHANGELOG.md > "$OUT"
+          STATUS=$?
+          set -e
+
+          if [[ $STATUS -eq 42 ]]; then
+            echo "No CHANGELOG entry found for: $TAG" >&2
+            exit 1
+          fi
+
+          if [[ $STATUS -ne 0 ]]; then
+            echo "Failed to extract release notes from CHANGELOG" >&2
+            exit 1
+          fi
+
+          if [[ ! -s "$OUT" ]]; then
+            echo "CHANGELOG entry for $TAG is empty" >&2
+            exit 1
+          fi
+
+          echo "path=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ steps.notes.outputs.path }}
+          generate_release_notes: false
+          fail_on_unmatched_files: false
+
   build:
+    needs: create-release
+
     strategy: 
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
@@ -41,6 +114,8 @@ jobs:
           files: lectic-*-linux-*.appImage
 
   build-macos:
+    needs: create-release
+
     strategy: 
       matrix:
         os: [macos-latest, macos-15]
@@ -80,6 +155,8 @@ jobs:
           files: lectic-*-macos-*.bin
 
   build-vsix:
+    needs: create-release
+
     runs-on: ubuntu-24.04
 
     permissions:
