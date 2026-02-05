@@ -440,11 +440,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="chatgpt-subscription-no-api-key" class="level2">
 <h2 class="anchored" data-anchor-id="chatgpt-subscription-no-api-key">ChatGPT subscription (no API key)</h2>
-<p>Lectic also supports <code>provider: chatgpt</code>, which uses your ChatGPT subscription via the official Codex / ChatGPT OAuth flow.</p>
+<p>Lectic also supports <code>provider: codex</code>, which uses your ChatGPT subscription via the official Codex / ChatGPT OAuth flow.</p>
 <p>Notes:</p>
 <ul>
-<li>This provider is not auto-selected (there is no API key env var to check). If you want it by default, set <code>provider: chatgpt</code> in your <code>lectic.yaml</code> or in the <code>.lec</code> frontmatter.</li>
-<li>On first use, Lectic opens a browser window for login and stores tokens at <code>$LECTIC_STATE/chatgpt_auth.json</code> (for example, <code>~/.local/state/lectic/chatgpt_auth.json</code> on Linux).</li>
+<li>This provider is not auto-selected (there is no API key env var to check). If you want it by default, set <code>provider: codex</code> in your <code>lectic.yaml</code> or in the <code>.lec</code> frontmatter.</li>
+<li>On first use, Lectic opens a browser window for login and stores tokens at <code>$LECTIC_STATE/codex_auth.json</code> (for example, <code>~/.local/state/lectic/codex_auth.json</code> on Linux).</li>
 <li>Login starts a local callback server on port 1455. If that port is in use, stop the other process and try again.</li>
 <li>If you want to “log out”, delete that file.</li>
 </ul>
@@ -477,7 +477,7 @@ Note
 </div>
 </div>
 <div class="callout-body-container callout-body">
-<p><code>provider: chatgpt</code> models only show up in <code>lectic models</code> after you have logged in at least once (since the login is browser-based, not an API key). If you have not logged in yet, run a <code>.lec</code> file with <code>provider: chatgpt</code> first.</p>
+<p><code>provider: codex</code> models only show up in <code>lectic models</code> after you have logged in at least once (since the login is browser-based, not an API key). If you have not logged in yet, run a <code>.lec</code> file with <code>provider: codex</code> first.</p>
 </div>
 </div>
 </section>
@@ -513,11 +513,11 @@ Note
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a helpful assistant.</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> openai/chat</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><strong>ChatGPT</strong> (subscription via Codex backend):</p>
+<p><strong>Codex</strong> (via ChatGPT subscription):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a helpful assistant.</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> chatgpt</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> codex</span></span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">model</span><span class="kw">:</span><span class="at"> gpt-5.1-codex</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p><strong>Gemini</strong>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
@@ -577,7 +577,7 @@ Note
 <td>✗</td>
 </tr>
 <tr class="even">
-<td>ChatGPT</td>
+<td>Codex</td>
 <td>✓</td>
 <td>✓</td>
 <td>✓</td>

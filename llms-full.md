@@ -234,10 +234,10 @@ Anthropic → Gemini → OpenAI → OpenRouter. You only need one.
 
 > [!NOTE]
 >
-> You can also use your ChatGPT subscription with `provider: chatgpt`.
+> You can also use your ChatGPT subscription with `provider: codex`.
 > This does not use an API key environment variable, so it is not
 > auto-selected. On first use, Lectic opens a browser window for login
-> and stores tokens at `$LECTIC_STATE/chatgpt_auth.json`.
+> and stores tokens at `$LECTIC_STATE/codex_auth.json`.
 >
 > The login flow starts a local callback server on port 1455.
 
@@ -995,17 +995,17 @@ make sure your AWS environment is configured.
 
 ## ChatGPT subscription (no API key)
 
-Lectic also supports `provider: chatgpt`, which uses your ChatGPT
+Lectic also supports `provider: codex`, which uses your ChatGPT
 subscription via the official Codex / ChatGPT OAuth flow.
 
 Notes:
 
 - This provider is not auto-selected (there is no API key env var to
-  check). If you want it by default, set `provider: chatgpt` in your
+  check). If you want it by default, set `provider: codex` in your
   `lectic.yaml` or in the `.lec` frontmatter.
 - On first use, Lectic opens a browser window for login and stores
-  tokens at `$LECTIC_STATE/chatgpt_auth.json` (for example,
-  `~/.local/state/lectic/chatgpt_auth.json` on Linux).
+  tokens at `$LECTIC_STATE/codex_auth.json` (for example,
+  `~/.local/state/lectic/codex_auth.json` on Linux).
 - Login starts a local callback server on port 1455. If that port is in
   use, stop the other process and try again.
 - If you want to “log out”, delete that file.
@@ -1028,10 +1028,10 @@ available models.
 
 > [!NOTE]
 >
-> `provider: chatgpt` models only show up in `lectic models` after you
+> `provider: codex` models only show up in `lectic models` after you
 > have logged in at least once (since the login is browser-based, not an
 > API key). If you have not logged in yet, run a `.lec` file with
-> `provider: chatgpt` first.
+> `provider: codex` first.
 
 ## OpenAI: two provider strings
 
@@ -1084,13 +1084,13 @@ interlocutor:
   provider: openai/chat
 ```
 
-**ChatGPT** (subscription via Codex backend):
+**Codex** (via ChatGPT subscription):
 
 ``` yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
-  provider: chatgpt
+  provider: codex
   model: gpt-5.1-codex
 ```
 
@@ -1132,7 +1132,7 @@ Providers differ in what they accept as input. Here’s a rough guide:
 | Anthropic  | ✓               | ✓      | ✓    | ✗        | ✗     |
 | Gemini     | ✓               | ✓      | ✓    | ✓        | ✓     |
 | OpenAI     | ✓               | ✓      | ✓    | varies\* | ✗     |
-| ChatGPT    | ✓               | ✓      | ✓    | varies\* | ✗     |
+| Codex      | ✓               | ✓      | ✓    | varies\* | ✗     |
 | OpenRouter | varies by model |        |      |          |       |
 | Ollama     | ✓               | varies | ✗    | ✗        | ✗     |
 
@@ -4189,7 +4189,7 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 - `lectic models` List available models for providers with detected
   credentials.
 
-  Providers with API keys in the environment are queried. The `chatgpt`
+  Providers with API keys in the environment are queried. The `codex`
   provider is listed if you have previously logged in (it is not an API
   key-based provider).
 
@@ -5691,8 +5691,8 @@ tools:
 - **Anthropic**: Supports `search` only.
 - **OpenAI**: Supports both `search` and `code` via the `openai`
   provider (not the legacy `openai/chat` provider).
-- **ChatGPT**: Supports both `search` and `code` via the `chatgpt`
-  provider (ChatGPT subscription, Codex backend).
+- **Codex**: Supports both `search` and `code` via the `codex` provider
+  (ChatGPT subscription, Codex backend).
 
 
 

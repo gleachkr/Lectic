@@ -441,7 +441,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>--reverse</code>: Ingest JSON (or YAML) output and reconstruct the original lectic file.</li>
 </ul></li>
 <li><p><code>lectic models</code> List available models for providers with detected credentials.</p>
-<p>Providers with API keys in the environment are queried. The <code>chatgpt</code> provider is listed if you have previously logged in (it is not an API key-based provider).</p></li>
+<p>Providers with API keys in the environment are queried. The <code>codex</code> provider is listed if you have previously logged in (it is not an API key-based provider).</p></li>
 <li><p><code>lectic script</code> Bundle and run a JS/TS/JSX/TSX module using Lectic’s internal Bun runtime. Works as a hashbang interpreter, useful for writing subcommands (see below), <a href="../automation/02_hooks.html">hooks</a>, and <a href="../tools/02_exec.html">exec tools</a>.</p>
 <p>During bundling, Lectic supports explicit remote imports via <code>https://...</code> URLs (and <code>http://</code> for localhost only), in order to easily support writing self-contained single-file scripts.</p>
 <p>For TSX/JSX scripts using React’s automatic runtime, include an explicit <code>import React from "https://..."</code> so Lectic can resolve the implicit <code>react/jsx-runtime</code> / <code>react/jsx-dev-runtime</code> imports.</p>
