@@ -3,7 +3,7 @@ import type { Backend } from "../types/backend"
 import { AnthropicBackend, AnthropicBedrockBackend } from "./anthropic"
 import { OpenAIBackend } from "./openai"
 import { OpenAIResponsesBackend } from "./openai-responses"
-import { ChatGPTBackend } from "./chatgpt"
+import { CodexBackend } from "./codex"
 import { GeminiBackend } from "./gemini"
 import type { Interlocutor } from "../types/interlocutor"
 
@@ -35,6 +35,6 @@ export function getBackend(interlocutor: Interlocutor): Backend<unknown, unknown
         case LLMProvider.Anthropic: return new AnthropicBackend()
         case LLMProvider.AnthropicBedrock: return new AnthropicBedrockBackend()
         case LLMProvider.Gemini: return new GeminiBackend()
-        case LLMProvider.ChatGPT: return new ChatGPTBackend()
+        case LLMProvider.Codex: return new CodexBackend()
     }
 }

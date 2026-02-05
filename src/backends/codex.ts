@@ -1,13 +1,13 @@
 import OpenAI from "openai"
 import { OpenAIResponsesBackend } from "./openai-responses"
-import { ChatGPTAuth } from "../auth/chatgpt"
+import { CodexAuth } from "../auth/codex"
 import { LLMProvider } from "../types/provider"
 import { isObjectRecord } from "../types/guards"
 
-const CHATGPT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
+const CODEX_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
 const OPENAI_BETA = "OpenAI-Beta"
 const OPENAI_BETA_RESPONSES = "responses=experimental"
-const CHATGPT_ACCOUNT_ID_HEADER = "chatgpt-account-id"
+const CODEX_ACCOUNT_ID_HEADER = "chatgpt-account-id"
 const ORIGINATOR_HEADER = "originator"
 const ORIGINATOR_CODEX = "codex_cli_rs"
 
@@ -17,7 +17,7 @@ function base64UrlDecode(input: string): string {
   return Buffer.from(padded, "base64").toString("utf-8")
 }
 
-function getChatGPTAccountId(accessToken: string): string | null {
+function getCodexAccountId(accessToken: string): string | null {
   const parts = accessToken.split(".")
   if (parts.length !== 3) return null
 
@@ -36,19 +36,19 @@ function getChatGPTAccountId(accessToken: string): string | null {
   }
 }
 
-export class ChatGPTBackend extends OpenAIResponsesBackend {
-  private auth: ChatGPTAuth
+export class CodexBackend extends OpenAIResponsesBackend {
+  private auth: CodexAuth
   private _client?: OpenAI
 
   constructor() {
     super({
-      apiKey: "CHATGPT_ACCESS_TOKEN",
-      provider: LLMProvider.ChatGPT,
+      apiKey: "CODEX_ACCESS_TOKEN",
+      provider: LLMProvider.Codex,
       // This is a reasonable default for subscription auth. Users can still
       // override it in their lectic header.
       defaultModel: "gpt-5.1-codex",
     })
-    this.auth = new ChatGPTAuth()
+    this.auth = new CodexAuth()
     this.cache_retention = false
   }
 
@@ -59,10 +59,10 @@ export class ChatGPTBackend extends OpenAIResponsesBackend {
       // The SDK wants some apiKey value, but we override the Authorization
       // header at request time using a custom fetch.
       apiKey: "chatgpt",
-      baseURL: CHATGPT_CODEX_BASE_URL,
+      baseURL: CODEX_CODEX_BASE_URL,
       fetch: async (input, init) => {
         const token = await this.auth.getAccessToken()
-        const accountId = getChatGPTAccountId(token)
+        const accountId = getCodexAccountId(token)
 
         const headers = new Headers(init?.headers)
         headers.set("Authorization", `Bearer ${token}`)
@@ -71,7 +71,7 @@ export class ChatGPTBackend extends OpenAIResponsesBackend {
         headers.set("accept", "text/event-stream")
 
         if (accountId) {
-          headers.set(CHATGPT_ACCOUNT_ID_HEADER, accountId)
+          headers.set(CODEX_ACCOUNT_ID_HEADER, accountId)
         }
 
         return fetch(input, {

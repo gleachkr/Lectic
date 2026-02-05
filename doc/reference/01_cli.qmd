@@ -27,7 +27,7 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 - `lectic models`
   List available models for providers with detected credentials.
 
-  Providers with API keys in the environment are queried. The `chatgpt`
+  Providers with API keys in the environment are queried. The `codex`
   provider is listed if you have previously logged in (it is not an API
   key-based provider).
 

@@ -134,5 +134,5 @@ tools:
 - **Anthropic**: Supports `search` only.
 - **OpenAI**: Supports both `search` and `code` via the `openai` provider
   (not the legacy `openai/chat` provider).
-- **ChatGPT**: Supports both `search` and `code` via the `chatgpt` provider
+- **Codex**: Supports both `search` and `code` via the `codex` provider
   (ChatGPT subscription, Codex backend).

@@ -68,7 +68,7 @@ function sha256(buffer: Buffer): Buffer {
   return createHash("sha256").update(buffer).digest()
 }
 
-export class ChatGPTAuth {
+export class CodexAuth {
   private tokenPath: string;
 
   constructor() {
@@ -76,7 +76,7 @@ export class ChatGPTAuth {
     if (!existsSync(stateDir)) {
       mkdirSync(stateDir, { recursive: true })
     }
-    this.tokenPath = join(stateDir, "chatgpt_auth.json")
+    this.tokenPath = join(stateDir, "codex_auth.json")
   }
 
   isAuthenticated(): boolean {
@@ -87,12 +87,12 @@ export class ChatGPTAuth {
     let tokens = this.loadTokens()
 
     if (!tokens) {
-      console.error("No ChatGPT tokens found. Initiating login...")
+      console.error("No Codex tokens found. Initiating login...")
       tokens = await this.login()
       this.saveTokens(tokens)
     } else if (Date.now() >= tokens.expires_at - 60000) {
       // Buffer of 60s
-      Logger.debug("auth", "ChatGPT token expired. Refreshing...")
+      Logger.debug("auth", "Codex token expired. Refreshing...")
       try {
         tokens = await this.refresh(tokens)
         this.saveTokens(tokens)

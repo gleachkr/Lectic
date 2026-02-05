@@ -24,17 +24,17 @@ sure your AWS environment is configured.
 
 ## ChatGPT subscription (no API key)
 
-Lectic also supports `provider: chatgpt`, which uses your ChatGPT
+Lectic also supports `provider: codex`, which uses your ChatGPT
 subscription via the official Codex / ChatGPT OAuth flow.
 
 Notes:
 
 - This provider is not auto-selected (there is no API key env var to check).
-  If you want it by default, set `provider: chatgpt` in your `lectic.yaml` or
+  If you want it by default, set `provider: codex` in your `lectic.yaml` or
   in the `.lec` frontmatter.
 - On first use, Lectic opens a browser window for login and stores tokens at
-  `$LECTIC_STATE/chatgpt_auth.json` (for example,
-  `~/.local/state/lectic/chatgpt_auth.json` on Linux).
+  `$LECTIC_STATE/codex_auth.json` (for example,
+  `~/.local/state/lectic/codex_auth.json` on Linux).
 - Login starts a local callback server on port 1455. If that port is in use,
   stop the other process and try again.
 - If you want to "log out", delete that file.
@@ -56,9 +56,9 @@ See [Editor Integration](./03_editor_integration.qmd).
 :::
 
 ::: {.callout-note}
-`provider: chatgpt` models only show up in `lectic models` after you have
+`provider: codex` models only show up in `lectic models` after you have
 logged in at least once (since the login is browser-based, not an API key).
-If you have not logged in yet, run a `.lec` file with `provider: chatgpt`
+If you have not logged in yet, run a `.lec` file with `provider: codex`
 first.
 :::
 
@@ -113,13 +113,13 @@ interlocutor:
   provider: openai/chat
 ```
 
-**ChatGPT** (subscription via Codex backend):
+**Codex** (via ChatGPT subscription):
 
 ```yaml
 interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
-  provider: chatgpt
+  provider: codex
   model: gpt-5.1-codex
 ```
 
@@ -161,7 +161,7 @@ Providers differ in what they accept as input. Here's a rough guide:
 | Anthropic | ✓ | ✓ | ✓ | ✗ | ✗ |
 | Gemini | ✓ | ✓ | ✓ | ✓ | ✓ |
 | OpenAI | ✓ | ✓ | ✓ | varies* | ✗ |
-| ChatGPT | ✓ | ✓ | ✓ | varies* | ✗ |
+| Codex | ✓ | ✓ | ✓ | varies* | ✗ |
 | OpenRouter | varies by model | | | | |
 | Ollama | ✓ | varies | ✗ | ✗ | ✗ |
 
