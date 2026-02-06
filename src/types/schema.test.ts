@@ -68,6 +68,27 @@ describe('null schema', () => {
         expect(() => serialize(123, schema)).toThrow("Invalid string value");
     });
 
+    it('should enforce string pattern constraints', () => {
+        const schema: JSONSchema = {
+            type: "string",
+            pattern: "^item-[0-9]+$",
+        };
+
+        expect(serialize("item-10", schema)).toBe("\n┆item-10\n");
+        expect(() => serialize("item-x", schema))
+            .toThrow("Invalid string value");
+    });
+
+    it('should enforce boolean enums', () => {
+        const schema: JSONSchema = {
+            type: "boolean",
+            enum: [true],
+        };
+
+        expect(serialize(true, schema)).toBe("true");
+        expect(() => serialize(false, schema)).toThrow("Invalid boolean value");
+    });
+
     it('should serialize a valid boolean', () => {
         const schema: JSONSchema = { type: "boolean", description: "A boolean" };
         expect(serialize(true, schema)).toBe('true');
@@ -172,6 +193,15 @@ describe('deserialize function', () => {
     it('should deserialize a valid string', () => {
         const schema: JSONSchema = { type: "string", description: "A string" };
         expect(deserialize('\n┆hello\n', schema)).toBe('hello');
+    });
+
+    it('should enforce string format constraints', () => {
+        const schema: JSONSchema = { type: "string", format: "email" };
+
+        expect(deserialize("\n┆a@example.com\n", schema))
+            .toBe("a@example.com");
+        expect(() => deserialize("\n┆not-an-email\n", schema))
+            .toThrow("Invalid serialized string");
     });
 
     it('should throw error for invalid literal as string', () => {
@@ -743,6 +773,49 @@ describe('oai strictify/destrictify', () => {
             expect(isJSONSchema(123)).toBeFalse()
             expect(() => validateJSONSchema(123))
                 .toThrow('Expected object')
+        })
+
+        it('accepts supported string format and pattern', () => {
+            const s: unknown = {
+                type: "string",
+                format: "email",
+                pattern: "^[^@]+@[^@]+$",
+            }
+            expect(validateJSONSchema(s)).toBeTrue()
+            expect(isJSONSchema(s)).toBeTrue()
+        })
+
+        it('rejects invalid regex patterns', () => {
+            const s: unknown = {
+                type: "string",
+                pattern: "[unterminated",
+            }
+            expect(isJSONSchema(s)).toBeFalse()
+            expect(() => validateJSONSchema(s))
+                .toThrow('Invalid regex pattern')
+        })
+
+        it('rejects unsupported string formats', () => {
+            const s: unknown = {
+                type: "string",
+                format: "uri",
+            }
+            expect(isJSONSchema(s)).toBeFalse()
+            expect(() => validateJSONSchema(s))
+                .toThrow('Unsupported format')
+        })
+
+        it('accepts boolean and null enums', () => {
+            const b: unknown = {
+                type: "boolean",
+                enum: [true, false],
+            }
+            const n: unknown = {
+                type: "null",
+                enum: [null],
+            }
+            expect(validateJSONSchema(b)).toBeTrue()
+            expect(validateJSONSchema(n)).toBeTrue()
         })
 
         it('rejects unknown keys', () => {

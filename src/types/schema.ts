@@ -1,12 +1,38 @@
+import { isIP } from "node:net"
 import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
 import { isObjectRecord } from "./guards.ts"
+
+type StringFormat =
+    | "date-time"
+    | "time"
+    | "date"
+    | "duration"
+    | "email"
+    | "hostname"
+    | "ipv4"
+    | "ipv6"
+    | "uuid"
 
 type StringSchema = {
     type: "string",
     description?: string
     enum? : string[]
+    pattern?: string
+    format?: StringFormat
     contentMediaType?: string
 }
+
+const SUPPORTED_STRING_FORMATS = new Set<StringFormat>([
+    "date-time",
+    "time",
+    "date",
+    "duration",
+    "email",
+    "hostname",
+    "ipv4",
+    "ipv6",
+    "uuid",
+])
 
 function assertNoUnknownKeys(
     v: Record<string, unknown>,
@@ -23,6 +49,95 @@ function assertNoUnknownKeys(
 function schemaPath(path: (string | number)[]): string {
     if (path.length === 0) return "schema"
     return "schema." + path.join(".")
+}
+
+function isValidRegexPattern(pattern: string): boolean {
+    try {
+        void new RegExp(pattern)
+        return true
+    } catch {
+        return false
+    }
+}
+
+function isSupportedStringFormat(value: string): value is StringFormat {
+    return SUPPORTED_STRING_FORMATS.has(value as StringFormat)
+}
+
+function matchesStringFormat(value: string, format?: StringFormat): boolean {
+    if (format === undefined) return true
+
+    switch (format) {
+        case "date-time": {
+            const dateTimeRe =
+                /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
+            return dateTimeRe.test(value) && !Number.isNaN(Date.parse(value))
+        }
+        case "time": {
+            const timeRe = /^\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
+            return timeRe.test(value)
+        }
+        case "date": {
+            const dateRe = /^(\d{4})-(\d{2})-(\d{2})$/
+            const m = dateRe.exec(value)
+            if (m === null) return false
+            const y = Number(m[1])
+            const mon = Number(m[2])
+            const d = Number(m[3])
+            const dt = new Date(Date.UTC(y, mon - 1, d))
+            return dt.getUTCFullYear() === y
+                && dt.getUTCMonth() === mon - 1
+                && dt.getUTCDate() === d
+        }
+        case "duration": {
+            const durationRe =
+                /^P(?=.)(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?=.)(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$/
+            return durationRe.test(value)
+        }
+        case "email": {
+            const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            return emailRe.test(value)
+        }
+        case "hostname": {
+            if (value.length === 0 || value.length > 253) return false
+            const labels = value.split(".")
+            return labels.every((label) => {
+                if (label.length === 0 || label.length > 63) return false
+                if (label.startsWith("-") || label.endsWith("-")) return false
+                return /^[A-Za-z0-9-]+$/.test(label)
+            })
+        }
+        case "ipv4":
+            return isIP(value) === 4
+        case "ipv6":
+            return isIP(value) === 6
+        case "uuid": {
+            const uuidRe =
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+            return uuidRe.test(value)
+        }
+        default:
+            // Some external schemas (e.g. MCP tool schemas) may include
+            // formats outside Lectic's validated subset. Ignore them here.
+            return true
+    }
+}
+
+function matchesStringPattern(value: string, pattern?: string): boolean {
+    if (pattern === undefined) return true
+    try {
+        return new RegExp(pattern).test(value)
+    } catch {
+        // Keep external schemas usable even if their regex flavor differs.
+        return true
+    }
+}
+
+function validateStringValue(arg: unknown, schema: StringSchema): arg is string {
+    return typeof arg === "string"
+        && (!schema.enum || schema.enum.includes(arg))
+        && matchesStringPattern(arg, schema.pattern)
+        && matchesStringFormat(arg, schema.format)
 }
 
 export function validateJSONSchema(raw: unknown): raw is JSONSchema {
@@ -62,7 +177,14 @@ export function validateJSONSchema(raw: unknown): raw is JSONSchema {
             case "string": {
                 assertNoUnknownKeys(
                     obj,
-                    new Set(["type", "enum", "contentMediaType", ...baseAllowed]),
+                    new Set([
+                        "type",
+                        "enum",
+                        "pattern",
+                        "format",
+                        "contentMediaType",
+                        ...baseAllowed,
+                    ]),
                     schemaPath(path),
                 )
 
@@ -77,6 +199,37 @@ export function validateJSONSchema(raw: unknown): raw is JSONSchema {
                     throw new Error(`Expected string[] at ${schemaPath([...path, "enum"])}`)
                 }
 
+                const patternVal = obj["pattern"]
+                if ("pattern" in obj && typeof patternVal !== "string") {
+                    throw new Error(
+                        `Expected string at ${schemaPath([...path, "pattern"])}`
+                    )
+                }
+                if (
+                    typeof patternVal === "string"
+                    && !isValidRegexPattern(patternVal)
+                ) {
+                    throw new Error(
+                        `Invalid regex pattern at ${schemaPath([...path, "pattern"])}`
+                    )
+                }
+
+                const formatVal = obj["format"]
+                if ("format" in obj && typeof formatVal !== "string") {
+                    throw new Error(
+                        `Expected string at ${schemaPath([...path, "format"])}`
+                    )
+                }
+                if (
+                    typeof formatVal === "string"
+                    && !isSupportedStringFormat(formatVal)
+                ) {
+                    throw new Error(
+                        `Unsupported format "${formatVal}" at `
+                        + schemaPath([...path, "format"])
+                    )
+                }
+
                 const cmtVal = obj["contentMediaType"]
                 if ("contentMediaType" in obj && typeof cmtVal !== "string") {
                     throw new Error(
@@ -89,18 +242,40 @@ export function validateJSONSchema(raw: unknown): raw is JSONSchema {
             case "boolean": {
                 assertNoUnknownKeys(
                     obj,
-                    new Set(["type", ...baseAllowed]),
+                    new Set(["type", "enum", ...baseAllowed]),
                     schemaPath(path)
                 )
+
+                const enumVal = obj["enum"]
+                if ("enum" in obj && !Array.isArray(enumVal)) {
+                    throw new Error(`Expected array at ${schemaPath([...path, "enum"])}`)
+                }
+                if (
+                    Array.isArray(enumVal)
+                    && !enumVal.every((x) => typeof x === "boolean")
+                ) {
+                    throw new Error(`Expected boolean[] at ${schemaPath([...path, "enum"])}`)
+                }
                 break
             }
 
             case "null": {
                 assertNoUnknownKeys(
                     obj,
-                    new Set(["type", ...baseAllowed]),
+                    new Set(["type", "enum", ...baseAllowed]),
                     schemaPath(path)
                 )
+
+                const enumVal = obj["enum"]
+                if ("enum" in obj && !Array.isArray(enumVal)) {
+                    throw new Error(`Expected array at ${schemaPath([...path, "enum"])}`)
+                }
+                if (
+                    Array.isArray(enumVal)
+                    && !enumVal.every((x) => x === null)
+                ) {
+                    throw new Error(`Expected null[] at ${schemaPath([...path, "enum"])}`)
+                }
                 break
             }
 
@@ -228,6 +403,7 @@ export function isJSONSchema(raw: unknown): raw is JSONSchema {
 type BooleanSchema = {
     type: "boolean",
     description?: string
+    enum? : boolean[]
 }
 
 type NumberSchema = {
@@ -254,6 +430,8 @@ type ArraySchema = {
 
 type NullSchema = {
     type: "null"
+    description?: string
+    enum?: null[]
 }
 
 export type ObjectSchema = {
@@ -462,21 +640,24 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
 
     switch (schema.type) {
         case "string": {
-            if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
+            if (!validateStringValue(arg, schema)) {
                 throw new Error(`Invalid string value: ${arg}`)
             }
             return escapeTags(arg)
         }
 
         case "boolean": {
-            if (typeof arg !== "boolean") {
+            if (
+                typeof arg !== "boolean"
+                || (schema.enum && !schema.enum.includes(arg))
+            ) {
                 throw new Error(`Invalid boolean value: ${arg}`)
             }
             return arg.toString()
         }
 
         case "null": {
-            if (arg !== null) {
+            if (arg !== null || (schema.enum && !schema.enum.includes(arg))) {
                 throw new Error(`Invalid null value: ${arg}`)
             }
             return ""
@@ -550,21 +731,24 @@ export function validateAgainstSchema(arg: unknown , schema: JSONSchema) : boole
 
     switch (schema.type) {
         case "string": {
-            if (typeof arg !== "string" || (schema.enum && !schema.enum.includes(arg))) {
+            if (!validateStringValue(arg, schema)) {
                 throw new Error(`Invalid string value: ${arg}`)
             }
             return true
         }
 
         case "boolean": {
-            if (typeof arg !== "boolean") {
+            if (
+                typeof arg !== "boolean"
+                || (schema.enum && !schema.enum.includes(arg))
+            ) {
                 throw new Error(`Invalid boolean value: ${arg}`)
             }
             return true
         }
 
         case "null": {
-            if (arg !== null) {
+            if (arg !== null || (schema.enum && !schema.enum.includes(arg))) {
                 throw new Error(`Invalid null value: ${arg}`)
             }
             return true
@@ -654,7 +838,7 @@ export function deserialize(xml: string, schema: JSONSchema): unknown {
             const looksEscaped = xml.includes('\n┆') || (xml.startsWith('\n') && xml.endsWith('\n'))
             if (!looksEscaped) throw new Error("Invalid serialized string")
             const unescaped = unescapeTags(xml)
-            if (schema.enum && !schema.enum.includes(unescaped)) {
+            if (!validateStringValue(unescaped, schema)) {
                 throw new Error("Invalid serialized string")
             }
             return unescaped
@@ -662,14 +846,30 @@ export function deserialize(xml: string, schema: JSONSchema): unknown {
 
         case "null":
             xml = xml.trim()
-            if (xml === "") return null
+            if (
+                xml === ""
+                && (!schema.enum || schema.enum.includes(null))
+            ) {
+                return null
+            }
             throw new Error("Invalid serialized null")
 
-        case "boolean":
+        case "boolean": {
             xml = xml.trim()
-            if (xml === "true") return true
-            if (xml === "false") return false
+            if (xml === "true") {
+                if (schema.enum && !schema.enum.includes(true)) {
+                    throw new Error("Invalid serialized boolean")
+                }
+                return true
+            }
+            if (xml === "false") {
+                if (schema.enum && !schema.enum.includes(false)) {
+                    throw new Error("Invalid serialized boolean")
+                }
+                return false
+            }
             throw new Error("Invalid serialized boolean")
+        }
 
         case "number": {
             xml = xml.trim()
