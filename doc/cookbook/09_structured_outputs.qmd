@@ -1,0 +1,150 @@
+# Recipe: Structured Outputs (Galactic Quest Cards)
+
+This recipe shows how to make Lectic return strict JSON that your scripts
+can consume directly.
+
+For a full list of supported JSON Schema keys, see
+[Structured Outputs Reference](../reference/04_structured_outputs.qmd).
+
+We'll build a tiny "quest generator" that always returns the same shape,
+so you can pipe it to `jq`, save it, or feed it into another tool.
+
+## Why use `output_schema`?
+
+Without a schema, you usually get great prose, but parsing it can be
+fragile.
+
+With `output_schema`, Lectic asks the model for JSON that matches your
+schema. This is ideal when output is going to automation, a UI, or tests.
+
+The schema format is JSON Schema:
+https://json-schema.org/
+
+## The Setup
+
+Create `quests.lec`:
+
+```markdown
+---
+interlocutor:
+  name: Quartermaster
+  prompt: |
+    You design side quests for a chaotic sci-fi RPG crew.
+    Return valid JSON only.
+  provider: openai
+  model: gpt-4.1-mini
+  output_schema:
+    type: object
+    properties:
+      setting:
+        type: string
+      quests:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            difficulty:
+              type: string
+              enum: [easy, medium, hard]
+            objective:
+              type: string
+            reward_credits:
+              type: integer
+              minimum: 50
+          required: [id, title, difficulty, objective, reward_credits]
+          additionalProperties: false
+    required: [setting, quests]
+    additionalProperties: false
+---
+
+Generate three side quests for a rust-bucket cargo crew that keeps
+accidentally becoming heroes.
+```
+
+Run it:
+
+```bash
+lectic -f quests.lec -S > quests.json
+```
+
+Now your output is machine-friendly JSON, not free-form prose.
+
+If you use a different provider, keep the same `output_schema` and swap
+`provider` and `model` to one that supports structured outputs.
+
+## Provider-specific limitations
+
+Structured outputs are not identical across providers.
+
+Provider docs:
+
+- OpenAI: <https://platform.openai.com/docs/guides/structured-outputs#supported-schemas>
+- Anthropic: <https://platform.claude.com/docs/en/build-with-claude/structured-outputs>
+
+Lectic handles provider conformance for you:
+
+- OpenAI providers (`openai`, `openai/chat`): Lectic rewrites schemas for
+  strict mode compatibility.
+- Anthropic providers (`anthropic`, `anthropic/bedrock`): Lectic also
+  transforms schemas for Anthropic's structured-output subset.
+
+If a schema works on one provider but fails on another, simplify it to a
+shared subset.
+
+## Use the Output
+
+Inspect it with `jq`:
+
+```bash
+jq '.quests[] | {title, difficulty, reward_credits}' quests.json
+```
+
+Print a quick "quest board":
+
+```bash
+jq -r '.quests[] |
+  "🛰️  \(.title) [\(.difficulty)] — \(.objective) (\(.reward_credits) cr)"' \
+  quests.json
+```
+
+## Example Output
+
+```json
+{
+  "setting": "Outer Perseus Shipping Lanes",
+  "quests": [
+    {
+      "id": "Q-01",
+      "title": "Rescue the Complaining Navigation AI",
+      "difficulty": "easy",
+      "objective": "Recover a drifted nav core from a salvage maze.",
+      "reward_credits": 250
+    },
+    {
+      "id": "Q-02",
+      "title": "Smuggle Medicine Past a Petty Blockade",
+      "difficulty": "medium",
+      "objective": "Deliver aid crates while spoofing three patrol scans.",
+      "reward_credits": 600
+    },
+    {
+      "id": "Q-03",
+      "title": "Tow a Singing Derelict Through Pirate Space",
+      "difficulty": "hard",
+      "objective": "Escort an unstable relic ship to a research dock.",
+      "reward_credits": 1200
+    }
+  ]
+}
+```
+
+## Tips
+
+- Keep schemas simple at first: object, array, enum, integer, string.
+- Add `additionalProperties: false` to reduce drift.
+- Tell the model exactly what the JSON is for in `prompt`.
+- You can still enable tools; the schema constrains the final answer.

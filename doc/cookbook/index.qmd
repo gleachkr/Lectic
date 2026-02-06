@@ -52,3 +52,7 @@ If you're new to Lectic, start with these:
   subcommand that exposes the [Agent Skills](https://agentskills.io)
   format, letting your LLM load capabilities on demand through progressive
   disclosure.
+
+- **[Structured Outputs](./09_structured_outputs.qmd)** — Constrain the
+  assistant to a JSON schema so results are reliably machine-readable.
+  Includes a fun "quest cards" example you can pipe through `jq`.

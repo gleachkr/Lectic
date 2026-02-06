@@ -75,6 +75,8 @@ website:
             href: ./cookbook/07_control_flow_macros.qmd
           - text: Agent Skills Support
             href: ./cookbook/08_skills_subcommand.qmd
+          - text: Structured Outputs
+            href: ./cookbook/09_structured_outputs.qmd
       - section: Reference
         contents:
           - text: CLI
@@ -83,6 +85,8 @@ website:
             href: ./reference/02_configuration.qmd
           - text: LSP Server
             href: ./reference/03_lsp.qmd
+          - text: Structured Outputs
+            href: ./reference/04_structured_outputs.qmd
 
 format:
   html:
