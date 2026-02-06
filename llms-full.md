@@ -4422,6 +4422,9 @@ configuration.
   `mcp_command` tools used by this interlocutor, unless overridden by
   the tool’s own `sandbox` setting. This overrides any top-level
   `sandbox` setting.
+- `output_schema`: Optional JSON Schema that constrains the assistant’s
+  output to valid JSON. This is forwarded to backends that support
+  structured outputs.
 
 ### Model Configuration
 
