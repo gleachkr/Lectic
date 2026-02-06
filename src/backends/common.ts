@@ -12,9 +12,17 @@ export function wrapText({text, name} : { text : string, name: string}) {
 
 export function systemPrompt(lectic : Lectic) {
 
-return `Your name is ${lectic.header.interlocutor.name}
+    const base = `Your name is ${lectic.header.interlocutor.name}
 
-${lectic.header.interlocutor.prompt}
+${lectic.header.interlocutor.prompt}`
+
+    // When using structured outputs, line-wrapping instructions can produce
+    // invalid JSON. Defer to the provider's structured output guarantees.
+    if (lectic.header.interlocutor.output_schema) {
+        return base
+    }
+
+    return base + `
 
 1. **IMPORTANT: You must write text so that each line is no longer than 78 characters.**
 

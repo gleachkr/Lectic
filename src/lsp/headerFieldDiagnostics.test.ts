@@ -55,4 +55,16 @@ describe("header field diagnostics", () => {
     expect(idx).toBeGreaterThan(0)
     expect(d!.range.start.line).toBe(idx)
   })
+
+  test("output_schema invalid points to its value", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  output_schema: 123\n---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, "output_schema for A wasn't well-formed")
+    expect(d).toBeDefined()
+    const ls = lines(text)
+    const idx = ls.findIndex(l => l.includes("output_schema: 123"))
+    expect(idx).toBeGreaterThan(0)
+    expect(d!.range.start.line).toBe(idx)
+  })
 })

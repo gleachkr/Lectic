@@ -5,6 +5,8 @@ import {
     validateAgainstSchema,
     strictify,
     destrictify,
+    validateJSONSchema,
+    isJSONSchema,
 } from './schema';
 import { expect, it, describe } from "bun:test"
 
@@ -721,5 +723,35 @@ describe('oai strictify/destrictify', () => {
 
         const value = { nested: { x: null } }
         expect(destrictify(value, schema)).toEqual({ nested: {} })
+    })
+
+    describe('validateJSONSchema', () => {
+        it('accepts a simple object schema', () => {
+            const s: unknown = {
+                type: "object",
+                properties: {
+                    a: { type: "string" },
+                },
+                required: ["a"],
+                additionalProperties: false,
+            }
+            expect(validateJSONSchema(s)).toBeTrue()
+            expect(isJSONSchema(s)).toBeTrue()
+        })
+
+        it('rejects non-objects', () => {
+            expect(isJSONSchema(123)).toBeFalse()
+            expect(() => validateJSONSchema(123))
+                .toThrow('Expected object')
+        })
+
+        it('rejects unknown keys', () => {
+            const s: unknown = {
+                type: "string",
+                no_such_key: true,
+            }
+            expect(isJSONSchema(s)).toBeFalse()
+            expect(() => validateJSONSchema(s)).toThrow('Unknown key')
+        })
     })
 })

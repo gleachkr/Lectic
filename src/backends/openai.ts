@@ -3,7 +3,7 @@ import type { Message } from "../types/message"
 import type { HasModel, Lectic } from "../types/lectic"
 import type { BackendCompletion, BackendUsage } from "../types/backend"
 import { Backend } from "../types/backend"
-import { type LLMProvider } from "../types/provider"
+import { LLMProvider } from "../types/provider"
 import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
@@ -268,6 +268,19 @@ export class OpenAIBackend extends Backend<
 
     const model = lectic.header.interlocutor.model ?? this.defaultModel
 
+    const output_schema = lectic.header.interlocutor.output_schema
+    const response_format =
+      output_schema
+      ? {
+          type: "json_schema" as const,
+          json_schema: {
+            name: "output",
+            strict: true,
+            schema: strictify(output_schema),
+          },
+        }
+      : undefined
+
     Logger.debug("openai - messages", messages)
 
     const stream = this.client.chat.completions.stream({
@@ -280,6 +293,7 @@ export class OpenAIBackend extends Backend<
         : undefined,
       stream: true,
       tools: getTools(lectic),
+      response_format,
     })
 
     async function* text(): AsyncGenerator<string> {

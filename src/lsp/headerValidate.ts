@@ -1,6 +1,7 @@
 // Non-throwing validators that mirror runtime checks and return
 // structured issues with YAML-like paths for precise diagnostics.
 import { isLLMProvider } from "../types/provider"
+import { validateJSONSchema } from "../types/schema"
 import { Messages } from "../constants/messages"
 import { isObjectRecord } from "../types/guards"
 import { INTERLOCUTOR_KEY_SET } from "./interlocutorFields"
@@ -212,6 +213,21 @@ export function validateHeaderShape(spec: unknown): Issue[] {
               severity: "error"
             })
           }
+        })
+      }
+    }
+
+    // output_schema
+    if ("output_schema" in raw) {
+      try {
+        validateJSONSchema(raw["output_schema"])
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        issues.push({
+          code: "interlocutor.output_schema.invalid",
+          message: Messages.interlocutor.outputSchemaInvalid(nameVal, msg),
+          path: [...pathBase, "output_schema"],
+          severity: "error",
         })
       }
     }

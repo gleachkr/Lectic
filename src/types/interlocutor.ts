@@ -1,6 +1,7 @@
 import { type LLMProvider, isLLMProvider } from "./provider"
 import { type Tool } from "./tool"
 import { type HookSpec, type Hook, isHookSpecList } from "./hook"
+import { type JSONSchema, validateJSONSchema } from "./schema"
 import { Messages } from "../constants/messages"
 
 export type A2AAgentConfig = {
@@ -25,6 +26,9 @@ export type Interlocutor = {
     thinking_budget?: number
     thinking_effort?: "none" | "low" | "medium" | "high"
     sandbox?: string
+
+    // Constrain the assistant's output to a structured JSON response.
+    output_schema?: JSONSchema
 
     // Optional agent configuration (used by `lectic a2a`).
     a2a?: A2AAgentConfig
@@ -71,6 +75,14 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
     } 
     if (("sandbox" in raw) && typeof raw.sandbox !== "string") {
         throw Error(Messages.interlocutor.sandboxType(raw.name))
+    }
+    if (("output_schema" in raw)) {
+        try {
+            validateJSONSchema(raw.output_schema)
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e)
+            throw Error(Messages.interlocutor.outputSchemaInvalid(raw.name, msg))
+        }
     }
     if (("temperature" in raw)) {
         if (typeof raw.temperature !== "number") {

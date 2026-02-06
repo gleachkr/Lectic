@@ -118,6 +118,8 @@ async function getResult(
       }
   }
 
+  const output_schema = lectic.header.interlocutor.output_schema
+
   return client.models.generateContentStream({
     model: lectic.header.interlocutor.model ?? model,
     contents: messages,
@@ -138,6 +140,8 @@ async function getResult(
       temperature: lectic.header.interlocutor.temperature,
       maxOutputTokens: lectic.header.interlocutor.max_tokens,
       thinkingConfig,
+      responseMimeType: output_schema ? "application/json" : undefined,
+      responseJsonSchema: output_schema,
     },
   })
 }

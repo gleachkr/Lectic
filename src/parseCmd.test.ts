@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterAll } from 'bun:test'
+import { describe, it, expect, beforeAll, beforeEach, afterAll }
+  from 'bun:test'
 import { parseCmd } from './parseCmd'
 import { Logger } from './logging/logger'
 import * as YAML from 'yaml'
-import { writeFileSync, unlinkSync } from 'fs'
+import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 
@@ -17,7 +18,14 @@ const tempDir = tmpdir()
 const testFile = join(tempDir, 'test_parse.lec')
 
 describe('parseCmd', () => {
-    
+    const prevConfig = process.env["LECTIC_CONFIG"]
+    let configDir: string | null = null
+
+    beforeAll(() => {
+        configDir = mkdtempSync(join(tmpdir(), "lectic-test-config-"))
+        process.env["LECTIC_CONFIG"] = configDir
+    })
+
     beforeEach(() => {
         logs = []
     })
@@ -25,6 +33,20 @@ describe('parseCmd', () => {
     afterAll(() => {
         Logger.write = originalWrite
         try { unlinkSync(testFile) } catch { /* Ignore */ }
+
+        if (prevConfig === undefined) {
+            delete process.env["LECTIC_CONFIG"]
+        } else {
+            process.env["LECTIC_CONFIG"] = prevConfig
+        }
+
+        if (configDir) {
+            try {
+                rmSync(configDir, { recursive: true, force: true })
+            } catch {
+                // ignore
+            }
+        }
     })
 
     it('should parse a simple lectic file to JSON', async () => {

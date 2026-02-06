@@ -8,6 +8,223 @@ type StringSchema = {
     contentMediaType?: string
 }
 
+function assertNoUnknownKeys(
+    v: Record<string, unknown>,
+    allowed: Set<string>,
+    path: string,
+) {
+    for (const key of Object.keys(v)) {
+        if (!allowed.has(key)) {
+            throw new Error(`Unknown key "${key}" at ${path}`)
+        }
+    }
+}
+
+function schemaPath(path: (string | number)[]): string {
+    if (path.length === 0) return "schema"
+    return "schema." + path.join(".")
+}
+
+export function validateJSONSchema(raw: unknown): raw is JSONSchema {
+    const visit = (v: unknown, path: (string | number)[]): void => {
+        if (!isObjectRecord(v)) {
+            throw new Error(`Expected object at ${schemaPath(path)}`)
+        }
+
+        const obj = v
+        const baseAllowed = new Set(["description", "default"])
+
+        if ("anyOf" in obj) {
+            assertNoUnknownKeys(
+                obj,
+                new Set(["anyOf", ...baseAllowed]),
+                schemaPath(path),
+            )
+
+            const anyOfVal = obj["anyOf"]
+            if (!Array.isArray(anyOfVal)) {
+                throw new Error(
+                    `Expected array at ${schemaPath([...path, "anyOf"])}`
+                )
+            }
+            for (let i = 0; i < anyOfVal.length; i++) {
+                visit(anyOfVal[i], [...path, "anyOf", i])
+            }
+            return
+        }
+
+        const typeVal = obj["type"]
+        if (typeof typeVal !== "string") {
+            throw new Error(`Missing schema type at ${schemaPath(path)}`)
+        }
+
+        switch (typeVal) {
+            case "string": {
+                assertNoUnknownKeys(
+                    obj,
+                    new Set(["type", "enum", "contentMediaType", ...baseAllowed]),
+                    schemaPath(path),
+                )
+
+                const enumVal = obj["enum"]
+                if ("enum" in obj && !Array.isArray(enumVal)) {
+                    throw new Error(`Expected array at ${schemaPath([...path, "enum"])}`)
+                }
+                if (
+                    Array.isArray(enumVal) &&
+                    !enumVal.every((x) => typeof x === "string")
+                ) {
+                    throw new Error(`Expected string[] at ${schemaPath([...path, "enum"])}`)
+                }
+
+                const cmtVal = obj["contentMediaType"]
+                if ("contentMediaType" in obj && typeof cmtVal !== "string") {
+                    throw new Error(
+                        `Expected string at ${schemaPath([...path, "contentMediaType"])}`
+                    )
+                }
+                break
+            }
+
+            case "boolean": {
+                assertNoUnknownKeys(
+                    obj,
+                    new Set(["type", ...baseAllowed]),
+                    schemaPath(path)
+                )
+                break
+            }
+
+            case "null": {
+                assertNoUnknownKeys(
+                    obj,
+                    new Set(["type", ...baseAllowed]),
+                    schemaPath(path)
+                )
+                break
+            }
+
+            case "number":
+            case "integer": {
+                assertNoUnknownKeys(
+                    obj,
+                    new Set(["type", "enum", "minimum", "maximum", ...baseAllowed]),
+                    schemaPath(path),
+                )
+
+                const enumVal = obj["enum"]
+                if ("enum" in obj && !Array.isArray(enumVal)) {
+                    throw new Error(`Expected array at ${schemaPath([...path, "enum"])}`)
+                }
+                if (
+                    Array.isArray(enumVal) &&
+                    !enumVal.every((x) => typeof x === "number")
+                ) {
+                    throw new Error(`Expected number[] at ${schemaPath([...path, "enum"])}`)
+                }
+
+                const minVal = obj["minimum"]
+                if ("minimum" in obj && typeof minVal !== "number") {
+                    throw new Error(
+                        `Expected number at ${schemaPath([...path, "minimum"])}`
+                    )
+                }
+
+                const maxVal = obj["maximum"]
+                if ("maximum" in obj && typeof maxVal !== "number") {
+                    throw new Error(
+                        `Expected number at ${schemaPath([...path, "maximum"])}`
+                    )
+                }
+                break
+            }
+
+            case "array": {
+                assertNoUnknownKeys(
+                    obj,
+                    new Set(["type", "items", ...baseAllowed]),
+                    schemaPath(path)
+                )
+
+                if (!("items" in obj)) {
+                    throw new Error(`Missing items at ${schemaPath([...path, "items"])}`)
+                }
+                visit(obj["items"], [...path, "items"])
+                break
+            }
+
+            case "object": {
+                assertNoUnknownKeys(
+                    obj,
+                    new Set([
+                        "type",
+                        "properties",
+                        "required",
+                        "additionalProperties",
+                        ...baseAllowed,
+                    ]),
+                    schemaPath(path),
+                )
+
+                const propsVal = obj["properties"]
+                if (!("properties" in obj) || !isObjectRecord(propsVal)) {
+                    throw new Error(
+                        `Expected object at ${schemaPath([...path, "properties"])}`
+                    )
+                }
+                for (const [k, child] of Object.entries(propsVal)) {
+                    visit(child, [...path, "properties", k])
+                }
+
+                const reqVal = obj["required"]
+                if ("required" in obj) {
+                    if (!Array.isArray(reqVal)) {
+                        throw new Error(
+                            `Expected array at ${schemaPath([...path, "required"])}`
+                        )
+                    }
+                    if (!reqVal.every((x) => typeof x === "string")) {
+                        throw new Error(
+                            `Expected string[] at ${schemaPath([...path, "required"])}`
+                        )
+                    }
+                }
+
+                const apVal = obj["additionalProperties"]
+                if ("additionalProperties" in obj && typeof apVal !== "boolean") {
+                    throw new Error(
+                        `Expected boolean at ${schemaPath([...path, "additionalProperties"])}`
+                    )
+                }
+                break
+            }
+
+            default:
+                throw new Error(
+                    `Unknown schema type "${typeVal}" at ${schemaPath(path)}`
+                )
+        }
+
+        const descVal = obj["description"]
+        if ("description" in obj && typeof descVal !== "string") {
+            throw new Error(
+                `Expected string at ${schemaPath([...path, "description"])}`
+            )
+        }
+    }
+
+    visit(raw, [])
+    return true
+}
+
+export function isJSONSchema(raw: unknown): raw is JSONSchema {
+    try {
+        return validateJSONSchema(raw)
+    } catch {
+        return false
+    }
+}
+
 type BooleanSchema = {
     type: "boolean",
     description?: string

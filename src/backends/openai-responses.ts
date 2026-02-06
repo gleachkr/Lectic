@@ -266,6 +266,18 @@ export class OpenAIResponsesBackend extends Backend<
 
     const model = lectic.header.interlocutor.model
 
+    const output_schema = lectic.header.interlocutor.output_schema
+    const textConfig = output_schema
+      ? {
+          format: {
+            type: "json_schema" as const,
+            name: "output",
+            strict: true,
+            schema: strictify(output_schema),
+          },
+        }
+      : undefined
+
     Logger.debug("openai - messages", messages)
 
     const stream = this.client.responses.stream({
@@ -282,6 +294,7 @@ export class OpenAIResponsesBackend extends Backend<
         ? { effort: lectic.header.interlocutor.thinking_effort }
         : undefined,
       tools: getTools(lectic),
+      text: textConfig,
       store: false,
     })
 

@@ -19,6 +19,7 @@ import {
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { MessageStream } from "@anthropic-ai/sdk/lib/MessageStream.mjs"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
+import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema.js"
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
 // server tool use blocks begin (to preserve formatting semantics).
@@ -304,6 +305,16 @@ export class AnthropicBackend extends Backend<
 
     const model = lectic.header.interlocutor.model
 
+    const output_schema = lectic.header.interlocutor.output_schema
+    const output_config = output_schema
+      ? {
+          format: {
+            type: "json_schema" as const,
+            schema: transformJSONSchema(output_schema),
+          },
+        }
+      : undefined
+
     Logger.debug("anthropic - messages", messages)
 
     const stream = this.client.messages.stream({
@@ -313,6 +324,7 @@ export class AnthropicBackend extends Backend<
       model,
       temperature: lectic.header.interlocutor.temperature,
       tools: getTools(lectic),
+      output_config,
       thinking:
         lectic.header.interlocutor.thinking_budget !== undefined
           ? {
