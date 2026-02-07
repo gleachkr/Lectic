@@ -1,5 +1,7 @@
 import { createWriteStream } from "fs"
-import { parseLectic } from "./parsing/parse"
+import { dirname } from "path"
+
+import { getYaml, parseLectic } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
 import { runHooks } from "./types/backend"
@@ -57,7 +59,11 @@ export async function generate() {
 
     try {
 
-        const includes = await getIncludes()
+        const rawHeaderYaml = getYaml(lecticString)
+        const docDir = lecticEnv["LECTIC_FILE"]
+          ? dirname(lecticEnv["LECTIC_FILE"])
+          : process.cwd()
+        const includes = await getIncludes(rawHeaderYaml, docDir, docDir)
 
         lectic = await parseLectic(lecticString, includes)
 

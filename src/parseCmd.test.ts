@@ -83,6 +83,48 @@ Hi there
         expect(output.messages[1].content[0].children[0].value).toBe("Hi there")
     })
 
+    it('should load imports from workspace config when parsing', async () => {
+        const wsDir = mkdtempSync(join(tmpdir(), "lectic-ws-imports-"))
+
+        try {
+            writeFileSync(
+                join(wsDir, "plugin.yaml"),
+                [
+                    "interlocutors:",
+                    "  - name: ImportedBot",
+                    "    prompt: from import",
+                    "",
+                ].join("\n")
+            )
+
+            writeFileSync(
+                join(wsDir, "lectic.yaml"),
+                ["imports:", "  - ./plugin.yaml", ""].join("\n")
+            )
+
+            const file = join(wsDir, "task.lec")
+            writeFileSync(
+                file,
+                [
+                    "---",
+                    "interlocutor:",
+                    "  name: ImportedBot",
+                    "---",
+                    "Hello",
+                    "",
+                ].join("\n")
+            )
+
+            await parseCmd({ file })
+
+            const output = JSON.parse(logs.join(''))
+            expect(output.messages).toHaveLength(1)
+            expect(output.messages[0].role).toBe("user")
+        } finally {
+            rmSync(wsDir, { recursive: true, force: true })
+        }
+    })
+
     it('should parse a lectic file with tool calls', async () => {
         const content = `---
 interlocutor:

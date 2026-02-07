@@ -5,7 +5,11 @@
 #   source /path/to/lectic_bash_completion.bash
 #
 # This script discovers subcommands and loads optional completion plugins at
-# source-time.
+# source-time. Subcommand discovery matches runtime behavior:
+#
+# - config dir: recursive
+# - data dir: recursive (for bundled plugins)
+# - PATH dirs: top-level only
 #
 # Completion plugins
 #
@@ -90,43 +94,59 @@ __lectic_get_completion() {
   eval "printf %s \"\${__LECTIC_COMPLETE_FN_KEY_${key}:-}\""
 }
 
+__lectic_register_subcommand_path() {
+  local cmd_path="$1"
+  local cmd_name
+
+  [[ -f "${cmd_path}" && -x "${cmd_path}" ]] || return 0
+
+  cmd_name=$(basename "${cmd_path}")
+  cmd_name="${cmd_name#lectic-}"
+  cmd_name="${cmd_name%%.*}"
+
+  if __lectic_add_subcommand "${cmd_name}"; then
+    __lectic_source_adjacent_completion "${cmd_path}"
+  fi
+}
+
+__lectic_scan_recursive_subcommands() {
+  local root="$1"
+  local cmd_path
+
+  [[ -d "${root}" ]] || return 0
+
+  while IFS= read -r -d '' cmd_path; do
+    __lectic_register_subcommand_path "${cmd_path}"
+  done < <(
+    find "${root}" -type f -name 'lectic-*' -perm -u+x -print0 2>/dev/null
+  )
+}
+
 __lectic_init_subcommands() {
   local core_subcommands=(models parse lsp script)
-  local search_dirs=()
   local path_dirs=()
-  local dir
+  local dir cmd_path
+  local old_nullglob
 
   for dir in "${core_subcommands[@]}"; do
     __lectic_add_subcommand "${dir}"
   done
 
-  search_dirs+=("${__LECTIC_CONFIG_DIR}")
-  search_dirs+=("${__LECTIC_DATA_DIR}")
-
-  IFS=':' read -r -a path_dirs <<< "${PATH}"
-  for dir in "${path_dirs[@]}"; do
-    search_dirs+=("${dir}")
-  done
-
-  local cmd_path cmd_name
-  local old_nullglob
-
   old_nullglob=$(shopt -p nullglob)
   shopt -s nullglob
 
-  for dir in "${search_dirs[@]}"; do
+  # 1) Config dir: recursive.
+  __lectic_scan_recursive_subcommands "${__LECTIC_CONFIG_DIR}"
+
+  # 2) Data dir: recursive, so plugin bundles can ship subcommands.
+  __lectic_scan_recursive_subcommands "${__LECTIC_DATA_DIR}"
+
+  # 3) PATH entries: top-level only.
+  IFS=':' read -r -a path_dirs <<< "${PATH}"
+  for dir in "${path_dirs[@]}"; do
     [[ -d "${dir}" ]] || continue
-
     for cmd_path in "${dir}"/lectic-*; do
-      [[ -f "${cmd_path}" && -x "${cmd_path}" ]] || continue
-
-      cmd_name=$(basename "${cmd_path}")
-      cmd_name="${cmd_name#lectic-}"
-      cmd_name="${cmd_name%%.*}"
-
-      if __lectic_add_subcommand "${cmd_name}"; then
-        __lectic_source_adjacent_completion "${cmd_path}"
-      fi
+      __lectic_register_subcommand_path "${cmd_path}"
     done
   done
 

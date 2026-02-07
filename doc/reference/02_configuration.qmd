@@ -6,6 +6,9 @@ included configuration files.
 
 ## Top-Level Keys
 
+- `imports`: Optional list of config imports. Each entry is either a string
+  path, or an object with `path` and optional `optional: true`. If the path
+  is a directory, Lectic loads `<path>/lectic.yaml`.
 - `interlocutor`: A single object defining the primary LLM speaker.
 - `interlocutors`: A list of interlocutor objects for multiparty
   conversations.
@@ -16,6 +19,28 @@ included configuration files.
 - `sandbox`: A default sandbox command string applied to all `exec` tools
   and local `mcp_command` tools, unless overridden by
   `interlocutor.sandbox` or a tool's own `sandbox` setting.
+
+---
+
+## The `imports` Entry
+
+Imports are resolved relative to the file that declares them.
+
+Valid forms:
+
+```yaml
+imports:
+  - ./plugins/sales/module.yaml
+  - path: ./plugins/finance
+    optional: true
+```
+
+- String form: required import path.
+- Object form:
+  - `path`: (Required) import path.
+  - `optional`: (Optional, boolean) skip missing files without error.
+
+Imports are recursive, and cycles are reported as errors.
 
 ---
 

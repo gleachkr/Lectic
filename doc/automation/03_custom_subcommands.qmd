@@ -13,9 +13,12 @@ create shortcuts for complex Lectic invocations.
 When you run `lectic foo args...`, Lectic searches for an executable named
 `lectic-foo` or `lectic-foo.*` in the following locations, in order:
 
-1. **Configuration Directory**: `$LECTIC_CONFIG` (defaults to `~/.config/lectic` on Linux)
-2. **Data Directory**: `$LECTIC_DATA` (defaults to `~/.local/share/lectic` on Linux)
-3. **System PATH**: Any directory in your `$PATH`.
+1. **Configuration Directory**: `$LECTIC_CONFIG` (defaults to
+   `~/.config/lectic` on Linux). Searched recursively.
+2. **Data Directory**: `$LECTIC_DATA` (defaults to
+   `~/.local/share/lectic` on Linux). Searched recursively.
+3. **System PATH**: Any directory in your `$PATH`. Top-level per PATH
+   entry.
 
 The first match found is executed. The subprocess receives the remaining arguments,
 inherits the standard input, output, and error streams, and has access to
@@ -169,5 +172,9 @@ Now, typing `lectic foo <TAB>` will suggest `bar` and `baz`.
 For performance, define completions in a separate `.completion.bash` file rather
 than inside the subcommand script itself. This allows the shell to load completions
 without executing the subcommand.
+
+The completion loader mirrors runtime discovery: it scans
+`$LECTIC_CONFIG` and `$LECTIC_DATA` recursively, and loads adjacent
+completion files from discovered commands.
 
 :::

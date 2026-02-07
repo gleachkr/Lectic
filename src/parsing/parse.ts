@@ -5,10 +5,10 @@ import { Lectic } from "../types/lectic"
 import { remark } from "remark"
 import { nodeRaw, nodeContentRaw } from "./markdown"
 import remarkDirective from "remark-directive"
-import { lecticConfigDir } from "../utils/xdg"
-import { readWorkspaceConfig } from "../utils/workspace"
-import { join } from "path"
-import * as YAML from "yaml"
+import {
+  type ConfigResolutionIssue,
+  resolveConfigChain,
+} from "../utils/configDiscovery"
 import { mergeValues } from "../utils/merge"
 
 export function getYaml(raw:string) : string | null {
@@ -52,11 +52,7 @@ export function bodyToMessages(raw : string, header : LecticHeader) : Message[] 
     return messages
 }
 
-export type MergeIssue = {
-    source: 'system' | 'workspace' | 'document'
-    phase: 'parse' | 'merge'
-    message: string
-}
+export type MergeIssue = ConfigResolutionIssue
 
 export type HeaderMergeResult = {
     spec: unknown
@@ -67,43 +63,23 @@ export async function mergedHeaderSpecForDocDetailed(
     docText: string,
     docPath: string | undefined
 ): Promise<HeaderMergeResult> {
-    const systemConfig = join(lecticConfigDir(), "lectic.yaml")
-    const systemYaml = await Bun.file(systemConfig).text().catch(_e => null)
-    const headerYaml = getYaml(docText) ?? ""
-    const workspaceYaml = docPath !== undefined
-        ? await readWorkspaceConfig(docPath)
-        : null
+    const headerYaml = getYaml(docText)
 
-    type Src = { key: 'system'|'workspace'|'document', text: string | null }
-    const sources: Src[] = [
-        { key: 'system', text: systemYaml },
-        { key: 'workspace', text: workspaceYaml },
-        { key: 'document', text: headerYaml }
-    ]
-
-    const parsed: { key: Src['key'], obj: unknown }[] = []
-    const errors: MergeIssue[] = []
-
-    for (const s of sources) {
-        if (s.text == null) continue
-        try {
-            const obj = YAML.parse(s.text)
-            parsed.push({ key: s.key, obj })
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            errors.push({ source: s.key, phase: 'parse', message: msg })
-        }
-    }
+    const { sources, issues } = await resolveConfigChain({
+      includeSystem: true,
+      workspaceStartDir: docPath,
+      document: { yaml: headerYaml, dir: docPath },
+    })
 
     let merged: unknown = {}
-    for (const p of parsed) {
-        merged = mergeValues(merged, p.obj)
+    for (const source of sources) {
+      if (source.parsed === null || source.parsed === undefined) continue
+      merged = mergeValues(merged, source.parsed)
     }
 
-    // Apply shared normalization from LecticHeader
     const spec = LecticHeader.normalizeMergedSpec(merged)
 
-    return { spec, errors }
+    return { spec, errors: issues }
 }
 
 export async function parseLectic(raw: string, include : (string | null)[]) : Promise<Lectic> {

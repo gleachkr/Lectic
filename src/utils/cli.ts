@@ -1,7 +1,12 @@
-import { join, dirname } from "path"
-import { readWorkspaceConfig } from "./workspace";
-import { lecticConfigDir, lecticEnv } from "./xdg";
-import { type OptionValues } from 'commander'
+import { dirname } from "path"
+
+import { type OptionValues } from "commander"
+
+import {
+  formatConfigResolutionIssue,
+  resolveConfigChain,
+} from "./configDiscovery"
+import { lecticEnv } from "./xdg"
 
 export async function getLecticString(opts : OptionValues) : Promise<string> {
     if (opts["inplace"] || opts["file"]) {
@@ -16,13 +21,32 @@ export async function getLecticString(opts : OptionValues) : Promise<string> {
     }
 }
 
+export async function getIncludes(
+  documentYaml: string | null = null,
+  documentDir?: string,
+  workspaceStartDir?: string
+): Promise<(string | null)[]> {
+  const startDir = workspaceStartDir ?? (
+    lecticEnv["LECTIC_FILE"]
+      ? dirname(lecticEnv["LECTIC_FILE"])
+      : process.cwd()
+  )
 
-export async function getIncludes() : Promise<(string | null)[]> {
-        const startDir = lecticEnv["LECTIC_FILE"] 
-            ? dirname(lecticEnv["LECTIC_FILE"]) 
-            : process.cwd()
-        const workspaceConfig = await readWorkspaceConfig(startDir)
-        const systemConfig = await Bun.file(join(lecticConfigDir(), 'lectic.yaml'))
-            .text().catch(() => null)
-        return [systemConfig, workspaceConfig]
+  const { sources, issues } = await resolveConfigChain({
+    includeSystem: true,
+    workspaceStartDir: startDir,
+    document:
+      documentYaml !== null
+        ? { yaml: documentYaml, dir: documentDir ?? startDir }
+        : undefined,
+  })
+
+  if (issues.length > 0) {
+    const message = issues.map(formatConfigResolutionIssue).join("\n")
+    throw new Error(message)
+  }
+
+  return sources
+    .filter(source => source.source !== "document")
+    .map(source => source.text)
 }

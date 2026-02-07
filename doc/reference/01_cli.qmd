@@ -107,9 +107,12 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 ## Custom Subcommands
 
 Lectic supports git-style custom subcommands. If you invoke
-`lectic <command>`, Lectic will look for an executable named
-`lectic-<command>` in your
-configuration directory, data directory, or PATH.
+`lectic <command>`, Lectic looks for an executable named
+`lectic-<command>` in this order:
+
+1. `$LECTIC_CONFIG` (Searched recursive)
+2. `$LECTIC_DATA` (Searched recursive)
+3. `$PATH` entries
 
 See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a full
 guide on creating subcommands and adding tab completion for them.

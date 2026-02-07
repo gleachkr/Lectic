@@ -1,6 +1,6 @@
-import { join } from "path"
 import { pathToFileURL } from "url"
-import { lecticConfigDir } from "../utils/xdg"
+
+import { resolveConfigChain } from "../utils/configDiscovery"
 import type { Range, Location } from "vscode-languageserver"
 import { parseYaml, itemsOf, scalarValue, nodeAbsRange, getPair } from "./utils/yamlAst"
 import { isObjectRecord } from "../types/guards"
@@ -9,11 +9,6 @@ import { isObjectRecord } from "../types/guards"
 export type InterlocutorNameEntry = { name: string, range: Range }
 export type MacroNameEntry = { name: string, range: Range }
 export type KitNameEntry = { name: string, range: Range }
-
-export type ConfigSource = {
-  uri: string,
-  text: string,
-}
 
 export type DefinitionIndex = {
   // Effective definitions by precedence (system < workspace < local)
@@ -87,17 +82,6 @@ function extractNamesFromConfigYaml(text: string): {
   return { interlocutors: inters, macros: macs, kits: kits }
 }
 
-
-async function readConfigSource(path: string): Promise<ConfigSource | null> {
-  try {
-    const text = await Bun.file(path).text()
-    const uri = pathToFileURL(path).href
-    return { uri, text }
-  } catch {
-    return null
-  }
-}
-
 export type DefinitionLookup = {
   getInterlocutor(name: string): Location | null,
   getInterlocutors(name: string): Location[],
@@ -111,77 +95,55 @@ export async function buildDefinitionIndex(
   docDir: string | undefined,
   localHeader: { uri: string, text: string } | null
 ): Promise<DefinitionLookup> {
-  const systemPath = join(lecticConfigDir(), 'lectic.yaml')
-  const system = await readConfigSource(systemPath)
-
-  // Workspace config: match CLI and other LSP paths by reading
-  // lectic.yaml from the document directory only (no upward walk).
-  const workspace = docDir ? await readConfigSource(join(docDir, 'lectic.yaml')) : null
-
-  const sources: ConfigSource[] = []
-  if (system) sources.push(system)
-  if (workspace) sources.push(workspace)
-
-  // Effective maps with precedence: system < workspace < local
-  // We store them in an array, local first.
   const inter = new Map<string, { uri: string, range: Range }[]>()
   const mac = new Map<string, { uri: string, range: Range }[]>()
   const kit = new Map<string, { uri: string, range: Range }[]>()
 
   const addEntries = (
-    src: ConfigSource,
+    uri: string,
     entries: {
       interlocutors: InterlocutorNameEntry[],
       macros: MacroNameEntry[],
       kits: KitNameEntry[]
-    },
-    atStart: boolean = false
+    }
   ) => {
     for (const e of entries.interlocutors) {
       const key = e.name.toLowerCase()
       const existing = inter.get(key) ?? []
-      if (atStart) {
-        inter.set(key, [{ uri: src.uri, range: e.range }, ...existing])
-      } else {
-        inter.set(key, [...existing, { uri: src.uri, range: e.range }])
-      }
+      inter.set(key, [{ uri, range: e.range }, ...existing])
     }
+
     for (const e of entries.macros) {
       const key = e.name.toLowerCase()
       const existing = mac.get(key) ?? []
-      if (atStart) {
-        mac.set(key, [{ uri: src.uri, range: e.range }, ...existing])
-      } else {
-        mac.set(key, [...existing, { uri: src.uri, range: e.range }])
-      }
+      mac.set(key, [{ uri, range: e.range }, ...existing])
     }
+
     for (const e of entries.kits) {
       const key = e.name.toLowerCase()
       const existing = kit.get(key) ?? []
-      if (atStart) {
-        kit.set(key, [{ uri: src.uri, range: e.range }, ...existing])
-      } else {
-        kit.set(key, [...existing, { uri: src.uri, range: e.range }])
-      }
+      kit.set(key, [{ uri, range: e.range }, ...existing])
     }
   }
 
-  // Precedence: system < workspace < local
-  // So we add them in reverse order of precedence if we want local first,
-  // OR we add them in order and use unshift/atStart.
-  
-  // Actually, sources are [system, workspace].
-  // If we add system then workspace then localHeader (using unshift),
-  // we get [localHeader, workspace, system].
-  
-  if (system) {
-    addEntries(system, extractNamesFromConfigYaml(system.text), true)
-  }
-  if (workspace) {
-    addEntries(workspace, extractNamesFromConfigYaml(workspace.text), true)
-  }
-  if (localHeader) {
-    addEntries(localHeader, extractNamesFromConfigYaml(localHeader.text), true)
+  const chain = await resolveConfigChain({
+    includeSystem: true,
+    workspaceStartDir: docDir,
+    document: localHeader
+      ? {
+          yaml: localHeader.text,
+          dir: docDir,
+        }
+      : undefined,
+  })
+
+  for (const source of chain.sources) {
+    const uri = source.path
+      ? pathToFileURL(source.path).href
+      : localHeader?.uri
+
+    if (!uri) continue
+    addEntries(uri, extractNamesFromConfigYaml(source.text))
   }
 
   const getInterlocutor = (name: string): Location | null => {

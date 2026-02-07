@@ -53,6 +53,37 @@ describe("cross-file definitions", () => {
     }
   })
 
+  test("macro definitions resolve from imported workspace config", async () => {
+    const { resolveDefinition } = await import('./definitions')
+    const dir = mkdtempSync(join(tmpdir(), "lectic-ws-"))
+
+    try {
+      writeFileSync(
+        join(dir, "shared.yaml"),
+        `macros:\n - name: plan\n   expansion: exec:echo imported\n`
+      )
+      writeFileSync(
+        join(dir, "lectic.yaml"),
+        `imports:\n - ./shared.yaml\ninterlocutor:\n  name: A\n  prompt: p\n`
+      )
+
+      const lec = `---\ninterlocutor:\n  name: A\n---\n:plan[]`
+      const uri = `file://${join(dir, 'doc.lec')}`
+
+      const defs = await resolveDefinition(
+        uri,
+        lec,
+        { line: 4, character: 5 } as any
+      )
+
+      expect(Array.isArray(defs)).toBeTrue()
+      const paths = (defs ?? []).map(d => new URL(d.uri).pathname)
+      expect(paths).toContain(join(dir, "shared.yaml"))
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   test("macro def prefers local header over workspace", async () => {
     const dir = mkdtempSync(join(tmpdir(), "lectic-ws-"))
     try {

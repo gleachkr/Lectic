@@ -3,9 +3,9 @@ import { SymbolKind } from "vscode-languageserver"
 import { Location as LspLocation } from "vscode-languageserver/node"
 import type { Range as VRange } from "vscode-languageserver"
 import { readFile } from "fs/promises"
-import { join } from "path"
 import { pathToFileURL } from "url"
-import { lecticConfigDir } from "../utils/xdg"
+
+import { resolveConfigChain } from "../utils/configDiscovery"
 import { parseYaml, itemsOf, scalarValue, getPair, nodeAbsRange } from "./utils/yamlAst"
 import { isObjectRecord } from "../types/guards"
 
@@ -77,13 +77,30 @@ export async function buildWorkspaceSymbols(
 ): Promise<SymbolInformation[]> {
   const out: SymbolInformation[] = []
   const filesSet = new Set<string>()
-  if (Array.isArray(roots)) {
-    for (const r of roots) filesSet.add(join(r, 'lectic.yaml'))
+
+  const systemChain = await resolveConfigChain({
+    includeSystem: true,
+  })
+  for (const source of systemChain.sources) {
+    if (source.path) filesSet.add(source.path)
   }
-  filesSet.add(join(lecticConfigDir(), 'lectic.yaml'))
-  for (const f of filesSet) {
-    const syms = await symbolsFromYamlFile(f)
+
+  if (Array.isArray(roots)) {
+    for (const root of roots) {
+      const chain = await resolveConfigChain({
+        includeSystem: false,
+        workspaceStartDir: root,
+      })
+      for (const source of chain.sources) {
+        if (source.path) filesSet.add(source.path)
+      }
+    }
+  }
+
+  for (const file of filesSet) {
+    const syms = await symbolsFromYamlFile(file)
     out.push(...syms)
   }
+
   return out
 }

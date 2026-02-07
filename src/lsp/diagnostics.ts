@@ -426,11 +426,20 @@ function mapMergeErrorsToDiagnostics(
   headerRange: LspRangeT
 ): Diagnostic[] {
   const diags: Diagnostic[] = []
-  const label = (s: 'system'|'workspace'|'document') =>
-    s === 'document' ? 'document header' : `${s} config (lectic.yaml)`
+
   for (const e of errs) {
-    const where = label(e.source)
-    const what = e.phase === 'parse' ? 'parsing' : 'merging'
+    const where =
+      e.source === 'document'
+        ? 'document header'
+        : `${e.source} config (${e.id})`
+
+    const what =
+      e.phase === 'parse'
+        ? 'parsing'
+        : e.phase === 'read'
+          ? 'reading'
+          : 'resolving imports in'
+
     diags.push({
       range: headerRange,
       severity: DiagnosticSeverity.Error,
@@ -438,6 +447,7 @@ function mapMergeErrorsToDiagnostics(
       message: `Error ${what} ${where}: ${e.message}`,
     })
   }
+
   return diags
 }
 

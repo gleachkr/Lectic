@@ -15,12 +15,35 @@ always having the final say.
     (e.g., `~/.config/lectic/lectic.yaml` on Linux). This is the ideal
     place for your global, user-level defaults.
 
-2.  **Working Directory**: Next, it looks for a `lectic.yaml` file in the
-    current working directory. This is useful for project-level
-    configuration that you might commit to a git repository.
+2.  **Workspace Config**: Next, Lectic looks for `lectic.yaml` by walking up
+    from the active document directory (or from the current working directory
+    when no file is active) until it finds one.
 
 3.  **Lectic File Header**: The YAML frontmatter within your `.lec` file is
     the final and highest-precedence source of configuration.
+
+## Imports (Modular Configuration)
+
+You can split configuration across multiple files with top-level `imports`.
+Each import can be either a string path or an object with `path` and
+optional `optional: true`.
+
+```yaml
+imports:
+  - ./.lectic/plugins/sales/module.yaml
+  - path: ./.lectic/plugins/finance
+    optional: true
+```
+
+Important details:
+
+- Relative import paths are resolved from the file that declares them.
+- If an import path is a directory, Lectic loads `<dir>/lectic.yaml`.
+- Imports are recursive, so imported files can have their own `imports`.
+- Import cycles are detected and reported as errors.
+
+This is useful for plugin bundles, shared team defaults, and separating
+large configs into smaller modules.
 
 ## Overriding Default Directories
 
