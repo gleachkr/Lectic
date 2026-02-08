@@ -295,6 +295,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     } else {
       macros.forEach((m, i: number) => {
         if (!isObjectRecord(m)) return
+
         if (!("name" in m) || typeof m["name"] !== "string") {
           issues.push({
             code: "macro.name.missing",
@@ -303,11 +304,16 @@ export function validateHeaderShape(spec: unknown): Issue[] {
             severity: "error"
           })
         }
-        if (!("expansion" in m) || typeof m["expansion"] !== "string") {
+
+        const hasExpansion = "expansion" in m && typeof m["expansion"] === "string"
+        const hasPre = "pre" in m && typeof m["pre"] === "string"
+        const hasPost = "post" in m && typeof m["post"] === "string"
+
+        if (!hasExpansion && !hasPre && !hasPost) {
           issues.push({
             code: "macro.expansion.missing",
             message: Messages.macro.expansionMissing(),
-            path: ["macros", i, "expansion"],
+            path: ["macros", i],
             severity: "error"
           })
         }

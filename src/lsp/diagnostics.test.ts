@@ -86,6 +86,15 @@ describe("diagnostics", () => {
     })
   })
 
+  test("accepts macros that use pre/post without expansion", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const text = `---\ninterlocutor:\n  name: A\n  prompt: p\nmacros:\n  - name: pre_only\n    pre: exec:echo hi\n  - name: post_only\n    post: exec:echo hi\n---\nBody\n`
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
+      expect(hasMessage(diags, "Macro needs to be given")).toBeFalse()
+    })
+  })
+
   test("flags unknown :ask and :aside names in body", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutors:\n  - name: Known\n    prompt: p\n---\nBody\n:ask[Unknown]\n:aside[Nope]\n`
