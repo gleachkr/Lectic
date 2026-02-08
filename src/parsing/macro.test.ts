@@ -198,14 +198,14 @@ describe("expandMacros", () => {
         const notFinal = await expandMacros(
             ":once[:inner[]]",
             macros,
-            { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 2 }
+            { MESSAGE_TEXT: "", MESSAGE_INDEX: 1, MESSAGES_LENGTH: 2 }
         )
         expect(notFinal).toBe("")
 
         const final = await expandMacros(
             ":once[:inner[]]",
             macros,
-            { MESSAGE_INDEX: 2, MESSAGES_LENGTH: 2 }
+            { MESSAGE_TEXT: "", MESSAGE_INDEX: 2, MESSAGES_LENGTH: 2 }
         )
         expect(final.trim()).toBe("EXPANDED")
     })
@@ -218,7 +218,7 @@ describe("expandMacros", () => {
             const out = await expandMacros(
                 `:discard[:cmd[echo hi > \"${outFile}\"]]`,
                 {},
-                { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 }
+                { MESSAGE_TEXT: "", MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 }
             )
 
             expect(out).toBe("")

@@ -6,7 +6,7 @@ describe("UserMessage inlineAttachments", () => {
     const msg = new UserMessage({ content: ":attach[derp]" })
 
     // Simulate this being the last message.
-    await msg.expandMacros([], { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
+    await msg.expandMacros([], { MESSAGE_TEXT: msg.content,  MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
 
     expect(msg.inlineAttachments).toHaveLength(1)
     expect(msg.inlineAttachments[0].kind).toBe("attach")
@@ -25,7 +25,7 @@ describe("emitInlineAttachments", () => {
     })
 
     // Simulate this being the last message, so :cmd is expanded within :attach.
-    await msg.expandMacros([], { MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
+    await msg.expandMacros([], { MESSAGE_TEXT: msg.content,  MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
 
     const out = msg.inlineAttachments
 

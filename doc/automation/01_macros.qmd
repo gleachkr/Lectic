@@ -247,9 +247,11 @@ A few other environment variables are available by default.
 |:----------------|:--------------------------------------------------------------
 | MESSAGE_INDEX   | Index (starting from one) of the message containing the macro
 | MESSAGES_LENGTH | Total number of messages in the conversation
+| MESSAGE_TEXT   | Raw text of the message containing the macro
 
 These might be useful for conditionally running only if the macro is, e.g. part
-of the most recent user message.
+of the most recent user message, or for sniffing the context in which the macro
+is expanding for more intelligent LLM summarization.
 
 ## Advanced Macros: Phases and Recursion
 

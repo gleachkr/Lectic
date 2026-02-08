@@ -12,6 +12,7 @@ import { MessageAttachment } from "../types/attachment"
 const processor = remark().use(remarkDirective)
 
 export type MacroMessageEnv = {
+  MESSAGE_TEXT: string
   MESSAGE_INDEX: number
   MESSAGES_LENGTH: number
 }
@@ -82,6 +83,7 @@ function messageEnvToEnv(messageEnv?: MacroMessageEnv): Record<string, string> {
   if (!messageEnv) return {}
 
   return {
+    MESSAGE_TEXT: String(messageEnv.MESSAGE_TEXT),
     MESSAGE_INDEX: String(messageEnv.MESSAGE_INDEX),
     MESSAGES_LENGTH: String(messageEnv.MESSAGES_LENGTH),
   }
