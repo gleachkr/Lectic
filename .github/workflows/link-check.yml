@@ -24,7 +24,6 @@ jobs:
             --accept 200,206,401,406,429
             --max-retries 2
             --retry-wait-time 2
-            --exclude-mail
             --exclude '^(github\+repo|s3|file)://'
             --exclude '^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)'
             README.md
