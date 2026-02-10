@@ -209,7 +209,7 @@ tools:
   `LECTIC_INTERLOCUTOR` into sandboxed commands. Use these for per-interlocutor
   state (for example, separate scratch directories). See
   [Exec Tool](../tools/02_exec.qmd#execution-environment) and
-  [Configuration Reference](../reference/02_configuration.qmd#overriding-default-directories).
+  [Configuration Reference](../05_configuration.qmd#overriding-default-directories).
 
 - **Quoting and arguments**: A sandbox is a command string. If you need complex
   quoting or structured options, prefer writing a wrapper script.

@@ -82,7 +82,7 @@ Structured outputs are not identical across providers.
 
 Provider docs:
 
-- OpenAI: <https://platform.openai.com/docs/guides/structured-outputs#supported-schemas>
+- OpenAI: <https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas>
 - Anthropic: <https://platform.claude.com/docs/en/build-with-claude/structured-outputs>
 
 Lectic handles provider conformance for you:

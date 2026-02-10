@@ -181,7 +181,7 @@ Full documentation is at
 **[gleachkr.github.io/Lectic](https://gleachkr.github.io/Lectic)**.
 
 - [Getting Started](https://gleachkr.github.io/Lectic/02_getting_started.html)
-- [Configuration](https://gleachkr.github.io/Lectic/04_configuration.html)
+- [Configuration](https://gleachkr.github.io/Lectic/05_configuration.html)
 - [Tools](https://gleachkr.github.io/Lectic/tools/01_overview.html)
 - [Cookbook](https://gleachkr.github.io/Lectic/cookbook/index.html) — recipes 
   for using lectic in a variety of ways.

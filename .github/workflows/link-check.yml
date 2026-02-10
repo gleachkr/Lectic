@@ -1,0 +1,33 @@
+name: Link check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check README and docs links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          fail: true
+          args: >-
+            --no-progress
+            --verbose
+            --accept 200,206,401,406,429
+            --max-retries 2
+            --retry-wait-time 2
+            --exclude-mail
+            --exclude '^(github\+repo|s3|file)://'
+            --exclude '^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)'
+            README.md
+            './doc/**/*.qmd'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

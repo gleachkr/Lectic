@@ -60,6 +60,7 @@
           importNpmLock.hooks.linkNodeModulesHook
           bun
           jq
+          lychee
         ];
         npmDeps = importNpmLock.buildNodeModules {
           inherit nodejs;
