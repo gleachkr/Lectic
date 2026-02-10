@@ -363,6 +363,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Agent Skills Support</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/09_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -390,6 +396,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">LSP Server</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
       </ul>
@@ -562,7 +574,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tips" class="level2">
 <h2 class="anchored" data-anchor-id="tips">Tips</h2>
 <ul>
-<li><p><strong>Environment variables</strong>: Lectic passes variables like <code>LECTIC_INTERLOCUTOR</code> into sandboxed commands. Use these for per-interlocutor state (for example, separate scratch directories). See <a href="../tools/02_exec.html#execution-environment">Exec Tool</a> and <a href="../reference/02_configuration.html#overriding-default-directories">Configuration Reference</a>.</p></li>
+<li><p><strong>Environment variables</strong>: Lectic passes variables like <code>LECTIC_INTERLOCUTOR</code> into sandboxed commands. Use these for per-interlocutor state (for example, separate scratch directories). See <a href="../tools/02_exec.html#execution-environment">Exec Tool</a> and <a href="../05_configuration.html#overriding-default-directories">Configuration Reference</a>.</p></li>
 <li><p><strong>Quoting and arguments</strong>: A sandbox is a command string. If you need complex quoting or structured options, prefer writing a wrapper script.</p></li>
 <li><p><strong>Performance matters</strong>: Tools can be called in tight loops. Heavy sandboxes like <code>docker run</code> can add significant latency. Prefer <code>docker exec</code> into a long-running container if you go the Docker route.</p></li>
 <li><p><strong>Test your sandbox</strong>: Verify it blocks what you think it blocks. Try to access files outside the allowed roots and confirm it fails.</p></li>

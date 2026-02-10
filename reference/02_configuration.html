@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -328,6 +363,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">Agent Skills Support</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/09_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -357,6 +398,12 @@ ul.task-list li input[type="checkbox"] {
  <span class="menu-text">LSP Server</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -372,6 +419,7 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#reference-configuration-keys" id="toc-reference-configuration-keys" class="nav-link active" data-scroll-target="#reference-configuration-keys">Reference: Configuration Keys</a>
   <ul class="collapse">
   <li><a href="#top-level-keys" id="toc-top-level-keys" class="nav-link" data-scroll-target="#top-level-keys">Top-Level Keys</a></li>
+  <li><a href="#the-imports-entry" id="toc-the-imports-entry" class="nav-link" data-scroll-target="#the-imports-entry">The <code>imports</code> Entry</a></li>
   <li><a href="#the-kit-object" id="toc-the-kit-object" class="nav-link" data-scroll-target="#the-kit-object">The <code>kit</code> Object</a></li>
   <li><a href="#the-interlocutor-object" id="toc-the-interlocutor-object" class="nav-link" data-scroll-target="#the-interlocutor-object">The <code>interlocutor</code> Object</a>
   <ul class="collapse">
@@ -396,6 +444,7 @@ ul.task-list li input[type="checkbox"] {
 <section id="top-level-keys" class="level2">
 <h2 class="anchored" data-anchor-id="top-level-keys">Top-Level Keys</h2>
 <ul>
+<li><code>imports</code>: Optional list of config imports. Each entry is either a string path, or an object with <code>path</code> and optional <code>optional: true</code>. If the path is a directory, Lectic loads <code>&lt;path&gt;/lectic.yaml</code>.</li>
 <li><code>interlocutor</code>: A single object defining the primary LLM speaker.</li>
 <li><code>interlocutors</code>: A list of interlocutor objects for multiparty conversations.</li>
 <li><code>kits</code>: A list of named tool kits you can reference from interlocutors.</li>
@@ -403,6 +452,25 @@ ul.task-list li input[type="checkbox"] {
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>.</li>
 <li><code>sandbox</code>: A default sandbox command string applied to all <code>exec</code> tools and local <code>mcp_command</code> tools, unless overridden by <code>interlocutor.sandbox</code> or a tool’s own <code>sandbox</code> setting.</li>
 </ul>
+<hr>
+</section>
+<section id="the-imports-entry" class="level2">
+<h2 class="anchored" data-anchor-id="the-imports-entry">The <code>imports</code> Entry</h2>
+<p>Imports are resolved relative to the file that declares them.</p>
+<p>Valid forms:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">imports</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ./plugins/sales/module.yaml</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> ./plugins/finance</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">optional</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>String form: required import path.</li>
+<li>Object form:
+<ul>
+<li><code>path</code>: (Required) import path.</li>
+<li><code>optional</code>: (Optional, boolean) skip missing files without error.</li>
+</ul></li>
+</ul>
+<p>Imports are recursive, and cycles are reported as errors.</p>
 <hr>
 </section>
 <section id="the-kit-object" class="level2">
@@ -423,7 +491,7 @@ ul.task-list li input[type="checkbox"] {
 <li><code>prompt</code>: (Required) The base system prompt that defines the LLM’s personality and instructions. The value can be a string, or it can be loaded from a file (<code>file:./path.txt</code>) or a command (<code>exec:get-prompt</code>). See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details and examples.</li>
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>. These hooks fire only when this interlocutor is active.</li>
 <li><code>sandbox</code>: A command string (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>) to wrap execution for all <code>exec</code> tools and local <code>mcp_command</code> tools used by this interlocutor, unless overridden by the tool’s own <code>sandbox</code> setting. This overrides any top-level <code>sandbox</code> setting.</li>
-<li><code>output_schema</code>: Optional JSON Schema that constrains the assistant’s output to valid JSON. This is forwarded to backends that support structured outputs.</li>
+<li><code>output_schema</code>: Optional JSON Schema that constrains the assistant’s output to valid JSON. This is forwarded to backends that support structured outputs. See <a href="../reference/04_structured_outputs.html">Structured Outputs</a> for the supported schema subset and provider notes.</li>
 </ul>
 <section id="model-configuration" class="level3">
 <h3 class="anchored" data-anchor-id="model-configuration">Model Configuration</h3>

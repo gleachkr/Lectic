@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>agent – Lectic Documentation</title>
+<title>structured_outputs – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -117,7 +117,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/05_agent.html">Agent</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/04_structured_outputs.html">Structured Outputs</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -253,7 +253,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/05_agent.html" class="sidebar-item-text sidebar-link active">
+  <a href="../tools/05_agent.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Agent</span></a>
   </div>
 </li>
@@ -400,7 +400,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
@@ -416,103 +416,191 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#tools-agent" id="toc-tools-agent" class="nav-link active" data-scroll-target="#tools-agent">Tools: Agent</a>
+  <li><a href="#reference-structured-outputs" id="toc-reference-structured-outputs" class="nav-link active" data-scroll-target="#reference-structured-outputs">Reference: Structured Outputs</a>
   <ul class="collapse">
-  <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a>
+  <li><a href="#minimal-example" id="toc-minimal-example" class="nav-link" data-scroll-target="#minimal-example">Minimal example</a></li>
+  <li><a href="#supported-schema-subset-in-lectic" id="toc-supported-schema-subset-in-lectic" class="nav-link" data-scroll-target="#supported-schema-subset-in-lectic">Supported schema subset in Lectic</a>
   <ul class="collapse">
-  <li><a href="#example-configuration" id="toc-example-configuration" class="nav-link" data-scroll-target="#example-configuration">Example Configuration</a></li>
+  <li><a href="#common-keys" id="toc-common-keys" class="nav-link" data-scroll-target="#common-keys">Common keys</a></li>
+  <li><a href="#type-string" id="toc-type-string" class="nav-link" data-scroll-target="#type-string"><code>type: string</code></a></li>
+  <li><a href="#type-number-and-type-integer" id="toc-type-number-and-type-integer" class="nav-link" data-scroll-target="#type-number-and-type-integer"><code>type: number</code> and <code>type: integer</code></a></li>
+  <li><a href="#type-boolean" id="toc-type-boolean" class="nav-link" data-scroll-target="#type-boolean"><code>type: boolean</code></a></li>
+  <li><a href="#type-null" id="toc-type-null" class="nav-link" data-scroll-target="#type-null"><code>type: null</code></a></li>
+  <li><a href="#type-array" id="toc-type-array" class="nav-link" data-scroll-target="#type-array"><code>type: array</code></a></li>
+  <li><a href="#type-object" id="toc-type-object" class="nav-link" data-scroll-target="#type-object"><code>type: object</code></a></li>
+  <li><a href="#anyof" id="toc-anyof" class="nav-link" data-scroll-target="#anyof"><code>anyOf</code></a></li>
   </ul></li>
-  <li><a href="#example-conversation" id="toc-example-conversation" class="nav-link" data-scroll-target="#example-conversation">Example Conversation</a></li>
-  <li><a href="#recursion" id="toc-recursion" class="nav-link" data-scroll-target="#recursion">Recursion</a></li>
+  <li><a href="#not-currently-supported" id="toc-not-currently-supported" class="nav-link" data-scroll-target="#not-currently-supported">Not currently supported</a></li>
+  <li><a href="#provider-behavior-notes" id="toc-provider-behavior-notes" class="nav-link" data-scroll-target="#provider-behavior-notes">Provider behavior notes</a>
+  <ul class="collapse">
+  <li><a href="#openai-providers-openai-openaichat" id="toc-openai-providers-openai-openaichat" class="nav-link" data-scroll-target="#openai-providers-openai-openaichat">OpenAI providers (<code>openai</code>, <code>openai/chat</code>)</a></li>
+  <li><a href="#anthropic-provider-anthropic-anthropicbedrock" id="toc-anthropic-provider-anthropic-anthropicbedrock" class="nav-link" data-scroll-target="#anthropic-provider-anthropic-anthropicbedrock">Anthropic provider (<code>anthropic</code>, <code>anthropic/bedrock</code>)</a></li>
+  </ul></li>
+  <li><a href="#practical-advice" id="toc-practical-advice" class="nav-link" data-scroll-target="#practical-advice">Practical advice</a></li>
   </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/05_agent.html">Agent</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/04_structured_outputs.html">Structured Outputs</a></li></ol></nav></header>
 
 
 
 
-<section id="tools-agent" class="level1">
-<h1>Tools: Agent</h1>
-<p>The <code>agent</code> tool allows you to create sophisticated multi-LLM workflows by enabling one interlocutor to call another as a tool. The “agent” interlocutor receives the query from the “caller” with no other context, processes it, and returns its response as the tool’s output.</p>
-<p>This is a powerful way to separate concerns. You can create specialized agents and then compose them into more complex systems. For an excellent overview of the philosophy behind this approach, see Anthropic’s blog post on their <a href="https://www.anthropic.com/engineering/built-multi-agent-research-system">multi-agent research system</a>.</p>
-<section id="configuration" class="level2">
-<h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
-<p>To use the <code>agent</code> tool, you must have at least two interlocutors defined. In the configuration for one interlocutor, you add an <code>agent</code> tool that points to the <code>name</code> of the other.</p>
+<section id="reference-structured-outputs" class="level1">
+<h1>Reference: Structured Outputs</h1>
+<p>Structured outputs let you constrain the assistant to JSON that matches a schema.</p>
+<p>In Lectic, set <code>interlocutor.output_schema</code> to a JSON Schema object. Lectic validates that schema before sending it to the provider.</p>
+<p>If you are new to JSON Schema, start here: <a href="https://json-schema.org/learn" class="uri">https://json-schema.org/learn</a></p>
+<section id="minimal-example" class="level2">
+<h2 class="anchored" data-anchor-id="minimal-example">Minimal example</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> openai</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">model</span><span class="kw">:</span><span class="at"> gpt-5.2</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> Return JSON only.</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">output_schema</span><span class="kw">:</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">type</span><span class="kw">:</span><span class="at"> object</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">properties</span><span class="kw">:</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">answer</span><span class="kw">:</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">type</span><span class="kw">:</span><span class="at"> string</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">required</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">answer</span><span class="kw">]</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">additionalProperties</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="supported-schema-subset-in-lectic" class="level2">
+<h2 class="anchored" data-anchor-id="supported-schema-subset-in-lectic">Supported schema subset in Lectic</h2>
+<p>Lectic intentionally supports a focused subset. Unknown keys are rejected during validation.</p>
+<section id="common-keys" class="level3">
+<h3 class="anchored" data-anchor-id="common-keys">Common keys</h3>
+<p>You can use these on any schema node:</p>
 <ul>
-<li><code>agent</code>: (Required) The name of the interlocutor to be called as an agent.</li>
-<li><code>name</code>: An optional name for the tool.</li>
-<li><code>usage</code>: A string, <code>file:</code>, or <code>exec:</code> URI providing instructions for the calling LLM on when and how to use this agent.</li>
-<li><code>raw_output</code>: A boolean value. Normally an agent’s output will be sanitized, so that raw tool call results are not visible to the interlocutor who called the agent. Setting raw_output to true puts the full output from the agent into the main interlocutor’s tool call results.</li>
+<li><code>description</code></li>
+<li><code>default</code></li>
 </ul>
-<section id="example-configuration" class="level3">
-<h3 class="anchored" data-anchor-id="example-configuration">Example Configuration</h3>
-<p>In this setup, <code>Kirk</code> is the main interlocutor. He has a tool named <code>communicator</code> which, when used, will call the <code>Spock</code> interlocutor. <code>Spock</code> has his own set of tools, including a <code>think_about</code> tool to encourage careful reasoning.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Kirk</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are Captain Kirk. You are bold and decisive.</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> Spock</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> communicator</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> Use this to contact Spock for logical analysis and advice.</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Spock</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">    prompt</span><span class="kw">: </span><span class="ch">&gt;</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>      You are Mr. Spock. You respond with pure logic, suppressing all</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>      emotion.</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">think_about</span><span class="kw">:</span><span class="at"> how to logically solve the problem presented.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="type-string" class="level3">
+<h3 class="anchored" data-anchor-id="type-string"><code>type: string</code></h3>
+<p>Supported keys:</p>
+<ul>
+<li><code>type</code></li>
+<li><code>enum</code> (string array)</li>
+<li><code>pattern</code></li>
+<li><code>format</code> (<code>date-time</code>, <code>time</code>, <code>date</code>, <code>duration</code>, <code>email</code>, <code>hostname</code>, <code>ipv4</code>, <code>ipv6</code>, <code>uuid</code>)</li>
+<li><code>contentMediaType</code></li>
+<li><code>description</code></li>
+<li><code>default</code></li>
+</ul>
+</section>
+<section id="type-number-and-type-integer" class="level3">
+<h3 class="anchored" data-anchor-id="type-number-and-type-integer"><code>type: number</code> and <code>type: integer</code></h3>
+<p>Supported keys:</p>
+<ul>
+<li><code>type</code></li>
+<li><code>enum</code> (number array)</li>
+<li><code>minimum</code></li>
+<li><code>maximum</code></li>
+<li><code>description</code></li>
+<li><code>default</code></li>
+</ul>
+</section>
+<section id="type-boolean" class="level3">
+<h3 class="anchored" data-anchor-id="type-boolean"><code>type: boolean</code></h3>
+<p>Supported keys:</p>
+<ul>
+<li><code>type</code></li>
+<li><code>enum</code> (boolean array)</li>
+<li><code>description</code></li>
+<li><code>default</code></li>
+</ul>
+</section>
+<section id="type-null" class="level3">
+<h3 class="anchored" data-anchor-id="type-null"><code>type: null</code></h3>
+<p>Supported keys:</p>
+<ul>
+<li><code>type</code></li>
+<li><code>enum</code> (null array)</li>
+<li><code>description</code></li>
+<li><code>default</code></li>
+</ul>
+</section>
+<section id="type-array" class="level3">
+<h3 class="anchored" data-anchor-id="type-array"><code>type: array</code></h3>
+<p>Supported keys:</p>
+<ul>
+<li><code>type</code></li>
+<li><code>items</code> (required)</li>
+<li><code>description</code></li>
+<li><code>default</code></li>
+</ul>
+</section>
+<section id="type-object" class="level3">
+<h3 class="anchored" data-anchor-id="type-object"><code>type: object</code></h3>
+<p>Supported keys:</p>
+<ul>
+<li><code>type</code></li>
+<li><code>properties</code> (required)</li>
+<li><code>required</code></li>
+<li><code>additionalProperties</code></li>
+<li><code>description</code></li>
+<li><code>default</code></li>
+</ul>
+</section>
+<section id="anyof" class="level3">
+<h3 class="anchored" data-anchor-id="anyof"><code>anyOf</code></h3>
+<p>Supported keys:</p>
+<ul>
+<li><code>anyOf</code> (array of schemas)</li>
+<li><code>description</code></li>
+<li><code>default</code></li>
+</ul>
 </section>
 </section>
-<section id="example-conversation" class="level2">
-<h2 class="anchored" data-anchor-id="example-conversation">Example Conversation</h2>
-<p>Using the configuration above, Captain Kirk can delegate complex analysis to Spock.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>We've encountered an alien vessel of unknown origin. It is not responding to</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>hails. What is the logical course of action?</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>:::Kirk</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>This situation requires careful analysis. I will consult my science officer.</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tool-call</span><span class="ot"> with</span><span class="op">=</span><span class="st">"communicator"</span><span class="dt">&gt;</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">content</span><span class="dt">&gt;</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>┆Alien vessel, unknown origin, unresponsive. Propose logical course of action.</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">content</span><span class="dt">&gt;</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">results</span><span class="dt">&gt;</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">result</span><span class="ot"> type</span><span class="op">=</span><span class="st">"text"</span><span class="dt">&gt;</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>┆Insufficient data. Recommend passive scans to gather</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>┆information on their technological capabilities before initiating</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>┆further contact. Avoid any action that could be perceived as</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>┆hostile.</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">result</span><span class="dt">&gt;</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">results</span><span class="dt">&gt;</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tool-call</span><span class="dt">&gt;</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>A logical approach. We will proceed with passive scans.</span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="not-currently-supported" class="level2">
+<h2 class="anchored" data-anchor-id="not-currently-supported">Not currently supported</h2>
+<p>Examples of common JSON Schema keywords that Lectic currently rejects:</p>
+<ul>
+<li><code>oneOf</code>, <code>allOf</code>, <code>not</code></li>
+<li><code>const</code></li>
+<li>string constraints like <code>minLength</code>, <code>maxLength</code></li>
+<li>array constraints like <code>minItems</code>, <code>maxItems</code>, <code>uniqueItems</code></li>
+<li>object constraints like <code>patternProperties</code>, <code>dependencies</code></li>
+</ul>
+<p>If you need these, encode constraints in prompt instructions or post-validate with a hook/tool script.</p>
 </section>
-<section id="recursion" class="level2">
-<h2 class="anchored" data-anchor-id="recursion">Recursion</h2>
-<p>Agents can call other agents, and those agents can call back. There’s no built-in limit on recursion depth, so be thoughtful about your configurations. An agent that calls itself (or creates a cycle) will keep going until it decides to stop or hits a token limit.</p>
-<p>For example, Spock could have a tool that calls Kirk:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Kirk</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are Captain Kirk.</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> Spock</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> consult_spock</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Spock</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are Mr. Spock.</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> Kirk</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> consult_captain</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This is powerful for workflows where agents need to collaborate, but it requires clear instructions in the prompts about when to delegate and when to answer directly.</p>
+<section id="provider-behavior-notes" class="level2">
+<h2 class="anchored" data-anchor-id="provider-behavior-notes">Provider behavior notes</h2>
+<p>Lectic validates your <code>output_schema</code> against Lectic’s supported subset first, then forwards it to the provider.</p>
+<p>Provider docs for schema support and limitations:</p>
+<ul>
+<li>OpenAI: <a href="https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas" class="uri">https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas</a></li>
+<li>Anthropic: <a href="https://platform.claude.com/docs/en/build-with-claude/structured-outputs" class="uri">https://platform.claude.com/docs/en/build-with-claude/structured-outputs</a></li>
+</ul>
+<section id="openai-providers-openai-openaichat" class="level3">
+<h3 class="anchored" data-anchor-id="openai-providers-openai-openaichat">OpenAI providers (<code>openai</code>, <code>openai/chat</code>)</h3>
+<p>OpenAI strict mode has extra constraints. Lectic adapts your schema automatically for compatibility:</p>
+<ul>
+<li>removes <code>default</code></li>
+<li>sets <code>additionalProperties: false</code> on all objects</li>
+<li>marks all object properties as required</li>
+<li>rewrites optional fields as nullable (<code>anyOf: [X, { type: null }]</code>)</li>
+</ul>
+<p>Because of that rewrite, optional fields may come back as explicit <code>null</code> instead of being omitted.</p>
+</section>
+<section id="anthropic-provider-anthropic-anthropicbedrock" class="level3">
+<h3 class="anchored" data-anchor-id="anthropic-provider-anthropic-anthropicbedrock">Anthropic provider (<code>anthropic</code>, <code>anthropic/bedrock</code>)</h3>
+<p>Anthropic supports a provider-specific subset for structured outputs. Lectic transforms the schema before sending it so it conforms to Anthropic’s subset as closely as possible.</p>
+<p>This helps keep one <code>output_schema</code> usable across providers, but final compatibility still depends on the target model. If a provider rejects a schema, simplify it to the intersection supported by your models.</p>
+</section>
+</section>
+<section id="practical-advice" class="level2">
+<h2 class="anchored" data-anchor-id="practical-advice">Practical advice</h2>
+<ul>
+<li>Start with small object schemas and expand gradually.</li>
+<li>Use <code>enum</code> for classifier-like outputs.</li>
+<li>Prefer explicit <code>required</code> lists.</li>
+<li>Add <code>additionalProperties: false</code> when you need stable shapes.</li>
+<li>For “exactly N items”, enforce N in prompt text for now.</li>
+</ul>
 
 
 </section>

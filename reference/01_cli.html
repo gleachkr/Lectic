@@ -363,6 +363,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Agent Skills Support</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/09_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -390,6 +396,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">LSP Server</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
       </ul>
@@ -505,7 +517,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="custom-subcommands" class="level2">
 <h2 class="anchored" data-anchor-id="custom-subcommands">Custom Subcommands</h2>
-<p>Lectic supports git-style custom subcommands. If you invoke <code>lectic &lt;command&gt;</code>, Lectic will look for an executable named <code>lectic-&lt;command&gt;</code> in your configuration directory, data directory, or PATH.</p>
+<p>Lectic supports git-style custom subcommands. If you invoke <code>lectic &lt;command&gt;</code>, Lectic looks for an executable named <code>lectic-&lt;command&gt;</code> in this order:</p>
+<ol type="1">
+<li><code>$LECTIC_CONFIG</code> (Searched recursive)</li>
+<li><code>$LECTIC_DATA</code> (Searched recursive)</li>
+<li><code>$PATH</code> entries</li>
+</ol>
 <p>See <a href="../automation/03_custom_subcommands.html">Custom Subcommands</a> for a full guide on creating subcommands and adding tab completion for them.</p>
 </section>
 <section id="bash-completion" class="level2">

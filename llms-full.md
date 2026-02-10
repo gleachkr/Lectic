@@ -886,12 +886,35 @@ header always having the final say.
     location (e.g., `~/.config/lectic/lectic.yaml` on Linux). This is
     the ideal place for your global, user-level defaults.
 
-2.  **Working Directory**: Next, it looks for a `lectic.yaml` file in
-    the current working directory. This is useful for project-level
-    configuration that you might commit to a git repository.
+2.  **Workspace Config**: Next, Lectic looks for `lectic.yaml` by
+    walking up from the active document directory (or from the current
+    working directory when no file is active) until it finds one.
 
 3.  **Lectic File Header**: The YAML frontmatter within your `.lec` file
     is the final and highest-precedence source of configuration.
+
+## Imports (Modular Configuration)
+
+You can split configuration across multiple files with top-level
+`imports`. Each import can be either a string path or an object with
+`path` and optional `optional: true`.
+
+``` yaml
+imports:
+  - ./.lectic/plugins/sales/module.yaml
+  - path: ./.lectic/plugins/finance
+    optional: true
+```
+
+Important details:
+
+- Relative import paths are resolved from the file that declares them.
+- If an import path is a directory, Lectic loads `<dir>/lectic.yaml`.
+- Imports are recursive, so imported files can have their own `imports`.
+- Import cycles are detected and reported as errors.
+
+This is useful for plugin bundles, shared team defaults, and separating
+large configs into smaller modules.
 
 ## Overriding Default Directories
 
@@ -1406,9 +1429,11 @@ A few other environment variables are available by default.
 |:---|:---|
 | MESSAGE_INDEX | Index (starting from one) of the message containing the macro |
 | MESSAGES_LENGTH | Total number of messages in the conversation |
+| MESSAGE_TEXT | Raw text of the message containing the macro |
 
 These might be useful for conditionally running only if the macro is,
-e.g. part of the most recent user message.
+e.g. part of the most recent user message, or for sniffing the context
+in which the macro is expanding for more intelligent LLM summarization.
 
 ## Advanced Macros: Phases and Recursion
 
@@ -1892,10 +1917,11 @@ named `lectic-foo` or `lectic-foo.*` in the following locations, in
 order:
 
 1.  **Configuration Directory**: `$LECTIC_CONFIG` (defaults to
-    `~/.config/lectic` on Linux)
+    `~/.config/lectic` on Linux). Searched recursively.
 2.  **Data Directory**: `$LECTIC_DATA` (defaults to
-    `~/.local/share/lectic` on Linux)
-3.  **System PATH**: Any directory in your `$PATH`.
+    `~/.local/share/lectic` on Linux). Searched recursively.
+3.  **System PATH**: Any directory in your `$PATH`. Top-level per PATH
+    entry.
 
 The first match found is executed. The subprocess receives the remaining
 arguments, inherits the standard input, output, and error streams, and
@@ -2053,6 +2079,10 @@ Now, typing `lectic foo <TAB>` will suggest `bar` and `baz`.
 > For performance, define completions in a separate `.completion.bash`
 > file rather than inside the subcommand script itself. This allows the
 > shell to load completions without executing the subcommand.
+>
+> The completion loader mirrors runtime discovery: it scans
+> `$LECTIC_CONFIG` and `$LECTIC_DATA` recursively, and loads adjacent
+> completion files from discovered commands.
 
 
 
@@ -3676,7 +3706,7 @@ tools:
   per-interlocutor state (for example, separate scratch directories).
   See [Exec Tool](../tools/02_exec.qmd#execution-environment) and
   [Configuration
-  Reference](../reference/02_configuration.qmd#overriding-default-directories).
+  Reference](../05_configuration.qmd#overriding-default-directories).
 
 - **Quoting and arguments**: A sandbox is a command string. If you need
   complex quoting or structured options, prefer writing a wrapper
@@ -4101,6 +4131,161 @@ options.
 
 
 
+# Recipe: Structured Outputs (Galactic Quest Cards)
+
+This recipe shows how to make Lectic return strict JSON that your
+scripts can consume directly.
+
+For a full list of supported JSON Schema keys, see [Structured Outputs
+Reference](../reference/04_structured_outputs.qmd).
+
+We’ll build a tiny “quest generator” that always returns the same shape,
+so you can pipe it to `jq`, save it, or feed it into another tool.
+
+## Why use `output_schema`?
+
+Without a schema, you usually get great prose, but parsing it can be
+fragile.
+
+With `output_schema`, Lectic asks the model for JSON that matches your
+schema. This is ideal when output is going to automation, a UI, or
+tests.
+
+The schema format is JSON Schema: https://json-schema.org/
+
+## The Setup
+
+Create `quests.lec`:
+
+``` markdown
+---
+interlocutor:
+  name: Quartermaster
+  prompt: |
+    You design side quests for a chaotic sci-fi RPG crew.
+    Return valid JSON only.
+  provider: openai
+  model: gpt-4.1-mini
+  output_schema:
+    type: object
+    properties:
+      setting:
+        type: string
+      quests:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            difficulty:
+              type: string
+              enum: [easy, medium, hard]
+            objective:
+              type: string
+            reward_credits:
+              type: integer
+              minimum: 50
+          required: [id, title, difficulty, objective, reward_credits]
+          additionalProperties: false
+    required: [setting, quests]
+    additionalProperties: false
+---
+
+Generate three side quests for a rust-bucket cargo crew that keeps
+accidentally becoming heroes.
+```
+
+Run it:
+
+``` bash
+lectic -f quests.lec -S > quests.json
+```
+
+Now your output is machine-friendly JSON, not free-form prose.
+
+If you use a different provider, keep the same `output_schema` and swap
+`provider` and `model` to one that supports structured outputs.
+
+## Provider-specific limitations
+
+Structured outputs are not identical across providers.
+
+Provider docs:
+
+- OpenAI:
+  <https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas>
+- Anthropic:
+  <https://platform.claude.com/docs/en/build-with-claude/structured-outputs>
+
+Lectic handles provider conformance for you:
+
+- OpenAI providers (`openai`, `openai/chat`): Lectic rewrites schemas
+  for strict mode compatibility.
+- Anthropic providers (`anthropic`, `anthropic/bedrock`): Lectic also
+  transforms schemas for Anthropic’s structured-output subset.
+
+If a schema works on one provider but fails on another, simplify it to a
+shared subset.
+
+## Use the Output
+
+Inspect it with `jq`:
+
+``` bash
+jq '.quests[] | {title, difficulty, reward_credits}' quests.json
+```
+
+Print a quick “quest board”:
+
+``` bash
+jq -r '.quests[] |
+  "🛰️  \(.title) [\(.difficulty)] — \(.objective) (\(.reward_credits) cr)"' \
+  quests.json
+```
+
+## Example Output
+
+``` json
+{
+  "setting": "Outer Perseus Shipping Lanes",
+  "quests": [
+    {
+      "id": "Q-01",
+      "title": "Rescue the Complaining Navigation AI",
+      "difficulty": "easy",
+      "objective": "Recover a drifted nav core from a salvage maze.",
+      "reward_credits": 250
+    },
+    {
+      "id": "Q-02",
+      "title": "Smuggle Medicine Past a Petty Blockade",
+      "difficulty": "medium",
+      "objective": "Deliver aid crates while spoofing three patrol scans.",
+      "reward_credits": 600
+    },
+    {
+      "id": "Q-03",
+      "title": "Tow a Singing Derelict Through Pirate Space",
+      "difficulty": "hard",
+      "objective": "Escort an unstable relic ship to a research dock.",
+      "reward_credits": 1200
+    }
+  ]
+}
+```
+
+## Tips
+
+- Keep schemas simple at first: object, array, enum, integer, string.
+- Add `additionalProperties: false` to reduce drift.
+- Tell the model exactly what the JSON is for in `prompt`.
+- You can still enable tools; the schema constrains the final answer.
+
+
+
 # Cookbook
 
 This section contains practical recipes showing how to combine Lectic’s
@@ -4157,6 +4342,10 @@ If you’re new to Lectic, start with these:
   subcommand that exposes the [Agent Skills](https://agentskills.io)
   format, letting your LLM load capabilities on demand through
   progressive disclosure.
+
+- **[Structured Outputs](./09_structured_outputs.qmd)** — Constrain the
+  assistant to a JSON schema so results are reliably machine-readable.
+  Includes a fun “quest cards” example you can pipe through `jq`.
 
 
 
@@ -4269,9 +4458,12 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 ## Custom Subcommands
 
 Lectic supports git-style custom subcommands. If you invoke
-`lectic <command>`, Lectic will look for an executable named
-`lectic-<command>` in your configuration directory, data directory, or
-PATH.
+`lectic <command>`, Lectic looks for an executable named
+`lectic-<command>` in this order:
+
+1.  `$LECTIC_CONFIG` (Searched recursive)
+2.  `$LECTIC_DATA` (Searched recursive)
+3.  `$PATH` entries
 
 See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a
 full guide on creating subcommands and adding tab completion for them.
@@ -4374,6 +4566,9 @@ and any included configuration files.
 
 ## Top-Level Keys
 
+- `imports`: Optional list of config imports. Each entry is either a
+  string path, or an object with `path` and optional `optional: true`.
+  If the path is a directory, Lectic loads `<path>/lectic.yaml`.
 - `interlocutor`: A single object defining the primary LLM speaker.
 - `interlocutors`: A list of interlocutor objects for multiparty
   conversations.
@@ -4386,6 +4581,28 @@ and any included configuration files.
 - `sandbox`: A default sandbox command string applied to all `exec`
   tools and local `mcp_command` tools, unless overridden by
   `interlocutor.sandbox` or a tool’s own `sandbox` setting.
+
+------------------------------------------------------------------------
+
+## The `imports` Entry
+
+Imports are resolved relative to the file that declares them.
+
+Valid forms:
+
+``` yaml
+imports:
+  - ./plugins/sales/module.yaml
+  - path: ./plugins/finance
+    optional: true
+```
+
+- String form: required import path.
+- Object form:
+  - `path`: (Required) import path.
+  - `optional`: (Optional, boolean) skip missing files without error.
+
+Imports are recursive, and cycles are reported as errors.
 
 ------------------------------------------------------------------------
 
@@ -4424,7 +4641,9 @@ configuration.
   `sandbox` setting.
 - `output_schema`: Optional JSON Schema that constrains the assistant’s
   output to valid JSON. This is forwarded to backends that support
-  structured outputs.
+  structured outputs. See [Structured
+  Outputs](./04_structured_outputs.qmd) for the supported schema subset
+  and provider notes.
 
 ### Model Configuration
 
@@ -4748,6 +4967,174 @@ completions reflects what will actually be available.
   read `file:` references when showing previews.
 - No completions are offered inside `:::` fences (those are response
   blocks, not meant for editing).
+
+
+
+# Reference: Structured Outputs
+
+Structured outputs let you constrain the assistant to JSON that matches
+a schema.
+
+In Lectic, set `interlocutor.output_schema` to a JSON Schema object.
+Lectic validates that schema before sending it to the provider.
+
+If you are new to JSON Schema, start here:
+<https://json-schema.org/learn>
+
+## Minimal example
+
+``` yaml
+interlocutor:
+  name: Assistant
+  provider: openai
+  model: gpt-5.2
+  prompt: Return JSON only.
+  output_schema:
+    type: object
+    properties:
+      answer:
+        type: string
+    required: [answer]
+    additionalProperties: false
+```
+
+## Supported schema subset in Lectic
+
+Lectic intentionally supports a focused subset. Unknown keys are
+rejected during validation.
+
+### Common keys
+
+You can use these on any schema node:
+
+- `description`
+- `default`
+
+### `type: string`
+
+Supported keys:
+
+- `type`
+- `enum` (string array)
+- `pattern`
+- `format` (`date-time`, `time`, `date`, `duration`, `email`,
+  `hostname`, `ipv4`, `ipv6`, `uuid`)
+- `contentMediaType`
+- `description`
+- `default`
+
+### `type: number` and `type: integer`
+
+Supported keys:
+
+- `type`
+- `enum` (number array)
+- `minimum`
+- `maximum`
+- `description`
+- `default`
+
+### `type: boolean`
+
+Supported keys:
+
+- `type`
+- `enum` (boolean array)
+- `description`
+- `default`
+
+### `type: null`
+
+Supported keys:
+
+- `type`
+- `enum` (null array)
+- `description`
+- `default`
+
+### `type: array`
+
+Supported keys:
+
+- `type`
+- `items` (required)
+- `description`
+- `default`
+
+### `type: object`
+
+Supported keys:
+
+- `type`
+- `properties` (required)
+- `required`
+- `additionalProperties`
+- `description`
+- `default`
+
+### `anyOf`
+
+Supported keys:
+
+- `anyOf` (array of schemas)
+- `description`
+- `default`
+
+## Not currently supported
+
+Examples of common JSON Schema keywords that Lectic currently rejects:
+
+- `oneOf`, `allOf`, `not`
+- `const`
+- string constraints like `minLength`, `maxLength`
+- array constraints like `minItems`, `maxItems`, `uniqueItems`
+- object constraints like `patternProperties`, `dependencies`
+
+If you need these, encode constraints in prompt instructions or
+post-validate with a hook/tool script.
+
+## Provider behavior notes
+
+Lectic validates your `output_schema` against Lectic’s supported subset
+first, then forwards it to the provider.
+
+Provider docs for schema support and limitations:
+
+- OpenAI:
+  <https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas>
+- Anthropic:
+  <https://platform.claude.com/docs/en/build-with-claude/structured-outputs>
+
+### OpenAI providers (`openai`, `openai/chat`)
+
+OpenAI strict mode has extra constraints. Lectic adapts your schema
+automatically for compatibility:
+
+- removes `default`
+- sets `additionalProperties: false` on all objects
+- marks all object properties as required
+- rewrites optional fields as nullable (`anyOf: [X, { type: null }]`)
+
+Because of that rewrite, optional fields may come back as explicit
+`null` instead of being omitted.
+
+### Anthropic provider (`anthropic`, `anthropic/bedrock`)
+
+Anthropic supports a provider-specific subset for structured outputs.
+Lectic transforms the schema before sending it so it conforms to
+Anthropic’s subset as closely as possible.
+
+This helps keep one `output_schema` usable across providers, but final
+compatibility still depends on the target model. If a provider rejects a
+schema, simplify it to the intersection supported by your models.
+
+## Practical advice
+
+- Start with small object schemas and expand gradually.
+- Use `enum` for classifier-like outputs.
+- Prefer explicit `required` lists.
+- Add `additionalProperties: false` when you need stable shapes.
+- For “exactly N items”, enforce N in prompt text for now.
 
 
 

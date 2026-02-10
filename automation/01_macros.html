@@ -363,6 +363,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Agent Skills Support</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/09_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -390,6 +396,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">LSP Server</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
       </ul>
@@ -611,9 +623,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">MESSAGES_LENGTH</td>
 <td style="text-align: left;">Total number of messages in the conversation</td>
 </tr>
+<tr class="odd">
+<td style="text-align: left;">MESSAGE_TEXT</td>
+<td style="text-align: left;">Raw text of the message containing the macro</td>
+</tr>
 </tbody>
 </table>
-<p>These might be useful for conditionally running only if the macro is, e.g.&nbsp;part of the most recent user message.</p>
+<p>These might be useful for conditionally running only if the macro is, e.g.&nbsp;part of the most recent user message, or for sniffing the context in which the macro is expanding for more intelligent LLM summarization.</p>
 </section>
 </section>
 <section id="advanced-macros-phases-and-recursion" class="level2">

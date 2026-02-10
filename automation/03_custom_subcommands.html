@@ -363,6 +363,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Agent Skills Support</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../cookbook/09_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -390,6 +396,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="../reference/03_lsp.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">LSP Server</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
       </ul>
@@ -436,9 +448,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="how-it-works">How It Works</h2>
 <p>When you run <code>lectic foo args...</code>, Lectic searches for an executable named <code>lectic-foo</code> or <code>lectic-foo.*</code> in the following locations, in order:</p>
 <ol type="1">
-<li><strong>Configuration Directory</strong>: <code>$LECTIC_CONFIG</code> (defaults to <code>~/.config/lectic</code> on Linux)</li>
-<li><strong>Data Directory</strong>: <code>$LECTIC_DATA</code> (defaults to <code>~/.local/share/lectic</code> on Linux)</li>
-<li><strong>System PATH</strong>: Any directory in your <code>$PATH</code>.</li>
+<li><strong>Configuration Directory</strong>: <code>$LECTIC_CONFIG</code> (defaults to <code>~/.config/lectic</code> on Linux). Searched recursively.</li>
+<li><strong>Data Directory</strong>: <code>$LECTIC_DATA</code> (defaults to <code>~/.local/share/lectic</code> on Linux). Searched recursively.</li>
+<li><strong>System PATH</strong>: Any directory in your <code>$PATH</code>. Top-level per PATH entry.</li>
 </ol>
 <p>The first match found is executed. The subprocess receives the remaining arguments, inherits the standard input, output, and error streams, and has access to Lectic’s environment variables.</p>
 </section>
@@ -547,6 +559,7 @@ Tip
 </div>
 <div class="callout-body-container callout-body">
 <p>For performance, define completions in a separate <code>.completion.bash</code> file rather than inside the subcommand script itself. This allows the shell to load completions without executing the subcommand.</p>
+<p>The completion loader mirrors runtime discovery: it scans <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code> recursively, and loads adjacent completion files from discovered commands.</p>
 </div>
 </div>
 

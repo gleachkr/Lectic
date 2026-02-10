@@ -363,6 +363,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Agent Skills Support</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./cookbook/09_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item sidebar-item-section">
@@ -392,6 +398,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">LSP Server</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./reference/04_structured_outputs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Structured Outputs</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -407,6 +419,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#lectic-configuration" id="toc-lectic-configuration" class="nav-link active" data-scroll-target="#lectic-configuration">Lectic Configuration</a>
   <ul class="collapse">
   <li><a href="#configuration-hierarchy" id="toc-configuration-hierarchy" class="nav-link" data-scroll-target="#configuration-hierarchy">Configuration Hierarchy</a></li>
+  <li><a href="#imports-modular-configuration" id="toc-imports-modular-configuration" class="nav-link" data-scroll-target="#imports-modular-configuration">Imports (Modular Configuration)</a></li>
   <li><a href="#overriding-default-directories" id="toc-overriding-default-directories" class="nav-link" data-scroll-target="#overriding-default-directories">Overriding Default Directories</a></li>
   <li><a href="#merging-logic" id="toc-merging-logic" class="nav-link" data-scroll-target="#merging-logic">Merging Logic</a>
   <ul class="collapse">
@@ -430,9 +443,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Configuration settings are merged from multiple sources. Each source in the list below overrides the one before it, with the <code>.lec</code> file’s own header always having the final say.</p>
 <ol type="1">
 <li><p><strong>System Config Directory</strong>: Lectic first looks for a configuration file at <code>lectic/lectic.yaml</code> within your system’s standard config location (e.g., <code>~/.config/lectic/lectic.yaml</code> on Linux). This is the ideal place for your global, user-level defaults.</p></li>
-<li><p><strong>Working Directory</strong>: Next, it looks for a <code>lectic.yaml</code> file in the current working directory. This is useful for project-level configuration that you might commit to a git repository.</p></li>
+<li><p><strong>Workspace Config</strong>: Next, Lectic looks for <code>lectic.yaml</code> by walking up from the active document directory (or from the current working directory when no file is active) until it finds one.</p></li>
 <li><p><strong>Lectic File Header</strong>: The YAML frontmatter within your <code>.lec</code> file is the final and highest-precedence source of configuration.</p></li>
 </ol>
+</section>
+<section id="imports-modular-configuration" class="level2">
+<h2 class="anchored" data-anchor-id="imports-modular-configuration">Imports (Modular Configuration)</h2>
+<p>You can split configuration across multiple files with top-level <code>imports</code>. Each import can be either a string path or an object with <code>path</code> and optional <code>optional: true</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">imports</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ./.lectic/plugins/sales/module.yaml</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> ./.lectic/plugins/finance</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">optional</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Important details:</p>
+<ul>
+<li>Relative import paths are resolved from the file that declares them.</li>
+<li>If an import path is a directory, Lectic loads <code>&lt;dir&gt;/lectic.yaml</code>.</li>
+<li>Imports are recursive, so imported files can have their own <code>imports</code>.</li>
+<li>Import cycles are detected and reported as errors.</li>
+</ul>
+<p>This is useful for plugin bundles, shared team defaults, and separating large configs into smaller modules.</p>
 </section>
 <section id="overriding-default-directories" class="level2">
 <h2 class="anchored" data-anchor-id="overriding-default-directories">Overriding Default Directories</h2>
@@ -457,19 +486,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="example" class="level3">
 <h3 class="anchored" data-anchor-id="example">Example</h3>
 <p>Imagine you have a global config in <code>~/.config/lectic/lectic.yaml</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ~/.config/lectic/lectic.yaml</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> opus</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> anthropic</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-3-opus-20240229</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ~/.config/lectic/lectic.yaml</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> opus</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> anthropic</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-3-opus-20240229</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>And a project-specific file, <code>project.yaml</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ./project.yaml</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> haiku</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-3-haiku-20240307</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> bash</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> opus</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ./project.yaml</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> haiku</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-3-haiku-20240307</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> bash</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> opus</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If you place this project config at <code>./lectic.yaml</code> in your working directory, Lectic will merge it with your system defaults and the document header using the precedence above. The <code>haiku</code> interlocutor will be configured with the <code>claude-3-haiku</code> model, and it will have access to a <code>bash</code> tool and an <code>agent</code> tool that can call <code>opus</code>. You can switch to <code>opus</code> within the conversation if needed, using an <a href="./context_management/02_conversation_control.html"><code>:ask[]</code> directive</a>.</p>
 
 
