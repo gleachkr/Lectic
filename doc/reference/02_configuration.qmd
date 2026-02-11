@@ -35,6 +35,17 @@ imports:
     optional: true
 ```
 
+`imports` paths also support the `local:` prefix, resolved relative to the
+config file that contains the value:
+
+```yaml
+imports:
+  - local:./plugins/sales/module.yaml
+  - path: local:../shared/finance.yaml
+```
+
+`local:` paths must begin with `./` or `../`.
+
 - String form: required import path.
 - Object form:
   - `path`: (Required) import path.

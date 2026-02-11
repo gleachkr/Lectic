@@ -34,6 +34,43 @@ macros:
     expansion: file:$HOME/.config/lectic/prompts/summarize.txt
 ```
 
+## `local:PATH` and `file:local:PATH`
+
+Use `local:` when a path should be resolved relative to the config source
+file that contains the value.
+
+Supported forms:
+
+- `local:./...`
+- `local:../...`
+- `file:local:./...`
+- `file:local:../...`
+
+Not supported:
+
+- `local:file:...`
+- `local:exec:...`
+- `local:/abs/path`
+- `local:foo/bar` (must start with `./` or `../`)
+
+`local:` rewrites to an absolute filesystem path string.
+`file:local:` rewrites to `file:/absolute/path`.
+
+Example:
+
+```yaml
+tools:
+  - exec: bash
+    env:
+      PLUGIN_ROOT: local:./
+      PROMPT_FILE: local:./prompts/review.md
+
+interlocutor:
+  prompt: file:$PROMPT_FILE
+  # or directly:
+  # prompt: file:local:./prompts/review.md
+```
+
 ## `exec:COMMAND` or `exec:SCRIPT`
 
 Runs the command and uses its stdout as the field value. There are two
@@ -85,6 +122,8 @@ interlocutor:
   invoked the command). If you used -f or -i, note that the working
   directory does not automatically switch to the .lec file's directory for
   these expansions. Use absolute paths or cd if you need a different base.
+- `local:` is the exception: it is resolved relative to the config source
+  file where it appears, then rewritten to an absolute path.
 - Standard Lectic environment variables are provided, including
   `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, `LECTIC_TEMP`, and
   `LECTIC_FILE` (when using `-f` or `-i`). Your shell environment is also passed

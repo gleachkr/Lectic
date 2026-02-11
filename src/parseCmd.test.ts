@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll }
   from 'bun:test'
 import { parseCmd } from './parseCmd'
 import { Logger } from './logging/logger'
+import { getIncludes } from './utils/cli'
 import * as YAML from 'yaml'
 import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
@@ -116,6 +117,65 @@ Hi there
             )
 
             await parseCmd({ file })
+
+            const output = JSON.parse(logs.join(''))
+            expect(output.messages).toHaveLength(1)
+            expect(output.messages[0].role).toBe("user")
+        } finally {
+            rmSync(wsDir, { recursive: true, force: true })
+        }
+    })
+
+    it('should resolve file:local: prompts from imported config', async () => {
+        const wsDir = mkdtempSync(join(tmpdir(), "lectic-ws-file-local-"))
+
+        try {
+            writeFileSync(
+                join(wsDir, "plugin.yaml"),
+                [
+                    "interlocutor:",
+                    "  name: ImportedBot",
+                    "  prompt: file:local:./prompt.md",
+                    "",
+                ].join("\n")
+            )
+
+            writeFileSync(join(wsDir, "prompt.md"), "Imported prompt")
+
+            writeFileSync(
+                join(wsDir, "lectic.yaml"),
+                ["imports:", "  - ./plugin.yaml", ""].join("\n")
+            )
+
+            const file = join(wsDir, "task.lec")
+            writeFileSync(
+                file,
+                [
+                    "---",
+                    "interlocutor:",
+                    "  name: ImportedBot",
+                    "---",
+                    "Hello",
+                    "",
+                ].join("\n")
+            )
+
+            await parseCmd({ file })
+
+            const includes = await getIncludes(
+                [
+                    "interlocutor:",
+                    "  name: ImportedBot",
+                    "",
+                ].join("\n"),
+                wsDir,
+                wsDir
+            )
+            expect(
+                includes.some(include =>
+                    include?.includes(`file:${join(wsDir, "prompt.md")}`)
+                )
+            ).toBeTrue()
 
             const output = JSON.parse(logs.join(''))
             expect(output.messages).toHaveLength(1)

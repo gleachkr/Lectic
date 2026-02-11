@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, normalize, resolve } from "path"
 
 import * as YAML from "yaml"
 
+import { rewriteLocalInNode } from "./localPath"
 import { expandEnv } from "./replace"
 import { lecticConfigDir } from "./xdg"
 
@@ -209,28 +210,51 @@ export async function resolveConfigChain(
     active.add(id)
 
     let parsed: unknown | null = null
+    let resolvedText = text
+    let canResolveImports = true
+    let parsedSuccessfully = false
+
     try {
-      parsed = YAML.parse(text)
+      const parsedValue = YAML.parse(text)
+      parsedSuccessfully = true
+      const rewritten = rewriteLocalInNode(parsedValue, dirname(id))
+      parsed = rewritten
+
+      if (rewritten !== parsedValue) {
+        resolvedText = YAML.stringify(rewritten)
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
-      issues.push({
-        source,
-        phase: "parse",
-        id,
-        message,
-      })
+      if (!parsedSuccessfully) {
+        issues.push({
+          source,
+          phase: "parse",
+          id,
+          message,
+        })
+      } else {
+        issues.push({
+          source,
+          phase: "import",
+          id,
+          message,
+        })
+        canResolveImports = false
+      }
     }
 
     try {
-      const refs = parseImportRefs(
-        parsed,
-        source,
-        id,
-        dirname(id),
-        issues
-      )
-      for (const ref of refs) {
-        await visitFile(ref.path, "import", ref.optional, id)
+      if (canResolveImports) {
+        const refs = parseImportRefs(
+          parsed,
+          source,
+          id,
+          dirname(id),
+          issues
+        )
+        for (const ref of refs) {
+          await visitFile(ref.path, "import", ref.optional, id)
+        }
       }
     } finally {
       active.delete(id)
@@ -240,7 +264,7 @@ export async function resolveConfigChain(
       source,
       id,
       path: id,
-      text,
+      text: resolvedText,
       parsed,
     })
   }
@@ -261,34 +285,56 @@ export async function resolveConfigChain(
   if (typeof docYaml === "string" && docYaml.length > 0) {
     const id = "<document>"
     let parsed: unknown | null = null
+    let resolvedText = docYaml
+    let canResolveImports = true
+    let parsedSuccessfully = false
 
     try {
-      parsed = YAML.parse(docYaml)
+      const parsedValue = YAML.parse(docYaml)
+      parsedSuccessfully = true
+      const rewritten = rewriteLocalInNode(parsedValue, opts.document?.dir)
+      parsed = rewritten
+
+      if (rewritten !== parsedValue) {
+        resolvedText = YAML.stringify(rewritten)
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
-      issues.push({
-        source: "document",
-        phase: "parse",
-        id,
-        message,
-      })
+      if (!parsedSuccessfully) {
+        issues.push({
+          source: "document",
+          phase: "parse",
+          id,
+          message,
+        })
+      } else {
+        issues.push({
+          source: "document",
+          phase: "import",
+          id,
+          message,
+        })
+        canResolveImports = false
+      }
     }
 
-    const refs = parseImportRefs(
-      parsed,
-      "document",
-      id,
-      opts.document?.dir,
-      issues
-    )
-    for (const ref of refs) {
-      await visitFile(ref.path, "import", ref.optional, id)
+    if (canResolveImports) {
+      const refs = parseImportRefs(
+        parsed,
+        "document",
+        id,
+        opts.document?.dir,
+        issues
+      )
+      for (const ref of refs) {
+        await visitFile(ref.path, "import", ref.optional, id)
+      }
     }
 
     sources.push({
       source: "document",
       id,
-      text: docYaml,
+      text: resolvedText,
       parsed,
     })
   }

@@ -145,6 +145,235 @@ describe("config discovery", () => {
     }
   })
 
+  test("local:./x rewrites to absolute path", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-local-abs-"))
+    const pluginDir = join(root, "plugin")
+
+    try {
+      mkdirSync(pluginDir, { recursive: true })
+      writeFileSync(
+        join(pluginDir, "module.yaml"),
+        [
+          "interlocutor:",
+          "  name: Imported",
+          "  prompt: local:./prompt.md",
+          "",
+        ].join("\n")
+      )
+
+      const out = await resolveConfigChain({
+        includeSystem: false,
+        document: {
+          yaml: [
+            "imports:",
+            "  - ./plugin/module.yaml",
+            "interlocutor:",
+            "  name: Imported",
+            "",
+          ].join("\n"),
+          dir: root,
+        },
+      })
+
+      expect(out.issues).toHaveLength(0)
+      const modulePath = join(pluginDir, "module.yaml")
+      const source = out.sources.find(s => s.path === modulePath)
+      const prompt = (
+        source?.parsed as { interlocutor?: { prompt?: string } } | undefined
+      )?.interlocutor?.prompt
+
+      expect(prompt).toBe(join(pluginDir, "prompt.md"))
+      expect(source?.text).toContain(join(pluginDir, "prompt.md"))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("file:local:./x rewrites to file:/abs/x", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-file-local-"))
+
+    try {
+      writeFileSync(
+        join(root, "module.yaml"),
+        [
+          "interlocutor:",
+          "  name: Imported",
+          "  prompt: file:local:./prompt.md",
+          "",
+        ].join("\n")
+      )
+
+      const out = await resolveConfigChain({
+        includeSystem: false,
+        document: {
+          yaml: [
+            "imports:",
+            "  - ./module.yaml",
+            "interlocutor:",
+            "  name: Imported",
+            "",
+          ].join("\n"),
+          dir: root,
+        },
+      })
+
+      expect(out.issues).toHaveLength(0)
+      const source = out.sources.find(s => s.path === join(root, "module.yaml"))
+      const prompt = (
+        source?.parsed as { interlocutor?: { prompt?: string } } | undefined
+      )?.interlocutor?.prompt
+
+      expect(prompt).toBe(`file:${join(root, "prompt.md")}`)
+      expect(source?.text).toContain(`file:${join(root, "prompt.md")}`)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("nested local imports resolve relative to each source file", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-local-nested-"))
+    const pluginsDir = join(root, "plugins")
+    const modulesDir = join(root, "modules")
+
+    try {
+      mkdirSync(pluginsDir, { recursive: true })
+      mkdirSync(join(modulesDir, "prompts"), { recursive: true })
+
+      writeFileSync(
+        join(root, "lectic.yaml"),
+        [
+          "imports:",
+          "  - ./plugins/first.yaml",
+          "interlocutor:",
+          "  name: First",
+          "",
+        ].join("\n")
+      )
+
+      writeFileSync(
+        join(pluginsDir, "first.yaml"),
+        [
+          "imports:",
+          "  - local:../modules/second.yaml",
+          "interlocutor:",
+          "  name: First",
+          "  prompt: local:./first.md",
+          "",
+        ].join("\n")
+      )
+
+      writeFileSync(
+        join(modulesDir, "second.yaml"),
+        [
+          "macros:",
+          "  - name: from_second",
+          "    expansion: local:./prompts/second.md",
+          "",
+        ].join("\n")
+      )
+
+      const out = await resolveConfigChain({
+        includeSystem: false,
+        workspaceStartDir: root,
+      })
+
+      expect(out.issues).toHaveLength(0)
+
+      const first = out.sources.find(s => s.path === join(pluginsDir, "first.yaml"))
+      const second = out.sources.find(s => s.path === join(modulesDir, "second.yaml"))
+
+      const firstPrompt = (
+        first?.parsed as { interlocutor?: { prompt?: string } } | undefined
+      )?.interlocutor?.prompt
+      const secondExpansion = (
+        second?.parsed as { macros?: Array<{ expansion?: string }> } | undefined
+      )?.macros?.[0]?.expansion
+
+      expect(firstPrompt).toBe(join(pluginsDir, "first.md"))
+      expect(secondExpansion).toBe(join(modulesDir, "prompts", "second.md"))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("imports.path supports local:./module.yaml", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-import-local-"))
+
+    try {
+      writeFileSync(
+        join(root, "module.yaml"),
+        ["macros:", "  - name: helper", "    expansion: hi", ""].join("\n")
+      )
+
+      const out = await resolveConfigChain({
+        includeSystem: false,
+        document: {
+          yaml: [
+            "imports:",
+            "  - path: local:./module.yaml",
+            "interlocutor:",
+            "  name: Doc",
+            "  prompt: p",
+            "",
+          ].join("\n"),
+          dir: root,
+        },
+      })
+
+      expect(out.issues).toHaveLength(0)
+      expect(out.sources.map(s => s.path)).toContain(join(root, "module.yaml"))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("invalid local: forms produce deterministic errors", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-local-errors-"))
+
+    try {
+      const cases = [
+        {
+          value: "local:foo/bar",
+          message: "local: paths must start with ./ or ../",
+        },
+        {
+          value: "local:/abs",
+          message: "local: paths must start with ./ or ../",
+        },
+        {
+          value: "local:exec:echo hi",
+          message: "local: does not compose with exec:",
+        },
+        {
+          value: "local:file:./x",
+          message: "use file:local:./... instead of local:file:...",
+        },
+      ]
+
+      for (const testCase of cases) {
+        const out = await resolveConfigChain({
+          includeSystem: false,
+          document: {
+            yaml: [
+              "interlocutor:",
+              "  name: Doc",
+              `  prompt: ${testCase.value}`,
+              "",
+            ].join("\n"),
+            dir: root,
+          },
+        })
+
+        expect(out.issues).toHaveLength(1)
+        expect(out.issues[0].phase).toBe("import")
+        expect(out.issues[0].source).toBe("document")
+        expect(out.issues[0].message).toBe(testCase.message)
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   test("resolveConfigChain reports import cycles", async () => {
     const root = mkdtempSync(join(tmpdir(), "lectic-config-cycle-"))
 
