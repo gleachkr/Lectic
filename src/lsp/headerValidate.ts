@@ -6,6 +6,12 @@ import { Messages } from "../constants/messages"
 import { isObjectRecord } from "../types/guards"
 import { INTERLOCUTOR_KEY_SET } from "./interlocutorFields"
 
+function isUseRefObject(v: unknown): v is { use: string } {
+  return isObjectRecord(v) &&
+    Object.keys(v).length === 1 &&
+    typeof v["use"] === "string"
+}
+
 export type Issue = {
   code: string
   message: string
@@ -153,6 +159,41 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           path: [...pathBase, "tools"],
           severity: "error"
         })
+      } else {
+        tools.forEach((tool, i) => {
+          if (!isObjectRecord(tool)) return
+
+          const hasSandboxCap =
+            "exec" in tool ||
+            "mcp_command" in tool
+
+          if (!hasSandboxCap || !("sandbox" in tool)) return
+
+          const sandbox = tool["sandbox"]
+          const ok = typeof sandbox === "string" || isUseRefObject(sandbox)
+          if (ok) return
+
+          issues.push({
+            code: "tool.sandbox.type",
+            message: Messages.header.sandboxType(),
+            path: [...pathBase, "tools", i, "sandbox"],
+            severity: "error",
+          })
+        })
+      }
+    }
+
+    // interlocutor sandbox
+    if ("sandbox" in raw) {
+      const sandbox = raw["sandbox"]
+      const ok = typeof sandbox === "string" || isUseRefObject(sandbox)
+      if (!ok) {
+        issues.push({
+          code: "interlocutor.sandbox.type",
+          message: Messages.interlocutor.sandboxType(nameVal),
+          path: [...pathBase, "sandbox"],
+          severity: "error",
+        })
       }
     }
 
@@ -177,6 +218,9 @@ export function validateHeaderShape(spec: unknown): Issue[] {
             })
             return
           }
+          if (isUseRefObject(h)) return
+
+
           if (!("on" in h)) {
             issues.push({
               code: "hook.on.missing",
@@ -323,14 +367,17 @@ export function validateHeaderShape(spec: unknown): Issue[] {
 
   // sandbox
   if ("sandbox" in root) {
-    if (!(typeof root["sandbox"] === "string")) {
+    const sandbox = root["sandbox"]
+    const ok = typeof sandbox === "string" || isUseRefObject(sandbox)
+
+    if (!ok) {
       issues.push({
         code: "header.sandbox.type",
         message: Messages.header.sandboxType(),
         path: ["sandbox"],
         severity: "error"
       })
-    } 
+    }
   }
 
   // kits
@@ -403,6 +450,9 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     } else {
       hooks.forEach((h, i: number) => {
         if (!isObjectRecord(h)) return
+
+        if (isUseRefObject(h)) return
+
         if (!("on" in h)) {
           issues.push({
             code: "hook.on.missing",

@@ -95,6 +95,91 @@ describe("diagnostics", () => {
     })
   })
 
+  test("accepts hook and sandbox use refs in local header", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const text = [
+        "---",
+        "hook_defs:",
+        "  - name: audit",
+        "    on: assistant_message",
+        "    do: echo audited",
+        "env_defs:",
+        "  - name: base_env",
+        "    env:",
+        "      MODE: strict",
+        "sandbox_defs:",
+        "  - name: safe",
+        "    sandbox: bwrap",
+        "sandbox:",
+        "  use: safe",
+        "interlocutor:",
+        "  name: A",
+        "  prompt: p",
+        "  sandbox:",
+        "    use: safe",
+        "  hooks:",
+        "    - use: audit",
+        "  tools:",
+        "    - exec: bash",
+        "      name: shell",
+        "      env:",
+        "        use: base_env",
+        "      sandbox:",
+        "        use: safe",
+        "    - mcp_command: node",
+        "      args:",
+        "        - ./server.js",
+        "      sandbox:",
+        "        use: safe",
+        "---",
+        "Body",
+        "",
+      ].join("\n")
+
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
+      expect(
+        hasMessage(diags, "Hook needs to be given with an \"on\" field")
+      ).toBeFalse()
+      expect(
+        hasMessage(diags, "The sandbox for A wasn't well-formed")
+      ).toBeFalse()
+      expect(hasMessage(diags, "'sandbox' must be a string.")).toBeFalse()
+    })
+  })
+
+  test("flags invalid interlocutor and tool sandbox shapes", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const text = [
+        "---",
+        "interlocutor:",
+        "  name: A",
+        "  prompt: p",
+        "  sandbox:",
+        "    bad: value",
+        "  tools:",
+        "    - exec: bash",
+        "      name: shell",
+        "      sandbox:",
+        "        bad: value",
+        "    - mcp_command: node",
+        "      sandbox:",
+        "        bad: value",
+        "---",
+        "Body",
+        "",
+      ].join("\n")
+
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
+
+      expect(
+        hasMessage(diags, "The sandbox for A wasn't well-formed")
+      ).toBeTrue()
+      expect(hasMessage(diags, "'sandbox' must be a string.")).toBeTrue()
+    })
+  })
+
   test("flags unknown :ask and :aside names in body", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = `---\ninterlocutors:\n  - name: Known\n    prompt: p\n---\nBody\n:ask[Unknown]\n:aside[Nope]\n`

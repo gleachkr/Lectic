@@ -200,6 +200,46 @@ describe('LecticHeader', () => {
           expect(interlocutor.registry).toEqual({});
     });
 
+    it('resolves use references before tool initialization', async () => {
+      const yaml = [
+        "hook_defs:",
+        "  - name: audit",
+        "    on: assistant_message",
+        "    do: echo audited",
+        "env_defs:",
+        "  - name: common",
+        "    env:",
+        "      MODE: strict",
+        "sandbox_defs:",
+        "  - name: safe",
+        "    sandbox: echo sandbox",
+        "interlocutor:",
+        "  name: Tester",
+        "  prompt: Test prompt",
+        "  hooks:",
+        "    - use: audit",
+        "  tools:",
+        "    - exec: bash",
+        "      name: shell",
+        "      env:",
+        "        use: common",
+        "      sandbox:",
+        "        use: safe",
+        "",
+      ].join("\n")
+
+      const merged = LecticHeader.mergeInterlocutorSpecs([yaml])
+      const header = new LecticHeader(merged as any)
+      await header.initialize()
+
+      expect(header.interlocutor.active_hooks?.[0]?.do).toBe("echo audited")
+
+      const shell = header.interlocutor.registry?.["shell"] as ExecTool | undefined
+      expect(shell).toBeInstanceOf(ExecTool)
+      expect(shell?.env["MODE"]).toBe("strict")
+      expect(shell?.sandbox).toBe("echo sandbox")
+    })
+
     it('expands a kit into tools', async () => {
       const spec = {
         kits: [

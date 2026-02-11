@@ -15,6 +15,7 @@ import { isA2AToolSpec, A2ATool, type A2AToolSpec } from "../tools/a2a"
 import { isNativeTool } from "../tools/native"
 import { loadFrom } from "../utils/loader"
 import { mergeValues } from "../utils/merge"
+import { resolveNamedUses } from "../utils/useResolver"
 import { Messages } from "../constants/messages"
 import { isObjectRecord } from "./guards"
 
@@ -95,19 +96,28 @@ export class LecticHeader {
     // the same name, merge them so the single interlocutor includes
     // the properties from its list counterpart.
     static normalizeMergedSpec(raw: unknown): unknown {
-        if (!isObjectRecord(raw)) return raw
-        const curInterlocutor = raw['interlocutor']
-        const interlocutors = raw['interlocutors']
-        if (!isObjectRecord(curInterlocutor) || !Array.isArray(interlocutors)) return raw
+        const resolved = resolveNamedUses(raw)
+        if (!isObjectRecord(resolved)) return resolved
+
+        const curInterlocutor = resolved['interlocutor']
+        const interlocutors = resolved['interlocutors']
+
+        if (!isObjectRecord(curInterlocutor) || !Array.isArray(interlocutors)) {
+            return resolved
+        }
+
         const nameVal = curInterlocutor['name']
-        if (!(typeof nameVal === 'string')) return raw
+        if (!(typeof nameVal === 'string')) return resolved
+
         const otherInterlocutor = interlocutors.find((inter: unknown) => {
             return isObjectRecord(inter) && inter['name'] === nameVal
         })
+
         if (otherInterlocutor) {
-            raw['interlocutor'] = mergeValues(otherInterlocutor, curInterlocutor)
+            resolved['interlocutor'] = mergeValues(otherInterlocutor, curInterlocutor)
         }
-        return raw
+
+        return resolved
     }
 
     static mergeInterlocutorSpecs(yamls : (string | null)[]) {
