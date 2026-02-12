@@ -1,4 +1,7 @@
 import { describe, it, expect } from "bun:test"
+import { unlinkSync } from "fs"
+import { join } from "path"
+import { tmpdir } from "os"
 import { emitAssistantMessageEvent, resolveToolCalls, runHooks } from "../types/backend"
 import { Hook } from "../types/hook"
 import { Tool, ToolCallResults } from "../types/tool"
@@ -106,6 +109,91 @@ echo "LECTIC:ONLY:headers"`,
         expect(results[0].content.trim()).toBe("")
     })
 
+    it("runs assistant_final when TOOL_USE_DONE is set", () => {
+        const hook = new Hook({
+            on: "assistant_final",
+            do: "echo 'done'",
+            inline: true,
+        })
+
+        const results = runHooks([hook], "assistant_message", {
+            TOOL_USE_DONE: "1",
+        })
+
+        expect(results).toHaveLength(1)
+        expect(results[0].content.trim()).toBe("done")
+    })
+
+    it("runs assistant_intermediate when TOOL_USE_DONE is not set", () => {
+        const hook = new Hook({
+            on: "assistant_intermediate",
+            do: "echo 'working'",
+            inline: true,
+        })
+
+        const results = runHooks([hook], "assistant_message", {})
+
+        expect(results).toHaveLength(1)
+        expect(results[0].content.trim()).toBe("working")
+    })
+
+    it("runs base assistant hook before assistant_final alias hooks", () => {
+        const base = new Hook({
+            on: "assistant_message",
+            do: "echo 'base'",
+            inline: true,
+        })
+        const alias = new Hook({
+            on: "assistant_final",
+            do: "echo 'alias'",
+            inline: true,
+        })
+
+        const results = runHooks([base, alias], "assistant_message", {
+            TOOL_USE_DONE: "1",
+        })
+
+        expect(results).toHaveLength(2)
+        expect(results[0].content.trim()).toBe("base")
+        expect(results[1].content.trim()).toBe("alias")
+    })
+
+    it("runs error hooks as aliases of run_end when status is error", () => {
+        const base = new Hook({
+            on: "run_end",
+            do: "echo 'base'",
+            inline: true,
+        })
+        const alias = new Hook({
+            on: "error",
+            do: "echo $ERROR_MESSAGE",
+            inline: true,
+        })
+
+        const results = runHooks([base, alias], "run_end", {
+            RUN_STATUS: "error",
+            ERROR_MESSAGE: "boom",
+        })
+
+        expect(results).toHaveLength(2)
+        expect(results[0].content.trim()).toBe("base")
+        expect(results[1].content.trim()).toBe("boom")
+    })
+
+    it("does not run error aliases when run_end status is success", () => {
+        const alias = new Hook({
+            on: "error",
+            do: "echo 'unexpected'",
+            inline: true,
+        })
+
+        const results = runHooks([alias], "run_end", {
+            RUN_STATUS: "success",
+        })
+
+        expect(results).toHaveLength(0)
+    })
+
     it("ignores headers if they appear later in the content", () => {
         const hook = new Hook({
             on: "user_message",
@@ -206,5 +294,74 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         const results = await resolveToolCalls(entries, registry, { lectic : lectic as any })
         
         expect(results[0].isError).toBe(false)
+    })
+
+    it("emits tool_use_post with TOOL_CALL_RESULTS on success", async () => {
+        const out = join(
+            tmpdir(),
+            `lectic-tool-post-success-${Date.now()}-${Math.random()}.txt`
+        )
+
+        const postHook = new Hook({
+            on: "tool_use_post",
+            do: "#!/bin/bash\nprintf '%s' \"$TOOL_CALL_RESULTS\" > \"$OUT\"",
+            env: { OUT: out },
+        })
+
+        const lectic = {
+            header: {
+                hooks: [postHook],
+                interlocutor: {},
+            },
+        }
+
+        const entries = [{ name: "mock_tool", args: { foo: "bar" } }]
+        const results = await resolveToolCalls(entries, registry, {
+            lectic: lectic as any,
+        })
+
+        const written = await Bun.file(out).text()
+        try { unlinkSync(out) } catch { /* ignore */ }
+
+        expect(results[0].isError).toBe(false)
+        expect(written).toContain('"mimetype":"text/plain"')
+        expect(written).toContain('"content":"mock result"')
+    })
+
+    it("emits tool_use_post with TOOL_CALL_ERROR when blocked", async () => {
+        const out = join(
+            tmpdir(),
+            `lectic-tool-post-error-${Date.now()}-${Math.random()}.txt`
+        )
+
+        const blockingHook = new Hook({
+            on: "tool_use_pre",
+            do: "#!/bin/bash\nexit 1",
+        })
+        const postHook = new Hook({
+            on: "tool_use_post",
+            do: "#!/bin/bash\nprintf '%s' \"$TOOL_CALL_ERROR\" > \"$OUT\"",
+            env: { OUT: out },
+        })
+
+        const lectic = {
+            header: {
+                hooks: [blockingHook, postHook],
+                interlocutor: {},
+            },
+        }
+
+        const entries = [{ name: "mock_tool", args: {} }]
+        const results = await resolveToolCalls(entries, registry, {
+            lectic: lectic as any,
+        })
+
+        const written = await Bun.file(out).text()
+        try { unlinkSync(out) } catch { /* ignore */ }
+
+        expect(results[0].isError).toBe(true)
+        expect(results[0].results[0].content).toBe("Tool use permission denied")
+        expect(written).toContain('"type":"blocked"')
+        expect(written).toContain('"message":"Tool use permission denied"')
     })
 })

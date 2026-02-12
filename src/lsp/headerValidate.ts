@@ -4,6 +4,7 @@ import { isLLMProvider } from "../types/provider"
 import { validateJSONSchema } from "../types/schema"
 import { Messages } from "../constants/messages"
 import { isObjectRecord } from "../types/guards"
+import { HOOK_EVENT_TYPES, type HookEvents } from "../types/hook"
 import { INTERLOCUTOR_KEY_SET } from "./interlocutorFields"
 
 function isUseRefObject(v: unknown): v is { use: string } {
@@ -236,10 +237,13 @@ export function validateHeaderShape(spec: unknown): Issue[] {
               severity: "error"
             })
           } else {
-            const allowed = ["user_message", "assistant_message", "error", "tool_use_pre"]
+            const allowed = HOOK_EVENT_TYPES
             const ok = typeof h["on"] === "string"
-              ? allowed.includes(h["on"])
-              : h["on"].every((x) => typeof x === "string" && allowed.includes(x))
+              ? allowed.includes(h["on"] as keyof HookEvents)
+              : h["on"].every(
+                (x) => typeof x === "string"
+                  && allowed.includes(x as keyof HookEvents)
+              )
             if (!ok) {
               issues.push({
                 code: "hook.on.value",
@@ -468,10 +472,13 @@ export function validateHeaderShape(spec: unknown): Issue[] {
             severity: "error"
           })
         } else {
-          const allowed = ["user_message", "assistant_message", "error", "tool_use_pre"]
+          const allowed = HOOK_EVENT_TYPES
           const ok = typeof h["on"] === "string"
-            ? allowed.includes(h["on"])
-            : h["on"].every((x) => allowed.includes(x))
+            ? allowed.includes(h["on"] as keyof HookEvents)
+            : h["on"].every(
+              (x) => typeof x === "string"
+                && allowed.includes(x as keyof HookEvents)
+            )
           if (!ok) {
             issues.push({
               code: "hook.on.value",

@@ -114,7 +114,12 @@ interlocutor:
 ## Hooks
 
 The `tool_use_pre` hook fires after parameters are collected but before
-execution. If the hook exits non-zero, the call is blocked:
+execution. If the hook exits non-zero, the call is blocked.
+
+The `tool_use_post` hook fires after each attempted call (success, failure,
+timeout, or blocked), which is useful for auditing and metrics.
+
+Example pre-hook:
 
 ```yaml
 interlocutor:

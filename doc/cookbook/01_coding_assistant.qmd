@@ -165,10 +165,8 @@ Add a hook to notify you when the assistant finishes working:
 hooks:
   - on: tool_use_pre
     do: ~/.config/lectic/confirm.sh
-  - on: assistant_message
+  - on: assistant_final
     do: |
       #!/bin/bash
-      if [[ "$TOOL_USE_DONE" == "1" ]]; then
-        notify-send "Lectic" "Task complete"
-      fi
+      notify-send "Lectic" "Task complete"
 ```

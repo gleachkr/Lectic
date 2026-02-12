@@ -4,7 +4,11 @@ import { dirname } from "path"
 import { getYaml, parseLectic } from "./parsing/parse"
 import { Logger } from "./logging/logger"
 import { getBackend } from "./backends/util"
-import { runHooks } from "./types/backend"
+import {
+    getScopedHooks,
+    runHooksNoInline,
+    type BackendUsage,
+} from "./types/backend"
 import { version } from "../package.json"
 import { lecticEnv } from "./utils/xdg";
 import { type Lectic } from "./types/lectic"
@@ -36,6 +40,8 @@ async function validateOptions(opts: OptionValues) {
 export async function generate() {
 
     const opts = program.opts()
+    const isShort = Boolean(opts["Short"])
+    const isShortLike = isShort || Boolean(opts["short"])
 
     let headerPrinted = false
 
@@ -51,11 +57,31 @@ export async function generate() {
 
     if (opts["quiet"]) Logger.outfile = createWriteStream('/dev/null')
 
-    if (!(opts["Short"] || opts["short"])) {
+    if (!isShortLike) {
         await Logger.write(`${lecticString.trim()}\n\n`);
     }
 
     let lectic : Lectic | undefined
+    let exitCode = 0
+    const runId = Bun.randomUUIDv7()
+    let runStartedMs = Date.now()
+    let runErrorMessage: string | undefined
+    let tokenTotals: BackendUsage | undefined
+
+    const addUsage = (usage: BackendUsage) => {
+        if (!tokenTotals) {
+            tokenTotals = {
+                input: 0,
+                cached: 0,
+                output: 0,
+                total: 0,
+            }
+        }
+        tokenTotals.input += usage.input
+        tokenTotals.cached += usage.cached
+        tokenTotals.output += usage.output
+        tokenTotals.total += usage.total
+    }
 
     try {
 
@@ -74,12 +100,19 @@ export async function generate() {
         // initialize, starting MCP servers for the active interlocutor
         await lectic.header.initialize()
 
+        runStartedMs = Date.now()
+        runHooksNoInline(getScopedHooks(lectic), "run_start", {
+            RUN_ID: runId,
+            RUN_STARTED_AT: new Date(runStartedMs).toISOString(),
+            RUN_CWD: process.cwd(),
+        })
+
         const backend = getBackend(lectic.header.interlocutor)
         const header = `:::${lectic.header.interlocutor.name}\n\n`
         const footer = `\n\n:::`
         lectic.body.raw = `${lectic.body.raw.trim()}\n\n` + header
 
-        if (!program.opts()["Short"]) {
+        if (!isShort) {
             await Logger.write(header)
             headerPrinted = true
             const closeHeader = () => {
@@ -93,7 +126,11 @@ export async function generate() {
         }
 
         const recordingStream = (async function* () {
-            for await (const chunk of backend.evaluate(lectic)) {
+            for await (const chunk of backend.evaluate(lectic, {
+                onAssistantPassText: (_text, info) => {
+                    if (info.usage) addUsage(info.usage)
+                }
+            })) {
                 lectic.body.raw += chunk
                 yield chunk
             }
@@ -107,8 +144,8 @@ export async function generate() {
             interlocutor: lectic.header.interlocutor,
         }))
 
-        if (!program.opts()["Short"]) { await Logger.write(footer) }
-        if (lectic) lectic.body.raw += footer
+        if (!isShort) { await Logger.write(footer) }
+        lectic.body.raw += footer
 
         if (opts["inplace"]) {
             Logger.outfile = createWriteStream(opts["inplace"])
@@ -117,24 +154,46 @@ export async function generate() {
             await Logger.write(result.string)
             await Logger.write(footer)
         }
-        process.exit(0)
+
+        exitCode = 0
     } catch (error) {
 
-        if (!program.opts()["Short"] && !headerPrinted) {
+        exitCode = 1
+        if (!isShort && !headerPrinted) {
             await Logger.write(`::: Error\n\n`)
             headerPrinted = true
         }
 
         const ERROR_MESSAGE = error instanceof Error ? error.message : JSON.stringify(error)
+        runErrorMessage = ERROR_MESSAGE
         await Logger.write(`<error>\n${ERROR_MESSAGE}\n</error>`)
-        
-        if (lectic) {
-             runHooks(lectic.header.hooks, "error", { ERROR_MESSAGE })
-        } else {
-             // Hook.events.emit("error", { ERROR_MESSAGE })
-        }
 
-        if (!program.opts()["Short"]) await Logger.write(`\n\n:::`)
-        process.exit(1)
+        if (!isShort) await Logger.write(`\n\n:::`)
+    } finally {
+        if (lectic) {
+            const runEndEnv: Record<string, string> = {
+                RUN_ID: runId,
+                RUN_STATUS: exitCode === 0 ? "success" : "error",
+                RUN_DURATION_MS: String(
+                    Math.max(0, Date.now() - runStartedMs)
+                ),
+            }
+
+            if (runErrorMessage) {
+                runEndEnv["RUN_ERROR_MESSAGE"] = runErrorMessage
+                runEndEnv["ERROR_MESSAGE"] = runErrorMessage
+            }
+
+            if (tokenTotals) {
+                runEndEnv["TOKEN_USAGE_INPUT"] = String(tokenTotals.input)
+                runEndEnv["TOKEN_USAGE_CACHED"] = String(tokenTotals.cached)
+                runEndEnv["TOKEN_USAGE_OUTPUT"] = String(tokenTotals.output)
+                runEndEnv["TOKEN_USAGE_TOTAL"] = String(tokenTotals.total)
+            }
+
+            runHooksNoInline(getScopedHooks(lectic), "run_end", runEndEnv)
+        }
     }
+
+    process.exit(exitCode)
 }

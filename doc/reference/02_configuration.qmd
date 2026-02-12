@@ -139,8 +139,8 @@ For a more detailed discussion of provider and model options, see
 - `tools`: A list of tool definitions that this interlocutor can use. The
   format of each object in the list depends on the tool type. See the [Tools
   section](../tools/01_overview.qmd) for detailed configuration guides. All
-  tools support a `hooks` array for `tool_use_pre` hooks scoped to that
-  particular tool.
+  tools support a `hooks` array for tool hooks (commonly `tool_use_pre`
+  and `tool_use_post`) scoped to that particular tool.
 
 #### Common tool keys
 
@@ -150,7 +150,8 @@ These keys are shared across multiple tool types:
   from the tool type.
 - `usage`: Instructions for the LLM on when and how to use the tool.
   Accepts a string, `file:`, or `exec:` source.
-- `hooks`: A list of hooks scoped to this tool (typically `tool_use_pre`).
+- `hooks`: A list of hooks scoped to this tool (typically `tool_use_pre`
+  and/or `tool_use_post`).
 
 #### `exec` tool keys
 
@@ -234,8 +235,11 @@ in a key name.
 ## The `hook` Object
 
 - `on`: (Required) A single event name or a list of event names to trigger
-  the hook. Supported events are `user_message`, `assistant_message`, `error`,
-  and `tool_use_pre`.
+  the hook. Supported events are `user_message`, `assistant_message`,
+  `assistant_final`, `assistant_intermediate`, `tool_use_pre`,
+  `tool_use_post`, `run_start`, `run_end`, and `error`.
+  `error` is a derived alias of `run_end` and fires only when
+  `RUN_STATUS=error`.
 - `do`: (Required) The command or inline script to run when the event
   occurs. If multi‑line, it must start with a shebang (e.g., `#!/bin/bash`).
   Event context is provided as environment variables. See the Hooks guide

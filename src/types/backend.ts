@@ -1,7 +1,7 @@
 import { Logger } from "../logging/logger"
 import { type Lectic, type HasModel } from "./lectic"
 import { type Message } from "./message"
-import { type Hook, type HookEvents } from "./hook"
+import { getActiveHooks, type Hook, type HookEvents } from "./hook"
 import { serializeCall, ToolCallResults, type Tool, type ToolCall} from "./tool"
 import { type LLMProvider } from "./provider"
 import {
@@ -47,19 +47,24 @@ function parseHookOutput(text: string): {
   return { content, attributes }
 }
 
-export function runHooks(
+type RunHookOptions = {
+  stdin?: string
+  collectInline?: boolean
+}
+
+function runHooksInternal(
   hooks: Hook[],
   event: keyof HookEvents,
   env: Record<string, string>,
-  stdin?: string
+  opt?: RunHookOptions
 ): InlineAttachment[] {
   const inline: InlineAttachment[] = []
-
-  const active = hooks.filter((h) => h.on.includes(event))
+  const active = getActiveHooks(hooks, event, env)
 
   for (const hook of active) {
     try {
-      const { output } = hook.execute(env, stdin)
+      const { output } = hook.execute(env, opt?.stdin)
+      if (opt?.collectInline === false) continue
       if (output && output.trim().length > 0) {
         const { content, attributes } = parseHookOutput(output)
         inline.push({
@@ -76,6 +81,30 @@ export function runHooks(
   }
 
   return inline
+}
+
+export function runHooks(
+  hooks: Hook[],
+  event: keyof HookEvents,
+  env: Record<string, string>,
+  stdin?: string
+): InlineAttachment[] {
+  return runHooksInternal(hooks, event, env, { stdin, collectInline: true })
+}
+
+export function runHooksNoInline(
+  hooks: Hook[],
+  event: keyof HookEvents,
+  env: Record<string, string>,
+  stdin?: string
+): void {
+  runHooksInternal(hooks, event, env, { stdin, collectInline: false })
+}
+
+export function getScopedHooks(lectic: Lectic): Hook[] {
+  return lectic.header.hooks.concat(
+    lectic.header.interlocutor.active_hooks ?? []
+  )
 }
 
 export function emitAssistantMessageEvent(
@@ -108,9 +137,7 @@ export function emitAssistantMessageEvent(
     baseEnv["FINAL_PASS_COUNT"] = String(opt.finalPassCount)
   }
 
-  const allHooks = lectic.header.hooks.concat(
-    lectic.header.interlocutor.active_hooks ?? []
-  )
+  const allHooks = getScopedHooks(lectic)
 
   return runHooks(
     allHooks,
@@ -132,9 +159,7 @@ export function emitUserMessageEvent(
 
   if (text) baseEnv["USER_MESSAGE"] = text
 
-  const allHooks = lectic.header.hooks.concat(
-    lectic.header.interlocutor.active_hooks ?? []
-  )
+  const allHooks = getScopedHooks(lectic)
 
   return runHooks(allHooks, "user_message", baseEnv)
 }
@@ -142,6 +167,43 @@ export function emitUserMessageEvent(
 export type ToolRegistry = Record<string, Tool>
 
 export type ToolCallEntry = { id?: string; name: string; args: unknown }
+
+type ToolCallErrorKind =
+  | "invalid_args"
+  | "limit_exceeded"
+  | "unknown_tool"
+  | "blocked"
+  | "error"
+
+class ToolCallError extends Error {
+  kind: ToolCallErrorKind
+
+  constructor(kind: ToolCallErrorKind, message: string) {
+    super(message)
+    this.kind = kind
+  }
+}
+
+function safeJSONStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value) ?? "null"
+  } catch {
+    return JSON.stringify(String(value))
+  }
+}
+
+function withUsageEnv(
+  env: Record<string, string>,
+  usage: BackendUsage | undefined
+): Record<string, string> {
+  if (!usage) return env
+
+  env["TOKEN_USAGE_INPUT"] = String(usage.input)
+  env["TOKEN_USAGE_OUTPUT"] = String(usage.output)
+  env["TOKEN_USAGE_TOTAL"] = String(usage.total)
+  env["TOKEN_USAGE_CACHED"] = String(usage.cached)
+  return env
+}
 
 export async function resolveToolCalls(
   entries: ToolCallEntry[],
@@ -161,71 +223,74 @@ export async function resolveToolCalls(
   const globalHooks = opt?.lectic?.header.hooks ?? []
   const interlocutorHooks = opt?.lectic?.header.interlocutor.active_hooks ?? []
 
-  const results: ToolCall[] = await Promise.all(entries.map(async entry => {
+  const results: ToolCall[] = await Promise.all(entries.map(async (entry) => {
     const id = entry.id
     const name = entry.name
-    const args = entry.args
+    const rawArgs = entry.args
+    const tool = registry[name]
+    const args = isObjectRecord(rawArgs) ? rawArgs : {}
+    const toolHooks = tool ? tool.hooks : []
+    const hooks = [...globalHooks, ...interlocutorHooks, ...toolHooks]
+    const argsJSON = safeJSONStringify(rawArgs)
+    const startedAt = Date.now()
 
-    if (!isObjectRecord(args)) {
-      return { name, args: {}, id,
-        isError: true,
-        results: ToolCallResults(invalidArgsMsg),
-      }
-    }
-
-    if (opt?.limitExceeded) {
-      return { name, args, id,
-        isError: true,
-        results: ToolCallResults(limitMsg),
-      }
-    }
-
-    if (!(name in registry)) {
-      return { name, args, id,
-        isError: true,
-        results: ToolCallResults(`Unrecognized tool name: ${name}`),
-      }
-    }
+    let isError = true
+    let callResults = ToolCallResults("")
+    let callError: { type: ToolCallErrorKind, message: string } | undefined
 
     try {
-      const hooks = [
-        ...globalHooks,
-        ...interlocutorHooks,
-        ...registry[name].hooks,
-      ]
-
-      const activeHooks = hooks.filter((h) => h.on.includes("tool_use_pre"))
-      for (const hook of activeHooks) {
-        const hookEnv: Record<string, string> = {
-          TOOL_NAME: name,
-          TOOL_ARGS: JSON.stringify(args),
-        }
-
-        if (opt?.usage) {
-          hookEnv["TOKEN_USAGE_INPUT"] = String(opt.usage.input)
-          hookEnv["TOKEN_USAGE_OUTPUT"] = String(opt.usage.output)
-          hookEnv["TOKEN_USAGE_TOTAL"] = String(opt.usage.total)
-          hookEnv["TOKEN_USAGE_CACHED"] = String(opt.usage.cached)
-        }
-
-        const { exitCode } = hook.execute(hookEnv)
-        if (exitCode !== 0) throw new Error("Tool use permission denied")
+      if (!isObjectRecord(rawArgs)) {
+        throw new ToolCallError("invalid_args", invalidArgsMsg)
       }
 
-      const toolResults = await registry[name].call(args)
-      return { name, args, id, 
-        isError: false, 
-        results: toolResults 
+      if (opt?.limitExceeded) {
+        throw new ToolCallError("limit_exceeded", limitMsg)
       }
+
+      if (!tool) {
+        throw new ToolCallError("unknown_tool", `Unrecognized tool name: ${name}`)
+      }
+
+      const preEnv = withUsageEnv({
+        TOOL_NAME: name,
+        TOOL_ARGS: argsJSON,
+      }, opt?.usage)
+
+      const preHooks = getActiveHooks(hooks, "tool_use_pre", preEnv)
+      for (const hook of preHooks) {
+        const { exitCode } = hook.execute(preEnv)
+        if (exitCode !== 0) {
+          throw new ToolCallError("blocked", "Tool use permission denied")
+        }
+      }
+
+      callResults = await tool.call(args)
+      isError = false
     } catch (e) {
       const msg = e instanceof Error
         ? e.message
         : `An error of unknown type occurred during a call to ${name}`
-      return { name, args, id,
-        isError: true,
-        results: ToolCallResults(msg),
+      const type = e instanceof ToolCallError ? e.kind : "error"
+      callError = { type, message: msg }
+      callResults = ToolCallResults(msg)
+      isError = true
+    } finally {
+      const postEnv = withUsageEnv({
+        TOOL_NAME: name,
+        TOOL_ARGS: argsJSON,
+        TOOL_DURATION_MS: String(Date.now() - startedAt),
+      }, opt?.usage)
+
+      if (callError) {
+        postEnv["TOOL_CALL_ERROR"] = safeJSONStringify(callError)
+      } else {
+        postEnv["TOOL_CALL_RESULTS"] = safeJSONStringify(callResults)
       }
+
+      runHooksNoInline(hooks, "tool_use_post", postEnv)
     }
+
+    return { name, args, id, isError, results: callResults }
   }))
 
   return results

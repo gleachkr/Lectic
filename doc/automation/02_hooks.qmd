@@ -16,8 +16,9 @@ A hook has five possible fields:
 - `on`: (Required) A single event name or a list of event names to listen for.
 - `do`: (Required) The command or inline script to run when the event fires.
 - `inline`: (Optional) A boolean. If `true`, the standard output of the command
-  is captured and injected into the conversation. Defaults to `false`. Only
-  applicable to `assistant_message` and `user_message`.
+  is captured and injected into the conversation. Defaults to `false`. Inline
+  injection is only meaningful for `user_message`, `assistant_message`, and
+  the `assistant_*` aliases.
 - `name`: (Optional) A string name for the hook. If multiple hooks have the
   same name (e.g., one in your global config and one in a project config),
   the one defined later (or with higher precedence) overrides the earlier
@@ -66,56 +67,100 @@ hook's `do` field so you can see what produced the output.
 
 ## Available events and environment
 
-Lectic emits three hook events. When an event fires, the hook process
-receives its context as environment variables. No positional arguments are
-passed. However, the hook may receive content via standard input.
+When an event fires, the hook process receives context via environment
+variables. No positional arguments are passed. Some events also receive stdin.
+
+### Message events
 
 - `user_message`
   - Environment:
     - `USER_MESSAGE`: The text of the most recent user message.
-    - Standard Lectic variables like `LECTIC_FILE`, `LECTIC_CONFIG`,
-      `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, and `LECTIC_TEMP` are
-      also set when available.
-    - `MESSAGES_LENGTH`: The length of the array of messages, including the
-      current user message.
-  - When: Just before the request is sent to the LLM provider.
+    - `MESSAGES_LENGTH`: Message count including the current user message.
+    - Standard Lectic variables (`LECTIC_FILE`, `LECTIC_CONFIG`,
+      `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, `LECTIC_TEMP`).
+  - When: Just before the provider request.
 
 - `assistant_message`
-  - Standard Input: The raw markdown text of the conversation body up to
-    this point.
+  - Standard Input: Raw markdown conversation body up to this point.
   - Environment:
-    - `ASSISTANT_MESSAGE`: The full text of the assistant's response that
-      was just produced.
-    - `LECTIC_INTERLOCUTOR`: The name of the interlocutor who spoke.
-    - `LECTIC_MODEL`: The model of the interlocutor who spoke.
-    - `TOOL_USE_DONE`: Set to `1` when the assistant has finished using
-      tools and is ready to conclude. Not set if there are pending tool
-      calls. This lets inline hooks decide whether to inject follow-up
-      content only when all work is complete.
-    - `TOKEN_USAGE_INPUT`: Count of total input tokens used for this turn.
-    - `TOKEN_USAGE_CACHED`: Count of cached input tokens used for this turn.
-    - `TOKEN_USAGE_OUTPUT`: Count of output tokens used for this turn.
-    - `TOKEN_USAGE_TOTAL`: Total tokens used for this turn.
-    - `LOOP_COUNT`: How many times the tool calling loop has run
-      (0-indexed).
-    - `FINAL_PASS_COUNT`: How many times the assistant has
-      finished work but was kept alive by an inline hook.
+    - `ASSISTANT_MESSAGE`: Full assistant text for this pass.
+    - `LECTIC_INTERLOCUTOR`: Active interlocutor name.
+    - `LECTIC_MODEL`: Active model name.
+    - `TOOL_USE_DONE`: `1` when there are no pending tool calls.
+    - `TOKEN_USAGE_INPUT`, `TOKEN_USAGE_CACHED`, `TOKEN_USAGE_OUTPUT`,
+      `TOKEN_USAGE_TOTAL`: Usage for this assistant pass (if available).
+    - `LOOP_COUNT`: Tool loop iteration index (0-based).
+    - `FINAL_PASS_COUNT`: Number of final passes kept alive by inline hooks.
     - Standard Lectic variables as above.
-  - When: Immediately after the assistant's message is streamed.
+  - When: Immediately after assistant streaming finishes for a pass.
+
+### Assistant aliases
+
+These are derived aliases of `assistant_message`:
+
+- `assistant_final`
+  - Fires only when `TOOL_USE_DONE=1`.
+- `assistant_intermediate`
+  - Fires only when `TOOL_USE_DONE!=1`.
+
+Alias resolution happens internally in Lectic. You do not need shell-side
+conditionals for `TOOL_USE_DONE`.
+
+If both base and alias hooks are configured for a pass, Lectic executes base
+`assistant_message` hooks first, then the alias hooks.
+
+### Tool events
 
 - `tool_use_pre`
   - Environment:
-    - `TOOL_NAME`: The name of the tool being called.
-    - `TOOL_ARGS`: A JSON string containing the tool arguments.
-    - Standard Lectic variables as above.
-  - When: After tool parameters are collected but before execution.
-  - Behavior: If the hook exits with a non-zero status code, the tool call is blocked, and the LLM receives a "permission denied" error.
+    - `TOOL_NAME`: Tool name.
+    - `TOOL_ARGS`: JSON string of tool arguments.
+    - Token usage variables (if available).
+    - Standard Lectic variables.
+  - When: After arguments are collected, before execution.
+  - Behavior: Non-zero exit blocks the call (permission denied).
+
+- `tool_use_post`
+  - Environment:
+    - `TOOL_NAME`: Tool name.
+    - `TOOL_ARGS`: JSON string of tool arguments.
+    - `TOOL_CALL_RESULTS`: JSON string on success.
+    - `TOOL_CALL_ERROR`: JSON string on failure.
+    - `TOOL_DURATION_MS`: Milliseconds for the attempted call.
+    - Token usage variables (if available).
+    - Standard Lectic variables.
+  - When: After each tool attempt (success, failure, timeout, blocked).
+
+### Run events
+
+Run events happen at the beginning and end of each lectic invocation.
+
+- `run_start`
+  - Environment:
+    - `RUN_ID`: Stable id for this invocation.
+    - `RUN_STARTED_AT`: ISO timestamp.
+    - `RUN_CWD`: Current working directory.
+  - When: After config/load, before the first provider request.
+
+- `run_end`
+  - Environment:
+    - `RUN_ID`: Stable id for this invocation.
+    - `RUN_STATUS`: `success` or `error`.
+    - `RUN_DURATION_MS`: Invocation duration in ms.
+    - `RUN_ERROR_MESSAGE`: Present on error.
+    - `TOKEN_USAGE_INPUT`, `TOKEN_USAGE_CACHED`, `TOKEN_USAGE_OUTPUT`,
+      `TOKEN_USAGE_TOTAL`: Totals for the invocation (if available).
+  - When: Once per invocation after completion or uncaught error handling.
+
+### Error alias
 
 - `error`
+  - Derived alias of `run_end`.
+  - Fires only when `RUN_STATUS=error`.
+  - Runs after `run_end` hooks for the same pass.
   - Environment:
-    - `ERROR_MESSAGE`: A descriptive error message.
-    - Standard Lectic variables as above.
-  - When: Whenever an uncaught error is encountered.
+    - Everything from `run_end`.
+    - `ERROR_MESSAGE` (same value as `RUN_ERROR_MESSAGE`).
 
 ## Hook headers and attributes
 
@@ -272,17 +317,14 @@ hooks:
 ## Example: Notification when work completes
 
 This example sends a desktop notification when the assistant finishes a
-tool-use workflow. The hook checks `TOOL_USE_DONE` so you only get
-notified once the work is actually done, not after each intermediate step.
+tool-use workflow.
 
 ```yaml
 hooks:
-  - on: assistant_message
+  - on: assistant_final
     do: |
       #!/usr/bin/env bash
-      if [[ "${TOOL_USE_DONE:-}" == "1" ]]; then
-        notify-send "Lectic" "Assistant finished working"
-      fi
+      notify-send "Lectic" "Assistant finished working"
 ```
 
 This is especially useful for long-running agentic tasks where you want
@@ -300,10 +342,10 @@ working:
 
 ```yaml
 hooks:
-  - on: assistant_message
+  - on: assistant_final
     do: |
       #!/usr/bin/env bash
-      if [[ "${TOOL_USE_DONE:-}" == "1" && -n "${NVIM:-}" ]]; then
+      if [[ -n "${NVIM:-}" ]]; then
         nvim --server "$NVIM" --remote-expr \
           "luaeval('vim.notify(\"Lectic: Assistant finished working\", vim.log.levels.INFO)')"
       fi
