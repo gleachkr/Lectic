@@ -230,6 +230,53 @@ describe("config discovery", () => {
     }
   })
 
+  test("sqlite init_sql supports file:local: paths", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-sqlite-local-"))
+
+    try {
+      writeFileSync(
+        join(root, "module.yaml"),
+        [
+          "interlocutor:",
+          "  name: Imported",
+          "  prompt: p",
+          "  tools:",
+          "    - sqlite: ./plugin.sqlite",
+          "      name: db",
+          "      init_sql: file:local:./schema.sql",
+          "",
+        ].join("\n")
+      )
+
+      const out = await resolveConfigChain({
+        includeSystem: false,
+        document: {
+          yaml: [
+            "imports:",
+            "  - ./module.yaml",
+            "interlocutor:",
+            "  name: Imported",
+            "",
+          ].join("\n"),
+          dir: root,
+        },
+      })
+
+      expect(out.issues).toHaveLength(0)
+      const source = out.sources.find(s => s.path === join(root, "module.yaml"))
+      const initSql = (
+        source?.parsed as {
+          interlocutor?: { tools?: Array<{ init_sql?: string }> }
+        } | undefined
+      )?.interlocutor?.tools?.[0]?.init_sql
+
+      expect(initSql).toBe(`file:${join(root, "schema.sql")}`)
+      expect(source?.text).toContain(`file:${join(root, "schema.sql")}`)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   test("nested local imports resolve relative to each source file", async () => {
     const root = mkdtempSync(join(tmpdir(), "lectic-config-local-nested-"))
     const pluginsDir = join(root, "plugins")

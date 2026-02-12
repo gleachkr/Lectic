@@ -1,4 +1,7 @@
 import { describe, it, expect } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { SQLiteTool } from "./sqlite";
 import { type ToolCallResult } from "../types/tool";
 import * as YAML from "yaml";
@@ -272,5 +275,86 @@ describe("SQLiteTool statement safety", () => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name='t';",
     });
     expect(YAML.parse(texts(res)[0])).toEqual([]);
+  });
+});
+
+describe("SQLiteTool init_sql", () => {
+  it("initializes a missing database file using init_sql", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lectic-sqlite-init-"));
+    const dbPath = join(dir, "plugin.sqlite");
+
+    try {
+      const initSql = [
+        "CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);",
+        "INSERT INTO kv(k, v) VALUES ('x', '1');",
+      ].join("\n");
+
+      const tool = new SQLiteTool({
+        sqlite: dbPath,
+        name: "init1",
+        init_sql: initSql,
+      });
+
+      const res = await tool.call({
+        query: "SELECT k, v FROM kv ORDER BY k;",
+      });
+      expect(YAML.parse(texts(res)[0])).toEqual([{ k: "x", v: "1" }]);
+
+      tool.db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not rerun init_sql when the database file already exists", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lectic-sqlite-init-"));
+    const dbPath = join(dir, "plugin.sqlite");
+
+    try {
+      const initSql = [
+        "CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);",
+        "INSERT INTO kv(k, v) VALUES ('x', '1');",
+      ].join("\n");
+
+      const first = new SQLiteTool({
+        sqlite: dbPath,
+        name: "init2a",
+        init_sql: initSql,
+      });
+      first.db.close();
+
+      const second = new SQLiteTool({
+        sqlite: dbPath,
+        name: "init2b",
+        init_sql: initSql,
+      });
+      const res = await second.call({
+        query: "SELECT COUNT(*) AS n FROM kv;",
+      });
+      expect(YAML.parse(texts(res)[0])).toEqual([{ n: 1 }]);
+
+      second.db.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects init_sql for missing readonly databases", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lectic-sqlite-init-"));
+    const dbPath = join(dir, "plugin.sqlite");
+
+    try {
+      expect(
+        () =>
+          new SQLiteTool({
+            sqlite: dbPath,
+            name: "init3",
+            readonly: true,
+            init_sql: "CREATE TABLE t(x INTEGER);",
+          })
+      ).toThrow(/readonly mode/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

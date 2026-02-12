@@ -196,6 +196,7 @@ export class LecticHeader {
             } else if (isSQLiteToolSpec(spec)) {
                 const loadedSpec: SQLiteToolSpec = { ...spec }
                 loadedSpec.details = await loadFrom(spec.details)
+                loadedSpec.init_sql = await loadFrom(spec.init_sql)
                 register(new SQLiteTool(loadedSpec))
             } else if (isThinkToolSpec(spec)) {
                 register(new ThinkTool(spec))

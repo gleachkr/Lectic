@@ -44,6 +44,7 @@ tools:
     details: >
       Contains the full product catalog and inventory levels. Use this to
       answer questions about what is in stock.
+    init_sql: file:local:./schema.sql
     extensions:
       - ./lib/vector0
       - ./lib/math
@@ -63,6 +64,8 @@ The path can include environment variables (for example,
   `exec:` are accepted. See
   [External Prompts](../context_management/03_external_prompts.qmd).
 - `extensions`: A list of SQLite extension libraries to load before queries.
+- `init_sql`: Optional SQL script used to initialize a missing database
+  file. Supports plain text, `file:`, or `exec:` sources.
 
 ### Example conversation
 
@@ -118,6 +121,28 @@ Zeppelin, Metallica, U2, and Deep Purple.
 
 :::
 ````
+
+## Database initialization (`init_sql`)
+
+If `init_sql` is set and the SQLite file does not exist yet, Lectic runs
+that SQL script once at tool initialization. This is useful for shipping a
+plugin with a predefined schema.
+
+Example:
+
+```yaml
+tools:
+  - sqlite: $LECTIC_DATA/my_plugin.sqlite
+    init_sql: file:local:./schema.sql
+```
+
+Notes:
+
+- Initialization runs in a transaction.
+- If initialization fails, tool setup fails and the database changes are
+  rolled back.
+- If `readonly: true` and the database file is missing, initialization is
+  not possible and Lectic reports an error.
 
 ## Writes and transactions
 

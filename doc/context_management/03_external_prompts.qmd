@@ -11,6 +11,7 @@ What supports external sources:
 - macros[].expansion
 - tools[].usage (for tools that accept a usage string)
 - tools[].details (for tools that provide extra details)
+- tools[].init_sql (for sqlite tool initialization SQL)
 
 Each of these accepts either a plain string, or a string beginning with one
 of the prefixes below.

@@ -176,6 +176,8 @@ Query SQLite databases.
 - `details`: Extra context for the model. Accepts string, `file:`, or
   `exec:`.
 - `extensions`: A list of SQLite extension libraries to load.
+- `init_sql`: Optional SQL script used only when the database file is
+  missing. Accepts plain text, `file:`, or `exec:`.
 
 #### `agent` tool keys
 

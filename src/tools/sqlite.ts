@@ -1,6 +1,7 @@
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { Database } from "bun:sqlite"
 import { parse, show, cstVisitor } from "sql-parser-cst"
+import { existsSync } from "node:fs"
 import { expandEnv } from "../utils/replace";
 import * as YAML from "yaml"
 import { isHookSpecList, type HookSpec } from "../types/hook";
@@ -12,6 +13,7 @@ export type SQLiteToolSpec = {
     limit? : number
     readonly?: boolean
     extensions?: string[] | string
+    init_sql?: string
     hooks?: HookSpec[]
 }
 
@@ -28,6 +30,7 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
               Array.isArray(raw.extensions) && raw.extensions.every(ext => typeof ext === "string")
             : true
         ) &&
+        ("init_sql" in raw ? typeof raw.init_sql === "string" : true) &&
         ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
@@ -64,9 +67,17 @@ export class SQLiteTool extends Tool {
         this.details = spec.details
         this.limit = spec.limit
 
+        const dbPath = expandEnv(spec.sqlite)
+        const dbMissing = !existsSync(dbPath)
+
+        if (dbMissing && spec.readonly && spec.init_sql) {
+            throw Error("Can't initialize SQLite database in readonly mode when " +
+                        `the database is missing: ${dbPath}`)
+        }
+
         this.db = spec.readonly 
-            ? new Database(expandEnv(spec.sqlite), { readonly: true})
-            : new Database(expandEnv(spec.sqlite))
+            ? new Database(dbPath, { readonly: true})
+            : new Database(dbPath)
 
         try {
             switch (typeof spec.extensions) {
@@ -79,6 +90,20 @@ export class SQLiteTool extends Tool {
                         ` see https://bun.sh/docs/api/sqlite#loadextension.`)
         }
         this.db.run("PRAGMA foreign_keys = ON")
+
+        if (spec.init_sql && dbMissing) {
+            try {
+                const initialize = this.db.transaction((sql: string) => {
+                    this.db.run(sql)
+                })
+                initialize(spec.init_sql)
+            } catch (e) {
+                throw Error(
+                    `Something went wrong while initializing sqlite ` +
+                    `database at ${dbPath}: ${e}`
+                )
+            }
+        }
 
         SQLiteTool.count++
     }

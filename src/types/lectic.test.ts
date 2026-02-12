@@ -1,4 +1,7 @@
 import { LecticHeader, validateLecticHeaderSpec } from './lectic';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ExecTool } from '../tools/exec';
 import { SQLiteTool } from '../tools/sqlite';
 import { ThinkTool } from '../tools/think';
@@ -79,6 +82,46 @@ describe('LecticHeader', () => {
         const interlocutor = header.interlocutor;
         expect(interlocutor.registry?.['db']).toBeInstanceOf(SQLiteTool);
       });
+
+    it('loads sqlite init_sql from file: sources', async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'lectic-init-sql-'));
+
+      try {
+        const schemaPath = join(dir, 'schema.sql');
+        const dbPath = join(dir, 'plugin.sqlite');
+        writeFileSync(
+          schemaPath,
+          'CREATE TABLE kv(k TEXT PRIMARY KEY, v TEXT);' +
+          "INSERT INTO kv(k, v) VALUES ('a', '1');"
+        );
+
+        const spec = {
+          interlocutor: {
+            name: 'Tester',
+            prompt: 'Test prompt',
+            tools: [{
+              sqlite: dbPath,
+              name: 'db_init_file',
+              init_sql: `file:${schemaPath}`,
+            }]
+          }
+        };
+
+        const header = new LecticHeader(spec as any);
+        await header.initialize();
+        const tool = header.interlocutor.registry?.['db_init_file'];
+        expect(tool).toBeInstanceOf(SQLiteTool);
+
+        const rslt = await (tool as SQLiteTool).call({
+          query: 'SELECT COUNT(*) AS n FROM kv;'
+        });
+        expect(rslt[0].toBlock().text).toContain('n: 1');
+
+        (tool as SQLiteTool).db.close();
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
 
     it('should correctly initialize a ThinkTool', async () => {
         const spec = {
