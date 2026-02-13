@@ -7,11 +7,40 @@ import {
   writeFileSync,
 } from "fs"
 import { tmpdir } from "os"
-import { join } from "path"
+import { delimiter, join } from "path"
 
 import { resolveSubcommandPath } from "./subcommandCmd"
 
 describe("subcommand resolution", () => {
+  function withEnv(
+    patch: Record<string, string | undefined>,
+    run: () => void
+  ) {
+    const before = new Map<string, string | undefined>()
+    for (const key of Object.keys(patch)) {
+      before.set(key, process.env[key])
+    }
+
+    try {
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined) {
+          delete process.env[key]
+        } else {
+          process.env[key] = value
+        }
+      }
+      run()
+    } finally {
+      for (const [key, value] of before.entries()) {
+        if (value === undefined) {
+          delete process.env[key]
+        } else {
+          process.env[key] = value
+        }
+      }
+    }
+  }
+
   test("finds commands recursively in LECTIC_CONFIG-like directory", () => {
     const root = mkdtempSync(join(tmpdir(), "lectic-subcmd-config-"))
     const configDir = join(root, "config")
@@ -113,6 +142,68 @@ describe("subcommand resolution", () => {
       if (result.kind === "error") {
         expect(result.message).toContain("multiple commands available")
       }
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("uses LECTIC_RUNTIME recursive directories when set", () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-subcmd-runtime-"))
+    const runtimeA = join(root, "runtime-a")
+    const runtimeB = join(root, "runtime-b")
+    const nested = join(runtimeB, "plugins", "shared", "bin")
+    const cmd = join(nested, "lectic-hello-runtime")
+
+    try {
+      mkdirSync(runtimeA, { recursive: true })
+      mkdirSync(nested, { recursive: true })
+      writeFileSync(cmd, "#!/bin/sh\necho hi\n")
+      chmodSync(cmd, 0o755)
+
+      withEnv(
+        {
+          LECTIC_RUNTIME: `${runtimeA}${delimiter}${runtimeB}`,
+          PATH: "",
+        },
+        () => {
+          const result = resolveSubcommandPath("hello-runtime")
+          expect(result.kind).toBe("found")
+          if (result.kind === "found") {
+            expect(result.path).toBe(cmd)
+          }
+        }
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("falls back to LECTIC_CONFIG and LECTIC_DATA by default", () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-subcmd-default-"))
+    const configDir = join(root, "config")
+    const nested = join(configDir, "plugins", "core", "bin")
+    const cmd = join(nested, "lectic-hello-default")
+
+    try {
+      mkdirSync(nested, { recursive: true })
+      writeFileSync(cmd, "#!/bin/sh\necho hi\n")
+      chmodSync(cmd, 0o755)
+
+      withEnv(
+        {
+          LECTIC_RUNTIME: undefined,
+          LECTIC_CONFIG: configDir,
+          LECTIC_DATA: join(root, "data"),
+          PATH: "",
+        },
+        () => {
+          const result = resolveSubcommandPath("hello-default")
+          expect(result.kind).toBe("found")
+          if (result.kind === "found") {
+            expect(result.path).toBe(cmd)
+          }
+        }
+      )
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

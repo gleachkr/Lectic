@@ -108,11 +108,14 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 
 Lectic supports git-style custom subcommands. If you invoke
 `lectic <command>`, Lectic looks for an executable named
-`lectic-<command>` in this order:
+`lectic-<command>` in this order by default:
 
-1. `$LECTIC_CONFIG` (Searched recursive)
-2. `$LECTIC_DATA` (Searched recursive)
-3. `$PATH` entries
+1. `$LECTIC_CONFIG` (searched recursively)
+2. `$LECTIC_DATA` (searched recursively)
+3. `$PATH` entries (top-level per entry)
+
+If `LECTIC_RUNTIME` is set, Lectic uses that PATH-style directory list
+for recursive discovery instead of `$LECTIC_CONFIG` and `$LECTIC_DATA`.
 
 See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a full
 guide on creating subcommands and adding tab completion for them.

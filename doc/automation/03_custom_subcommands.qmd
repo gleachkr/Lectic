@@ -11,7 +11,9 @@ create shortcuts for complex Lectic invocations.
 ## How It Works
 
 When you run `lectic foo args...`, Lectic searches for an executable named
-`lectic-foo` or `lectic-foo.*` in the following locations, in order:
+`lectic-foo` or `lectic-foo.*`.
+
+By default, search order is:
 
 1. **Configuration Directory**: `$LECTIC_CONFIG` (defaults to
    `~/.config/lectic` on Linux). Searched recursively.
@@ -19,6 +21,11 @@ When you run `lectic foo args...`, Lectic searches for an executable named
    `~/.local/share/lectic` on Linux). Searched recursively.
 3. **System PATH**: Any directory in your `$PATH`. Top-level per PATH
    entry.
+
+If `LECTIC_RUNTIME` is set, Lectic uses that instead of
+`$LECTIC_CONFIG` + `$LECTIC_DATA` for recursive discovery.
+`LECTIC_RUNTIME` is a PATH-style directory list (for example,
+`/opt/lectic/plugins:$HOME/work/lectic-extra` on Linux/macOS).
 
 The first match found is executed. The subprocess receives the remaining arguments,
 inherits the standard input, output, and error streams, and has access to
@@ -119,6 +126,9 @@ Subcommands receive the standard set of Lectic environment variables:
 - `LECTIC_CACHE`: Path to the cache directory.
 - `LECTIC_STATE`: Path to the state directory.
 - `LECTIC_TEMP`: Path to the temporary directory.
+- `LECTIC_RUNTIME`: Optional PATH-style directory list used for recursive
+  subcommand discovery. If set, it replaces the default recursive search
+  roots (`LECTIC_CONFIG` and `LECTIC_DATA`).
 
 These ensure your subcommands respect the user's directory configuration.
 
@@ -145,13 +155,15 @@ To provide completions for a subcommand `lectic-foo`, create a bash script that
 defines a completion function and registers it.
 
 The script can be placed in:
-1. `~/.config/lectic/completions/`
-2. `~/.local/share/lectic/completions/`
-3. Or alongside the executable itself, named `lectic-foo.completion.bash`.
+1. `<recursive-root>/completions/` where recursive roots are:
+   - `$LECTIC_RUNTIME` entries (if set), or
+   - otherwise `$LECTIC_CONFIG` and `$LECTIC_DATA`
+2. Or alongside the executable itself, named
+   `lectic-foo.completion.bash`.
 
 **Example:**
 
-Create `~/.config/lectic/completions/foo.bash`:
+Create `$LECTIC_CONFIG/completions/foo.bash`:
 
 ```bash
 _lectic_complete_foo() {
@@ -173,8 +185,9 @@ For performance, define completions in a separate `.completion.bash` file rather
 than inside the subcommand script itself. This allows the shell to load completions
 without executing the subcommand.
 
-The completion loader mirrors runtime discovery: it scans
-`$LECTIC_CONFIG` and `$LECTIC_DATA` recursively, and loads adjacent
-completion files from discovered commands.
+The completion loader mirrors runtime discovery: it scans recursive roots
+(`$LECTIC_RUNTIME` if set, otherwise `$LECTIC_CONFIG` and
+`$LECTIC_DATA`) and loads adjacent completion files from discovered
+commands.
 
 :::

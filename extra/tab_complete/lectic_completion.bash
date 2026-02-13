@@ -7,9 +7,9 @@
 # This script discovers subcommands and loads optional completion plugins at
 # source-time. Subcommand discovery matches runtime behavior:
 #
-# - config dir: recursive
-# - data dir: recursive (for bundled plugins)
-# - PATH dirs: top-level only
+# - If LECTIC_RUNTIME is set: recursively scan each directory in it
+# - Otherwise: recursively scan LECTIC_CONFIG and LECTIC_DATA
+# - PATH dirs are always scanned top-level only
 #
 # Completion plugins
 #
@@ -20,8 +20,11 @@
 #
 # Plugins are loaded from:
 #
-#   ${XDG_CONFIG_HOME:-$HOME/.config}/lectic/completions/*.bash
-#   ${XDG_DATA_HOME:-$HOME/.local/share}/lectic/completions/*.bash
+#   <root>/completions/*.bash for each recursive discovery root
+#
+# Recursive roots are:
+# - entries in LECTIC_RUNTIME, if set
+# - otherwise LECTIC_CONFIG and LECTIC_DATA (with XDG defaults)
 #
 # ...and may also be placed next to a custom subcommand executable as:
 #
@@ -38,8 +41,8 @@ __LECTIC_BASH_COMPLETION_LOADED=1
 __LECTIC_XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 __LECTIC_XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
 
-__LECTIC_CONFIG_DIR="${__LECTIC_XDG_CONFIG_HOME}/lectic"
-__LECTIC_DATA_DIR="${__LECTIC_XDG_DATA_HOME}/lectic"
+__LECTIC_CONFIG_DIR="${LECTIC_CONFIG:-${__LECTIC_XDG_CONFIG_HOME}/lectic}"
+__LECTIC_DATA_DIR="${LECTIC_DATA:-${__LECTIC_XDG_DATA_HOME}/lectic}"
 
 __LECTIC_SUBCOMMAND_SET=""
 __LECTIC_SUBCOMMANDS=()
@@ -122,6 +125,24 @@ __lectic_scan_recursive_subcommands() {
   )
 }
 
+__lectic_collect_recursive_roots() {
+  __LECTIC_RECURSIVE_ROOTS=()
+
+  if [[ -v LECTIC_RUNTIME ]]; then
+    local runtime_dirs=()
+    local dir
+
+    IFS=':' read -r -a runtime_dirs <<< "${LECTIC_RUNTIME}"
+    for dir in "${runtime_dirs[@]}"; do
+      [[ -n "${dir}" ]] || continue
+      __LECTIC_RECURSIVE_ROOTS+=("${dir}")
+    done
+  else
+    __LECTIC_RECURSIVE_ROOTS+=("${__LECTIC_CONFIG_DIR}")
+    __LECTIC_RECURSIVE_ROOTS+=("${__LECTIC_DATA_DIR}")
+  fi
+}
+
 __lectic_init_subcommands() {
   local core_subcommands=(models parse lsp script)
   local path_dirs=()
@@ -135,13 +156,16 @@ __lectic_init_subcommands() {
   old_nullglob=$(shopt -p nullglob)
   shopt -s nullglob
 
-  # 1) Config dir: recursive.
-  __lectic_scan_recursive_subcommands "${__LECTIC_CONFIG_DIR}"
+  __lectic_collect_recursive_roots
 
-  # 2) Data dir: recursive, so plugin bundles can ship subcommands.
-  __lectic_scan_recursive_subcommands "${__LECTIC_DATA_DIR}"
+  # 1) Recursive discovery roots:
+  #    - LECTIC_RUNTIME entries if set
+  #    - otherwise LECTIC_CONFIG and LECTIC_DATA
+  for dir in "${__LECTIC_RECURSIVE_ROOTS[@]}"; do
+    __lectic_scan_recursive_subcommands "${dir}"
+  done
 
-  # 3) PATH entries: top-level only.
+  # 2) PATH entries: top-level only.
   IFS=':' read -r -a path_dirs <<< "${PATH}"
   for dir in "${path_dirs[@]}"; do
     [[ -d "${dir}" ]] || continue
@@ -158,8 +182,11 @@ __lectic_source_completion_plugins() {
   local dir f
   local old_nullglob
 
-  completion_dirs+=("${__LECTIC_CONFIG_DIR}/completions")
-  completion_dirs+=("${__LECTIC_DATA_DIR}/completions")
+  __lectic_collect_recursive_roots
+
+  for dir in "${__LECTIC_RECURSIVE_ROOTS[@]}"; do
+    completion_dirs+=("${dir}/completions")
+  done
 
   old_nullglob=$(shopt -p nullglob)
   shopt -s nullglob
