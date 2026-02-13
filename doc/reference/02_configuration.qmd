@@ -231,6 +231,24 @@ in a key name.
 - `env`: (Optional) A dictionary of environment variables to be set during
   the macro's execution. These are merged with any arguments provided at
   the call site.
+- `completions`: (Optional) Argument completion source for `:name[...]` in
+  the LSP. Either:
+  - an inline list of items (`{ completion, detail?, documentation? }`), or
+  - a source string: `file:...`, `file:local:...`, or `exec:...`.
+
+  For `file:` and `exec:`, the source output must be a single YAML document
+  containing a sequence of completion objects. JSON arrays are also accepted.
+
+- `completion_trigger`: (Optional) One of `auto` or `manual`.
+  - Default is `auto` for inline and `file:` sources.
+  - Default is `manual` for `exec:` sources.
+  - `manual` means completions are only returned for explicit completion
+    invocation (`CompletionTriggerKind.Invoked`).
+
+  For `exec:` completion sources, environment precedence is:
+  1. process env + Lectic base env
+  2. macro `env`
+  3. dynamic vars (`ARG`, `ARG_PREFIX`, `MACRO_NAME`, `LECTIC_COMPLETION=1`)
 
 ---
 

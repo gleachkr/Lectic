@@ -30,6 +30,9 @@ The LSP suggests completions as you type:
   and any macros you've defined.
 - **Interlocutor names**: Inside `:ask[` or `:aside[`, the LSP suggests
   names from your configuration.
+- **Macro argument values**: Inside `:macro_name[...]`, if the macro defines
+  `completions`, the LSP suggests argument values from inline data, `file:`
+  sources, or `exec:` sources. `exec:` defaults to manual trigger policy.
 - **YAML header fields**: In the frontmatter, get suggestions for
   interlocutor properties (`provider`, `model`, `thinking_effort`, etc.), tool types,
   kit names, and model names.
@@ -153,12 +156,16 @@ completions reflects what will actually be available.
 ### Triggers
 
 - `:` triggers directive and macro completions
-- `[` after `:ask` or `:aside` triggers interlocutor name completions
+- `[` after directives triggers bracket-aware completions:
+  - `:ask[` / `:aside[` for interlocutor names
+  - `:macro_name[` for macro argument completions (if configured)
 - `-` in a `tools:` array triggers tool type completions
 
 ### Limitations
 
 - Completion previews are static. The server doesn't expand `exec:` or
-  read `file:` references when showing previews.
+  read `file:` references when showing hover/preview text.
+- Macro argument completions from `exec:` may run commands during editing.
+  By default those are `manual` trigger only.
 - No completions are offered inside `:::` fences (those are response
   blocks, not meant for editing).

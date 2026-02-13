@@ -95,6 +95,88 @@ describe("diagnostics", () => {
     })
   })
 
+  test("accepts valid macro completions configuration", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const text = [
+        "---",
+        "interlocutor:",
+        "  name: A",
+        "  prompt: p",
+        "macros:",
+        "  - name: deploy",
+        "    expansion: x",
+        "    completions:",
+        "      - completion: prod",
+        "        detail: Deploy to production",
+        "      - completion: staging",
+        "    completion_trigger: manual",
+        "---",
+        "Body",
+        "",
+      ].join("\n")
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
+      expect(hasMessage(diags, "macro completion")).toBeFalse()
+      expect(hasMessage(diags, "completion_trigger")).toBeFalse()
+    })
+  })
+
+  test("flags invalid macro completions schema", async () => {
+    await withIsolatedSystemConfig(async () => {
+      const text = [
+        "---",
+        "interlocutor:",
+        "  name: A",
+        "  prompt: p",
+        "macros:",
+        "  - name: deploy",
+        "    expansion: x",
+        "    completions:",
+        "      - completion: 123",
+        "      - completion: prod",
+        "        detail: 42",
+        "        documentation: true",
+        "        description: old",
+        "    completion_trigger: sometimes",
+        "---",
+        "Body",
+        "",
+      ].join("\n")
+      const ast = remark().use(remarkDirective).parse(text)
+      const diags = await buildDiagnostics(ast, text, undefined)
+      expect(
+        hasMessage(
+          diags,
+          "Each macro completion item must be an object",
+        )
+      ).toBeTrue()
+      expect(
+        hasMessage(
+          diags,
+          "\"detail\" field of a macro completion item must be",
+        )
+      ).toBeTrue()
+      expect(
+        hasMessage(
+          diags,
+          "\"documentation\" field of a macro completion item must be",
+        )
+      ).toBeTrue()
+      expect(
+        hasMessage(
+          diags,
+          "Use \"detail\" instead of \"description\"",
+        )
+      ).toBeTrue()
+      expect(
+        hasMessage(
+          diags,
+          "completion_trigger\" field of a macro must be",
+        )
+      ).toBeTrue()
+    })
+  })
+
   test("accepts hook and sandbox use refs in local header", async () => {
     await withIsolatedSystemConfig(async () => {
       const text = [

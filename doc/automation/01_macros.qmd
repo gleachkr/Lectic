@@ -13,7 +13,26 @@ header or in an included configuration file).
 Macros are defined under the `macros` key. Each macro must have a `name` and an
 `expansion`. You can optionally provide an `env` map to set default environment
 variables for the expansion. You can also provide an optional `description`,
-which will be is shown in the LSP hover info for the macro.
+which is shown in LSP hover info for the macro.
+
+You can also optionally provide `completions` for macro argument autocomplete
+inside `:name[...]`:
+
+- Inline list of `{ completion, detail?, documentation? }`
+- External source string (`file:...`, `file:local:...`, or `exec:...`)
+
+For source strings, the content/output must be a single YAML document that is
+a sequence of completion items. JSON arrays also work.
+
+For `exec:` sources, the default trigger policy is `manual` (only on explicit
+completion invocation). You can override with
+`completion_trigger: auto | manual`.
+
+`exec:` completion sources inherit the macro's `env`, and also receive:
+
+- `ARG` / `ARG_PREFIX`: current bracket text up to cursor
+- `MACRO_NAME`: current macro name
+- `LECTIC_COMPLETION=1`
 
 ```yaml
 macros:

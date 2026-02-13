@@ -1,4 +1,11 @@
-import type { CompletionItem, CompletionParams, TextEdit, Position, Range } from "vscode-languageserver"
+import type {
+  CompletionContext,
+  CompletionItem,
+  CompletionParams,
+  Position,
+  Range,
+  TextEdit,
+} from "vscode-languageserver"
 import {
   CompletionItemKind,
   InsertTextFormat,
@@ -6,6 +13,7 @@ import {
   Range as RangeNS,
 } from "vscode-languageserver/node"
 import { buildMacroIndex, previewMacro } from "./macroIndex"
+import { resolveMacroArgumentCompletions } from "./macroArgumentCompletions"
 import { buildInterlocutorIndex, previewInterlocutor } from "./interlocutorIndex"
 import { directiveAtPositionFromBundle, findSingleColonStart, computeReplaceRange } from "./directives"
 import { isLecticHeaderSpec } from "../types/lectic"
@@ -75,7 +83,8 @@ export async function computeCompletions(
   docText: string,
   pos: CompletionParams["position"],
   docDir: string | undefined,
-  bundle?: AnalysisBundle
+  bundle?: AnalysisBundle,
+  triggerContext?: CompletionContext,
 ): Promise<CompletionItem[] | null> {
   const allLines = docText.split(/\r?\n/)
   const lineText = allLines[pos.line] ?? ""
@@ -561,6 +570,39 @@ export async function computeCompletions(
       return items
     }
 
+    const specRes = await mergedHeaderSpecForDocDetailed(docText, docDir)
+    const spec = specRes.spec
+    if (!isLecticHeaderSpec(spec)) return []
+
+    const macros = buildMacroIndex(spec)
+    const macro = macros.find(m => m.name.toLowerCase() === dctx.key)
+    if (!macro) return []
+
+    const resolved = await resolveMacroArgumentCompletions(
+      macro,
+      dctx.innerPrefix,
+      triggerContext,
+    )
+
+    if (resolved.blockedByTriggerPolicy) {
+      return []
+    }
+
+    for (const entry of resolved.entries) {
+      items.push({
+        label: entry.completion,
+        kind: CompletionItemKind.Value,
+        detail: entry.detail,
+        documentation: entry.documentation,
+        insertTextFormat: InsertTextFormat.PlainText,
+        textEdit: {
+          range: RangeNS.create(dctx.innerStart, pos),
+          newText: entry.completion,
+        },
+      })
+    }
+
+    return items
   }
 
   // 2) Directive keywords on ':' (and macro names as directives)
@@ -585,6 +627,14 @@ export async function computeCompletions(
         ? `:${key} — macro — ${trimText(descriptionOneLine, 120)}`
         : `:${key} — macro`
 
+      const hasArgumentCompletions = m.completions !== undefined
+      const snippet = hasArgumentCompletions
+        ? `:${key}[$0]`
+        : `:${key}[]$0`
+      const triggerSuggest = hasArgumentCompletions
+        ? { title: "trigger suggest", command: "editor.action.triggerSuggest" }
+        : undefined
+
       items.push({
         label: key,
         labelDetails: descriptionOneLine
@@ -600,8 +650,9 @@ export async function computeCompletions(
         sortText: `50_macro_${key.toLowerCase()}`,
         textEdit: {
           range: computeReplaceRange(pos.line, colonStart, pos.character),
-          newText: `:${key}[]$0`,
+          newText: snippet,
         },
+        command: triggerSuggest,
       })
     }
   }

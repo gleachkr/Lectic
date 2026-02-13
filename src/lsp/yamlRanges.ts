@@ -159,6 +159,29 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
         pushField(['macros', i, 'name'], val)
       }
       pushIf(mMap, 'expansion', ['macros', i, 'expansion'])
+      pushIf(mMap, 'pre', ['macros', i, 'pre'])
+      pushIf(mMap, 'post', ['macros', i, 'post'])
+      pushIf(mMap, 'env', ['macros', i, 'env'])
+      pushIf(mMap, 'description', ['macros', i, 'description'])
+      pushIf(mMap, 'completions', ['macros', i, 'completions'])
+      pushIf(
+        mMap,
+        'completion_trigger',
+        ['macros', i, 'completion_trigger']
+      )
+
+      const completionsVal = getValue(mMap, 'completions')
+      const completionItems = itemsOf(completionsVal)
+      completionItems.forEach((entry, j) => {
+        if (!isObjectRecord(entry)) return
+        pushIf(entry, 'completion', ['macros', i, 'completions', j, 'completion'])
+        pushIf(entry, 'detail', ['macros', i, 'completions', j, 'detail'])
+        pushIf(
+          entry,
+          'documentation',
+          ['macros', i, 'completions', j, 'documentation']
+        )
+      })
     }
   })
 

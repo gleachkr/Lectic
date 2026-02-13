@@ -3,8 +3,11 @@ import { computeCompletions } from "./completions"
 import { buildTestBundle } from "./utils/testHelpers"
 import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
 import { LLMProvider } from "../types/provider"
-import { InsertTextFormat } from "vscode-languageserver/node"
-import { mkdtemp, writeFile, rm } from "fs/promises"
+import {
+  CompletionTriggerKind,
+  InsertTextFormat,
+} from "vscode-languageserver/node"
+import { mkdir, mkdtemp, rm, writeFile } from "fs/promises"
 import { tmpdir } from "os"
 import { join } from "path"
 
@@ -350,6 +353,38 @@ describe("completions (unit)", () => {
       .toContain("Summarize the conversation")
   })
 
+  test("macro directive completion places cursor inside brackets when macro has completions", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions:",
+      "      - completion: prod",
+      "---",
+      ":de",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const char = lines[line].length
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text)
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const deploy = arr.find((x: any) => x.label === "deploy")
+    expect(Boolean(deploy)).toBeTrue()
+    expect(deploy.insertTextFormat).toBe(InsertTextFormat.Snippet)
+    expect(deploy.textEdit.newText).toBe(":deploy[$0]")
+    expect(deploy.command?.command).toBe("editor.action.triggerSuggest")
+  })
+
   test("inside :ask[...] suggests interlocutor names only", async () => {
     const text = `---\ninterlocutors:\n  - name: Boggle\n    prompt: hi\n  - name: Oggle\n    prompt: hi\n---\n:ask[Bo]`
     const line = text.split(/\r?\n/).length - 1
@@ -401,6 +436,434 @@ describe("completions (unit)", () => {
     const labels = new Set(arr.map((x: any) => x.label))
     expect(labels.has("Boggle")).toBeTrue()
     expect(labels.has("Oggle")).toBeTrue()
+  })
+
+  test("inside :macro[...] suggests inline macro argument completions", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions:",
+      "      - completion: prod",
+      "        detail: Deploy to production",
+      "      - completion: staging",
+      "        detail: Deploy to staging",
+      "---",
+      ":deploy[]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const char = lines[line].indexOf(":deploy[") + ":deploy[".length
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text),
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+
+    expect(labels.has("prod")).toBeTrue()
+    expect(labels.has("staging")).toBeTrue()
+
+    const prod = arr.find((x: any) => x.label === "prod")
+    expect(String(prod.detail)).toContain("Deploy to production")
+    expect(prod.documentation).toBeUndefined()
+  })
+
+  test("macro argument completion supports detail and documentation", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions:",
+      "      - completion: prod",
+      "        detail: Deploy to production",
+      "        documentation: Full docs",
+      "---",
+      ":deploy[p]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const prod = arr.find((x: any) => x.label === "prod")
+    expect(String(prod.detail)).toBe("Deploy to production")
+    expect(String(prod.documentation)).toBe("Full docs")
+  })
+
+  test("macro argument completions filter by prefix and replace bracket range", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions:",
+      "      - completion: prod",
+      "      - completion: staging",
+      "---",
+      ":deploy[st]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    expect(arr.length).toBe(1)
+    expect(arr[0].label).toBe("staging")
+
+    const textEdit = arr[0].textEdit
+    expect(textEdit.range.start.character)
+      .toBe(lines[line].indexOf(":deploy[") + ":deploy[".length)
+    expect(textEdit.range.end.character).toBe(closeChar)
+  })
+
+  test("macro argument completions de-duplicate by completion", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions:",
+      "      - completion: prod",
+      "        detail: First",
+      "      - completion: prod",
+      "        detail: Second",
+      "---",
+      ":deploy[p]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const prodItems = arr.filter((x: any) => x.label === "prod")
+    expect(prodItems.length).toBe(1)
+    expect(String(prodItems[0].detail)).toContain("First")
+  })
+
+  test("macro argument completions load from file source", async () => {
+    const wsDir = await mkdtemp(join(tmpdir(), 'lectic-macro-comps-file-'))
+    try {
+      await writeFile(
+        join(wsDir, 'deploy-completions.yaml'),
+        `- completion: prod
+  detail: Deploy to production
+`
+      )
+
+      const text = [
+        "---",
+        "macros:",
+        "  - name: deploy",
+        "    expansion: x",
+        `    completions: file:${join(wsDir, 'deploy-completions.yaml')}`,
+        "---",
+        ":deploy[p]",
+      ].join("\n")
+
+      const lines = text.split(/\r?\n/)
+      const line = lines.length - 1
+      const closeChar = lines[line].indexOf("]")
+
+      const items: any = await computeCompletions(
+        "file:///doc.lec",
+        text,
+        { line, character: closeChar } as any,
+        wsDir,
+        buildTestBundle(text),
+      )
+
+      const arr = Array.isArray(items) ? items : (items?.items ?? [])
+      const labels = new Set(arr.map((x: any) => x.label))
+      expect(labels.has("prod")).toBeTrue()
+    } finally {
+      await rm(wsDir, { recursive: true, force: true })
+    }
+  })
+
+  test("macro argument completions accept JSON array source", async () => {
+    const wsDir = await mkdtemp(join(tmpdir(), 'lectic-macro-comps-json-'))
+    try {
+      await writeFile(
+        join(wsDir, 'deploy-completions.json'),
+        "[{\"completion\":\"prod\",\"detail\":\"Deploy\"}]"
+      )
+
+      const text = [
+        "---",
+        "macros:",
+        "  - name: deploy",
+        "    expansion: x",
+        `    completions: file:${join(wsDir, 'deploy-completions.json')}`,
+        "---",
+        ":deploy[p]",
+      ].join("\n")
+
+      const lines = text.split(/\r?\n/)
+      const line = lines.length - 1
+      const closeChar = lines[line].indexOf("]")
+
+      const items: any = await computeCompletions(
+        "file:///doc.lec",
+        text,
+        { line, character: closeChar } as any,
+        wsDir,
+        buildTestBundle(text),
+      )
+
+      const arr = Array.isArray(items) ? items : (items?.items ?? [])
+      expect(hasLabel(arr, "prod")).toBeTrue()
+    } finally {
+      await rm(wsDir, { recursive: true, force: true })
+    }
+  })
+
+  test("macro argument completions resolve file:local paths", async () => {
+    const wsDir = await mkdtemp(join(tmpdir(), 'lectic-macro-comps-local-'))
+    try {
+      const compDir = join(wsDir, 'completions')
+      await mkdir(compDir, { recursive: true })
+      await writeFile(
+        join(compDir, 'deploy.yaml'),
+        `- completion: staging
+  detail: Deploy to staging
+`
+      )
+
+      const text = [
+        "---",
+        "macros:",
+        "  - name: deploy",
+        "    expansion: x",
+        "    completions: file:local:./completions/deploy.yaml",
+        "---",
+        ":deploy[s]",
+      ].join("\n")
+
+      const lines = text.split(/\r?\n/)
+      const line = lines.length - 1
+      const closeChar = lines[line].indexOf("]")
+
+      const items: any = await computeCompletions(
+        "file:///doc.lec",
+        text,
+        { line, character: closeChar } as any,
+        wsDir,
+        buildTestBundle(text),
+      )
+
+      const arr = Array.isArray(items) ? items : (items?.items ?? [])
+      const labels = new Set(arr.map((x: any) => x.label))
+      expect(labels.has("staging")).toBeTrue()
+    } finally {
+      await rm(wsDir, { recursive: true, force: true })
+    }
+  })
+
+  test("exec macro argument completions load YAML output", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions: >",
+      "      exec:sh -c 'printf \"%s\\\\n\" \"- completion: prod\"'",
+      "---",
+      ":deploy[p]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+      { triggerKind: CompletionTriggerKind.Invoked } as any,
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    expect(labels.has("prod")).toBeTrue()
+  })
+
+  test("exec macro completions inherit macro env and dynamic vars", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    env:",
+      "      DEFAULT_REGION: us-west-2",
+      "    completions: >",
+      "      exec:sh -c 'printf \"%s\\\\n\" \"- completion: ${ARG_PREFIX}-${DEFAULT_REGION}-${MACRO_NAME}-${LECTIC_COMPLETION}\"'",
+      "---",
+      ":deploy[st]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+      { triggerKind: CompletionTriggerKind.Invoked } as any,
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+    expect(labels.has("st-us-west-2-deploy-1")).toBeTrue()
+  })
+
+  test("exec macro completions default to manual trigger policy", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions: >",
+      "      exec:sh -c 'printf \"%s\\\\n\" \"- completion: prod\"'",
+      "---",
+      ":deploy[p]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const autoItems: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+      {
+        triggerKind: CompletionTriggerKind.TriggerCharacter,
+        triggerCharacter: "[",
+      } as any,
+    )
+    const autoArr = Array.isArray(autoItems)
+      ? autoItems
+      : (autoItems?.items ?? [])
+    expect(autoArr.length).toBe(0)
+
+    const manualItems: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+      { triggerKind: CompletionTriggerKind.Invoked } as any,
+    )
+    const manualArr = Array.isArray(manualItems)
+      ? manualItems
+      : (manualItems?.items ?? [])
+    expect(hasLabel(manualArr, "prod")).toBeTrue()
+  })
+
+  test("completion_trigger: auto overrides exec manual default", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions: >",
+      "      exec:sh -c 'printf \"%s\\\\n\" \"- completion: prod\"'",
+      "    completion_trigger: auto",
+      "---",
+      ":deploy[p]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const autoItems: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+      {
+        triggerKind: CompletionTriggerKind.TriggerCharacter,
+        triggerCharacter: "[",
+      } as any,
+    )
+
+    const autoArr = Array.isArray(autoItems)
+      ? autoItems
+      : (autoItems?.items ?? [])
+    expect(hasLabel(autoArr, "prod")).toBeTrue()
+  })
+
+  test("invalid macro completion source output fails soft", async () => {
+    const text = [
+      "---",
+      "macros:",
+      "  - name: deploy",
+      "    expansion: x",
+      "    completions: exec:echo not-a-list",
+      "---",
+      ":deploy[n]",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.length - 1
+    const closeChar = lines[line].indexOf("]")
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: closeChar } as any,
+      undefined,
+      buildTestBundle(text),
+      { triggerKind: CompletionTriggerKind.Invoked } as any,
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    expect(arr.length).toBe(0)
   })
 
   test("suggests provider values", async () => {

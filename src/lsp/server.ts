@@ -354,7 +354,8 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
       doc.text,
       params.position,
       docDirOf(params.textDocument.uri),
-      bundle
+      bundle,
+      params.context,
     )
   })
 

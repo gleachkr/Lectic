@@ -365,6 +365,76 @@ export function validateHeaderShape(spec: unknown): Issue[] {
             severity: "error"
           })
         }
+
+        if ("completions" in m) {
+          const completions = m["completions"]
+          if (typeof completions === "string") {
+            const trimmed = completions.trimStart()
+            const isFileSource = trimmed.startsWith("file:")
+            const isExecSource = trimmed.startsWith("exec:")
+            if (!isFileSource && !isExecSource) {
+              issues.push({
+                code: "macro.completions.source",
+                message: Messages.macro.completionSourceType(),
+                path: ["macros", i, "completions"],
+                severity: "error",
+              })
+            }
+          } else if (Array.isArray(completions)) {
+            completions.forEach((entry, j: number) => {
+              if (!isObjectRecord(entry) || typeof entry["completion"] !== "string") {
+                issues.push({
+                  code: "macro.completions.item.type",
+                  message: Messages.macro.completionItemType(),
+                  path: ["macros", i, "completions", j],
+                  severity: "error",
+                })
+                return
+              }
+
+              if ("detail" in entry && typeof entry["detail"] !== "string") {
+                issues.push({
+                  code: "macro.completions.item.detail",
+                  message: Messages.macro.completionItemDetailType(),
+                  path: ["macros", i, "completions", j, "detail"],
+                  severity: "error",
+                })
+              }
+
+              if (
+                "documentation" in entry
+                && typeof entry["documentation"] !== "string"
+              ) {
+                issues.push({
+                  code: "macro.completions.item.documentation",
+                  message: Messages.macro.completionItemDocumentationType(),
+                  path: ["macros", i, "completions", j, "documentation"],
+                  severity: "error",
+                })
+              }
+
+            })
+          } else {
+            issues.push({
+              code: "macro.completions.type",
+              message: Messages.macro.completionsType(),
+              path: ["macros", i, "completions"],
+              severity: "error",
+            })
+          }
+        }
+
+        if ("completion_trigger" in m) {
+          const trigger = m["completion_trigger"]
+          if (trigger !== "auto" && trigger !== "manual") {
+            issues.push({
+              code: "macro.completion_trigger.type",
+              message: Messages.macro.completionTriggerType(),
+              path: ["macros", i, "completion_trigger"],
+              severity: "error",
+            })
+          }
+        }
       })
     }
   }

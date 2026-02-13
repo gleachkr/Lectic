@@ -55,6 +55,18 @@ export const Messages = {
     envType: () => `The "env" field of a macro must be an object.`,
     descriptionType: () =>
       `The "description" field of a macro must be a string.`,
+    completionsType: () =>
+      `The "completions" field of a macro must be a string or array.`,
+    completionItemType: () =>
+      `Each macro completion item must be an object with a string "completion" field.`,
+    completionItemDetailType: () =>
+      `The "detail" field of a macro completion item must be a string.`,
+    completionItemDocumentationType: () =>
+      `The "documentation" field of a macro completion item must be a string.`,
+    completionTriggerType: () =>
+      `The "completion_trigger" field of a macro must be "auto" or "manual".`,
+    completionSourceType: () =>
+      `String macro completions must start with "file:" or "exec:".`,
     baseNeedsNameExpansion: (raw: unknown) =>
       `Macro needs to be given with "name" and at least one of "expansion", "pre", or "post". Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for macro`,
