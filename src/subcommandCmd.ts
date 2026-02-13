@@ -80,6 +80,7 @@ function scanDirForCommand(
     cwd: dir,
     absolute: true,
     onlyFiles: true,
+    followSymlinks: true,
   })) {
     if (!isExecutable(maybePath)) continue
 
