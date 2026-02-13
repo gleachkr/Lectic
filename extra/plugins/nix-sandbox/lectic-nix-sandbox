@@ -1,0 +1,452 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  lectic-nix-sandbox [OPTIONS] [--] <command> [args...]
+
+Sandbox wrapper for Lectic using a declarative Nix-built container image.
+
+Options:
+  -d, --workdir DIR
+      Working directory to mount read-write and use as cwd.
+      Default: current directory.
+
+  -v, --volume HOST[:TARGET]
+      Add a read-write bind mount. HOST must be an existing directory.
+      TARGET must be absolute if provided. If omitted, TARGET=HOST.
+
+  -p, --persist DIR
+      Shorthand for: --volume DIR:/persist
+
+  --home DIR
+      Persistent home directory to mount inside container.
+      Default: ephemeral temp home.
+
+  --allow-net
+      Enable network access. Default is network disabled.
+
+  --keep-warm
+      Keep a background container alive and reuse it for later calls.
+      Default: enabled.
+
+  --no-keep-warm
+      Disable warm-container reuse for this invocation.
+
+  --warm-ttl-seconds N
+      Remove idle warm containers older than N seconds.
+      Default: 900.
+
+  --nix-packages-file FILE
+      Path to a Nix file that provides extra derivations to include in the
+      container image. See packages.example.nix.
+
+  --nix-exe PATH
+      Nix executable to use. Default: nix
+
+  --podman-exe PATH
+      Podman executable to use. Default: podman
+
+  --nix-extra "ARGS"
+      Extra args for "nix build".
+
+  --podman-extra "ARGS"
+      Extra args appended to "podman run".
+
+  -h, --help
+      Show this help.
+
+Notes:
+  - The image is built from this plugin's flake output:
+      path:<plugin-dir>#containerImage
+  - If Podman is not installed, the wrapper falls back to:
+      nix shell nixpkgs#podman --command podman ...
+EOF
+}
+
+die() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+require_cmd() {
+  local cmd="$1"
+  command -v "$cmd" >/dev/null 2>&1 || die "missing required command: $cmd"
+}
+
+resolve_dir() {
+  local dir="$1"
+  local abs
+  abs=$(realpath "$dir") || die "failed to resolve path: $dir"
+  [[ -d "$abs" ]] || die "directory does not exist: $abs"
+  printf %s "$abs"
+}
+
+resolve_file() {
+  local path="$1"
+  local abs
+  abs=$(realpath "$path") || die "failed to resolve path: $path"
+  [[ -f "$abs" ]] || die "file does not exist: $abs"
+  printf %s "$abs"
+}
+
+parse_volume() {
+  local spec="$1"
+  local host
+  local target
+
+  if [[ "$spec" == *:* ]]; then
+    host="${spec%%:*}"
+    target="${spec#*:}"
+  else
+    host="$spec"
+    target=""
+  fi
+
+  [[ -n "$host" ]] || die "volume host path cannot be empty"
+
+  local host_abs
+  host_abs=$(realpath "$host") || die "failed to resolve volume host: $host"
+  [[ -d "$host_abs" ]] || die "volume host is not a directory: $host_abs"
+
+  if [[ -z "$target" ]]; then
+    target="$host_abs"
+  fi
+
+  [[ "$target" == /* ]] || die "volume target must be absolute: $target"
+
+  printf '%s\n%s\n' "$host_abs" "$target"
+}
+
+file_mtime_epoch() {
+  local file="$1"
+  if stat -c %Y "$file" >/dev/null 2>&1; then
+    stat -c %Y "$file"
+  else
+    stat -f %m "$file"
+  fi
+}
+
+podman_call() {
+  "${PODMAN_CMD[@]}" "${PODMAN_GLOBAL[@]}" "$@"
+}
+
+podman_container_exists() {
+  local name="$1"
+  podman_call inspect "$name" >/dev/null 2>&1
+}
+
+podman_container_running() {
+  local name="$1"
+  local running
+  running=$(podman_call inspect --format '{{.State.Running}}' "$name" 2>/dev/null \
+    || true)
+  [[ "$running" == "true" ]]
+}
+
+prune_warm_containers() {
+  local ttl="$1"
+  local state_dir="$2"
+
+  [[ "$ttl" -gt 0 ]] || return 0
+
+  mkdir -p "$state_dir"
+
+  local now
+  now=$(date +%s)
+
+  shopt -s nullglob
+  for marker in "$state_dir"/*.stamp; do
+    local name
+    name=$(basename "$marker" .stamp)
+
+    if ! podman_container_exists "$name"; then
+      rm -f "$marker"
+      continue
+    fi
+
+    local mtime
+    mtime=$(file_mtime_epoch "$marker")
+
+    if (( now - mtime > ttl )); then
+      podman_call rm -f "$name" >/dev/null 2>&1 || true
+      rm -f "$marker"
+    fi
+  done
+  shopt -u nullglob
+}
+
+WORKDIR="$PWD"
+HOME_DIR=""
+ALLOW_NET=0
+KEEP_WARM=1
+WARM_TTL_SECONDS=900
+NIX_PACKAGES_FILE=""
+NIX_EXE="nix"
+PODMAN_EXE="podman"
+NIX_EXTRA=""
+PODMAN_EXTRA=""
+VOLUME_SPECS=()
+CMD=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--workdir)
+      [[ $# -ge 2 ]] || die "--workdir requires a value"
+      WORKDIR="$2"
+      shift 2
+      ;;
+    -v|--volume)
+      [[ $# -ge 2 ]] || die "--volume requires a value"
+      VOLUME_SPECS+=("$2")
+      shift 2
+      ;;
+    -p|--persist)
+      [[ $# -ge 2 ]] || die "--persist requires a value"
+      VOLUME_SPECS+=("$2:/persist")
+      shift 2
+      ;;
+    --home)
+      [[ $# -ge 2 ]] || die "--home requires a value"
+      HOME_DIR="$2"
+      shift 2
+      ;;
+    --allow-net)
+      ALLOW_NET=1
+      shift
+      ;;
+    --keep-warm)
+      KEEP_WARM=1
+      shift
+      ;;
+    --no-keep-warm)
+      KEEP_WARM=0
+      shift
+      ;;
+    --warm-ttl-seconds)
+      [[ $# -ge 2 ]] || die "--warm-ttl-seconds requires a value"
+      [[ "$2" =~ ^[0-9]+$ ]] || die "warm ttl must be a non-negative integer"
+      WARM_TTL_SECONDS="$2"
+      shift 2
+      ;;
+    --nix-packages-file)
+      [[ $# -ge 2 ]] || die "--nix-packages-file requires a value"
+      NIX_PACKAGES_FILE="$2"
+      shift 2
+      ;;
+    --nix-exe)
+      [[ $# -ge 2 ]] || die "--nix-exe requires a value"
+      NIX_EXE="$2"
+      shift 2
+      ;;
+    --podman-exe)
+      [[ $# -ge 2 ]] || die "--podman-exe requires a value"
+      PODMAN_EXE="$2"
+      shift 2
+      ;;
+    --nix-extra)
+      [[ $# -ge 2 ]] || die "--nix-extra requires a value"
+      NIX_EXTRA="$2"
+      shift 2
+      ;;
+    --podman-extra)
+      [[ $# -ge 2 ]] || die "--podman-extra requires a value"
+      PODMAN_EXTRA="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      CMD=("$@")
+      break
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      CMD=("$@")
+      break
+      ;;
+  esac
+done
+
+[[ ${#CMD[@]} -gt 0 ]] || die "missing command"
+
+require_cmd "$NIX_EXE"
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+WORKDIR=$(resolve_dir "$WORKDIR")
+
+if [[ -n "$NIX_PACKAGES_FILE" ]]; then
+  NIX_PACKAGES_FILE=$(resolve_file "$NIX_PACKAGES_FILE")
+fi
+
+CACHE_ROOT="${LECTIC_CACHE:-$HOME/.cache/lectic}/nix-sandbox"
+RUNROOT_BASE="${LECTIC_TEMP:-/tmp/lectic}/nix-sandbox"
+
+TEMP_HOME=""
+if [[ -n "$HOME_DIR" ]]; then
+  HOME_DIR=$(resolve_dir "$HOME_DIR")
+else
+  if [[ "$KEEP_WARM" -eq 1 ]]; then
+    WORKDIR_HASH=$(printf '%s' "$WORKDIR" | sha256sum | cut -c1-16)
+    HOME_DIR="$CACHE_ROOT/warm-home/$WORKDIR_HASH"
+    mkdir -p "$HOME_DIR"
+  else
+    TEMP_HOME=$(mktemp -d)
+    HOME_DIR="$TEMP_HOME"
+  fi
+fi
+
+cleanup() {
+  if [[ -n "$TEMP_HOME" ]]; then
+    chmod -R u+w "$TEMP_HOME" 2>/dev/null || true
+    rm -rf "$TEMP_HOME"
+  fi
+}
+trap cleanup EXIT
+PODMAN_ROOT="$CACHE_ROOT/podman-root"
+PODMAN_RUNROOT="$RUNROOT_BASE/podman-runroot"
+XDG_RUNTIME_DIR_DEFAULT="$RUNROOT_BASE/xdg-runtime"
+POLICY_JSON="$RUNROOT_BASE/policy.json"
+REGISTRIES_CONF="$RUNROOT_BASE/registries.conf"
+WARM_STATE_DIR="$CACHE_ROOT/warm-state"
+mkdir -p "$PODMAN_ROOT" "$PODMAN_RUNROOT" "$XDG_RUNTIME_DIR_DEFAULT"
+mkdir -p "$WARM_STATE_DIR"
+chmod 700 "$XDG_RUNTIME_DIR_DEFAULT" 2>/dev/null || true
+export XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR_DEFAULT"
+
+if [[ ! -f "$POLICY_JSON" ]]; then
+  cat >"$POLICY_JSON" <<'JSON'
+{
+  "default": [
+    {
+      "type": "insecureAcceptAnything"
+    }
+  ]
+}
+JSON
+fi
+
+if [[ ! -f "$REGISTRIES_CONF" ]]; then
+  cat >"$REGISTRIES_CONF" <<'CONF'
+unqualified-search-registries = []
+CONF
+fi
+
+PODMAN_CMD=()
+if command -v "$PODMAN_EXE" >/dev/null 2>&1; then
+  PODMAN_CMD=("$PODMAN_EXE")
+else
+  PODMAN_CMD=(
+    "$NIX_EXE" shell nixpkgs#podman --command podman
+  )
+fi
+
+PODMAN_GLOBAL=(
+  --root "$PODMAN_ROOT"
+  --runroot "$PODMAN_RUNROOT"
+  --storage-driver vfs
+)
+
+NIX_BUILD_ARGS=(
+  build
+  --no-link
+  --print-out-paths
+  --no-write-lock-file
+)
+
+if [[ -n "$NIX_PACKAGES_FILE" ]]; then
+  export LECTIC_NIX_SANDBOX_EXTRA_PKGS_FILE="$NIX_PACKAGES_FILE"
+  NIX_BUILD_ARGS+=(--impure)
+else
+  unset LECTIC_NIX_SANDBOX_EXTRA_PKGS_FILE || true
+fi
+
+NIX_BUILD_ARGS+=("path:$SCRIPT_DIR#containerImage")
+
+if [[ -n "$NIX_EXTRA" ]]; then
+  read -r -a EXTRA_NIX_ARR <<<"$NIX_EXTRA"
+  NIX_BUILD_ARGS+=("${EXTRA_NIX_ARR[@]}")
+fi
+
+IMAGE_TAR=$("$NIX_EXE" "${NIX_BUILD_ARGS[@]}")
+[[ -n "$IMAGE_TAR" ]] || die "nix build did not return an image path"
+[[ -f "$IMAGE_TAR" ]] || die "image path is not a file: $IMAGE_TAR"
+
+IMAGE_HASH=$(basename "$IMAGE_TAR")
+IMAGE_HASH="${IMAGE_HASH%%-*}"
+[[ -n "$IMAGE_HASH" ]] || die "failed to compute image hash"
+IMAGE_REF="lectic/nix-sandbox:${IMAGE_HASH:0:24}"
+SOURCE_REF="lectic/nix-sandbox:0.1.0"
+
+if ! podman_call image exists "$IMAGE_REF" >/dev/null 2>&1; then
+  podman_call load \
+    --signature-policy "$POLICY_JSON" \
+    --registries-conf "$REGISTRIES_CONF" \
+    -i "$IMAGE_TAR" >/dev/null
+
+  podman_call tag "$SOURCE_REF" "$IMAGE_REF" >/dev/null 2>&1 || true
+fi
+
+HOME_IN_CONTAINER="${HOME:-/home/lectic}"
+
+BASE_RUN_ARGS=(
+  --security-opt label=disable
+  --workdir "$WORKDIR"
+  --volume "$WORKDIR:$WORKDIR:rw,rprivate"
+  --volume "$HOME_DIR:$HOME_IN_CONTAINER:rw,rprivate"
+  --env "HOME=$HOME_IN_CONTAINER"
+)
+
+if [[ "$ALLOW_NET" -ne 1 ]]; then
+  BASE_RUN_ARGS+=(--network none)
+fi
+
+for spec in "${VOLUME_SPECS[@]}"; do
+  mapfile -t pair < <(parse_volume "$spec")
+  BASE_RUN_ARGS+=(--volume "${pair[0]}:${pair[1]}:rw,rprivate")
+done
+
+if [[ -n "$PODMAN_EXTRA" ]]; then
+  read -r -a EXTRA_PODMAN_ARR <<<"$PODMAN_EXTRA"
+  BASE_RUN_ARGS+=("${EXTRA_PODMAN_ARR[@]}")
+fi
+
+prune_warm_containers "$WARM_TTL_SECONDS" "$WARM_STATE_DIR"
+
+if [[ "$KEEP_WARM" -eq 1 ]]; then
+  warm_key_input=$(printf '%s\n' \
+    "$IMAGE_REF" \
+    "$WORKDIR" \
+    "$HOME_DIR" \
+    "$HOME_IN_CONTAINER" \
+    "$ALLOW_NET" \
+    "$NIX_PACKAGES_FILE" \
+    "${VOLUME_SPECS[*]}" \
+    "$PODMAN_EXTRA")
+
+  warm_hash=$(printf '%s' "$warm_key_input" | sha256sum | cut -c1-16)
+  CONTAINER_NAME="lectic-nix-sandbox-$warm_hash"
+  MARKER_FILE="$WARM_STATE_DIR/${CONTAINER_NAME}.stamp"
+
+  if podman_container_exists "$CONTAINER_NAME"; then
+    if ! podman_container_running "$CONTAINER_NAME"; then
+      podman_call start "$CONTAINER_NAME" >/dev/null
+    fi
+  else
+    podman_call run -d --name "$CONTAINER_NAME" \
+      "${BASE_RUN_ARGS[@]}" "$IMAGE_REF" /bin/sleep infinity >/dev/null
+  fi
+
+  touch "$MARKER_FILE"
+
+  podman_call exec --workdir "$WORKDIR" "$CONTAINER_NAME" "${CMD[@]}"
+  exit $?
+fi
+
+podman_call run --rm "${BASE_RUN_ARGS[@]}" "$IMAGE_REF" "${CMD[@]}"

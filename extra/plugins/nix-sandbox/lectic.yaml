@@ -1,0 +1,13 @@
+# Nix Sandbox Plugin
+#
+# Default policy:
+# - run exec tools and local mcp_command tools in a Nix-built container
+# - keep a warm container alive after first call (lower steady-state latency)
+#
+# Example with persistence:
+# sandbox: local:./lectic-nix-sandbox --persist $LECTIC_DATA/nix/$LECTIC_INTERLOCUTOR
+#
+# Example with extra packages:
+# sandbox: local:./lectic-nix-sandbox --nix-packages-file ./packages.nix
+
+sandbox: local:./lectic-nix-sandbox
