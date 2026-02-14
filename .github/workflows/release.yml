@@ -20,9 +20,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="${GITHUB_REF_NAME}"          # e.g. v0.0.1
-          EXPECTED="${TAG#v}"               # e.g. 0.0.1
-
+          TAG="${GITHUB_REF_NAME}"
+          EXPECTED="${TAG#v}"
           PKG_VERSION="$(node -p 'require("./package.json").version')"
 
           if [[ "$PKG_VERSION" != "$EXPECTED" ]]; then
@@ -77,10 +76,10 @@ jobs:
           generate_release_notes: false
           fail_on_unmatched_files: false
 
-  build:
+  build-linux:
     needs: create-release
 
-    strategy: 
+    strategy:
       matrix:
         os: [ubuntu-24.04, ubuntu-24.04-arm]
 
@@ -90,69 +89,160 @@ jobs:
       contents: write
 
     steps:
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Nix
-        uses: cachix/install-nix-action@v27
-        with:
-          nix_path: nixpkgs=channel:nixpkgs-unstable
-
-      - name: Detect architecture
-        run: echo "ARCH=$(uname -m)" >> $GITHUB_ENV
-
-      - name: Get tag name
-        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Build application
-        run: nix build .#lectic-appimage -o "lectic-$TAG_NAME-linux-$ARCH.appImage"
-
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: lectic-*-linux-*.appImage
-
-  build-macos:
-    needs: create-release
-
-    strategy: 
-      matrix:
-        os: [macos-latest, macos-15]
-
-    runs-on: ${{matrix.os}}
-
-    permissions:
-      contents: write
-
-    steps:
-
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Detect architecture
-        run: echo "ARCH=$(uname -m)" >> $GITHUB_ENV
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-unstable
+
+      - name: Normalize architecture
+        run: |
+          set -euo pipefail
+          RAW_ARCH="$(uname -m)"
+          case "$RAW_ARCH" in
+            x86_64|amd64)
+              ARCH="x86_64"
+              ;;
+            arm64|aarch64)
+              ARCH="aarch64"
+              ;;
+            *)
+              echo "Unsupported architecture: $RAW_ARCH" >&2
+              exit 1
+              ;;
+          esac
+          echo "ARCH=$ARCH" >> "$GITHUB_ENV"
 
       - name: Get tag name
-        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: bun install
 
-      - name: Build application
-        run: >
-          bun build 
-          --compile 
-          --outfile "lectic-$TAG_NAME-macos-$ARCH.bin" 
-          --define process.env.NODE_ENV="'production'" 
-          src/main.ts src/lsp/parserWorker.ts
-      - name: Release
+      - name: Build Linux release binary
+        run: |
+          set -euo pipefail
+          bun build \
+            --compile \
+            --outfile lectic \
+            --define process.env.NODE_ENV="'production'" \
+            src/main.ts src/lsp/parserWorker.ts
+
+      - name: Sanity-check Linux runtime deps
+        run: |
+          set -euo pipefail
+          file ./lectic
+          ldd ./lectic | tee ./ldd.txt
+
+          if grep -q 'not found' ./ldd.txt; then
+            echo "Missing shared library dependency" >&2
+            exit 1
+          fi
+
+          mapfile -t deps < <(awk '/=>/ { print $1 }' ./ldd.txt | sort -u)
+          for dep in "${deps[@]}"; do
+            case "$dep" in
+              libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*)
+                ;;
+              libstdc++.so.*|libgcc_s.so.*|libz.so.*)
+                ;;
+              *)
+                echo "Unexpected shared dependency: $dep" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+      - name: Build release tarball
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp ./lectic ./dist/lectic
+          chmod +x ./dist/lectic
+          tar -C ./dist -czf \
+            "lectic-${TAG_NAME}-linux-${ARCH}.tar.gz" \
+            lectic
+
+      - name: Build AppImage
+        run: |
+          set -euo pipefail
+          nix build .#lectic-appimage -o appimage
+          cp appimage "lectic-${TAG_NAME}-linux-${ARCH}.AppImage"
+
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: lectic-*-macos-*.bin
+          files: |
+            lectic-*-linux-*.AppImage
+            lectic-*-linux-*.tar.gz
+
+  build-macos:
+    needs: create-release
+
+    strategy:
+      matrix:
+        os: [macos-13, macos-15]
+
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Normalize architecture
+        run: |
+          set -euo pipefail
+          RAW_ARCH="$(uname -m)"
+          case "$RAW_ARCH" in
+            x86_64|amd64)
+              ARCH="x86_64"
+              ;;
+            arm64|aarch64)
+              ARCH="aarch64"
+              ;;
+            *)
+              echo "Unsupported architecture: $RAW_ARCH" >&2
+              exit 1
+              ;;
+          esac
+          echo "ARCH=$ARCH" >> "$GITHUB_ENV"
+
+      - name: Get tag name
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build release tarball
+        run: |
+          set -euo pipefail
+          bun build \
+            --compile \
+            --outfile lectic \
+            --define process.env.NODE_ENV="'production'" \
+            src/main.ts src/lsp/parserWorker.ts
+          mkdir -p dist
+          cp ./lectic ./dist/lectic
+          chmod +x ./dist/lectic
+          tar -C ./dist -czf \
+            "lectic-${TAG_NAME}-darwin-${ARCH}.tar.gz" \
+            lectic
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: lectic-*-darwin-*.tar.gz
 
   build-vsix:
     needs: create-release
@@ -163,7 +253,6 @@ jobs:
       contents: write
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -176,7 +265,180 @@ jobs:
           npm install
           npm exec vsce package
 
-      - name: Release
+      - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           files: extra/lectic.vscode/lectic-vscode*.vsix
+
+  checksums:
+    needs: [build-linux, build-macos, build-vsix]
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p release-assets
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir release-assets \
+            --pattern 'lectic-*.tar.gz' \
+            --pattern 'lectic-*.AppImage' \
+            --pattern 'lectic-vscode*.vsix'
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd release-assets
+          LC_ALL=C ls -1 | sort | xargs sha256sum > SHA256SUMS
+
+      - name: Upload checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          gh release upload "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            release-assets/SHA256SUMS
+
+  publish-homebrew:
+    needs: checksums
+
+    if: >-
+      ${{
+        vars.HOMEBREW_TAP_REPO != '' &&
+        secrets.HOMEBREW_TAP_TOKEN != ''
+      }}
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      HOMEBREW_FORMULA_PATH: ${{ vars.HOMEBREW_FORMULA_PATH }}
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.HOMEBREW_TAP_REPO }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Render and publish formula
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          mkdir -p release-assets
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir release-assets \
+            --pattern 'SHA256SUMS'
+
+          FORMULA_REL_PATH="${HOMEBREW_FORMULA_PATH:-Formula/lectic.rb}"
+          FORMULA_ABS_PATH="tap/${FORMULA_REL_PATH}"
+
+          mkdir -p "$(dirname "$FORMULA_ABS_PATH")"
+          ./extra/release/render-homebrew-formula.sh \
+            --tag "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --checksums release-assets/SHA256SUMS \
+            > "$FORMULA_ABS_PATH"
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [[ -z "$(git status --porcelain -- "$FORMULA_REL_PATH")" ]]; then
+            echo "Formula already up to date"
+            exit 0
+          fi
+
+          git add "$FORMULA_REL_PATH"
+          git commit -m "lectric ${TAG}"
+          git push
+
+  publish-aur:
+    needs: checksums
+
+    if: ${{ secrets.AUR_SSH_PRIVATE_KEY != '' }}
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      AUR_PACKAGE: ${{ vars.AUR_PACKAGE }}
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH for AUR
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+      - name: Render and publish AUR package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          AUR_PKG="${AUR_PACKAGE:-lectic-bin}"
+
+          mkdir -p release-assets
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir release-assets \
+            --pattern 'SHA256SUMS'
+
+          git clone "ssh://aur@aur.archlinux.org/${AUR_PKG}.git" aur
+
+          ./extra/release/render-aur-pkgbuild.sh \
+            --tag "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --checksums release-assets/SHA256SUMS \
+            --pkgname "$AUR_PKG" \
+            > aur/PKGBUILD
+
+          ./extra/release/render-aur-pkgbuild.sh \
+            --tag "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --checksums release-assets/SHA256SUMS \
+            --pkgname "$AUR_PKG" \
+            --srcinfo \
+            > aur/.SRCINFO
+
+          cd aur
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [[ -z "$(git status --porcelain -- PKGBUILD .SRCINFO)" ]]; then
+            echo "AUR package already up to date"
+            exit 0
+          fi
+
+          git add PKGBUILD .SRCINFO
+          git commit -m "${AUR_PKG} ${TAG}"
+          git push

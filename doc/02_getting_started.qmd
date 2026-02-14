@@ -8,22 +8,19 @@ simple tool in action.
 
 Choose the method that fits your system.
 
-#### Linux (AppImage)
+#### Linux / macOS (release tarballs)
 
-Download the AppImage from the
-[GitHub Releases page](https://github.com/gleachkr/Lectic/releases). Make it
-executable and put it on your PATH.
+Download the matching release tarball from the
+[GitHub Releases page](https://github.com/gleachkr/Lectic/releases), extract
+it, and put `lectic` on your PATH.
 
 ```bash
-chmod +x lectic-*.AppImage
-mv lectic-*.AppImage ~/.local/bin/lectic
+tar -xzf lectic-vX.Y.Z-<platform>-<arch>.tar.gz
+mkdir -p ~/.local/bin
+install -m 755 ./lectic ~/.local/bin/lectic
 ```
 
-#### macOS
-
-Download the macOS binary from the
-[GitHub Releases page](https://github.com/gleachkr/Lectic/releases) and put
-it on your PATH.
+Linux AppImages are also published in the release assets.
 
 #### Nix
 

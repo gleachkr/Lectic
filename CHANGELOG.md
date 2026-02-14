@@ -31,6 +31,8 @@ for a tag and publish them on the corresponding GitHub Release.
 
 ### Changed
 
+- Release artifacts now use a stable `<tag>-<platform>-<arch>` naming
+  scheme and include platform tarballs for package manager distribution.
 - Provider naming: `chatgpt` is now `codex`.
 - Custom subcommand discovery now searches `$LECTIC_CONFIG` and
   `$LECTIC_DATA` recursively before checking `$PATH`.
