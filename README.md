@@ -42,6 +42,19 @@ surface. So that's how you extend Lectic.
 
 ## Installation
 
+#### Homebrew
+
+```bash
+brew install gleachkr/lectic/lectic
+```
+
+#### Arch Linux (AUR)
+
+```bash
+yay -S lectic-bin
+# or: paru -S lectic-bin
+```
+
 #### Nix
 
 ```bash

@@ -8,6 +8,19 @@ simple tool in action.
 
 Choose the method that fits your system.
 
+#### Homebrew
+
+```bash
+brew install gleachkr/lectic/lectic
+```
+
+#### Arch Linux (AUR)
+
+```bash
+yay -S lectic-bin
+# or: paru -S lectic-bin
+```
+
 #### Linux / macOS (release tarballs)
 
 Download the matching release tarball from the
