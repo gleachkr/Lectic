@@ -313,11 +313,7 @@ jobs:
   publish-homebrew:
     needs: checksums
 
-    if: >-
-      ${{
-        vars.HOMEBREW_TAP_REPO != '' &&
-        secrets.HOMEBREW_TAP_TOKEN != ''
-      }}
+    if: ${{ vars.HOMEBREW_TAP_REPO != '' }}
 
     runs-on: ubuntu-latest
 
@@ -326,19 +322,34 @@ jobs:
 
     env:
       HOMEBREW_FORMULA_PATH: ${{ vars.HOMEBREW_FORMULA_PATH }}
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
     steps:
+      - name: Check Homebrew publishing config
+        id: homebrew_gate
+        run: |
+          set -euo pipefail
+          if [[ -z "${HOMEBREW_TAP_TOKEN:-}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Homebrew publish skipped: HOMEBREW_TAP_TOKEN is empty"
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout source repository
+        if: ${{ steps.homebrew_gate.outputs.enabled == 'true' }}
         uses: actions/checkout@v4
 
       - name: Checkout tap repository
+        if: ${{ steps.homebrew_gate.outputs.enabled == 'true' }}
         uses: actions/checkout@v4
         with:
           repository: ${{ vars.HOMEBREW_TAP_REPO }}
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          token: ${{ env.HOMEBREW_TAP_TOKEN }}
           path: tap
 
       - name: Render and publish formula
+        if: ${{ steps.homebrew_gate.outputs.enabled == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -376,8 +387,6 @@ jobs:
   publish-aur:
     needs: checksums
 
-    if: ${{ secrets.AUR_SSH_PRIVATE_KEY != '' }}
-
     runs-on: ubuntu-latest
 
     permissions:
@@ -388,10 +397,23 @@ jobs:
       AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
 
     steps:
+      - name: Check AUR publishing config
+        id: aur_gate
+        run: |
+          set -euo pipefail
+          if [[ -z "${AUR_SSH_PRIVATE_KEY:-}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "AUR publish skipped: AUR_SSH_PRIVATE_KEY is empty"
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout source repository
+        if: ${{ steps.aur_gate.outputs.enabled == 'true' }}
         uses: actions/checkout@v4
 
       - name: Configure SSH for AUR
+        if: ${{ steps.aur_gate.outputs.enabled == 'true' }}
         run: |
           set -euo pipefail
           install -m 700 -d ~/.ssh
@@ -400,6 +422,7 @@ jobs:
           ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
       - name: Render and publish AUR package
+        if: ${{ steps.aur_gate.outputs.enabled == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
