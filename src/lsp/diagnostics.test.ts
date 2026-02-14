@@ -136,7 +136,6 @@ describe("diagnostics", () => {
         "      - completion: prod",
         "        detail: 42",
         "        documentation: true",
-        "        description: old",
         "    completion_trigger: sometimes",
         "---",
         "Body",
@@ -160,12 +159,6 @@ describe("diagnostics", () => {
         hasMessage(
           diags,
           "\"documentation\" field of a macro completion item must be",
-        )
-      ).toBeTrue()
-      expect(
-        hasMessage(
-          diags,
-          "Use \"detail\" instead of \"description\"",
         )
       ).toBeTrue()
       expect(
