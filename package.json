@@ -1,4 +1,9 @@
 {
+  "name": "lectic",
+  "version": "0.0.1",
+  "scripts": {
+    "release": "./extra/release/release.sh"
+  },
   "dependencies": {
     "@a2a-js/sdk": "^0.3.9",
     "@anthropic-ai/bedrock-sdk": "^0.22.4",
@@ -17,7 +22,6 @@
     "vscode-languageserver": "^9.0.1",
     "yaml": "^2.7.0"
   },
-  "version": "0.0.1",
   "devDependencies": {
     "@eslint/js": "^9.38.0",
     "eslint": "^9.38.0",

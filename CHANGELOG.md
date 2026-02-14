@@ -28,11 +28,19 @@ for a tag and publish them on the corresponding GitHub Release.
 - `MESSAGE_TEXT` in macro expansion environment variables.
 - Programmable macro argument completions in the LSP via inline lists,
   `file:` sources, or `exec:` sources.
+- `LECTIC_RUNTIME` environment variable to override recursive custom
+  subcommand discovery roots.
+- Experimental Nix sandbox plugin at `extra/plugins/nix-sandbox`.
 
 ### Changed
 
 - Release artifacts now use a stable `<tag>-<platform>-<arch>` naming
   scheme and include platform tarballs for package manager distribution.
+- Subcommand discovery now follows symlinks.
+- Release pipeline now publishes `SHA256SUMS` and supports optional
+  CI-driven Homebrew and AUR publishing.
+- Linux tarball artifacts are built with Bun on Ubuntu runners and
+  validated with an `ldd` dependency sanity check.
 - Provider naming: `chatgpt` is now `codex`.
 - Custom subcommand discovery now searches `$LECTIC_CONFIG` and
   `$LECTIC_DATA` recursively before checking `$PATH`.

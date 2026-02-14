@@ -48,19 +48,15 @@ surface. So that's how you extend Lectic.
 nix profile install github:gleachkr/lectic
 ```
 
-#### Linux (AppImage)
+#### Linux / macOS (GitHub Releases)
 
 ```bash
-# Download from GitHub Releases, then:
-chmod +x lectic-*.AppImage
-mv lectic-*.AppImage ~/.local/bin/lectic
+tar -xzf lectic-vX.Y.Z-<platform>-<arch>.tar.gz
+mkdir -p ~/.local/bin
+install -m 755 ./lectic ~/.local/bin/lectic
 ```
 
-#### macOS
-
-Download the macOS binary from
-[GitHub Releases](https://github.com/gleachkr/Lectic/releases) and add it
-to your PATH.
+Linux AppImages are also published as release assets.
 
 ## Quick Start
 

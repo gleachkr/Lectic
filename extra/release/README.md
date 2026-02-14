@@ -47,6 +47,31 @@ Render `.SRCINFO`:
   --srcinfo > .SRCINFO
 ```
 
+## Creating a release commit and tag
+
+Use the helper script to bump the package version and tag a release.
+
+```bash
+./extra/release/release.sh 0.0.2
+```
+
+This updates:
+
+- `package.json`
+- `package-lock.json`
+- `CHANGELOG.md` (`unreleased` → UTC date)
+
+Then it creates:
+
+- commit: `Release v0.0.2`
+- tag: `v0.0.2`
+
+To push in one step:
+
+```bash
+./extra/release/release.sh 0.0.2 --push
+```
+
 ## CI integration settings
 
 The release workflow can publish Homebrew and AUR updates automatically.
