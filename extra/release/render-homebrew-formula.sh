@@ -67,17 +67,19 @@ DARWIN_X64_SHA="$(sha_for "$DARWIN_X64_FILE")"
 LINUX_ARM_SHA="$(sha_for "$LINUX_ARM_FILE")"
 LINUX_X64_SHA="$(sha_for "$LINUX_X64_FILE")"
 
-for value in \
-  "$DARWIN_ARM_SHA" \
-  "$DARWIN_X64_SHA" \
-  "$LINUX_ARM_SHA" \
-  "$LINUX_X64_SHA"
-do
-  if [[ -z "$value" ]]; then
-    echo "Missing one or more required checksums in $CHECKSUMS" >&2
-    exit 1
-  fi
-done
+missing=()
+[[ -z "$DARWIN_ARM_SHA" ]] && missing+=("$DARWIN_ARM_FILE")
+[[ -z "$DARWIN_X64_SHA" ]] && missing+=("$DARWIN_X64_FILE")
+[[ -z "$LINUX_ARM_SHA" ]] && missing+=("$LINUX_ARM_FILE")
+[[ -z "$LINUX_X64_SHA" ]] && missing+=("$LINUX_X64_FILE")
+
+if [[ ${#missing[@]} -gt 0 ]]; then
+  echo "Missing required checksums in $CHECKSUMS:" >&2
+  printf '  - %s\n' "${missing[@]}" >&2
+  echo "Available entries:" >&2
+  awk '{ print "  - " $2 }' "$CHECKSUMS" >&2
+  exit 1
+fi
 
 cat <<EOF
 class Lectic < Formula

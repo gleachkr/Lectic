@@ -81,7 +81,11 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        include:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
 
     runs-on: ${{ matrix.os }}
 
@@ -100,22 +104,30 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixpkgs-unstable
 
-      - name: Normalize architecture
+      - name: Set and validate architecture
         run: |
           set -euo pipefail
+          ARCH="${{ matrix.arch }}"
           RAW_ARCH="$(uname -m)"
+
           case "$RAW_ARCH" in
             x86_64|amd64)
-              ARCH="x86_64"
+              DETECTED="x86_64"
               ;;
             arm64|aarch64)
-              ARCH="aarch64"
+              DETECTED="aarch64"
               ;;
             *)
               echo "Unsupported architecture: $RAW_ARCH" >&2
               exit 1
               ;;
           esac
+
+          if [[ "$DETECTED" != "$ARCH" ]]; then
+            echo "Runner arch mismatch: expected $ARCH, got $DETECTED" >&2
+            exit 1
+          fi
+
           echo "ARCH=$ARCH" >> "$GITHUB_ENV"
 
       - name: Get tag name
@@ -184,11 +196,7 @@ jobs:
   build-macos:
     needs: create-release
 
-    strategy:
-      matrix:
-        os: [macos-14, macos-15]
-
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-15
 
     permissions:
       contents: write
@@ -200,44 +208,36 @@ jobs:
       - name: Install bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Normalize architecture
-        run: |
-          set -euo pipefail
-          RAW_ARCH="$(uname -m)"
-          case "$RAW_ARCH" in
-            x86_64|amd64)
-              ARCH="x86_64"
-              ;;
-            arm64|aarch64)
-              ARCH="aarch64"
-              ;;
-            *)
-              echo "Unsupported architecture: $RAW_ARCH" >&2
-              exit 1
-              ;;
-          esac
-          echo "ARCH=$ARCH" >> "$GITHUB_ENV"
-
       - name: Get tag name
         run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: bun install
 
-      - name: Build release tarball
+      - name: Build release tarballs
         run: |
           set -euo pipefail
-          bun build \
-            --compile \
-            --outfile lectic \
-            --define process.env.NODE_ENV="'production'" \
-            src/main.ts src/lsp/parserWorker.ts
+
           mkdir -p dist
-          cp ./lectic ./dist/lectic
-          chmod +x ./dist/lectic
-          tar -C ./dist -czf \
-            "lectic-${TAG_NAME}-darwin-${ARCH}.tar.gz" \
-            lectic
+
+          for target_arch in \
+            "bun-darwin-arm64:aarch64" \
+            "bun-darwin-x64:x86_64"
+          do
+            IFS=':' read -r TARGET ARCH <<< "$target_arch"
+
+            bun build \
+              --compile \
+              --target "$TARGET" \
+              --outfile "dist/lectic-${ARCH}" \
+              --define process.env.NODE_ENV="'production'" \
+              src/main.ts src/lsp/parserWorker.ts
+
+            chmod +x "dist/lectic-${ARCH}"
+            tar -C dist -czf \
+              "lectic-${TAG_NAME}-darwin-${ARCH}.tar.gz" \
+              "lectic-${ARCH}"
+          done
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
