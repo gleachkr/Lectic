@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -423,6 +423,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#configuration-parameters" id="toc-configuration-parameters" class="nav-link" data-scroll-target="#configuration-parameters">Configuration parameters</a></li>
   <li><a href="#example-conversation" id="toc-example-conversation" class="nav-link" data-scroll-target="#example-conversation">Example conversation</a></li>
   </ul></li>
+  <li><a href="#database-initialization-init_sql" id="toc-database-initialization-init_sql" class="nav-link" data-scroll-target="#database-initialization-init_sql">Database initialization (<code>init_sql</code>)</a></li>
   <li><a href="#writes-and-transactions" id="toc-writes-and-transactions" class="nav-link" data-scroll-target="#writes-and-transactions">Writes and transactions</a></li>
   <li><a href="#limits-and-large-results" id="toc-limits-and-large-results" class="nav-link" data-scroll-target="#limits-and-large-results">Limits and large results</a></li>
   <li><a href="#extensions" id="toc-extensions" class="nav-link" data-scroll-target="#extensions">Extensions</a></li>
@@ -471,9 +472,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">    details</span><span class="kw">: </span><span class="ch">&gt;</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      Contains the full product catalog and inventory levels. Use this to</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      answer questions about what is in stock.</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">extensions</span><span class="kw">:</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> ./lib/vector0</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> ./lib/math</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">init_sql</span><span class="kw">:</span><span class="at"> file:local:./schema.sql</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">extensions</span><span class="kw">:</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> ./lib/vector0</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> ./lib/math</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The path can include environment variables (for example, <code>$DATA_DIR/main.db</code>), which Lectic expands.</p>
 <section id="configuration-parameters" class="level3">
 <h3 class="anchored" data-anchor-id="configuration-parameters">Configuration parameters</h3>
@@ -484,6 +486,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>limit</code>: Maximum size of the serialized response in bytes. Large results raise an error instead of flooding the model.</li>
 <li><code>details</code>: Extra high‑level context for the model. String, <code>file:</code>, or <code>exec:</code> are accepted. See <a href="../context_management/03_external_prompts.html">External Prompts</a>.</li>
 <li><code>extensions</code>: A list of SQLite extension libraries to load before queries.</li>
+<li><code>init_sql</code>: Optional SQL script used to initialize a missing database file. Supports plain text, <code>file:</code>, or <code>exec:</code> sources.</li>
 </ul>
 </section>
 <section id="example-conversation" class="level3">
@@ -534,6 +537,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
+</section>
+<section id="database-initialization-init_sql" class="level2">
+<h2 class="anchored" data-anchor-id="database-initialization-init_sql">Database initialization (<code>init_sql</code>)</h2>
+<p>If <code>init_sql</code> is set and the SQLite file does not exist yet, Lectic runs that SQL script once at tool initialization. This is useful for shipping a plugin with a predefined schema.</p>
+<p>Example:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">sqlite</span><span class="kw">:</span><span class="at"> $LECTIC_DATA/my_plugin.sqlite</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">init_sql</span><span class="kw">:</span><span class="at"> file:local:./schema.sql</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Notes:</p>
+<ul>
+<li>Initialization runs in a transaction.</li>
+<li>If initialization fails, tool setup fails and the database changes are rolled back.</li>
+<li>If <code>readonly: true</code> and the database file is missing, initialization is not possible and Lectic reports an error.</li>
+</ul>
 </section>
 <section id="writes-and-transactions" class="level2">
 <h2 class="anchored" data-anchor-id="writes-and-transactions">Writes and transactions</h2>

@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -419,6 +419,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#external-prompts-and-instructions" id="toc-external-prompts-and-instructions" class="nav-link active" data-scroll-target="#external-prompts-and-instructions">External Prompts and Instructions</a>
   <ul class="collapse">
   <li><a href="#filepath" id="toc-filepath" class="nav-link" data-scroll-target="#filepath"><code>file:PATH</code></a></li>
+  <li><a href="#localpath-and-filelocalpath" id="toc-localpath-and-filelocalpath" class="nav-link" data-scroll-target="#localpath-and-filelocalpath"><code>local:PATH</code> and <code>file:local:PATH</code></a></li>
   <li><a href="#execcommand-or-execscript" id="toc-execcommand-or-execscript" class="nav-link" data-scroll-target="#execcommand-or-execscript"><code>exec:COMMAND</code> or <code>exec:SCRIPT</code></a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#working-directory-and-environment" id="toc-working-directory-and-environment" class="nav-link" data-scroll-target="#working-directory-and-environment">Working directory and environment</a></li>
@@ -442,6 +443,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>macros[].expansion</li>
 <li>tools[].usage (for tools that accept a usage string)</li>
 <li>tools[].details (for tools that provide extra details)</li>
+<li>tools[].init_sql (for sqlite tool initialization SQL)</li>
 </ul>
 <p>Each of these accepts either a plain string, or a string beginning with one of the prefixes below.</p>
 <section id="filepath" class="level2">
@@ -455,6 +457,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> summarize</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">expansion</span><span class="kw">:</span><span class="at"> file:$HOME/.config/lectic/prompts/summarize.txt</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
+<section id="localpath-and-filelocalpath" class="level2">
+<h2 class="anchored" data-anchor-id="localpath-and-filelocalpath"><code>local:PATH</code> and <code>file:local:PATH</code></h2>
+<p>Use <code>local:</code> when a path should be resolved relative to the config source file that contains the value.</p>
+<p>Supported forms:</p>
+<ul>
+<li><code>local:./...</code></li>
+<li><code>local:../...</code></li>
+<li><code>file:local:./...</code></li>
+<li><code>file:local:../...</code></li>
+</ul>
+<p>Not supported:</p>
+<ul>
+<li><code>local:file:...</code></li>
+<li><code>local:exec:...</code></li>
+<li><code>local:/abs/path</code></li>
+<li><code>local:foo/bar</code> (must start with <code>./</code> or <code>../</code>)</li>
+</ul>
+<p><code>local:</code> rewrites to an absolute filesystem path string. <code>file:local:</code> rewrites to <code>file:/absolute/path</code>.</p>
+<p>Example:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> bash</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">env</span><span class="kw">:</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">PLUGIN_ROOT</span><span class="kw">:</span><span class="at"> local:./</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">PROMPT_FILE</span><span class="kw">:</span><span class="at"> local:./prompts/review.md</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> file:$PROMPT_FILE</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">  # or directly:</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">  # prompt: file:local:./prompts/review.md</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="execcommand-or-execscript" class="level2">
 <h2 class="anchored" data-anchor-id="execcommand-or-execscript"><code>exec:COMMAND</code> or <code>exec:SCRIPT</code></h2>
 <p>Runs the command and uses its stdout as the field value. There are two forms:</p>
@@ -467,28 +499,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="examples" class="level2">
 <h2 class="anchored" data-anchor-id="examples">Examples</h2>
 <p>Single line</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> exec:echo "You are a helpful assistant."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Multi‑line script</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  prompt</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    exec:#!/usr/bin/env bash</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    cat &lt;&lt;'PREFACE'</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    You are a helpful assistant.</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    You will incorporate recent memory below.</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    PREFACE</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    echo</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    echo "Recent memory:"</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    sqlite3 "$LECTIC_DATA/memory.sqlite3" \</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      "SELECT printf('- %s (%s)', text, ts) FROM memory \</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>       ORDER BY ts DESC LIMIT 5;"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> exec:echo "You are a helpful assistant."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Multi‑line script</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">  prompt</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    exec:#!/usr/bin/env bash</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    cat &lt;&lt;'PREFACE'</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    You are a helpful assistant.</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    You will incorporate recent memory below.</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    PREFACE</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    echo</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    echo "Recent memory:"</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    sqlite3 "$LECTIC_DATA/memory.sqlite3" \</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>      "SELECT printf('- %s (%s)', text, ts) FROM memory \</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>       ORDER BY ts DESC LIMIT 5;"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="working-directory-and-environment" class="level2">
 <h2 class="anchored" data-anchor-id="working-directory-and-environment">Working directory and environment</h2>
 <ul>
 <li><code>file:</code> and <code>exec:</code> resolve relative paths and run commands in the current working directory of the lectic process (the directory from which you invoked the command). If you used -f or -i, note that the working directory does not automatically switch to the .lec file’s directory for these expansions. Use absolute paths or cd if you need a different base.</li>
+<li><code>local:</code> is the exception: it is resolved relative to the config source file where it appears, then rewritten to an absolute path.</li>
 <li>Standard Lectic environment variables are provided, including <code>LECTIC_CONFIG</code>, <code>LECTIC_DATA</code>, <code>LECTIC_CACHE</code>, <code>LECTIC_STATE</code>, <code>LECTIC_TEMP</code>, and <code>LECTIC_FILE</code> (when using <code>-f</code> or <code>-i</code>). Your shell environment is also passed through.</li>
 <li>Macro expansions can inject additional variables into <code>exec:</code> via directive attributes. See the <a href="../automation/01_macros.html">Macros guide</a> for details.</li>
 </ul>

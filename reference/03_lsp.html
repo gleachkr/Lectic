@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -479,6 +479,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><strong>Directives</strong>: Type <code>:</code> to see built-in directives (<code>:cmd</code>, <code>:env</code>, <code>:fetch</code>, <code>:verbatim</code>, <code>:once</code>, <code>:discard</code>, <code>:attach</code>, <code>:ask</code>, <code>:aside</code>, <code>:reset</code>) and any macros you’ve defined.</li>
 <li><strong>Interlocutor names</strong>: Inside <code>:ask[</code> or <code>:aside[</code>, the LSP suggests names from your configuration.</li>
+<li><strong>Macro argument values</strong>: Inside <code>:macro_name[...]</code>, if the macro defines <code>completions</code>, the LSP suggests argument values from inline data, <code>file:</code> sources, or <code>exec:</code> sources. <code>exec:</code> defaults to manual trigger policy.</li>
 <li><strong>YAML header fields</strong>: In the frontmatter, get suggestions for interlocutor properties (<code>provider</code>, <code>model</code>, <code>thinking_effort</code>, etc.), tool types, kit names, and model names.</li>
 <li><strong>Tool types</strong>: Type <code>-</code> inside a <code>tools:</code> array to see available tool kinds (<code>exec</code>, <code>sqlite</code>, <code>mcp_command</code>, <code>native</code>, etc.).</li>
 </ul>
@@ -577,14 +578,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="triggers">Triggers</h3>
 <ul>
 <li><code>:</code> triggers directive and macro completions</li>
-<li><code>[</code> after <code>:ask</code> or <code>:aside</code> triggers interlocutor name completions</li>
+<li><code>[</code> after directives triggers bracket-aware completions:
+<ul>
+<li><code>:ask[</code> / <code>:aside[</code> for interlocutor names</li>
+<li><code>:macro_name[</code> for macro argument completions (if configured)</li>
+</ul></li>
 <li><code>-</code> in a <code>tools:</code> array triggers tool type completions</li>
 </ul>
 </section>
 <section id="limitations" class="level3">
 <h3 class="anchored" data-anchor-id="limitations">Limitations</h3>
 <ul>
-<li>Completion previews are static. The server doesn’t expand <code>exec:</code> or read <code>file:</code> references when showing previews.</li>
+<li>Completion previews are static. The server doesn’t expand <code>exec:</code> or read <code>file:</code> references when showing hover/preview text.</li>
+<li>Macro argument completions from <code>exec:</code> may run commands during editing. By default those are <code>manual</code> trigger only.</li>
 <li>No completions are offered inside <code>:::</code> fences (those are response blocks, not meant for editing).</li>
 </ul>
 

@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -419,7 +419,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#automation-hooks" id="toc-automation-hooks" class="nav-link active" data-scroll-target="#automation-hooks">Automation: Hooks</a>
   <ul class="collapse">
   <li><a href="#hook-configuration" id="toc-hook-configuration" class="nav-link" data-scroll-target="#hook-configuration">Hook configuration</a></li>
-  <li><a href="#available-events-and-environment" id="toc-available-events-and-environment" class="nav-link" data-scroll-target="#available-events-and-environment">Available events and environment</a></li>
+  <li><a href="#available-events-and-environment" id="toc-available-events-and-environment" class="nav-link" data-scroll-target="#available-events-and-environment">Available events and environment</a>
+  <ul class="collapse">
+  <li><a href="#message-events" id="toc-message-events" class="nav-link" data-scroll-target="#message-events">Message events</a></li>
+  <li><a href="#assistant-aliases" id="toc-assistant-aliases" class="nav-link" data-scroll-target="#assistant-aliases">Assistant aliases</a></li>
+  <li><a href="#tool-events" id="toc-tool-events" class="nav-link" data-scroll-target="#tool-events">Tool events</a></li>
+  <li><a href="#run-events" id="toc-run-events" class="nav-link" data-scroll-target="#run-events">Run events</a></li>
+  <li><a href="#error-alias" id="toc-error-alias" class="nav-link" data-scroll-target="#error-alias">Error alias</a></li>
+  </ul></li>
   <li><a href="#hook-headers-and-attributes" id="toc-hook-headers-and-attributes" class="nav-link" data-scroll-target="#hook-headers-and-attributes">Hook headers and attributes</a></li>
   <li><a href="#example-a-simple-logging-hook" id="toc-example-a-simple-logging-hook" class="nav-link" data-scroll-target="#example-a-simple-logging-hook">Example: A simple logging hook</a></li>
   <li><a href="#example-human-in-the-loop-tool-confirmation" id="toc-example-human-in-the-loop-tool-confirmation" class="nav-link" data-scroll-target="#example-human-in-the-loop-tool-confirmation">Example: Human-in-the-loop tool confirmation</a></li>
@@ -448,7 +455,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><code>on</code>: (Required) A single event name or a list of event names to listen for.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event fires.</li>
-<li><code>inline</code>: (Optional) A boolean. If <code>true</code>, the standard output of the command is captured and injected into the conversation. Defaults to <code>false</code>. Only applicable to <code>assistant_message</code> and <code>user_message</code>.</li>
+<li><code>inline</code>: (Optional) A boolean. If <code>true</code>, the standard output of the command is captured and injected into the conversation. Defaults to <code>false</code>. Inline injection is only meaningful for <code>user_message</code>, <code>assistant_message</code>, and the <code>assistant_*</code> aliases.</li>
 <li><code>name</code>: (Optional) A string name for the hook. If multiple hooks have the same name (e.g., one in your global config and one in a project config), the one defined later (or with higher precedence) overrides the earlier one. This allows you to replace default hooks with custom behavior.</li>
 <li><code>env</code>: (Optional) A map of environment variables to inject into the hook’s execution environment.</li>
 </ul>
@@ -474,58 +481,129 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="available-events-and-environment" class="level2">
 <h2 class="anchored" data-anchor-id="available-events-and-environment">Available events and environment</h2>
-<p>Lectic emits three hook events. When an event fires, the hook process receives its context as environment variables. No positional arguments are passed. However, the hook may receive content via standard input.</p>
+<p>When an event fires, the hook process receives context via environment variables. No positional arguments are passed. Some events also receive stdin.</p>
+<section id="message-events" class="level3">
+<h3 class="anchored" data-anchor-id="message-events">Message events</h3>
 <ul>
 <li><code>user_message</code>
 <ul>
 <li>Environment:
 <ul>
 <li><code>USER_MESSAGE</code>: The text of the most recent user message.</li>
-<li>Standard Lectic variables like <code>LECTIC_FILE</code>, <code>LECTIC_CONFIG</code>, <code>LECTIC_DATA</code>, <code>LECTIC_CACHE</code>, <code>LECTIC_STATE</code>, and <code>LECTIC_TEMP</code> are also set when available.</li>
-<li><code>MESSAGES_LENGTH</code>: The length of the array of messages, including the current user message.</li>
+<li><code>MESSAGES_LENGTH</code>: Message count including the current user message.</li>
+<li>Standard Lectic variables (<code>LECTIC_FILE</code>, <code>LECTIC_CONFIG</code>, <code>LECTIC_DATA</code>, <code>LECTIC_CACHE</code>, <code>LECTIC_STATE</code>, <code>LECTIC_TEMP</code>).</li>
 </ul></li>
-<li>When: Just before the request is sent to the LLM provider.</li>
+<li>When: Just before the provider request.</li>
 </ul></li>
 <li><code>assistant_message</code>
 <ul>
-<li>Standard Input: The raw markdown text of the conversation body up to this point.</li>
+<li>Standard Input: Raw markdown conversation body up to this point.</li>
 <li>Environment:
 <ul>
-<li><code>ASSISTANT_MESSAGE</code>: The full text of the assistant’s response that was just produced.</li>
-<li><code>LECTIC_INTERLOCUTOR</code>: The name of the interlocutor who spoke.</li>
-<li><code>LECTIC_MODEL</code>: The model of the interlocutor who spoke.</li>
-<li><code>TOOL_USE_DONE</code>: Set to <code>1</code> when the assistant has finished using tools and is ready to conclude. Not set if there are pending tool calls. This lets inline hooks decide whether to inject follow-up content only when all work is complete.</li>
-<li><code>TOKEN_USAGE_INPUT</code>: Count of total input tokens used for this turn.</li>
-<li><code>TOKEN_USAGE_CACHED</code>: Count of cached input tokens used for this turn.</li>
-<li><code>TOKEN_USAGE_OUTPUT</code>: Count of output tokens used for this turn.</li>
-<li><code>TOKEN_USAGE_TOTAL</code>: Total tokens used for this turn.</li>
-<li><code>LOOP_COUNT</code>: How many times the tool calling loop has run (0-indexed).</li>
-<li><code>FINAL_PASS_COUNT</code>: How many times the assistant has finished work but was kept alive by an inline hook.</li>
+<li><code>ASSISTANT_MESSAGE</code>: Full assistant text for this pass.</li>
+<li><code>LECTIC_INTERLOCUTOR</code>: Active interlocutor name.</li>
+<li><code>LECTIC_MODEL</code>: Active model name.</li>
+<li><code>TOOL_USE_DONE</code>: <code>1</code> when there are no pending tool calls.</li>
+<li><code>TOKEN_USAGE_INPUT</code>, <code>TOKEN_USAGE_CACHED</code>, <code>TOKEN_USAGE_OUTPUT</code>, <code>TOKEN_USAGE_TOTAL</code>: Usage for this assistant pass (if available).</li>
+<li><code>LOOP_COUNT</code>: Tool loop iteration index (0-based).</li>
+<li><code>FINAL_PASS_COUNT</code>: Number of final passes kept alive by inline hooks.</li>
 <li>Standard Lectic variables as above.</li>
 </ul></li>
-<li>When: Immediately after the assistant’s message is streamed.</li>
+<li>When: Immediately after assistant streaming finishes for a pass.</li>
 </ul></li>
+</ul>
+</section>
+<section id="assistant-aliases" class="level3">
+<h3 class="anchored" data-anchor-id="assistant-aliases">Assistant aliases</h3>
+<p>These are derived aliases of <code>assistant_message</code>:</p>
+<ul>
+<li><code>assistant_final</code>
+<ul>
+<li>Fires only when <code>TOOL_USE_DONE=1</code>.</li>
+</ul></li>
+<li><code>assistant_intermediate</code>
+<ul>
+<li>Fires only when <code>TOOL_USE_DONE!=1</code>.</li>
+</ul></li>
+</ul>
+<p>Alias resolution happens internally in Lectic. You do not need shell-side conditionals for <code>TOOL_USE_DONE</code>.</p>
+<p>If both base and alias hooks are configured for a pass, Lectic executes base <code>assistant_message</code> hooks first, then the alias hooks.</p>
+</section>
+<section id="tool-events" class="level3">
+<h3 class="anchored" data-anchor-id="tool-events">Tool events</h3>
+<ul>
 <li><code>tool_use_pre</code>
 <ul>
 <li>Environment:
 <ul>
-<li><code>TOOL_NAME</code>: The name of the tool being called.</li>
-<li><code>TOOL_ARGS</code>: A JSON string containing the tool arguments.</li>
-<li>Standard Lectic variables as above.</li>
+<li><code>TOOL_NAME</code>: Tool name.</li>
+<li><code>TOOL_ARGS</code>: JSON string of tool arguments.</li>
+<li>Token usage variables (if available).</li>
+<li>Standard Lectic variables.</li>
 </ul></li>
-<li>When: After tool parameters are collected but before execution.</li>
-<li>Behavior: If the hook exits with a non-zero status code, the tool call is blocked, and the LLM receives a “permission denied” error.</li>
+<li>When: After arguments are collected, before execution.</li>
+<li>Behavior: Non-zero exit blocks the call (permission denied).</li>
 </ul></li>
-<li><code>error</code>
+<li><code>tool_use_post</code>
 <ul>
 <li>Environment:
 <ul>
-<li><code>ERROR_MESSAGE</code>: A descriptive error message.</li>
-<li>Standard Lectic variables as above.</li>
+<li><code>TOOL_NAME</code>: Tool name.</li>
+<li><code>TOOL_ARGS</code>: JSON string of tool arguments.</li>
+<li><code>TOOL_CALL_RESULTS</code>: JSON string on success.</li>
+<li><code>TOOL_CALL_ERROR</code>: JSON string on failure.</li>
+<li><code>TOOL_DURATION_MS</code>: Milliseconds for the attempted call.</li>
+<li>Token usage variables (if available).</li>
+<li>Standard Lectic variables.</li>
 </ul></li>
-<li>When: Whenever an uncaught error is encountered.</li>
+<li>When: After each tool attempt (success, failure, timeout, blocked).</li>
 </ul></li>
 </ul>
+</section>
+<section id="run-events" class="level3">
+<h3 class="anchored" data-anchor-id="run-events">Run events</h3>
+<p>Run events happen at the beginning and end of each lectic invocation.</p>
+<ul>
+<li><code>run_start</code>
+<ul>
+<li>Environment:
+<ul>
+<li><code>RUN_ID</code>: Stable id for this invocation.</li>
+<li><code>RUN_STARTED_AT</code>: ISO timestamp.</li>
+<li><code>RUN_CWD</code>: Current working directory.</li>
+</ul></li>
+<li>When: After config/load, before the first provider request.</li>
+</ul></li>
+<li><code>run_end</code>
+<ul>
+<li>Environment:
+<ul>
+<li><code>RUN_ID</code>: Stable id for this invocation.</li>
+<li><code>RUN_STATUS</code>: <code>success</code> or <code>error</code>.</li>
+<li><code>RUN_DURATION_MS</code>: Invocation duration in ms.</li>
+<li><code>RUN_ERROR_MESSAGE</code>: Present on error.</li>
+<li><code>TOKEN_USAGE_INPUT</code>, <code>TOKEN_USAGE_CACHED</code>, <code>TOKEN_USAGE_OUTPUT</code>, <code>TOKEN_USAGE_TOTAL</code>: Totals for the invocation (if available).</li>
+</ul></li>
+<li>When: Once per invocation after completion or uncaught error handling.</li>
+</ul></li>
+</ul>
+</section>
+<section id="error-alias" class="level3">
+<h3 class="anchored" data-anchor-id="error-alias">Error alias</h3>
+<ul>
+<li><code>error</code>
+<ul>
+<li>Derived alias of <code>run_end</code>.</li>
+<li>Fires only when <code>RUN_STATUS=error</code>.</li>
+<li>Runs after <code>run_end</code> hooks for the same pass.</li>
+<li>Environment:
+<ul>
+<li>Everything from <code>run_end</code>.</li>
+<li><code>ERROR_MESSAGE</code> (same value as <code>RUN_ERROR_MESSAGE</code>).</li>
+</ul></li>
+</ul></li>
+</ul>
+</section>
 </section>
 <section id="hook-headers-and-attributes" class="level2">
 <h2 class="anchored" data-anchor-id="hook-headers-and-attributes">Hook headers and attributes</h2>
@@ -635,14 +713,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="example-notification-when-work-completes" class="level2">
 <h2 class="anchored" data-anchor-id="example-notification-when-work-completes">Example: Notification when work completes</h2>
-<p>This example sends a desktop notification when the assistant finishes a tool-use workflow. The hook checks <code>TOOL_USE_DONE</code> so you only get notified once the work is actually done, not after each intermediate step.</p>
+<p>This example sends a desktop notification when the assistant finishes a tool-use workflow.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_final</span></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>      if [[ "${TOOL_USE_DONE:-}" == "1" ]]; then</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        notify-send "Lectic" "Assistant finished working"</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>      notify-send "Lectic" "Assistant finished working"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This is especially useful for long-running agentic tasks where you want to step away and be alerted when the assistant is done.</p>
 </section>
 <section id="example-neovim-notification-from-hooks" class="level2">
@@ -650,10 +726,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>When using the <a href="https://github.com/gleachkr/lectic/tree/main/extra/lectic.nvim">lectic.nvim</a> plugin, the <code>NVIM</code> environment variable is set to Neovim’s RPC server address. This allows hooks to communicate directly with your editor—sending notifications, opening windows, or triggering any Neovim Lua API.</p>
 <p>This example sends a notification to Neovim when the assistant finishes working:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_final</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>      #!/usr/bin/env bash</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      if [[ "${TOOL_USE_DONE:-}" == "1" &amp;&amp; -n "${NVIM:-}" ]]; then</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      if [[ -n "${NVIM:-}" ]]; then</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>        nvim --server "$NVIM" --remote-expr \</span>
 <span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>          "luaeval('vim.notify(\"Lectic: Assistant finished working\", vim.log.levels.INFO)')"</span>
 <span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>

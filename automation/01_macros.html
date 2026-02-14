@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -460,7 +460,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Macros are defined in your YAML configuration (either in a <code>.lec</code> file’s header or in an included configuration file).</p>
 <section id="defining-macros" class="level2">
 <h2 class="anchored" data-anchor-id="defining-macros">Defining Macros</h2>
-<p>Macros are defined under the <code>macros</code> key. Each macro must have a <code>name</code> and an <code>expansion</code>. You can optionally provide an <code>env</code> map to set default environment variables for the expansion. You can also provide an optional <code>description</code>, which will be is shown in the LSP hover info for the macro.</p>
+<p>Macros are defined under the <code>macros</code> key. Each macro must have a <code>name</code> and an <code>expansion</code>. You can optionally provide an <code>env</code> map to set default environment variables for the expansion. You can also provide an optional <code>description</code>, which is shown in LSP hover info for the macro.</p>
+<p>You can also optionally provide <code>completions</code> for macro argument autocomplete inside <code>:name[...]</code>:</p>
+<ul>
+<li>Inline list of <code>{ completion, detail?, documentation? }</code></li>
+<li>External source string (<code>file:...</code>, <code>file:local:...</code>, or <code>exec:...</code>)</li>
+</ul>
+<p>For source strings, the content/output must be a single YAML document that is a sequence of completion items. JSON arrays also work.</p>
+<p>For <code>exec:</code> sources, the default trigger policy is <code>manual</code> (only on explicit completion invocation). You can override with <code>completion_trigger: auto | manual</code>.</p>
+<p><code>exec:</code> completion sources inherit the macro’s <code>env</code>, and also receive:</p>
+<ul>
+<li><code>ARG</code> / <code>ARG_PREFIX</code>: current bracket text up to cursor</li>
+<li><code>MACRO_NAME</code>: current macro name</li>
+<li><code>LECTIC_COMPLETION=1</code></li>
+</ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> summarize</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    expansion</span><span class="kw">: </span><span class="ch">&gt;</span></span>

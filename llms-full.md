@@ -187,22 +187,19 @@ key, and see a simple tool in action.
 
 Choose the method that fits your system.
 
-#### Linux (AppImage)
+#### Linux / macOS (release tarballs)
 
-Download the AppImage from the [GitHub Releases
-page](https://github.com/gleachkr/Lectic/releases). Make it executable
-and put it on your PATH.
+Download the matching release tarball from the [GitHub Releases
+page](https://github.com/gleachkr/Lectic/releases), extract it, and put
+`lectic` on your PATH.
 
 ``` bash
-chmod +x lectic-*.AppImage
-mv lectic-*.AppImage ~/.local/bin/lectic
+tar -xzf lectic-vX.Y.Z-<platform>-<arch>.tar.gz
+mkdir -p ~/.local/bin
+install -m 755 ./lectic ~/.local/bin/lectic
 ```
 
-#### macOS
-
-Download the macOS binary from the [GitHub Releases
-page](https://github.com/gleachkr/Lectic/releases) and put it on your
-PATH.
+Linux AppImages are also published in the release assets.
 
 #### Nix
 
@@ -1188,8 +1185,26 @@ header or in an included configuration file).
 Macros are defined under the `macros` key. Each macro must have a `name`
 and an `expansion`. You can optionally provide an `env` map to set
 default environment variables for the expansion. You can also provide an
-optional `description`, which will be is shown in the LSP hover info for
-the macro.
+optional `description`, which is shown in LSP hover info for the macro.
+
+You can also optionally provide `completions` for macro argument
+autocomplete inside `:name[...]`:
+
+- Inline list of `{ completion, detail?, documentation? }`
+- External source string (`file:...`, `file:local:...`, or `exec:...`)
+
+For source strings, the content/output must be a single YAML document
+that is a sequence of completion items. JSON arrays also work.
+
+For `exec:` sources, the default trigger policy is `manual` (only on
+explicit completion invocation). You can override with
+`completion_trigger: auto | manual`.
+
+`exec:` completion sources inherit the macro’s `env`, and also receive:
+
+- `ARG` / `ARG_PREFIX`: current bracket text up to cursor
+- `MACRO_NAME`: current macro name
+- `LECTIC_COMPLETION=1`
 
 ``` yaml
 macros:
@@ -1568,7 +1583,8 @@ A hook has five possible fields:
   fires.
 - `inline`: (Optional) A boolean. If `true`, the standard output of the
   command is captured and injected into the conversation. Defaults to
-  `false`. Only applicable to `assistant_message` and `user_message`.
+  `false`. Inline injection is only meaningful for `user_message`,
+  `assistant_message`, and the `assistant_*` aliases.
 - `name`: (Optional) A string name for the hook. If multiple hooks have
   the same name (e.g., one in your global config and one in a project
   config), the one defined later (or with higher precedence) overrides
@@ -1618,56 +1634,101 @@ the hook’s `do` field so you can see what produced the output.
 
 ## Available events and environment
 
-Lectic emits three hook events. When an event fires, the hook process
-receives its context as environment variables. No positional arguments
-are passed. However, the hook may receive content via standard input.
+When an event fires, the hook process receives context via environment
+variables. No positional arguments are passed. Some events also receive
+stdin.
+
+### Message events
 
 - `user_message`
   - Environment:
     - `USER_MESSAGE`: The text of the most recent user message.
-    - Standard Lectic variables like `LECTIC_FILE`, `LECTIC_CONFIG`,
-      `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, and `LECTIC_TEMP`
-      are also set when available.
-    - `MESSAGES_LENGTH`: The length of the array of messages, including
-      the current user message.
-  - When: Just before the request is sent to the LLM provider.
+    - `MESSAGES_LENGTH`: Message count including the current user
+      message.
+    - Standard Lectic variables (`LECTIC_FILE`, `LECTIC_CONFIG`,
+      `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, `LECTIC_TEMP`).
+  - When: Just before the provider request.
 - `assistant_message`
-  - Standard Input: The raw markdown text of the conversation body up to
-    this point.
+  - Standard Input: Raw markdown conversation body up to this point.
   - Environment:
-    - `ASSISTANT_MESSAGE`: The full text of the assistant’s response
-      that was just produced.
-    - `LECTIC_INTERLOCUTOR`: The name of the interlocutor who spoke.
-    - `LECTIC_MODEL`: The model of the interlocutor who spoke.
-    - `TOOL_USE_DONE`: Set to `1` when the assistant has finished using
-      tools and is ready to conclude. Not set if there are pending tool
-      calls. This lets inline hooks decide whether to inject follow-up
-      content only when all work is complete.
-    - `TOKEN_USAGE_INPUT`: Count of total input tokens used for this
-      turn.
-    - `TOKEN_USAGE_CACHED`: Count of cached input tokens used for this
-      turn.
-    - `TOKEN_USAGE_OUTPUT`: Count of output tokens used for this turn.
-    - `TOKEN_USAGE_TOTAL`: Total tokens used for this turn.
-    - `LOOP_COUNT`: How many times the tool calling loop has run
-      (0-indexed).
-    - `FINAL_PASS_COUNT`: How many times the assistant has finished work
-      but was kept alive by an inline hook.
+    - `ASSISTANT_MESSAGE`: Full assistant text for this pass.
+    - `LECTIC_INTERLOCUTOR`: Active interlocutor name.
+    - `LECTIC_MODEL`: Active model name.
+    - `TOOL_USE_DONE`: `1` when there are no pending tool calls.
+    - `TOKEN_USAGE_INPUT`, `TOKEN_USAGE_CACHED`, `TOKEN_USAGE_OUTPUT`,
+      `TOKEN_USAGE_TOTAL`: Usage for this assistant pass (if available).
+    - `LOOP_COUNT`: Tool loop iteration index (0-based).
+    - `FINAL_PASS_COUNT`: Number of final passes kept alive by inline
+      hooks.
     - Standard Lectic variables as above.
-  - When: Immediately after the assistant’s message is streamed.
+  - When: Immediately after assistant streaming finishes for a pass.
+
+### Assistant aliases
+
+These are derived aliases of `assistant_message`:
+
+- `assistant_final`
+  - Fires only when `TOOL_USE_DONE=1`.
+- `assistant_intermediate`
+  - Fires only when `TOOL_USE_DONE!=1`.
+
+Alias resolution happens internally in Lectic. You do not need
+shell-side conditionals for `TOOL_USE_DONE`.
+
+If both base and alias hooks are configured for a pass, Lectic executes
+base `assistant_message` hooks first, then the alias hooks.
+
+### Tool events
+
 - `tool_use_pre`
   - Environment:
-    - `TOOL_NAME`: The name of the tool being called.
-    - `TOOL_ARGS`: A JSON string containing the tool arguments.
-    - Standard Lectic variables as above.
-  - When: After tool parameters are collected but before execution.
-  - Behavior: If the hook exits with a non-zero status code, the tool
-    call is blocked, and the LLM receives a “permission denied” error.
-- `error`
+    - `TOOL_NAME`: Tool name.
+    - `TOOL_ARGS`: JSON string of tool arguments.
+    - Token usage variables (if available).
+    - Standard Lectic variables.
+  - When: After arguments are collected, before execution.
+  - Behavior: Non-zero exit blocks the call (permission denied).
+- `tool_use_post`
   - Environment:
-    - `ERROR_MESSAGE`: A descriptive error message.
-    - Standard Lectic variables as above.
-  - When: Whenever an uncaught error is encountered.
+    - `TOOL_NAME`: Tool name.
+    - `TOOL_ARGS`: JSON string of tool arguments.
+    - `TOOL_CALL_RESULTS`: JSON string on success.
+    - `TOOL_CALL_ERROR`: JSON string on failure.
+    - `TOOL_DURATION_MS`: Milliseconds for the attempted call.
+    - Token usage variables (if available).
+    - Standard Lectic variables.
+  - When: After each tool attempt (success, failure, timeout, blocked).
+
+### Run events
+
+Run events happen at the beginning and end of each lectic invocation.
+
+- `run_start`
+  - Environment:
+    - `RUN_ID`: Stable id for this invocation.
+    - `RUN_STARTED_AT`: ISO timestamp.
+    - `RUN_CWD`: Current working directory.
+  - When: After config/load, before the first provider request.
+- `run_end`
+  - Environment:
+    - `RUN_ID`: Stable id for this invocation.
+    - `RUN_STATUS`: `success` or `error`.
+    - `RUN_DURATION_MS`: Invocation duration in ms.
+    - `RUN_ERROR_MESSAGE`: Present on error.
+    - `TOKEN_USAGE_INPUT`, `TOKEN_USAGE_CACHED`, `TOKEN_USAGE_OUTPUT`,
+      `TOKEN_USAGE_TOTAL`: Totals for the invocation (if available).
+  - When: Once per invocation after completion or uncaught error
+    handling.
+
+### Error alias
+
+- `error`
+  - Derived alias of `run_end`.
+  - Fires only when `RUN_STATUS=error`.
+  - Runs after `run_end` hooks for the same pass.
+  - Environment:
+    - Everything from `run_end`.
+    - `ERROR_MESSAGE` (same value as `RUN_ERROR_MESSAGE`).
 
 ## Hook headers and attributes
 
@@ -1825,18 +1886,14 @@ hooks:
 ## Example: Notification when work completes
 
 This example sends a desktop notification when the assistant finishes a
-tool-use workflow. The hook checks `TOOL_USE_DONE` so you only get
-notified once the work is actually done, not after each intermediate
-step.
+tool-use workflow.
 
 ``` yaml
 hooks:
-  - on: assistant_message
+  - on: assistant_final
     do: |
       #!/usr/bin/env bash
-      if [[ "${TOOL_USE_DONE:-}" == "1" ]]; then
-        notify-send "Lectic" "Assistant finished working"
-      fi
+      notify-send "Lectic" "Assistant finished working"
 ```
 
 This is especially useful for long-running agentic tasks where you want
@@ -1856,10 +1913,10 @@ working:
 
 ``` yaml
 hooks:
-  - on: assistant_message
+  - on: assistant_final
     do: |
       #!/usr/bin/env bash
-      if [[ "${TOOL_USE_DONE:-}" == "1" && -n "${NVIM:-}" ]]; then
+      if [[ -n "${NVIM:-}" ]]; then
         nvim --server "$NVIM" --remote-expr \
           "luaeval('vim.notify(\"Lectic: Assistant finished working\", vim.log.levels.INFO)')"
       fi
@@ -1913,8 +1970,9 @@ and create shortcuts for complex Lectic invocations.
 ## How It Works
 
 When you run `lectic foo args...`, Lectic searches for an executable
-named `lectic-foo` or `lectic-foo.*` in the following locations, in
-order:
+named `lectic-foo` or `lectic-foo.*`.
+
+By default, search order is:
 
 1.  **Configuration Directory**: `$LECTIC_CONFIG` (defaults to
     `~/.config/lectic` on Linux). Searched recursively.
@@ -1922,6 +1980,11 @@ order:
     `~/.local/share/lectic` on Linux). Searched recursively.
 3.  **System PATH**: Any directory in your `$PATH`. Top-level per PATH
     entry.
+
+If `LECTIC_RUNTIME` is set, Lectic uses that instead of
+`$LECTIC_CONFIG` + `$LECTIC_DATA` for recursive discovery.
+`LECTIC_RUNTIME` is a PATH-style directory list (for example,
+`/opt/lectic/plugins:$HOME/work/lectic-extra` on Linux/macOS).
 
 The first match found is executed. The subprocess receives the remaining
 arguments, inherits the standard input, output, and error streams, and
@@ -2025,6 +2088,9 @@ Subcommands receive the standard set of Lectic environment variables:
 - `LECTIC_CACHE`: Path to the cache directory.
 - `LECTIC_STATE`: Path to the state directory.
 - `LECTIC_TEMP`: Path to the temporary directory.
+- `LECTIC_RUNTIME`: Optional PATH-style directory list used for
+  recursive subcommand discovery. If set, it replaces the default
+  recursive search roots (`LECTIC_CONFIG` and `LECTIC_DATA`).
 
 These ensure your subcommands respect the user’s directory
 configuration.
@@ -2052,13 +2118,14 @@ extract it.)
 To provide completions for a subcommand `lectic-foo`, create a bash
 script that defines a completion function and registers it.
 
-The script can be placed in: 1. `~/.config/lectic/completions/` 2.
-`~/.local/share/lectic/completions/` 3. Or alongside the executable
-itself, named `lectic-foo.completion.bash`.
+The script can be placed in: 1. `<recursive-root>/completions/` where
+recursive roots are: - `$LECTIC_RUNTIME` entries (if set), or -
+otherwise `$LECTIC_CONFIG` and `$LECTIC_DATA` 2. Or alongside the
+executable itself, named `lectic-foo.completion.bash`.
 
 **Example:**
 
-Create `~/.config/lectic/completions/foo.bash`:
+Create `$LECTIC_CONFIG/completions/foo.bash`:
 
 ``` bash
 _lectic_complete_foo() {
@@ -2080,9 +2147,10 @@ Now, typing `lectic foo <TAB>` will suggest `bar` and `baz`.
 > file rather than inside the subcommand script itself. This allows the
 > shell to load completions without executing the subcommand.
 >
-> The completion loader mirrors runtime discovery: it scans
-> `$LECTIC_CONFIG` and `$LECTIC_DATA` recursively, and loads adjacent
-> completion files from discovered commands.
+> The completion loader mirrors runtime discovery: it scans recursive
+> roots (`$LECTIC_RUNTIME` if set, otherwise `$LECTIC_CONFIG` and
+> `$LECTIC_DATA`) and loads adjacent completion files from discovered
+> commands.
 
 
 
@@ -2478,6 +2546,7 @@ What supports external sources:
 - macros\[\].expansion
 - tools\[\].usage (for tools that accept a usage string)
 - tools\[\].details (for tools that provide extra details)
+- tools\[\].init_sql (for sqlite tool initialization SQL)
 
 Each of these accepts either a plain string, or a string beginning with
 one of the prefixes below.
@@ -2499,6 +2568,43 @@ interlocutor:
 macros:
   - name: summarize
     expansion: file:$HOME/.config/lectic/prompts/summarize.txt
+```
+
+## `local:PATH` and `file:local:PATH`
+
+Use `local:` when a path should be resolved relative to the config
+source file that contains the value.
+
+Supported forms:
+
+- `local:./...`
+- `local:../...`
+- `file:local:./...`
+- `file:local:../...`
+
+Not supported:
+
+- `local:file:...`
+- `local:exec:...`
+- `local:/abs/path`
+- `local:foo/bar` (must start with `./` or `../`)
+
+`local:` rewrites to an absolute filesystem path string. `file:local:`
+rewrites to `file:/absolute/path`.
+
+Example:
+
+``` yaml
+tools:
+  - exec: bash
+    env:
+      PLUGIN_ROOT: local:./
+      PROMPT_FILE: local:./prompts/review.md
+
+interlocutor:
+  prompt: file:$PROMPT_FILE
+  # or directly:
+  # prompt: file:local:./prompts/review.md
 ```
 
 ## `exec:COMMAND` or `exec:SCRIPT`
@@ -2553,6 +2659,8 @@ interlocutor:
   working directory does not automatically switch to the .lec file’s
   directory for these expansions. Use absolute paths or cd if you need a
   different base.
+- `local:` is the exception: it is resolved relative to the config
+  source file where it appears, then rewritten to an absolute path.
 - Standard Lectic environment variables are provided, including
   `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`,
   `LECTIC_TEMP`, and `LECTIC_FILE` (when using `-f` or `-i`). Your shell
@@ -2746,12 +2854,10 @@ Add a hook to notify you when the assistant finishes working:
 hooks:
   - on: tool_use_pre
     do: ~/.config/lectic/confirm.sh
-  - on: assistant_message
+  - on: assistant_final
     do: |
       #!/bin/bash
-      if [[ "$TOOL_USE_DONE" == "1" ]]; then
-        notify-send "Lectic" "Task complete"
-      fi
+      notify-send "Lectic" "Task complete"
 ```
 
 
@@ -4459,11 +4565,14 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 
 Lectic supports git-style custom subcommands. If you invoke
 `lectic <command>`, Lectic looks for an executable named
-`lectic-<command>` in this order:
+`lectic-<command>` in this order by default:
 
-1.  `$LECTIC_CONFIG` (Searched recursive)
-2.  `$LECTIC_DATA` (Searched recursive)
-3.  `$PATH` entries
+1.  `$LECTIC_CONFIG` (searched recursively)
+2.  `$LECTIC_DATA` (searched recursively)
+3.  `$PATH` entries (top-level per entry)
+
+If `LECTIC_RUNTIME` is set, Lectic uses that PATH-style directory list
+for recursive discovery instead of `$LECTIC_CONFIG` and `$LECTIC_DATA`.
 
 See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a
 full guide on creating subcommands and adding tab completion for them.
@@ -4597,6 +4706,17 @@ imports:
     optional: true
 ```
 
+`imports` paths also support the `local:` prefix, resolved relative to
+the config file that contains the value:
+
+``` yaml
+imports:
+  - local:./plugins/sales/module.yaml
+  - path: local:../shared/finance.yaml
+```
+
+`local:` paths must begin with `./` or `../`.
+
 - String form: required import path.
 - Object form:
   - `path`: (Required) import path.
@@ -4694,8 +4814,9 @@ For a more detailed discussion of provider and model options, see
 - `tools`: A list of tool definitions that this interlocutor can use.
   The format of each object in the list depends on the tool type. See
   the [Tools section](../tools/01_overview.qmd) for detailed
-  configuration guides. All tools support a `hooks` array for
-  `tool_use_pre` hooks scoped to that particular tool.
+  configuration guides. All tools support a `hooks` array for tool hooks
+  (commonly `tool_use_pre` and `tool_use_post`) scoped to that
+  particular tool.
 
 #### Common tool keys
 
@@ -4705,8 +4826,8 @@ These keys are shared across multiple tool types:
   from the tool type.
 - `usage`: Instructions for the LLM on when and how to use the tool.
   Accepts a string, `file:`, or `exec:` source.
-- `hooks`: A list of hooks scoped to this tool (typically
-  `tool_use_pre`).
+- `hooks`: A list of hooks scoped to this tool (typically `tool_use_pre`
+  and/or `tool_use_post`).
 
 #### `exec` tool keys
 
@@ -4731,6 +4852,8 @@ Query SQLite databases.
 - `details`: Extra context for the model. Accepts string, `file:`, or
   `exec:`.
 - `extensions`: A list of SQLite extension libraries to load.
+- `init_sql`: Optional SQL script used only when the database file is
+  missing. Accepts plain text, `file:`, or `exec:`.
 
 #### `agent` tool keys
 
@@ -4775,15 +4898,44 @@ in a key name.
 
 - `name`: (Required) The name of the macro, used when invoking it with
   `:name[]` or `:name[args]`.
+
 - `expansion`: (Optional) The content to be expanded. Can be a string,
   or loaded via `file:` or `exec:`. Equivalent to `post` if provided.
   See [External Prompts](../context_management/03_external_prompts.qmd)
   for details about `file:` and `exec:`.
+
 - `pre`: (Optional) Expansion content for the pre-order phase.
+
 - `post`: (Optional) Expansion content for the post-order phase.
+
 - `env`: (Optional) A dictionary of environment variables to be set
   during the macro’s execution. These are merged with any arguments
   provided at the call site.
+
+- `completions`: (Optional) Argument completion source for `:name[...]`
+  in the LSP. Either:
+
+  - an inline list of items (`{ completion, detail?, documentation? }`),
+    or
+  - a source string: `file:...`, `file:local:...`, or `exec:...`.
+
+  For `file:` and `exec:`, the source output must be a single YAML
+  document containing a sequence of completion objects. JSON arrays are
+  also accepted.
+
+- `completion_trigger`: (Optional) One of `auto` or `manual`.
+
+  - Default is `auto` for inline and `file:` sources.
+  - Default is `manual` for `exec:` sources.
+  - `manual` means completions are only returned for explicit completion
+    invocation (`CompletionTriggerKind.Invoked`).
+
+  For `exec:` completion sources, environment precedence is:
+
+  1.  process env + Lectic base env
+  2.  macro `env`
+  3.  dynamic vars (`ARG`, `ARG_PREFIX`, `MACRO_NAME`,
+      `LECTIC_COMPLETION=1`)
 
 ------------------------------------------------------------------------
 
@@ -4791,7 +4943,10 @@ in a key name.
 
 - `on`: (Required) A single event name or a list of event names to
   trigger the hook. Supported events are `user_message`,
-  `assistant_message`, `error`, and `tool_use_pre`.
+  `assistant_message`, `assistant_final`, `assistant_intermediate`,
+  `tool_use_pre`, `tool_use_post`, `run_start`, `run_end`, and `error`.
+  `error` is a derived alias of `run_end` and fires only when
+  `RUN_STATUS=error`.
 - `do`: (Required) The command or inline script to run when the event
   occurs. If multi‑line, it must start with a shebang (e.g.,
   `#!/bin/bash`). Event context is provided as environment variables.
@@ -4834,6 +4989,10 @@ The LSP suggests completions as you type:
   `:aside`, `:reset`) and any macros you’ve defined.
 - **Interlocutor names**: Inside `:ask[` or `:aside[`, the LSP suggests
   names from your configuration.
+- **Macro argument values**: Inside `:macro_name[...]`, if the macro
+  defines `completions`, the LSP suggests argument values from inline
+  data, `file:` sources, or `exec:` sources. `exec:` defaults to manual
+  trigger policy.
 - **YAML header fields**: In the frontmatter, get suggestions for
   interlocutor properties (`provider`, `model`, `thinking_effort`,
   etc.), tool types, kit names, and model names.
@@ -4958,13 +5117,17 @@ completions reflects what will actually be available.
 ### Triggers
 
 - `:` triggers directive and macro completions
-- `[` after `:ask` or `:aside` triggers interlocutor name completions
+- `[` after directives triggers bracket-aware completions:
+  - `:ask[` / `:aside[` for interlocutor names
+  - `:macro_name[` for macro argument completions (if configured)
 - `-` in a `tools:` array triggers tool type completions
 
 ### Limitations
 
 - Completion previews are static. The server doesn’t expand `exec:` or
-  read `file:` references when showing previews.
+  read `file:` references when showing hover/preview text.
+- Macro argument completions from `exec:` may run commands during
+  editing. By default those are `manual` trigger only.
 - No completions are offered inside `:::` fences (those are response
   blocks, not meant for editing).
 
@@ -5258,7 +5421,12 @@ interlocutor:
 ## Hooks
 
 The `tool_use_pre` hook fires after parameters are collected but before
-execution. If the hook exits non-zero, the call is blocked:
+execution. If the hook exits non-zero, the call is blocked.
+
+The `tool_use_post` hook fires after each attempted call (success,
+failure, timeout, or blocked), which is useful for auditing and metrics.
+
+Example pre-hook:
 
 ``` yaml
 interlocutor:
@@ -5557,6 +5725,7 @@ tools:
     details: >
       Contains the full product catalog and inventory levels. Use this to
       answer questions about what is in stock.
+    init_sql: file:local:./schema.sql
     extensions:
       - ./lib/vector0
       - ./lib/math
@@ -5577,6 +5746,8 @@ The path can include environment variables (for example,
   Prompts](../context_management/03_external_prompts.qmd).
 - `extensions`: A list of SQLite extension libraries to load before
   queries.
+- `init_sql`: Optional SQL script used to initialize a missing database
+  file. Supports plain text, `file:`, or `exec:` sources.
 
 ### Example conversation
 
@@ -5632,6 +5803,28 @@ Zeppelin, Metallica, U2, and Deep Purple.
 
 :::
 ```
+
+## Database initialization (`init_sql`)
+
+If `init_sql` is set and the SQLite file does not exist yet, Lectic runs
+that SQL script once at tool initialization. This is useful for shipping
+a plugin with a predefined schema.
+
+Example:
+
+``` yaml
+tools:
+  - sqlite: $LECTIC_DATA/my_plugin.sqlite
+    init_sql: file:local:./schema.sql
+```
+
+Notes:
+
+- Initialization runs in a transaction.
+- If initialization fails, tool setup fails and the database changes are
+  rolled back.
+- If `readonly: true` and the database file is missing, initialization
+  is not possible and Lectic reports an error.
 
 ## Writes and transactions
 

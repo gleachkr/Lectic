@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -517,12 +517,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="custom-subcommands" class="level2">
 <h2 class="anchored" data-anchor-id="custom-subcommands">Custom Subcommands</h2>
-<p>Lectic supports git-style custom subcommands. If you invoke <code>lectic &lt;command&gt;</code>, Lectic looks for an executable named <code>lectic-&lt;command&gt;</code> in this order:</p>
+<p>Lectic supports git-style custom subcommands. If you invoke <code>lectic &lt;command&gt;</code>, Lectic looks for an executable named <code>lectic-&lt;command&gt;</code> in this order by default:</p>
 <ol type="1">
-<li><code>$LECTIC_CONFIG</code> (Searched recursive)</li>
-<li><code>$LECTIC_DATA</code> (Searched recursive)</li>
-<li><code>$PATH</code> entries</li>
+<li><code>$LECTIC_CONFIG</code> (searched recursively)</li>
+<li><code>$LECTIC_DATA</code> (searched recursively)</li>
+<li><code>$PATH</code> entries (top-level per entry)</li>
 </ol>
+<p>If <code>LECTIC_RUNTIME</code> is set, Lectic uses that PATH-style directory list for recursive discovery instead of <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code>.</p>
 <p>See <a href="../automation/03_custom_subcommands.html">Custom Subcommands</a> for a full guide on creating subcommands and adding tab completion for them.</p>
 </section>
 <section id="bash-completion" class="level2">

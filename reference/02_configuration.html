@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -462,6 +462,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ./plugins/sales/module.yaml</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> ./plugins/finance</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">optional</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>imports</code> paths also support the <code>local:</code> prefix, resolved relative to the config file that contains the value:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">imports</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> local:./plugins/sales/module.yaml</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> local:../shared/finance.yaml</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>local:</code> paths must begin with <code>./</code> or <code>../</code>.</p>
 <ul>
 <li>String form: required import path.</li>
 <li>Object form:
@@ -525,7 +530,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tools" class="level3">
 <h3 class="anchored" data-anchor-id="tools">Tools</h3>
 <ul>
-<li><code>tools</code>: A list of tool definitions that this interlocutor can use. The format of each object in the list depends on the tool type. See the <a href="../tools/01_overview.html">Tools section</a> for detailed configuration guides. All tools support a <code>hooks</code> array for <code>tool_use_pre</code> hooks scoped to that particular tool.</li>
+<li><code>tools</code>: A list of tool definitions that this interlocutor can use. The format of each object in the list depends on the tool type. See the <a href="../tools/01_overview.html">Tools section</a> for detailed configuration guides. All tools support a <code>hooks</code> array for tool hooks (commonly <code>tool_use_pre</code> and <code>tool_use_post</code>) scoped to that particular tool.</li>
 </ul>
 <section id="common-tool-keys" class="level4">
 <h4 class="anchored" data-anchor-id="common-tool-keys">Common tool keys</h4>
@@ -533,7 +538,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><code>name</code>: A custom name for the tool. If omitted, a default is derived from the tool type.</li>
 <li><code>usage</code>: Instructions for the LLM on when and how to use the tool. Accepts a string, <code>file:</code>, or <code>exec:</code> source.</li>
-<li><code>hooks</code>: A list of hooks scoped to this tool (typically <code>tool_use_pre</code>).</li>
+<li><code>hooks</code>: A list of hooks scoped to this tool (typically <code>tool_use_pre</code> and/or <code>tool_use_post</code>).</li>
 </ul>
 </section>
 <section id="exec-tool-keys" class="level4">
@@ -556,6 +561,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>limit</code>: Maximum size of serialized response in bytes.</li>
 <li><code>details</code>: Extra context for the model. Accepts string, <code>file:</code>, or <code>exec:</code>.</li>
 <li><code>extensions</code>: A list of SQLite extension libraries to load.</li>
+<li><code>init_sql</code>: Optional SQL script used only when the database file is missing. Accepts plain text, <code>file:</code>, or <code>exec:</code>.</li>
 </ul>
 </section>
 <section id="agent-tool-keys" class="level4">
@@ -596,18 +602,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="the-macro-object" class="level2">
 <h2 class="anchored" data-anchor-id="the-macro-object">The <code>macro</code> Object</h2>
 <ul>
-<li><code>name</code>: (Required) The name of the macro, used when invoking it with <code>:name[]</code> or <code>:name[args]</code>.</li>
-<li><code>expansion</code>: (Optional) The content to be expanded. Can be a string, or loaded via <code>file:</code> or <code>exec:</code>. Equivalent to <code>post</code> if provided. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details about <code>file:</code> and <code>exec:</code>.</li>
-<li><code>pre</code>: (Optional) Expansion content for the pre-order phase.</li>
-<li><code>post</code>: (Optional) Expansion content for the post-order phase.</li>
-<li><code>env</code>: (Optional) A dictionary of environment variables to be set during the macro’s execution. These are merged with any arguments provided at the call site.</li>
+<li><p><code>name</code>: (Required) The name of the macro, used when invoking it with <code>:name[]</code> or <code>:name[args]</code>.</p></li>
+<li><p><code>expansion</code>: (Optional) The content to be expanded. Can be a string, or loaded via <code>file:</code> or <code>exec:</code>. Equivalent to <code>post</code> if provided. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details about <code>file:</code> and <code>exec:</code>.</p></li>
+<li><p><code>pre</code>: (Optional) Expansion content for the pre-order phase.</p></li>
+<li><p><code>post</code>: (Optional) Expansion content for the post-order phase.</p></li>
+<li><p><code>env</code>: (Optional) A dictionary of environment variables to be set during the macro’s execution. These are merged with any arguments provided at the call site.</p></li>
+<li><p><code>completions</code>: (Optional) Argument completion source for <code>:name[...]</code> in the LSP. Either:</p>
+<ul>
+<li>an inline list of items (<code>{ completion, detail?, documentation? }</code>), or</li>
+<li>a source string: <code>file:...</code>, <code>file:local:...</code>, or <code>exec:...</code>.</li>
+</ul>
+<p>For <code>file:</code> and <code>exec:</code>, the source output must be a single YAML document containing a sequence of completion objects. JSON arrays are also accepted.</p></li>
+<li><p><code>completion_trigger</code>: (Optional) One of <code>auto</code> or <code>manual</code>.</p>
+<ul>
+<li>Default is <code>auto</code> for inline and <code>file:</code> sources.</li>
+<li>Default is <code>manual</code> for <code>exec:</code> sources.</li>
+<li><code>manual</code> means completions are only returned for explicit completion invocation (<code>CompletionTriggerKind.Invoked</code>).</li>
+</ul>
+<p>For <code>exec:</code> completion sources, environment precedence is:</p>
+<ol type="1">
+<li>process env + Lectic base env</li>
+<li>macro <code>env</code></li>
+<li>dynamic vars (<code>ARG</code>, <code>ARG_PREFIX</code>, <code>MACRO_NAME</code>, <code>LECTIC_COMPLETION=1</code>)</li>
+</ol></li>
 </ul>
 <hr>
 </section>
 <section id="the-hook-object" class="level2">
 <h2 class="anchored" data-anchor-id="the-hook-object">The <code>hook</code> Object</h2>
 <ul>
-<li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, <code>error</code>, and <code>tool_use_pre</code>.</li>
+<li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, <code>assistant_final</code>, <code>assistant_intermediate</code>, <code>tool_use_pre</code>, <code>tool_use_post</code>, <code>run_start</code>, <code>run_end</code>, and <code>error</code>. <code>error</code> is a derived alias of <code>run_end</code> and fires only when <code>RUN_STATUS=error</code>.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event occurs. If multi‑line, it must start with a shebang (e.g., <code>#!/bin/bash</code>). Event context is provided as environment variables. See the Hooks guide for details.</li>
 <li><code>inline</code>: (Optional) Boolean. If <code>true</code>, the output of the hook is captured and injected into the conversation. Defaults to <code>false</code>.</li>
 <li><code>name</code>: (Optional) A name for the hook. Used for merging and overriding hooks from different configuration sources.</li>
