@@ -450,7 +450,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="reference-structured-outputs" class="level1">
 <h1>Reference: Structured Outputs</h1>
 <p>Structured outputs let you constrain the assistant to JSON that matches a schema.</p>
-<p>In Lectic, set <code>interlocutor.output_schema</code> to a JSON Schema object. Lectic validates that schema before sending it to the provider.</p>
+<p>In Lectic, set <code>interlocutor.output_schema</code> to a JSON Schema object. You can also load the schema from <code>file:</code> or <code>exec:</code>; loaded text is parsed as YAML (so JSON files work) and then validated.</p>
+<p>Lectic validates that schema before sending it to the provider.</p>
 <p>If you are new to JSON Schema, start here: <a href="https://json-schema.org/learn" class="uri">https://json-schema.org/learn</a></p>
 <section id="minimal-example" class="level2">
 <h2 class="anchored" data-anchor-id="minimal-example">Minimal example</h2>

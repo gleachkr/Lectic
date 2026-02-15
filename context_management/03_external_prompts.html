@@ -444,8 +444,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>tools[].usage (for tools that accept a usage string)</li>
 <li>tools[].details (for tools that provide extra details)</li>
 <li>tools[].init_sql (for sqlite tool initialization SQL)</li>
+<li>interlocutor.output_schema</li>
 </ul>
 <p>Each of these accepts either a plain string, or a string beginning with one of the prefixes below.</p>
+<p>For <code>interlocutor.output_schema</code>, loaded content is parsed as YAML (so JSON files are valid too) and then validated as a JSON Schema.</p>
 <section id="filepath" class="level2">
 <h2 class="anchored" data-anchor-id="filepath"><code>file:PATH</code></h2>
 <p>Loads the contents of PATH and uses that as the field value. Environment variables in the path are expanded before reading.</p>

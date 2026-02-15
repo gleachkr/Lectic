@@ -2560,9 +2560,13 @@ What supports external sources:
 - tools\[\].usage (for tools that accept a usage string)
 - tools\[\].details (for tools that provide extra details)
 - tools\[\].init_sql (for sqlite tool initialization SQL)
+- interlocutor.output_schema
 
 Each of these accepts either a plain string, or a string beginning with
 one of the prefixes below.
+
+For `interlocutor.output_schema`, loaded content is parsed as YAML (so
+JSON files are valid too) and then validated as a JSON Schema.
 
 ## `file:PATH`
 
@@ -4773,8 +4777,10 @@ configuration.
   the tool’s own `sandbox` setting. This overrides any top-level
   `sandbox` setting.
 - `output_schema`: Optional JSON Schema that constrains the assistant’s
-  output to valid JSON. This is forwarded to backends that support
-  structured outputs. See [Structured
+  output to valid JSON. You can define it inline, or load it from
+  `file:` or `exec:` (including `file:local:...`). Loaded text is parsed
+  as YAML and then validated as a JSON Schema. This is forwarded to
+  backends that support structured outputs. See [Structured
   Outputs](./04_structured_outputs.qmd) for the supported schema subset
   and provider notes.
 
@@ -5151,7 +5157,10 @@ completions reflects what will actually be available.
 Structured outputs let you constrain the assistant to JSON that matches
 a schema.
 
-In Lectic, set `interlocutor.output_schema` to a JSON Schema object.
+In Lectic, set `interlocutor.output_schema` to a JSON Schema object. You
+can also load the schema from `file:` or `exec:`; loaded text is parsed
+as YAML (so JSON files work) and then validated.
+
 Lectic validates that schema before sending it to the provider.
 
 If you are new to JSON Schema, start here:
