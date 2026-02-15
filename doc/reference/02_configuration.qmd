@@ -85,9 +85,10 @@ An interlocutor object defines a single LLM "personality" or configuration.
   this interlocutor, unless overridden by the tool's own `sandbox` setting.
   This overrides any top-level `sandbox` setting.
 - `output_schema`: Optional JSON Schema that constrains the assistant's
-  output to valid JSON. This is forwarded to backends that support structured
-  outputs. See
-  [Structured Outputs](./04_structured_outputs.qmd)
+  output to valid JSON. You can define it inline, or load it from `file:` or
+  `exec:` (including `file:local:...`). Loaded text is parsed as YAML and then
+  validated as a JSON Schema. This is forwarded to backends that support
+  structured outputs. See [Structured Outputs](./04_structured_outputs.qmd)
   for the supported schema subset and provider notes.
 
 ### Model Configuration

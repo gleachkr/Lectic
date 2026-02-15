@@ -1,6 +1,11 @@
 import { expandEnv } from "./replace";
 import { execScript, execCmd} from "./exec";
 
+export function isLoadableSource(value: string): boolean {
+    const trimmed = value.trimStart();
+    return trimmed.startsWith("file:") || trimmed.startsWith("exec:");
+}
+
 export async function loadFrom<T>(something: T, env: Record<string, string | undefined> = {}): Promise<T | string> {
     if (typeof something === "string") {
         if (something.slice(0, 5) === "file:") {

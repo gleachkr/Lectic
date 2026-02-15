@@ -123,6 +123,80 @@ describe('LecticHeader', () => {
       }
     });
 
+    it('loads output_schema from file: sources', async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'lectic-output-schema-file-'));
+
+      try {
+        const schemaPath = join(dir, 'schema.yaml');
+        writeFileSync(
+          schemaPath,
+          [
+            'type: object',
+            'properties:',
+            '  answer:',
+            '    type: string',
+            'required: [answer]',
+            'additionalProperties: false',
+            '',
+          ].join('\n')
+        );
+
+        const spec = {
+          interlocutor: {
+            name: 'Tester',
+            prompt: 'Test prompt',
+            output_schema: `file:${schemaPath}`,
+          }
+        };
+
+        const header = new LecticHeader(spec as any);
+        await header.initialize();
+
+        expect(header.interlocutor.output_schema).toEqual({
+          type: 'object',
+          properties: {
+            answer: { type: 'string' },
+          },
+          required: ['answer'],
+          additionalProperties: false,
+        });
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('loads output_schema from exec: sources', async () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          output_schema: [
+            'exec:#!/usr/bin/env bash',
+            "cat <<'YAML'",
+            'type: object',
+            'properties:',
+            '  score:',
+            '    type: integer',
+            'required: [score]',
+            'additionalProperties: false',
+            'YAML',
+          ].join('\n'),
+        }
+      };
+
+      const header = new LecticHeader(spec as any);
+      await header.initialize();
+
+      expect(header.interlocutor.output_schema).toEqual({
+        type: 'object',
+        properties: {
+          score: { type: 'integer' },
+        },
+        required: ['score'],
+        additionalProperties: false,
+      });
+    });
+
     it('should correctly initialize a ThinkTool', async () => {
         const spec = {
           interlocutor: {

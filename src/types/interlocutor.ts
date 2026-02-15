@@ -3,6 +3,8 @@ import { type Tool } from "./tool"
 import { type HookSpec, type Hook, isHookSpecList } from "./hook"
 import { type JSONSchema, validateJSONSchema } from "./schema"
 import { Messages } from "../constants/messages"
+import { isLoadableSource, loadFrom } from "../utils/loader"
+import * as YAML from "yaml"
 
 export type A2AAgentConfig = {
     id?: string
@@ -34,7 +36,11 @@ export type Interlocutor = {
     a2a?: A2AAgentConfig
 }
 
-export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
+export type InterlocutorSpec = Omit<Interlocutor, "output_schema"> & {
+    output_schema?: JSONSchema | string
+}
+
+export function validateInterlocutor(raw : unknown) : raw is InterlocutorSpec {
     if (typeof raw !== "object") {
         throw Error(Messages.interlocutor.baseNeedsNamePrompt(raw))
     } 
@@ -77,11 +83,20 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
         throw Error(Messages.interlocutor.sandboxType(raw.name))
     }
     if (("output_schema" in raw)) {
-        try {
-            validateJSONSchema(raw.output_schema)
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e)
-            throw Error(Messages.interlocutor.outputSchemaInvalid(raw.name, msg))
+        if (typeof raw.output_schema === "string") {
+            if (!isLoadableSource(raw.output_schema)) {
+                throw Error(Messages.interlocutor.outputSchemaInvalid(
+                    raw.name,
+                    Messages.interlocutor.outputSchemaSourceType(),
+                ))
+            }
+        } else {
+            try {
+                validateJSONSchema(raw.output_schema)
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e)
+                throw Error(Messages.interlocutor.outputSchemaInvalid(raw.name, msg))
+            }
         }
     }
     if (("temperature" in raw)) {
@@ -106,4 +121,30 @@ export function validateInterlocutor(raw : unknown) : raw is Interlocutor {
         }
     }
     return true
+}
+
+export async function validateAndLoadOutputSchema(
+    raw: InterlocutorSpec,
+): Promise<JSONSchema | undefined> {
+    if (raw.output_schema === undefined) return undefined
+
+    if (typeof raw.output_schema !== "string") {
+        validateJSONSchema(raw.output_schema)
+        return raw.output_schema
+    }
+
+    try {
+        if (!isLoadableSource(raw.output_schema)) {
+            throw Messages.interlocutor.outputSchemaSourceType()
+        }
+        const loaded = await loadFrom(raw.output_schema)
+        if (typeof loaded !== "string") {
+            throw "schema source didn't produce text"
+        }
+        const parsed = YAML.parse(loaded)
+        if (validateJSONSchema(parsed)) return parsed
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        throw Error(Messages.interlocutor.outputSchemaInvalid(raw.name, msg))
+    }
 }

@@ -1,10 +1,10 @@
 import type { LecticHeaderSpec } from "../types/lectic"
-import type { Interlocutor } from "../types/interlocutor"
+import type { InterlocutorSpec } from "../types/interlocutor"
 
-export function buildInterlocutorIndex(spec : LecticHeaderSpec): Interlocutor[] {
-    const interlocutors : Interlocutor[] = []
+export function buildInterlocutorIndex(spec : LecticHeaderSpec): InterlocutorSpec[] {
+    const interlocutors : InterlocutorSpec[] = []
     const seen = new Set<string>()
-    const push = (i: Interlocutor) => {
+    const push = (i: InterlocutorSpec) => {
         if (!seen.has(i.name)) { seen.add(i.name); interlocutors.push(i) }
     }
     if ("interlocutor" in spec) {
@@ -24,7 +24,9 @@ export function buildInterlocutorIndex(spec : LecticHeaderSpec): Interlocutor[] 
     return interlocutors
 }
 
-export function previewInterlocutor(interlocutor : Interlocutor): { detail: string, documentation: string } {
+export function previewInterlocutor(
+  interlocutor : InterlocutorSpec,
+): { detail: string, documentation: string } {
   const trim = (s: string, n: number) =>
     s.length <= n ? s : (s.slice(0, n - 1) + "…")
 

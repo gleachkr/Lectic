@@ -1,7 +1,12 @@
 import type { Message } from "./message"
 import * as YAML from "yaml"
 import { type Tool } from "./tool"
-import { validateInterlocutor, type Interlocutor } from "./interlocutor"
+import {
+    validateInterlocutor,
+    validateAndLoadOutputSchema,
+    type Interlocutor,
+    type InterlocutorSpec,
+} from "./interlocutor"
 import { validateMacroSpec, Macro, type MacroSpec } from "./macro"
 import { validateHookSpec, Hook, type HookSpec } from "./hook"
 import { UserMessage } from "./message"
@@ -47,8 +52,8 @@ function validateToolKit(raw : unknown) : raw is ToolKitSpec {
 }
 
 type DialecticHeaderSpec = {
-    interlocutor : Interlocutor
-    interlocutors? : [ ...Interlocutor[] ]
+    interlocutor : InterlocutorSpec
+    interlocutors? : [ ...InterlocutorSpec[] ]
     macros?: MacroSpec[]
     hooks?: HookSpec[]
     kits? : ToolKitSpec[]
@@ -56,7 +61,7 @@ type DialecticHeaderSpec = {
 }
 
 type ManylecticHeaderSpec = {
-    interlocutors : [ Interlocutor, ...Interlocutor[] ]
+    interlocutors : [ InterlocutorSpec, ...InterlocutorSpec[] ]
     macros?: MacroSpec[]
     hooks?: HookSpec[]
     kits? : ToolKitSpec[]
@@ -75,14 +80,21 @@ export class LecticHeader {
     sandbox? : string
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
-            const maybeExists = spec.interlocutors?.find(inter => inter.name === spec.interlocutor.name)
-            this.interlocutor =  spec.interlocutor
+            const maybeExists = spec.interlocutors?.find(
+                inter => inter.name === spec.interlocutor.name,
+            )
+            this.interlocutor = spec.interlocutor as Interlocutor
+
+            const others = (spec.interlocutors ?? []) as Interlocutor[]
             this.interlocutors = maybeExists
-                ? [this.interlocutor, ... (spec.interlocutors?.filter(i => i.name !== maybeExists.name) ?? [])]
-                : [this.interlocutor, ... (spec.interlocutors ?? [])]
+                ? [
+                    this.interlocutor,
+                    ...others.filter(i => i.name !== maybeExists.name),
+                ]
+                : [this.interlocutor, ...others]
         } else {
-            this.interlocutor = spec.interlocutors[0]
-            this.interlocutors = spec.interlocutors
+            this.interlocutor = spec.interlocutors[0] as Interlocutor
+            this.interlocutors = spec.interlocutors as Interlocutor[]
         }
         this.spec = spec
         this.sandbox = spec.sandbox
@@ -164,6 +176,9 @@ export class LecticHeader {
         if (this.interlocutor.registry) return
 
         this.interlocutor.prompt = await loadFrom(this.interlocutor.prompt)
+        this.interlocutor.output_schema = await validateAndLoadOutputSchema(
+            this.interlocutor as InterlocutorSpec,
+        )
 
         this.interlocutor.registry = {}
         this.interlocutor.active_hooks = (this.interlocutor.hooks ?? []).map(h => new Hook(h))

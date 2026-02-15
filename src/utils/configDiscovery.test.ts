@@ -277,6 +277,50 @@ describe("config discovery", () => {
     }
   })
 
+  test("output_schema supports file:local: paths", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-schema-local-"))
+
+    try {
+      writeFileSync(
+        join(root, "module.yaml"),
+        [
+          "interlocutor:",
+          "  name: Imported",
+          "  prompt: p",
+          "  output_schema: file:local:./schema.json",
+          "",
+        ].join("\n")
+      )
+
+      const out = await resolveConfigChain({
+        includeSystem: false,
+        document: {
+          yaml: [
+            "imports:",
+            "  - ./module.yaml",
+            "interlocutor:",
+            "  name: Imported",
+            "",
+          ].join("\n"),
+          dir: root,
+        },
+      })
+
+      expect(out.issues).toHaveLength(0)
+      const source = out.sources.find(s => s.path === join(root, "module.yaml"))
+      const outputSchema = (
+        source?.parsed as {
+          interlocutor?: { output_schema?: string }
+        } | undefined
+      )?.interlocutor?.output_schema
+
+      expect(outputSchema).toBe(`file:${join(root, "schema.json")}`)
+      expect(source?.text).toContain(`file:${join(root, "schema.json")}`)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   test("nested local imports resolve relative to each source file", async () => {
     const root = mkdtempSync(join(tmpdir(), "lectic-config-local-nested-"))
     const pluginsDir = join(root, "plugins")

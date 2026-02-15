@@ -31,6 +31,8 @@ export const Messages = {
       `The sandbox for ${name} wasn't well-formed, it needs to be a string.`,
     outputSchemaInvalid: (name: string, msg: string) =>
       `The output_schema for ${name} wasn't well-formed: ${msg}`,
+    outputSchemaSourceType: () =>
+      `String output_schema values must start with "file:" or "exec:".`,
     toolsType: (name: string) =>
       `The tools for ${name} need to be given in an array.`,
     toolsItems: (name: string) =>

@@ -67,4 +67,26 @@ describe("header field diagnostics", () => {
     expect(idx).toBeGreaterThan(0)
     expect(d!.range.start.line).toBe(idx)
   })
+
+  test("output_schema accepts file: and exec: source strings", async () => {
+    const text = [
+      "---",
+      "interlocutor:",
+      "  name: A",
+      "  prompt: p",
+      "  output_schema: file:./schema.json",
+      "interlocutors:",
+      "  - name: B",
+      "    prompt: p",
+      "    output_schema: exec:echo '{\"type\":\"object\",\"properties\":{},\"required\":[]}'",
+      "---",
+      "Body",
+      "",
+    ].join("\n")
+
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, "output_schema for")
+    expect(d).toBeUndefined()
+  })
 })

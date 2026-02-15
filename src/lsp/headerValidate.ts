@@ -6,6 +6,7 @@ import { Messages } from "../constants/messages"
 import { isObjectRecord } from "../types/guards"
 import { HOOK_EVENT_TYPES, type HookEvents } from "../types/hook"
 import { INTERLOCUTOR_KEY_SET } from "./interlocutorFields"
+import { isLoadableSource } from "../utils/loader"
 
 function isUseRefObject(v: unknown): v is { use: string } {
   return isObjectRecord(v) &&
@@ -267,16 +268,30 @@ export function validateHeaderShape(spec: unknown): Issue[] {
 
     // output_schema
     if ("output_schema" in raw) {
-      try {
-        validateJSONSchema(raw["output_schema"])
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e)
-        issues.push({
-          code: "interlocutor.output_schema.invalid",
-          message: Messages.interlocutor.outputSchemaInvalid(nameVal, msg),
-          path: [...pathBase, "output_schema"],
-          severity: "error",
-        })
+      if (typeof raw["output_schema"] === "string") {
+        if (!isLoadableSource(raw["output_schema"])) {
+          issues.push({
+            code: "interlocutor.output_schema.invalid",
+            message: Messages.interlocutor.outputSchemaInvalid(
+              nameVal,
+              Messages.interlocutor.outputSchemaSourceType(),
+            ),
+            path: [...pathBase, "output_schema"],
+            severity: "error",
+          })
+        }
+      } else {
+        try {
+          validateJSONSchema(raw["output_schema"])
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e)
+          issues.push({
+            code: "interlocutor.output_schema.invalid",
+            message: Messages.interlocutor.outputSchemaInvalid(nameVal, msg),
+            path: [...pathBase, "output_schema"],
+            severity: "error",
+          })
+        }
       }
     }
 

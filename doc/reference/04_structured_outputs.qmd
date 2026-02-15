@@ -4,6 +4,9 @@ Structured outputs let you constrain the assistant to JSON that matches a
 schema.
 
 In Lectic, set `interlocutor.output_schema` to a JSON Schema object.
+You can also load the schema from `file:` or `exec:`; loaded text is parsed
+as YAML (so JSON files work) and then validated.
+
 Lectic validates that schema before sending it to the provider.
 
 If you are new to JSON Schema, start here:
