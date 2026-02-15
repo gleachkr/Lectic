@@ -224,7 +224,7 @@ export class ExecTool extends Tool {
                 const chunks: string[] = []
                 if (collected.stdout.length > 0) chunks.push(`<stdout>${collected.stdout}</stdout>`)
                 if (collected.stderr.length > 0) chunks.push(`<stderr>${collected.stderr}</stderr>`)
-                chunks.push(`<error>Killed Process: ${e.message}</error>`)
+                chunks.push(`<error>Killed Process: ${e.message} after ${this.timeoutSeconds} second timeout</error>`)
                 throw new Error(chunks.join(""))
             }
             throw e
