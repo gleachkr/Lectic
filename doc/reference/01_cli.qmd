@@ -114,8 +114,9 @@ Lectic supports git-style custom subcommands. If you invoke
 2. `$LECTIC_DATA` (searched recursively)
 3. `$PATH` entries (top-level per entry)
 
-If `LECTIC_RUNTIME` is set, Lectic uses that PATH-style directory list
-for recursive discovery instead of `$LECTIC_CONFIG` and `$LECTIC_DATA`.
+If `LECTIC_RUNTIME` is set, Lectic searches those PATH-style directories
+first for recursive discovery, then continues with `$LECTIC_CONFIG` and
+`$LECTIC_DATA`.
 
 See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a full
 guide on creating subcommands and adding tab completion for them.

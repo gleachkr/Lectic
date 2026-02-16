@@ -18,9 +18,9 @@ const EXEC_MASK =
   constants.S_IXGRP |
   constants.S_IXOTH
 
-function runtimeSearchDirs(): SearchDir[] | null {
+function runtimeSearchDirs(): SearchDir[] {
   const runtime = process.env["LECTIC_RUNTIME"]
-  if (runtime === undefined) return null
+  if (runtime === undefined) return []
 
   return runtime
     .split(delimiter)
@@ -34,7 +34,8 @@ function defaultSearchDirs(): SearchDir[] {
     .split(delimiter)
     .filter(Boolean)
 
-  const recursiveDirs = runtimeSearchDirs() ?? [
+  const recursiveDirs = [
+    ...runtimeSearchDirs(),
     { dir: lecticConfigDir(), recursive: true },
     { dir: lecticDataDir(), recursive: true },
   ]

@@ -208,4 +208,37 @@ describe("subcommand resolution", () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
+
+  test("still checks config/data when LECTIC_RUNTIME is set", () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-subcmd-runtime-plus-"))
+    const configDir = join(root, "config")
+    const runtimeDir = join(root, "runtime")
+    const nested = join(configDir, "plugins", "core", "bin")
+    const cmd = join(nested, "lectic-hello-runtime-plus")
+
+    try {
+      mkdirSync(runtimeDir, { recursive: true })
+      mkdirSync(nested, { recursive: true })
+      writeFileSync(cmd, "#!/bin/sh\necho hi\n")
+      chmodSync(cmd, 0o755)
+
+      withEnv(
+        {
+          LECTIC_RUNTIME: runtimeDir,
+          LECTIC_CONFIG: configDir,
+          LECTIC_DATA: join(root, "data"),
+          PATH: "",
+        },
+        () => {
+          const result = resolveSubcommandPath("hello-runtime-plus")
+          expect(result.kind).toBe("found")
+          if (result.kind === "found") {
+            expect(result.path).toBe(cmd)
+          }
+        }
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 })

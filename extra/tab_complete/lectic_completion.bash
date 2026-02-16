@@ -7,8 +7,8 @@
 # This script discovers subcommands and loads optional completion plugins at
 # source-time. Subcommand discovery matches runtime behavior:
 #
-# - If LECTIC_RUNTIME is set: recursively scan each directory in it
-# - Otherwise: recursively scan LECTIC_CONFIG and LECTIC_DATA
+# - If LECTIC_RUNTIME is set: recursively scan each directory in it first
+# - Then recursively scan LECTIC_CONFIG and LECTIC_DATA
 # - PATH dirs are always scanned top-level only
 #
 # Completion plugins
@@ -23,8 +23,8 @@
 #   <root>/completions/*.bash for each recursive discovery root
 #
 # Recursive roots are:
-# - entries in LECTIC_RUNTIME, if set
-# - otherwise LECTIC_CONFIG and LECTIC_DATA (with XDG defaults)
+# - entries in LECTIC_RUNTIME first, if set
+# - then LECTIC_CONFIG and LECTIC_DATA (with XDG defaults)
 #
 # ...and may also be placed next to a custom subcommand executable as:
 #
@@ -137,10 +137,10 @@ __lectic_collect_recursive_roots() {
       [[ -n "${dir}" ]] || continue
       __LECTIC_RECURSIVE_ROOTS+=("${dir}")
     done
-  else
-    __LECTIC_RECURSIVE_ROOTS+=("${__LECTIC_CONFIG_DIR}")
-    __LECTIC_RECURSIVE_ROOTS+=("${__LECTIC_DATA_DIR}")
   fi
+
+  __LECTIC_RECURSIVE_ROOTS+=("${__LECTIC_CONFIG_DIR}")
+  __LECTIC_RECURSIVE_ROOTS+=("${__LECTIC_DATA_DIR}")
 }
 
 __lectic_init_subcommands() {
@@ -159,8 +159,8 @@ __lectic_init_subcommands() {
   __lectic_collect_recursive_roots
 
   # 1) Recursive discovery roots:
-  #    - LECTIC_RUNTIME entries if set
-  #    - otherwise LECTIC_CONFIG and LECTIC_DATA
+  #    - LECTIC_RUNTIME entries first if set
+  #    - then LECTIC_CONFIG and LECTIC_DATA
   for dir in "${__LECTIC_RECURSIVE_ROOTS[@]}"; do
     __lectic_scan_recursive_subcommands "${dir}"
   done
