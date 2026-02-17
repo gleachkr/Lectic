@@ -12,13 +12,11 @@
       pkgs = nixpkgs.legacyPackages.${system};
 
       lectic = pkgs.callPackage ./nix/lectic.nix { };
-
-      nix-sandbox = pkgs.callPackage ./extra/sandbox.nix { };
     in
     {
 
-      packages.sqlite-vec = pkgs.callPackage ./nix/sqlite-vec.nix { 
-        inherit sqlite-vec-repo; 
+      packages.sqlite-vec = pkgs.callPackage ./nix/sqlite-vec.nix {
+        inherit sqlite-vec-repo;
       };
 
       packages.default = self.packages.${system}.lectic-core;
@@ -43,6 +41,18 @@
 
           wrapProgram "$out/bin/lectic" \
             --prefix LECTIC_RUNTIME : "$out/share"
+
+          mkdir -p "$out/share/bash-completion/completions"
+          cp "$src/extra/tab_complete/lectic_completion.bash" \
+            "$out/share/bash-completion/completions/lectic"
+
+          completionFile="$out/share/bash-completion/completions/lectic"
+          oldLine='__LECTIC_DATA_DIR="''${LECTIC_DATA:-''${__LECTIC_XDG_DATA_HOME}/lectic}"'
+          runtimeLine='LECTIC_RUNTIME="'"$out"'/share''${LECTIC_RUNTIME:+:''$LECTIC_RUNTIME}"'
+          newText="$oldLine"$'\n'"$runtimeLine"
+
+          substituteInPlace "$completionFile" \
+            --replace-fail "$oldLine" "$newText"
         '';
       };
 
@@ -57,11 +67,6 @@
       apps.default = {
         type = "app";
         program = "${self.packages.${system}.default}/bin/lectic";
-      };
-
-      apps.nix-sandbox= {
-        type = "app";
-        program = "${nix-sandbox}/bin/run-container-with-config";
       };
 
       devShell = with pkgs; mkShell {
