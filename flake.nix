@@ -28,12 +28,21 @@
       packages.lectic-full = with pkgs; stdenvNoCC.mkDerivation {
         name = "lectic-full";
         src = ./.;
+        nativeBuildInputs = [ makeWrapper ];
         #don't attempt to patch shebangs of lectic subcommands
         dontFixup = true;
-        buildPhase = ''
-          mkdir -p $out/bin
+        installPhase = ''
+          mkdir -p $out/bin $out/share
           cp ${lectic}/bin/lectic $out/bin
-          find $src/extra -type f -name "lectic-*" -exec cp {} $out/bin \;
+
+          cp -r "$src/extra/plugins" "$out/share/"
+
+          find "$src/extra" -type f -name "lectic-*" \
+            ! -path "$src/extra/plugins/*" \
+            -exec cp {} "$out/bin" \;
+
+          wrapProgram "$out/bin/lectic" \
+            --prefix LECTIC_RUNTIME : "$out/share"
         '';
       };
 
