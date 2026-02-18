@@ -121,7 +121,7 @@ __lectic_scan_recursive_subcommands() {
   while IFS= read -r -d '' cmd_path; do
     __lectic_register_subcommand_path "${cmd_path}"
   done < <(
-    find "${root}" -type f -name 'lectic-*' -perm -u+x -print0 2>/dev/null
+    find -L "${root}" -type f -name 'lectic-*' -perm -u+x -print0 2>/dev/null
   )
 }
 
