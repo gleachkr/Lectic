@@ -523,7 +523,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>$LECTIC_DATA</code> (searched recursively)</li>
 <li><code>$PATH</code> entries (top-level per entry)</li>
 </ol>
-<p>If <code>LECTIC_RUNTIME</code> is set, Lectic uses that PATH-style directory list for recursive discovery instead of <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code>.</p>
+<p>If <code>LECTIC_RUNTIME</code> is set, Lectic searches those PATH-style directories first for recursive discovery, then continues with <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code>.</p>
 <p>See <a href="../automation/03_custom_subcommands.html">Custom Subcommands</a> for a full guide on creating subcommands and adding tab completion for them.</p>
 </section>
 <section id="bash-completion" class="level2">

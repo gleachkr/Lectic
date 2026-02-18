@@ -453,7 +453,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Data Directory</strong>: <code>$LECTIC_DATA</code> (defaults to <code>~/.local/share/lectic</code> on Linux). Searched recursively.</li>
 <li><strong>System PATH</strong>: Any directory in your <code>$PATH</code>. Top-level per PATH entry.</li>
 </ol>
-<p>If <code>LECTIC_RUNTIME</code> is set, Lectic uses that instead of <code>$LECTIC_CONFIG</code> + <code>$LECTIC_DATA</code> for recursive discovery. <code>LECTIC_RUNTIME</code> is a PATH-style directory list (for example, <code>/opt/lectic/plugins:$HOME/work/lectic-extra</code> on Linux/macOS).</p>
+<p>If <code>LECTIC_RUNTIME</code> is set, Lectic adds those directories to recursive subcommand discovery (before <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code>). <code>LECTIC_RUNTIME</code> is a PATH-style directory list (for example, <code>/opt/lectic/plugins:$HOME/work/lectic-extra</code> on Linux/macOS).</p>
 <p>The first match found is executed. The subprocess receives the remaining arguments, inherits the standard input, output, and error streams, and has access to Lectic’s environment variables.</p>
 </section>
 <section id="examples" class="level2">
@@ -522,7 +522,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>LECTIC_CACHE</code>: Path to the cache directory.</li>
 <li><code>LECTIC_STATE</code>: Path to the state directory.</li>
 <li><code>LECTIC_TEMP</code>: Path to the temporary directory.</li>
-<li><code>LECTIC_RUNTIME</code>: Optional PATH-style directory list used for recursive subcommand discovery. If set, it replaces the default recursive search roots (<code>LECTIC_CONFIG</code> and <code>LECTIC_DATA</code>).</li>
+<li><code>LECTIC_RUNTIME</code>: Optional PATH-style directory list used for recursive subcommand discovery. If set, entries are searched before the default recursive roots (<code>LECTIC_CONFIG</code> and <code>LECTIC_DATA</code>).</li>
 </ul>
 <p>These ensure your subcommands respect the user’s directory configuration.</p>
 </section>
@@ -538,7 +538,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="adding-completions" class="level3">
 <h3 class="anchored" data-anchor-id="adding-completions">Adding Completions</h3>
 <p>To provide completions for a subcommand <code>lectic-foo</code>, create a bash script that defines a completion function and registers it.</p>
-<p>The script can be placed in: 1. <code>&lt;recursive-root&gt;/completions/</code> where recursive roots are: - <code>$LECTIC_RUNTIME</code> entries (if set), or - otherwise <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code> 2. Or alongside the executable itself, named <code>lectic-foo.completion.bash</code>.</p>
+<p>The script can be placed in: 1. <code>&lt;recursive-root&gt;/completions/</code> where recursive roots are, in order: - <code>$LECTIC_RUNTIME</code> entries (if set), then - <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code> 2. Or alongside the executable itself, named <code>lectic-foo.completion.bash</code>.</p>
 <p><strong>Example:</strong></p>
 <p>Create <code>$LECTIC_CONFIG/completions/foo.bash</code>:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">_lectic_complete_foo()</span> <span class="kw">{</span></span>
@@ -562,7 +562,7 @@ Tip
 </div>
 <div class="callout-body-container callout-body">
 <p>For performance, define completions in a separate <code>.completion.bash</code> file rather than inside the subcommand script itself. This allows the shell to load completions without executing the subcommand.</p>
-<p>The completion loader mirrors runtime discovery: it scans recursive roots (<code>$LECTIC_RUNTIME</code> if set, otherwise <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code>) and loads adjacent completion files from discovered commands.</p>
+<p>The completion loader mirrors runtime discovery: it scans recursive roots (<code>$LECTIC_RUNTIME</code> entries first when set, then <code>$LECTIC_CONFIG</code> and <code>$LECTIC_DATA</code>) and loads adjacent completion files from discovered commands.</p>
 </div>
 </div>
 

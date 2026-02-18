@@ -1994,8 +1994,8 @@ By default, search order is:
 3.  **System PATH**: Any directory in your `$PATH`. Top-level per PATH
     entry.
 
-If `LECTIC_RUNTIME` is set, Lectic uses that instead of
-`$LECTIC_CONFIG` + `$LECTIC_DATA` for recursive discovery.
+If `LECTIC_RUNTIME` is set, Lectic adds those directories to recursive
+subcommand discovery (before `$LECTIC_CONFIG` and `$LECTIC_DATA`).
 `LECTIC_RUNTIME` is a PATH-style directory list (for example,
 `/opt/lectic/plugins:$HOME/work/lectic-extra` on Linux/macOS).
 
@@ -2102,8 +2102,8 @@ Subcommands receive the standard set of Lectic environment variables:
 - `LECTIC_STATE`: Path to the state directory.
 - `LECTIC_TEMP`: Path to the temporary directory.
 - `LECTIC_RUNTIME`: Optional PATH-style directory list used for
-  recursive subcommand discovery. If set, it replaces the default
-  recursive search roots (`LECTIC_CONFIG` and `LECTIC_DATA`).
+  recursive subcommand discovery. If set, entries are searched before
+  the default recursive roots (`LECTIC_CONFIG` and `LECTIC_DATA`).
 
 These ensure your subcommands respect the user’s directory
 configuration.
@@ -2132,8 +2132,8 @@ To provide completions for a subcommand `lectic-foo`, create a bash
 script that defines a completion function and registers it.
 
 The script can be placed in: 1. `<recursive-root>/completions/` where
-recursive roots are: - `$LECTIC_RUNTIME` entries (if set), or -
-otherwise `$LECTIC_CONFIG` and `$LECTIC_DATA` 2. Or alongside the
+recursive roots are, in order: - `$LECTIC_RUNTIME` entries (if set),
+then - `$LECTIC_CONFIG` and `$LECTIC_DATA` 2. Or alongside the
 executable itself, named `lectic-foo.completion.bash`.
 
 **Example:**
@@ -2161,9 +2161,9 @@ Now, typing `lectic foo <TAB>` will suggest `bar` and `baz`.
 > shell to load completions without executing the subcommand.
 >
 > The completion loader mirrors runtime discovery: it scans recursive
-> roots (`$LECTIC_RUNTIME` if set, otherwise `$LECTIC_CONFIG` and
-> `$LECTIC_DATA`) and loads adjacent completion files from discovered
-> commands.
+> roots (`$LECTIC_RUNTIME` entries first when set, then `$LECTIC_CONFIG`
+> and `$LECTIC_DATA`) and loads adjacent completion files from
+> discovered commands.
 
 
 
@@ -4588,8 +4588,9 @@ Lectic supports git-style custom subcommands. If you invoke
 2.  `$LECTIC_DATA` (searched recursively)
 3.  `$PATH` entries (top-level per entry)
 
-If `LECTIC_RUNTIME` is set, Lectic uses that PATH-style directory list
-for recursive discovery instead of `$LECTIC_CONFIG` and `$LECTIC_DATA`.
+If `LECTIC_RUNTIME` is set, Lectic searches those PATH-style directories
+first for recursive discovery, then continues with `$LECTIC_CONFIG` and
+`$LECTIC_DATA`.
 
 See [Custom Subcommands](../automation/03_custom_subcommands.qmd) for a
 full guide on creating subcommands and adding tab completion for them.
