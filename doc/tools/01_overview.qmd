@@ -13,7 +13,6 @@ command, query a database, call another agent, or reach out to a service.
 | [`agent`](./05_agent.qmd) | Call another interlocutor | `agent: OtherName` |
 | [`a2a`](./06_a2a.qmd) | Call a remote A2A agent | `a2a: http://.../agents/<id>` |
 | [`think`](./07_other_tools.qmd#the-think-tool) | Private reasoning scratchpad | `think_about: the problem` |
-| [`serve`](./07_other_tools.qmd#the-serve-tool) | Serve HTML to browser | `serve_on_port: 8080` |
 | [`native`](./07_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
 
 ## How Tool Calls Work
@@ -152,9 +151,8 @@ Each tool type has its own detailed guide:
 - **[A2A](./06_a2a.qmd)**: Talk to remote agents using the
   Agent2Agent (A2A) protocol.
 
-- **[Other Tools](./07_other_tools.qmd)**: The `think` tool for reasoning,
-  `serve` for rendering HTML, and `native` for provider built-ins like
-  web search.
+- **[Other Tools](./07_other_tools.qmd)**: The `think` tool for reasoning
+  and `native` for provider built-ins like web search.
 
 ::: {.callout-note}
 Native tools (`native: search`, `native: code`) do not support hooks.

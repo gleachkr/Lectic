@@ -1,22 +1,26 @@
-# Other Tools: `think`, `serve`, and `native`
+# Other Tools: `think` and `native`
 
-This document covers three distinct types of tools: a cognitive tool for the
-LLM, a simple web server, and a way to access the native, built-in
-capabilities of the model provider.
+This document covers two tool types: a cognitive scratchpad for the LLM,
+and provider-native tools like web search or code execution.
+
+`serve_on_port` is no longer a built-in tool. If you want browser previews,
+use a skill-based replacement. A bundled example lives at
+`extra/skills/serve`.
 
 ## The `think` Tool
 
-The `think` tool gives the LLM a private "scratch space" to pause and reason
-about a prompt before formulating its final response. This can improve the
-quality and thoughtfulness of the output, especially for complex or ambiguous
-questions.
+The `think` tool gives the LLM a private "scratch space" to pause and
+reason about a prompt before formulating its final response. This can
+improve the quality and thoughtfulness of the output, especially for
+complex or ambiguous questions.
 
 This technique was inspired by a post on [Anthropic's engineering
-blog](https://www.anthropic.com/engineering/claude-think-tool). The output of
-the `think` tool is hidden from the user by default in the editor plugins,
-though it is still present in the `.lec` file.
+blog](https://www.anthropic.com/engineering/claude-think-tool). The output
+of the `think` tool is hidden from the user by default in the editor
+plugins, though it is still present in the `.lec` file.
 
 ### Configuration
+
 ```yaml
 tools:
   - think_about: >
@@ -26,6 +30,7 @@ tools:
 ```
 
 ### Example
+
 ```markdown
 What's the best city in the world?
 
@@ -45,68 +50,26 @@ What's the best city in the world?
 </results>
 </tool-call>
 
-That depends on what you're looking for! Are you interested in the best city
-for tourism, career opportunities, or something else?
+That depends on what you're looking for! Are you interested in the best
+city for tourism, career opportunities, or something else?
 :::
 ```
 
-## The `serve` Tool
+## Serving HTML with a Skill
 
-The `serve` tool lets the LLM show you interactive content—HTML pages,
-visualizations, small web apps—directly in your browser. This is Lectic's
-answer to "artifacts" features you might have seen in web-based LLM
-interfaces.
+If you want the old "render HTML in a browser" workflow, add the skills
+subcommand tool and include `extra/skills` in your skill roots.
 
-Why use this instead of just writing HTML to a file? With `serve`, the
-content appears in your browser immediately. You don't need to find the
-file and open it. The LLM can generate a data visualization, a diagram,
-or a playable game and you see it right away.
-
-When the LLM uses this tool, Lectic starts a server on the specified port
-and opens the page in your default browser. The server shuts down
-automatically after the first request is served, and the conversation
-resumes once your browser has loaded the page.
-
-### Configuration
 ```yaml
 tools:
-  - serve_on_port: 8080
-    name: web_server # Optional name
+  - name: skills
+    exec: lectic skills ./extra/skills
+    usage: exec:lectic skills --prompt ./extra/skills
 ```
 
-### Example
-```markdown
-Generate a simple tic-tac-toe game in HTML and serve it to me.
-
-:::Assistant
-
-<tool-call with="web_server">
-<arguments>
-<pageHtml>
-┆<!DOCTYPE html>
-┆<html>
-┆<head>
-┆<title>Tic-Tac-Toe</title>
-┆... (rest of the HTML/JS/CSS) ...
-┆</head>
-┆<body>
-┆...
-┆</body>
-┆</html>
-</pageHtml>
-</arguments>
-<results>
-<result type="text">
-┆page is now available
-</result>
-</results>
-</tool-call>
-
-
-I have generated the game for you. It should be opening in your browser at
-http://localhost:8080.
-:::
-```
+Then activate and run the bundled `serve` skill script via the `skills`
+tool. See [Agent Skills Support](../cookbook/08_skills_subcommand.qmd)
+for setup details.
 
 ## `native` Tools
 
@@ -128,9 +91,9 @@ tools:
 
 ### Provider Support
 
-- **Gemini**: Supports both `search` and `code`. Note that the Gemini API has
-  a limitation where you can only use one native tool at a time, and it
-  cannot be combined with other (non-native) tools.
+- **Gemini**: Supports both `search` and `code`. Note that the Gemini API
+  has a limitation where you can only use one native tool at a time, and
+  it cannot be combined with other (non-native) tools.
 - **Anthropic**: Supports `search` only.
 - **OpenAI**: Supports both `search` and `code` via the `openai` provider
   (not the legacy `openai/chat` provider).

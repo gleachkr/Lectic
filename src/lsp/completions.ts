@@ -46,7 +46,6 @@ const TOOL_KINDS: Array<{ key: string, detail: string, sort: string }> = [
   { key: 'agent',        detail: 'Interlocutor-as-tool agent',            sort: '10_agent' },
   { key: 'a2a',          detail: 'A2A remote agent tool',                 sort: '10_a2a' },
   { key: 'think_about',  detail: 'Scratchpad reasoning tool',             sort: '11_think' },
-  { key: 'serve_on_port',detail: 'Ephemeral HTTP server tool',            sort: '12_serve' },
   { key: 'native',       detail: 'Provider-native tool (search/code)',    sort: '13_native' },
   { key: 'kit',          detail: 'Reference a named tool kit',            sort: '14_kit' },
 ]

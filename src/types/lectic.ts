@@ -14,7 +14,6 @@ import { isExecToolSpec, ExecTool, type ExecToolSpec } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool, type SQLiteToolSpec } from "../tools/sqlite"
 import { isThinkToolSpec, ThinkTool } from "../tools/think"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
-import { isServeToolSpec, ServeTool } from "../tools/serve"
 import { isAgentToolSpec, AgentTool, type AgentToolSpec } from "../tools/agent"
 import { isA2AToolSpec, A2ATool, type A2AToolSpec } from "../tools/a2a"
 import { isNativeTool } from "../tools/native"
@@ -215,8 +214,6 @@ export class LecticHeader {
                 register(new SQLiteTool(loadedSpec))
             } else if (isThinkToolSpec(spec)) {
                 register(new ThinkTool(spec))
-            } else if (isServeToolSpec(spec)) {
-                register(new ServeTool(spec))
             } else if (isAgentToolSpec(spec)) {
                 const loadedSpec: AgentToolSpec = { ...spec }
                 loadedSpec.usage = await loadFrom(spec.usage)

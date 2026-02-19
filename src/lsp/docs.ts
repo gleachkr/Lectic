@@ -270,7 +270,6 @@ const TOOL_SPEC_KEYS = [
   "agent",
   "a2a",
   "think_about",
-  "serve_on_port",
   "native",
   "kit",
 ]

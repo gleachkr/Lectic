@@ -197,8 +197,6 @@ Connect to Model Context Protocol servers.
 
 - `think_about`: (String) Creates a thinking/scratchpad tool with the
   given prompt.
-- `serve_on_port`: (Integer) Creates a single-use web server on the
-  given port.
 - `native`: One of `search` or `code`. Enables provider built-in tools.
 - `kit`: Name of a tool kit to include.
 
