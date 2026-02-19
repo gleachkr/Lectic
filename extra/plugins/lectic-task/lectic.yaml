@@ -1,0 +1,145 @@
+# Lectic Task plugin config
+#
+# Import this file from your project or user config after installing this
+# plugin under $LECTIC_DATA/plugins/lectic-task or $LECTIC_CONFIG/plugins.
+#
+# This file provides:
+# - task management tools via `lectic task ...`
+# - macro shortcuts with programmable completions backed by SQLite
+
+kits:
+  - name: task_kit
+    description: SQLite-backed task lifecycle operations via lectic task.
+    tools:
+      - name: task_create
+        usage: Create a task in the task database.
+        exec: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          lectic task create \
+            --title "$TITLE" \
+            --desc "${DESCRIPTION:-}" \
+            --lang "${LANGUAGE:-general}" \
+            --priority "${PRIORITY:-medium}" \
+            --effort "${EFFORT_HOURS:-}" \
+            --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
+            --session "${RUN_ID:-manual}" \
+            --json
+        schema:
+          TITLE: Task title.
+          DESCRIPTION: Optional task description.
+          LANGUAGE: general|neovim|latex|typst|meta|markdown
+          PRIORITY: low|medium|high|critical
+          EFFORT_HOURS: Optional effort estimate in hours.
+
+      - name: task_transition
+        usage: Transition a task to a new status.
+        exec: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          lectic task transition "$TASK_ID" "$STATUS" \
+            --note "${NOTE:-}" \
+            --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
+            --session "${RUN_ID:-manual}" \
+            --json
+        schema:
+          TASK_ID: Numeric task id.
+          STATUS: Target status.
+          NOTE: Optional transition note.
+
+      - name: task_attach
+        usage: Attach an artifact path to a task.
+        exec: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          lectic task attach "$TASK_ID" \
+            --kind "$KIND" \
+            --path "$PATH" \
+            --summary "${SUMMARY:-}" \
+            --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
+            --session "${RUN_ID:-manual}" \
+            --json
+        schema:
+          TASK_ID: Numeric task id.
+          KIND: report|plan|summary|code|doc|other
+          PATH: Relative artifact path.
+          SUMMARY: Optional artifact summary.
+
+      - name: task_note
+        usage: Add a note to a task.
+        exec: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          lectic task note "$TASK_ID" \
+            --text "$TEXT" \
+            --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
+            --session "${RUN_ID:-manual}" \
+            --json
+        schema:
+          TASK_ID: Numeric task id.
+          TEXT: Note text.
+
+      - name: task_show
+        usage: Show task details, notes, artifacts, and events.
+        exec: lectic task show "$TASK_ID" --json
+        schema:
+          TASK_ID: Numeric task id.
+
+      - name: task_next
+        usage: Pick the next actionable task.
+        exec: lectic task next --json
+
+macros:
+  - name: task_new
+    description: Create a task from macro input text.
+    expansion: |
+      exec:#!/usr/bin/env bash
+      set -euo pipefail
+      TITLE="${TITLE:-$ARG}"
+      if [[ -z "$TITLE" ]]; then
+        echo "task_new requires a title (arg or TITLE attribute)" >&2
+        exit 1
+      fi
+
+      lectic task create \
+        --title "$TITLE" \
+        --desc "${DESC:-}" \
+        --lang "${LANGUAGE:-general}" \
+        --priority "${PRIORITY:-medium}" \
+        --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
+        --session "${RUN_ID:-manual}" \
+        --json
+
+  - name: task_show
+    description: Show one task by id.
+    completions: exec:lectic task complete --limit 50
+    expansion: exec:lectic task show "$ARG" --json
+
+  - name: task_research
+    description: Transition task to researching.
+    completions: exec:lectic task complete --status not_started,partial,blocked --limit 50
+    expansion: exec:lectic task transition "$ARG" researching --json
+
+  - name: task_plan
+    description: Transition task to planned.
+    completions: exec:lectic task complete --status planning,researched,partial --limit 50
+    expansion: exec:lectic task transition "$ARG" planned --json
+
+  - name: task_implement
+    description: Transition task to implementing.
+    completions: exec:lectic task complete --status planned,partial,blocked --limit 50
+    expansion: exec:lectic task transition "$ARG" implementing --json
+
+  - name: task_done
+    description: Transition task to completed.
+    completions: exec:lectic task complete --status implementing --limit 50
+    expansion: exec:lectic task transition "$ARG" completed --json
+
+  - name: task_block
+    description: Transition task to blocked.
+    completions: exec:lectic task complete --status not_started,researching,planning,implementing,partial --limit 50
+    expansion: exec:lectic task transition "$ARG" blocked --json
+
+  - name: task_next
+    description: Show next actionable task.
+    expansion: exec:lectic task next --json
