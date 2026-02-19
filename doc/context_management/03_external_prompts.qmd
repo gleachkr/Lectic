@@ -143,9 +143,12 @@ interlocutor:
 - If a file cannot be read or a command fails, Lectic reports an error and
   aborts the run. Fix the source and try again.
 
-See also
+## See also
 
-- [External Content](./01_external_content.qmd) for attaching files to user
-  messages.
-- [Macros](../automation/01_macros.qmd) for passing variables into `exec:`
-  expansions within macros.
+- [External Content](./01_external_content.qmd) for attaching
+  files to user messages.
+- [Macros](../automation/01_macros.qmd) for passing variables
+  into `exec:` expansions within macros.
+- [Configuration Keys](../reference/02_configuration.qmd) for
+  the full list of fields that accept `file:` and `exec:`
+  sources.

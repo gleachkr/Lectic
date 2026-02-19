@@ -52,7 +52,7 @@ interlocutor:
     - Body wraps at 72 characters
     - Explain what and why, not how
   provider: anthropic
-  model: claude-3-haiku-20240307
+  model: claude-sonnet-4-6
   max_tokens: 500
 ---
 
@@ -154,7 +154,7 @@ for file in $(git diff --cached --name-only); do
 interlocutor:
   name: Assistant
   prompt: Write a conventional commit message for this change. Output only the message.
-  model: claude-3-haiku-20240307
+  model: claude-sonnet-4-6
   max_tokens: 200
 ---
 

@@ -97,7 +97,8 @@ An interlocutor object defines a single LLM "personality" or configuration.
   `anthropic`, `anthropic/bedrock`, `openai` (Responses API),
   `openai/chat` (legacy Chat Completions), `gemini`, `ollama`, and
   `openrouter`.
-- `model`: The specific model to use, e.g., `claude-3-opus-20240229`.
+- `model`: The specific model to use, e.g.,
+  `claude-sonnet-4-6`.
 - `temperature`: A number between 0 and 1 controlling the randomness of the
   output.
 - `max_tokens`: The maximum number of tokens to generate in a response.

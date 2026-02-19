@@ -72,21 +72,7 @@ for providing the entire source code of a project as context.
 
 Lectic uses Bun's [Glob API](https://bun.sh/docs/api/glob) for matching.
 
-### Advanced URI Features
-
-Using full `file://` URIs for local content enables additional capabilities.
-
-#### Environment Variable Expansion
-
-Lectic supports environment variable expansion in URIs. This helps in
-creating portable `.lec` files that don't rely on hardcoded absolute paths.
-
-```markdown
-[My dataset](file://$DATA_ROOT/my_project/data.csv)
-[Log file](file://$PWD/logs/latest.log)
-```
-
-#### PDF Page Selection
+### PDF Page Selection
 
 When referencing a PDF, you can point to a specific page or a range of pages
 by adding a fragment to the URI. Page numbering starts at 1.
@@ -208,22 +194,7 @@ in between user turns).
 
 ### How inline attachments work
 
-Inline attachments serve two purposes:
-
-1. **Caching**: Results are stored in the file, so re-running Lectic doesn't
-   re-execute commands or re-process content. Only `:attach` directives in the
-   most recent user message are processed.
-
-2. **Context positioning**: When sending the conversation to the provider,
-   attachments are treated as if they were a user message immediately
-   preceding the assistant's response. This keeps provider caches stable.
-
-Inline attachments appear in the `.lec` file as XML blocks inside the
-assistant response. Editor plugins typically fold them by default to reduce
-visual clutter.
-
-::: {.callout-tip}
-Inline attachments are managed by Lectic. Don't edit them by hand — if you
-need to re-run a command, delete the attachment and add a new `:attach`
-directive in your latest message.
-:::
+For details on how inline attachments are stored in the `.lec`
+file and how they interact with the provider, see
+[Inline Attachments](../04_conversation_format.qmd#inline-attachments)
+in the Conversation Format guide.

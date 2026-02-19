@@ -23,8 +23,9 @@ You can find lists of available servers here:
 ## Configuration
 
 Note: The snippets below show only the tool definition. They assume you have
-an interlocutor with a valid prompt and model configuration. See Getting
-Started for a full header example.
+an interlocutor with a valid prompt and model configuration. See
+[Getting Started](../02_getting_started.qmd) for a full header
+example.
 
 You can connect to an MCP server in three ways: by running a local server as
 a command, or by connecting to a remote server over WebSockets or SSE.

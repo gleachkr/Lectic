@@ -41,7 +41,7 @@ interlocutors:
       - Open questions that remain
       - Actionable conclusions
     provider: anthropic
-    model: claude-3-haiku-20240307
+    model: claude-haiku-4-20250514
 ---
 ```
 
@@ -138,10 +138,10 @@ Use cheaper/faster models for quick checks:
 ```yaml
 interlocutors:
   - name: Deep
-    model: claude-sonnet-4-20250514  # For complex analysis
+    model: claude-opus-4-6  # For complex analysis
     
   - name: Quick
-    model: claude-3-haiku-20240307  # For quick sanity checks
+    model: claude-haiku-4-20250514  # For quick sanity checks
 ```
 
 ## Tips

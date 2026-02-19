@@ -19,7 +19,7 @@ a list of configurations.
 interlocutors:
   - name: Boggle
     provider: anthropic
-    model: claude-3-sonnet-20240229
+    model: claude-sonnet-4-6
     prompt: You are an expert on personal finance.
   - name: Oggle
     provider: gemini
@@ -114,7 +114,7 @@ configuration. The provided YAML is merged with the existing header, overriding
 any existing keys.
 
 ```markdown
-:merge_yaml[{ interlocutor: { model: "claude-3-opus-20240229" } }]
+:merge_yaml[{ interlocutor: { model: "claude-opus-4-6" } }]
 ```
 
 This change persists for all subsequent turns in the conversation.

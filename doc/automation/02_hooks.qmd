@@ -53,17 +53,9 @@ output is captured and added to the conversation.
   assistant to generate more content.
 
 In the `.lec` file, inline hook output is stored as an XML
-`<inline-attachment kind="hook">` block. The `<command>` element records the
-hook's `do` field so you can see what produced the output.
-
-```xml
-<inline-attachment kind="hook">
-<command>./my-hook.sh</command>
-<content type="text/plain">
-┆System check complete.
-</content>
-</inline-attachment>
-```
+`<inline-attachment kind="hook">` block. See
+[Inline Attachments](../04_conversation_format.qmd#inline-attachments)
+for details on the storage format.
 
 ## Available events and environment
 
@@ -296,18 +288,17 @@ Notes:
   streaming from stdin.
 - Adjust the table schema to suit your use case.
 
-## Example: Automatically Injecting context
+## Example: Automatically injecting context
 
 This example automatically runs `date` before every user message and
-injects the output into the context. This allows the LLM to always know the
-date and time without you needing to run :cmd[date]
-
+injects the output into the context. This allows the LLM to always know
+the date and time without you needing to run `:cmd[date]`.
 
 ```yaml
 hooks:
   - on: user_message
     inline: true
-    do: 
+    do: |
       #!/usr/bin/env bash
       echo "<date-and-time>"
       date

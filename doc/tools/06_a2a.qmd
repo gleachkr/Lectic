@@ -64,17 +64,76 @@ The tool exposes these parameters:
 - `maxWaitSeconds` (optional): override the streaming max-wait for this
   call. When exceeded, the tool returns early with a `taskId`.
 
+## Example conversation
+
+Configuration:
+
+```yaml
+interlocutors:
+  - name: Assistant
+    prompt: >
+      You coordinate with a remote research agent.
+    tools:
+      - name: researcher
+        a2a: http://127.0.0.1:41240/agents/research
+```
+
+Conversation:
+
+````markdown
+Find recent papers on retrieval-augmented generation.
+
+:::Assistant
+
+<tool-call with="researcher">
+<arguments>
+<op>
+┆sendMsg
+</op>
+<text>
+┆Find recent papers on retrieval-augmented generation.
+</text>
+</arguments>
+<results>
+<result type="text">
+┆Here are three recent papers on RAG:
+┆1. "Adaptive RAG" (Chen et al., 2025) ...
+┆2. ...
+</result>
+<result type="application/json">
+┆{
+┆  "contextId": "ctx-abc123",
+┆  "taskId": "task-xyz789",
+┆  "agent": "research",
+┆  "baseUrl": "http://127.0.0.1:41240/agents/research",
+┆  "streaming": true
+┆}
+</result>
+</results>
+</tool-call>
+
+The remote agent found three recent papers on RAG. Here's a
+summary...
+
+:::
+````
+
+To continue the same conversation with the remote agent, the
+assistant passes the `contextId` from the metadata in subsequent
+calls.
+
 ## Output format
 
 The tool returns:
 
-1. `text/plain`: the agent response text
-2. 0 or more additional results extracted from A2A message parts and
-   artifact updates:
-   - `application/pdf`, `image/*`, etc. are returned as `data:` URLs when
-     provided as bytes, or as a normal URL when provided as a URI.
+1. `text/plain`: the agent response text.
+2. Zero or more additional results extracted from A2A message
+   parts and artifact updates:
+   - `application/pdf`, `image/*`, etc. are returned as `data:`
+     URLs when provided as bytes, or as a normal URL when
+     provided as a URI.
    - `application/json` results are emitted for `data` parts.
-3. `application/json`: call metadata
+3. `application/json`: call metadata.
 
 The metadata includes:
 

@@ -30,7 +30,7 @@ This matters when you want to:
 
 The "conversation as file" approach is underexplored. Many "agentic" coding
 tools are reinventing editor affordances in awkward ways—custom UIs for
-editing, bespoke diff viewers, their own version of undo, or evan a vim mode.
+editing, bespoke diff viewers, their own version of undo, or even a vim mode.
 Lectic sidesteps all of that. Your editor already does those things.
 
 ## Core Principles

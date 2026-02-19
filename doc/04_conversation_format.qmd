@@ -36,8 +36,8 @@ interlocutor:
 ```
 
 The frontmatter can be closed with either three dashes (`---`) or three
-periods (`...`). For a complete guide to all available options, see the
-Configuration page.
+periods (`...`). For a complete guide to all available options, see
+[Configuration](./05_configuration.qmd).
 
 ## User Messages
 

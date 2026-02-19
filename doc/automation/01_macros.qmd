@@ -127,8 +127,7 @@ configuration or paths without running a command.
 My home directory is :env[HOME]
 ```
 
- If the variable is not set, `:env` expands to an
-empty string.
+If the variable is not set, `:env` expands to an empty string.
 
 ### `:fetch` — Inline External Content as Text
 
@@ -207,8 +206,8 @@ for full details on how inline attachments work and when to use them.
 
 ## The Macro Expansion Environment
 
-When a macro expands via `exec`, the script being executed can be pased
-information via environment variables.
+When a macro expands via `exec`, the script being executed can be
+passed information via environment variables.
 
 ### Passing arguments to expansions via `ARG`
 

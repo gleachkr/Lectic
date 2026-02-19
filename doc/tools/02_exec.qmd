@@ -7,8 +7,9 @@ your system, run code, and interface with other command‑line applications.
 ## Configuration
 
 The snippets below show only the tool definition. They assume you have an
-interlocutor with a valid prompt and model configuration. See Getting
-Started for a full header example.
+interlocutor with a valid prompt and model configuration. See
+[Getting Started](../02_getting_started.qmd) for a full header
+example.
 
 You configure an `exec` tool by providing the command to be executed. You
 can also provide a custom `name` for the LLM to use, a `usage` guide, and

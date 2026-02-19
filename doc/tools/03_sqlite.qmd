@@ -28,8 +28,9 @@ but the built-in `sqlite` tool does more:
 ## Configuration
 
 The snippets below show only the tool definition. They assume you have an
-interlocutor with a valid prompt and model configuration. See Getting
-Started for a full header example.
+interlocutor with a valid prompt and model configuration. See
+[Getting Started](../02_getting_started.qmd) for a full header
+example.
 
 To configure the tool, you must provide the path to the SQLite database
 file. The database schema is automatically introspected and provided to the

@@ -1,8 +1,15 @@
 # Cookbook
 
-This section contains practical recipes showing how to combine Lectic's
-primitives to build useful workflows. Each recipe is self-contained and
-can be adapted to your needs.
+This section contains practical recipes showing how to combine
+Lectic's primitives to build useful workflows. Each recipe is
+self-contained and can be adapted to your needs.
+
+The recipes assume you have Lectic installed and have worked
+through [Getting Started](../02_getting_started.qmd). Familiarity
+with [tools](../tools/01_overview.qmd) and
+[hooks](../automation/02_hooks.qmd) will help with the more
+advanced recipes, but the simpler ones explain everything as
+they go.
 
 ## Getting Started
 
