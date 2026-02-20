@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -259,13 +259,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/07_a2a.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/06_a2a.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">A2A</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Other Tools</span></a>
   </div>
 </li>
@@ -422,7 +422,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#supported-content-types" id="toc-supported-content-types" class="nav-link" data-scroll-target="#supported-content-types">Supported Content Types</a></li>
   <li><a href="#uri-schemes" id="toc-uri-schemes" class="nav-link" data-scroll-target="#uri-schemes">URI Schemes</a></li>
-  <li><a href="#advanced-uri-features" id="toc-advanced-uri-features" class="nav-link" data-scroll-target="#advanced-uri-features">Advanced URI Features</a></li>
+  <li><a href="#pdf-page-selection" id="toc-pdf-page-selection" class="nav-link" data-scroll-target="#pdf-page-selection">PDF Page Selection</a></li>
   </ul></li>
   <li><a href="#command-output-via-cmd" id="toc-command-output-via-cmd" class="nav-link" data-scroll-target="#command-output-via-cmd">Command Output via <code>:cmd</code></a>
   <ul class="collapse">
@@ -488,17 +488,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">All images in this directory</span><span class="co">](./images/*.jpg)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Lectic uses Bun’s <a href="https://bun.sh/docs/api/glob">Glob API</a> for matching.</p>
 </section>
-<section id="advanced-uri-features" class="level3">
-<h3 class="anchored" data-anchor-id="advanced-uri-features">Advanced URI Features</h3>
-<p>Using full <code>file://</code> URIs for local content enables additional capabilities.</p>
-<section id="environment-variable-expansion" class="level4">
-<h4 class="anchored" data-anchor-id="environment-variable-expansion">Environment Variable Expansion</h4>
-<p>Lectic supports environment variable expansion in URIs. This helps in creating portable <code>.lec</code> files that don’t rely on hardcoded absolute paths.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">My dataset</span><span class="co">](file://$DATA_ROOT/my_project/data.csv)</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">Log file</span><span class="co">](file://$PWD/logs/latest.log)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="pdf-page-selection" class="level4">
-<h4 class="anchored" data-anchor-id="pdf-page-selection">PDF Page Selection</h4>
+<section id="pdf-page-selection" class="level3">
+<h3 class="anchored" data-anchor-id="pdf-page-selection">PDF Page Selection</h3>
 <p>When referencing a PDF, you can point to a specific page or a range of pages by adding a fragment to the URI. Page numbering starts at 1.</p>
 <ul>
 <li><strong>Single Page</strong>: <code>[See page 5](file.pdf#page=5)</code></li>
@@ -507,16 +498,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>If both <code>page</code> and <code>pages</code> are supplied, <code>pages</code> takes precedence. If a page or range is malformed or out of bounds, Lectic will surface an error that is visible to the LLM.</p>
 </section>
 </section>
-</section>
 <section id="command-output-via-cmd" class="level2">
 <h2 class="anchored" data-anchor-id="command-output-via-cmd">Command Output via <code>:cmd</code></h2>
 <p>Use <code>:cmd[...]</code> to execute a shell command and insert its output directly into your message. Think of it as a built-in <a href="../automation/01_macros.html">macro</a> that runs a command and pastes in the result.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>What can you tell me about my system? :cmd<span class="co">[</span><span class="ot">uname -a</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>What can you tell me about my system? :cmd<span class="co">[</span><span class="ot">uname -a</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When Lectic processes this, it runs <code>uname -a</code> and replaces the <code>:cmd[...]</code> directive with the command’s output wrapped in XML:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">stdout</span><span class="ot"> from=</span><span class="st">"uname -a"</span>&gt;Linux myhost 6.1.0 ...&lt;/<span class="kw">stdout</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">stdout</span><span class="ot"> from=</span><span class="st">"uname -a"</span>&gt;Linux myhost 6.1.0 ...&lt;/<span class="kw">stdout</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If the command fails (non-zero exit code), you get an error wrapper instead:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">error</span>&gt;Something went wrong when executing a command:&lt;<span class="kw">stdout</span><span class="ot"> from=</span><span class="st">"bad-cmd"</span>&gt;</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">stdout</span>&gt;&lt;<span class="kw">stderr</span><span class="ot"> from=</span><span class="st">"bad-cmd"</span>&gt;bad-cmd: command not found&lt;/<span class="kw">stderr</span>&gt;&lt;/<span class="kw">error</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">error</span>&gt;Something went wrong when executing a command:&lt;<span class="kw">stdout</span><span class="ot"> from=</span><span class="st">"bad-cmd"</span>&gt;</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">stdout</span>&gt;&lt;<span class="kw">stderr</span><span class="ot"> from=</span><span class="st">"bad-cmd"</span>&gt;bad-cmd: command not found&lt;/<span class="kw">stderr</span>&gt;&lt;/<span class="kw">error</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="when-cmd-runs" class="level3">
 <h3 class="anchored" data-anchor-id="when-cmd-runs">When <code>:cmd</code> runs</h3>
 <p><code>:cmd</code> directives are expanded at the beginning of each user turn. You can also expand them with an <a href="../reference/03_lsp.html">LSP</a> code action. If you want a <code>:cmd</code> directive to expand only once, you can wrap it in <code>:attach[..]</code> (see below) which will store the results in the lectic document as an attachment, or you can implement some other caching mechanism using the macro system.</p>
@@ -528,8 +518,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Standard Lectic environment variables like <code>LECTIC_FILE</code> are available.</li>
 <li>Line breaks inside <code>:cmd[...]</code> are ignored, so wrapped commands work:</li>
 </ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>:cmd[find . -name "*.ts" </span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>     <span class="pp">|</span> head -20]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>:cmd[find . -name "*.ts" </span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>     <span class="pp">|</span> head -20]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="use-cases" class="level3">
 <h3 class="anchored" data-anchor-id="use-cases">Use cases</h3>
@@ -544,24 +534,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="inline-attachments-with-attach">Inline Attachments with <code>:attach</code></h2>
 <p>While <code>:cmd</code> inserts command output directly into your message text, sometimes you want to provide context that appears as a separate attachment — for example, to keep the conversation transcript cleaner or to control caching behavior.</p>
 <p>The <code>:attach[...]</code> directive creates an <strong>inline attachment</strong>. The content inside the brackets is stored in the assistant’s response block (after macro expansion) and sent to the LLM as additional user context.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Here's the current state of the config:</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:config_status_macro[]</span><span class="co">]</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>What do you think of this configuration?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>Here's the current state of the config:</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:config_status_macro[]</span><span class="co">]</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>What do you think of this configuration?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When Lectic processes this, it creates an inline attachment that appears at the top of the assistant’s response:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"attach"</span>&gt;</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;&lt;/<span class="kw">command</span>&gt;</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">content</span><span class="ot"> type=</span><span class="st">"text/plain"</span>&gt;</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>┆server:</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>┆  port: 8080</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>┆  host: localhost</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">content</span>&gt;</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">inline-attachment</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"attach"</span>&gt;</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;&lt;/<span class="kw">command</span>&gt;</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">content</span><span class="ot"> type=</span><span class="st">"text/plain"</span>&gt;</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>┆server:</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>┆  port: 8080</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>┆  host: localhost</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">content</span>&gt;</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">inline-attachment</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="combining-attach-with-cmd" class="level3">
 <h3 class="anchored" data-anchor-id="combining-attach-with-cmd">Combining <code>:attach</code> with <code>:cmd</code></h3>
 <p>You can compose <code>:attach</code> and <code>:cmd</code> to get the best of both worlds — run a command and store its output as an attachment:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="an">Review this diff:</span><span class="co"> :attach[:cmd[git diff --staged]]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="an">Review this diff:</span><span class="co"> :attach[:cmd[git diff --staged]]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This executes <code>git diff --staged</code>, then wraps the result as an inline attachment. The attachment is cached in the transcript, so re-running Lectic won’t re-execute the command.</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
@@ -580,25 +570,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="how-inline-attachments-work" class="level3">
 <h3 class="anchored" data-anchor-id="how-inline-attachments-work">How inline attachments work</h3>
-<p>Inline attachments serve two purposes:</p>
-<ol type="1">
-<li><p><strong>Caching</strong>: Results are stored in the file, so re-running Lectic doesn’t re-execute commands or re-process content. Only <code>:attach</code> directives in the most recent user message are processed.</p></li>
-<li><p><strong>Context positioning</strong>: When sending the conversation to the provider, attachments are treated as if they were a user message immediately preceding the assistant’s response. This keeps provider caches stable.</p></li>
-</ol>
-<p>Inline attachments appear in the <code>.lec</code> file as XML blocks inside the assistant response. Editor plugins typically fold them by default to reduce visual clutter.</p>
-<div class="callout callout-style-default callout-tip callout-titled">
-<div class="callout-header d-flex align-content-center">
-<div class="callout-icon-container">
-<i class="callout-icon"></i>
-</div>
-<div class="callout-title-container flex-fill">
-Tip
-</div>
-</div>
-<div class="callout-body-container callout-body">
-<p>Inline attachments are managed by Lectic. Don’t edit them by hand — if you need to re-run a command, delete the attachment and add a new <code>:attach</code> directive in your latest message.</p>
-</div>
-</div>
+<p>For details on how inline attachments are stored in the <code>.lec</code> file and how they interact with the provider, see <a href="../04_conversation_format.html#inline-attachments">Inline Attachments</a> in the Conversation Format guide.</p>
 
 
 </section>

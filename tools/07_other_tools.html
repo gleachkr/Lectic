@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>a2a – Lectic Documentation</title>
+<title>other_tools – Lectic Documentation</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -117,7 +117,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/07_a2a.html">A2A</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/07_other_tools.html">Other Tools</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -259,13 +259,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/07_a2a.html" class="sidebar-item-text sidebar-link active">
+  <a href="../tools/06_a2a.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">A2A</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">Other Tools</span></a>
   </div>
 </li>
@@ -416,101 +416,101 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#tools-agent2agent-a2a" id="toc-tools-agent2agent-a2a" class="nav-link active" data-scroll-target="#tools-agent2agent-a2a">Tools: Agent2Agent (A2A)</a>
+  <li><a href="#other-tools-think-and-native" id="toc-other-tools-think-and-native" class="nav-link active" data-scroll-target="#other-tools-think-and-native">Other Tools: <code>think</code> and <code>native</code></a>
+  <ul class="collapse">
+  <li><a href="#the-think-tool" id="toc-the-think-tool" class="nav-link" data-scroll-target="#the-think-tool">The <code>think</code> Tool</a>
   <ul class="collapse">
   <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a></li>
-  <li><a href="#tool-call-parameters" id="toc-tool-call-parameters" class="nav-link" data-scroll-target="#tool-call-parameters">Tool call parameters</a></li>
-  <li><a href="#output-format" id="toc-output-format" class="nav-link" data-scroll-target="#output-format">Output format</a></li>
+  <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
+  </ul></li>
+  <li><a href="#serving-html-with-a-skill" id="toc-serving-html-with-a-skill" class="nav-link" data-scroll-target="#serving-html-with-a-skill">Serving HTML with a Skill</a></li>
+  <li><a href="#native-tools" id="toc-native-tools" class="nav-link" data-scroll-target="#native-tools"><code>native</code> Tools</a>
+  <ul class="collapse">
+  <li><a href="#configuration-1" id="toc-configuration-1" class="nav-link" data-scroll-target="#configuration-1">Configuration</a></li>
+  <li><a href="#provider-support" id="toc-provider-support" class="nav-link" data-scroll-target="#provider-support">Provider Support</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/07_a2a.html">A2A</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../tools/01_overview.html">Tools</a></li><li class="breadcrumb-item"><a href="../tools/07_other_tools.html">Other Tools</a></li></ol></nav></header>
 
 
 
 
-<section id="tools-agent2agent-a2a" class="level1">
-<h1>Tools: Agent2Agent (A2A)</h1>
-<p>The <code>a2a</code> tool lets your Lectic interlocutor call a remote agent that implements the Agent2Agent (A2A) protocol.</p>
-<p>This is useful for:</p>
-<ul>
-<li>Testing the built-in <code>lectic a2a</code> server</li>
-<li>Delegating work to an external agent process</li>
-</ul>
-<section id="configuration" class="level2">
-<h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
-<p>You configure an A2A tool by providing the base URL for the agent.</p>
-<p>If your agent card is served at:</p>
-<ul>
-<li><code>http://HOST:PORT/agents/&lt;id&gt;/.well-known/agent-card.json</code></li>
-</ul>
-<p>then set the tool URL to:</p>
-<ul>
-<li><code>http://HOST:PORT/agents/&lt;id&gt;</code></li>
-</ul>
-<p>Example:</p>
+<section id="other-tools-think-and-native" class="level1">
+<h1>Other Tools: <code>think</code> and <code>native</code></h1>
+<p>This document covers two tool types: a cognitive scratchpad for the LLM, and provider-native tools like web search or code execution.</p>
+<p><code>serve_on_port</code> is no longer a built-in tool. If you want browser previews, use a skill-based replacement. A bundled example lives at <code>extra/skills/serve</code>.</p>
+<section id="the-think-tool" class="level2">
+<h2 class="anchored" data-anchor-id="the-think-tool">The <code>think</code> Tool</h2>
+<p>The <code>think</code> tool gives the LLM a private “scratch space” to pause and reason about a prompt before formulating its final response. This can improve the quality and thoughtfulness of the output, especially for complex or ambiguous questions.</p>
+<p>This technique was inspired by a post on <a href="https://www.anthropic.com/engineering/claude-think-tool">Anthropic’s engineering blog</a>. The output of the <code>think</code> tool is hidden from the user by default in the editor plugins, though it is still present in the <code>.lec</code> file.</p>
+<section id="configuration" class="level3">
+<h3 class="anchored" data-anchor-id="configuration">Configuration</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> remote_agent</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">a2a</span><span class="kw">:</span><span class="at"> http://127.0.0.1:41240/agents/assistant</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Optional settings:</p>
-<ul>
-<li><code>stream</code>: prefer streaming (<code>message/sendStream</code>). Defaults to <code>true</code>.</li>
-<li><code>maxWaitSeconds</code>: when streaming, max seconds to wait for the call to reach a final event before returning early with <code>taskId</code> so you can poll using <code>getTask</code>. Defaults to <code>5</code>.</li>
-<li><code>headers</code>: extra HTTP headers to attach to every A2A request.
-<ul>
-<li>Header values support <code>file:</code> and <code>exec:</code> sources (same as MCP).</li>
-<li>Avoid hardcoding secrets directly in YAML.</li>
-</ul></li>
-</ul>
-<p>Example (bearer token loaded from an external command):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> prod_agent</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">a2a</span><span class="kw">:</span><span class="at"> https://example.com/agents/assistant</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">headers</span><span class="kw">:</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">Authorization</span><span class="kw">:</span><span class="at"> exec:bash -lc 'echo "Bearer $(pass a2a/token)"'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">  - </span><span class="fu">think_about</span><span class="kw">:</span><span class="at"> </span><span class="ch">&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>      What the user is really asking for, and what hidden assumptions they</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>      might have.</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> scratchpad</span><span class="co"> # Optional name</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="tool-call-parameters" class="level2">
-<h2 class="anchored" data-anchor-id="tool-call-parameters">Tool call parameters</h2>
-<p>The tool exposes these parameters:</p>
-<ul>
-<li><code>op</code> (required): operation mode.
-<ul>
-<li><code>sendMsg</code>: send user text via <code>message/send</code> (or <code>message/sendStream</code>).</li>
-<li><code>getTask</code>: poll a long-running task via <code>tasks/get</code>.</li>
-</ul></li>
-<li><code>text</code> (required for <code>op=sendMsg</code>): user text to send to the agent.</li>
-<li><code>contextId</code> (optional): A2A context id to continue a conversation.</li>
-<li><code>taskId</code>:
-<ul>
-<li>required for <code>op=getTask</code></li>
-<li>optional for <code>op=sendMsg</code> (some agents may attach messages to a task)</li>
-</ul></li>
-<li><code>stream</code> (optional): override streaming for <code>op=sendMsg</code>.</li>
-<li><code>maxWaitSeconds</code> (optional): override the streaming max-wait for this call. When exceeded, the tool returns early with a <code>taskId</code>.</li>
-</ul>
+<section id="example" class="level3">
+<h3 class="anchored" data-anchor-id="example">Example</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>What's the best city in the world?</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>:::Assistant</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tool-call</span><span class="ot"> with</span><span class="op">=</span><span class="st">"scratchpad"</span><span class="dt">&gt;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">thought</span><span class="dt">&gt;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>┆"Best" is subjective. The user could mean best for travel, for</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>┆food, for work, etc. I need to ask for clarification.</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">thought</span><span class="dt">&gt;</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">results</span><span class="dt">&gt;</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">result</span><span class="ot"> type</span><span class="op">=</span><span class="st">"text"</span><span class="dt">&gt;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>┆thought complete.</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">result</span><span class="dt">&gt;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">results</span><span class="dt">&gt;</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tool-call</span><span class="dt">&gt;</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>That depends on what you're looking for! Are you interested in the best</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>city for tourism, career opportunities, or something else?</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="output-format" class="level2">
-<h2 class="anchored" data-anchor-id="output-format">Output format</h2>
-<p>The tool returns:</p>
-<ol type="1">
-<li><code>text/plain</code>: the agent response text</li>
-<li>0 or more additional results extracted from A2A message parts and artifact updates:
+</section>
+<section id="serving-html-with-a-skill" class="level2">
+<h2 class="anchored" data-anchor-id="serving-html-with-a-skill">Serving HTML with a Skill</h2>
+<p>If you want the old “render HTML in a browser” workflow, add the skills subcommand tool and include <code>extra/skills</code> in your skill roots.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> skills</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> lectic skills ./extra/skills</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> exec:lectic skills --prompt ./extra/skills</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Then activate and run the bundled <code>serve</code> skill script via the <code>skills</code> tool. See <a href="../cookbook/08_skills_subcommand.html">Agent Skills Support</a> for setup details.</p>
+</section>
+<section id="native-tools" class="level2">
+<h2 class="anchored" data-anchor-id="native-tools"><code>native</code> Tools</h2>
+<p>Native tools allow you to access functionality that is built directly into the LLM provider’s backend, such as web search or a code interpreter environment for data analysis.</p>
+<p>Support for native tools varies by provider.</p>
+<section id="configuration-1" class="level3">
+<h3 class="anchored" data-anchor-id="configuration-1">Configuration</h3>
+<p>You enable native tools by specifying their type.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> search</span><span class="co"> # Enable the provider's built-in web search.</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> code</span><span class="co">   # Enable the provider's built-in code interpreter.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="provider-support" class="level3">
+<h3 class="anchored" data-anchor-id="provider-support">Provider Support</h3>
 <ul>
-<li><code>application/pdf</code>, <code>image/*</code>, etc. are returned as <code>data:</code> URLs when provided as bytes, or as a normal URL when provided as a URI.</li>
-<li><code>application/json</code> results are emitted for <code>data</code> parts.</li>
-</ul></li>
-<li><code>application/json</code>: call metadata</li>
-</ol>
-<p>The metadata includes:</p>
-<ul>
-<li><code>contextId</code>, <code>taskId</code>: identifiers you can reuse</li>
-<li><code>agent</code>: the agent name from its agent card</li>
-<li><code>baseUrl</code>, <code>streaming</code>: call metadata</li>
+<li><strong>Gemini</strong>: Supports both <code>search</code> and <code>code</code>. Note that the Gemini API has a limitation where you can only use one native tool at a time, and it cannot be combined with other (non-native) tools.</li>
+<li><strong>Anthropic</strong>: Supports <code>search</code> only.</li>
+<li><strong>OpenAI</strong>: Supports both <code>search</code> and <code>code</code> via the <code>openai</code> provider (not the legacy <code>openai/chat</code> provider).</li>
+<li><strong>Codex</strong>: Supports both <code>search</code> and <code>code</code> via the <code>codex</code> provider (ChatGPT subscription, Codex backend).</li>
 </ul>
 
 
+</section>
 </section>
 </section>
 

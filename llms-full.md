@@ -29,7 +29,7 @@ This matters when you want to:
 The “conversation as file” approach is underexplored. Many “agentic”
 coding tools are reinventing editor affordances in awkward ways—custom
 UIs for editing, bespoke diff viewers, their own version of undo, or
-evan a vim mode. Lectic sidesteps all of that. Your editor already does
+even a vim mode. Lectic sidesteps all of that. Your editor already does
 those things.
 
 ## Core Principles
@@ -179,9 +179,9 @@ All documentation concatenated into a single markdown file can be found
 
 # Getting Started with Lectic
 
-This short guide helps you install Lectic and run your first
-conversation. Along the way, you will verify your install, set an API
-key, and see a simple tool in action.
+This guide helps you install Lectic and run your first conversation.
+Along the way, you will verify your install, set an API key, and see a
+simple tool in action.
 
 ## Installation
 
@@ -200,7 +200,16 @@ yay -S lectic-bin
 # or: paru -S lectic-bin
 ```
 
-#### Linux / macOS (release tarballs)
+#### Linux / macOS quick install (GitHub Releases)
+
+``` bash
+curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
+  | sh
+```
+
+To update later, rerun the same installer command.
+
+#### Linux / macOS manual install (release tarballs)
 
 Download the matching release tarball from the [GitHub Releases
 page](https://github.com/gleachkr/Lectic/releases), extract it, and put
@@ -305,9 +314,9 @@ What is a fun fact about the Rust programming language?
 
 :::Assistant
 
-Rust's mascot is a crab named Ferris! The name is a pun on "ferrous,"
-relating to iron (Fe), which connects to "rust." You'll often see Ferris
-in Rust documentation and community materials.
+Rust's mascot is a crab named Ferris! The name is a pun on
+"ferrous," relating to iron (Fe), which connects to "rust." You'll
+often see Ferris in Rust documentation and community materials.
 
 :::
 ```
@@ -333,24 +342,7 @@ interlocutor:
 What is today's date?
 ```
 
-Run Lectic again. The assistant block will now include an XML tool call
-and the recorded results. You will see tags like `<tool-call>`,
-`<arguments>`, and `<results>` in the block.
-
-> [!TIP]
->
-> You can load prompts from files or compute them with commands using
-> `file:` and `exec:`. See [External
-> Prompts](./context_management/03_external_prompts.qmd).
-
-## Troubleshooting
-
-Here are solutions to common issues when getting started.
-
-### “No API key found” or similar error
-
-Lectic needs at least one provider key in your environment. Make sure
-you’ve exported it in the same shell session:
+Run it:
 
 ``` bash
 lectic -i tools.lec
@@ -402,6 +394,19 @@ source /path/to/lectic/extra/tab_complete/lectic_completion.bash
 Or place the script in `~/.local/share/bash-completion/completions/`.
 
 ## Troubleshooting
+
+### “No API key found” or similar error
+
+Lectic needs at least one provider key in your environment. Make sure
+you’ve exported it in the same shell session:
+
+``` bash
+export ANTHROPIC_API_KEY="your-api-key-here"
+lectic -i hello.lec
+```
+
+If you set the key in `.bashrc` or `.zshrc`, restart your terminal or
+run `source ~/.bashrc` to pick it up.
 
 ### Response is empty or tool calls aren’t working
 
@@ -737,8 +742,8 @@ interlocutor:
 ```
 
 The frontmatter can be closed with either three dashes (`---`) or three
-periods (`...`). For a complete guide to all available options, see the
-Configuration page.
+periods (`...`). For a complete guide to all available options, see
+[Configuration](./05_configuration.qmd).
 
 ## User Messages
 
@@ -977,7 +982,7 @@ Imagine you have a global config in `~/.config/lectic/lectic.yaml`:
 interlocutors:
     - name: opus
       provider: anthropic
-      model: claude-3-opus-20240229
+      model: claude-opus-4-6
 ```
 
 And a project-specific file, `project.yaml`:
@@ -985,8 +990,8 @@ And a project-specific file, `project.yaml`:
 ``` yaml
 # ./project.yaml
 interlocutor:
-    name: haiku
-    model: claude-3-haiku-20240307
+    name: sonnet
+    model: claude-sonnet-4-6
     tools:
         - exec: bash
         - agent: opus
@@ -995,7 +1000,7 @@ interlocutor:
 If you place this project config at `./lectic.yaml` in your working
 directory, Lectic will merge it with your system defaults and the
 document header using the precedence above. The `haiku` interlocutor
-will be configured with the `claude-3-haiku` model, and it will have
+will be configured with the `claude-haiku-4` model, and it will have
 access to a `bash` tool and an `agent` tool that can call `opus`. You
 can switch to `opus` within the conversation if needed, using an
 [`:ask[]` directive](./context_management/02_conversation_control.qmd).
@@ -1398,7 +1403,7 @@ for full details on how inline attachments work and when to use them.
 
 ## The Macro Expansion Environment
 
-When a macro expands via `exec`, the script being executed can be pased
+When a macro expands via `exec`, the script being executed can be passed
 information via environment variables.
 
 ### Passing arguments to expansions via `ARG`
@@ -1633,17 +1638,9 @@ the standard output is captured and added to the conversation.
   the assistant to generate more content.
 
 In the `.lec` file, inline hook output is stored as an XML
-`<inline-attachment kind="hook">` block. The `<command>` element records
-the hook’s `do` field so you can see what produced the output.
-
-``` xml
-<inline-attachment kind="hook">
-<command>./my-hook.sh</command>
-<content type="text/plain">
-┆System check complete.
-</content>
-</inline-attachment>
-```
+`<inline-attachment kind="hook">` block. See [Inline
+Attachments](../04_conversation_format.qmd#inline-attachments) for
+details on the storage format.
 
 ## Available events and environment
 
@@ -1879,17 +1876,17 @@ Notes:
   streaming from stdin.
 - Adjust the table schema to suit your use case.
 
-## Example: Automatically Injecting context
+## Example: Automatically injecting context
 
 This example automatically runs `date` before every user message and
 injects the output into the context. This allows the LLM to always know
-the date and time without you needing to run :cmd\[date\]
+the date and time without you needing to run `:cmd[date]`.
 
 ``` yaml
 hooks:
   - on: user_message
     inline: true
-    do: 
+    do: |
       #!/usr/bin/env bash
       echo "<date-and-time>"
       date
@@ -2242,23 +2239,7 @@ useful for providing the entire source code of a project as context.
 
 Lectic uses Bun’s [Glob API](https://bun.sh/docs/api/glob) for matching.
 
-### Advanced URI Features
-
-Using full `file://` URIs for local content enables additional
-capabilities.
-
-#### Environment Variable Expansion
-
-Lectic supports environment variable expansion in URIs. This helps in
-creating portable `.lec` files that don’t rely on hardcoded absolute
-paths.
-
-``` markdown
-[My dataset](file://$DATA_ROOT/my_project/data.csv)
-[Log file](file://$PWD/logs/latest.log)
-```
-
-#### PDF Page Selection
+### PDF Page Selection
 
 When referencing a PDF, you can point to a specific page or a range of
 pages by adding a fragment to the URI. Page numbering starts at 1.
@@ -2384,26 +2365,10 @@ Lectic won’t re-execute the command.
 
 ### How inline attachments work
 
-Inline attachments serve two purposes:
-
-1.  **Caching**: Results are stored in the file, so re-running Lectic
-    doesn’t re-execute commands or re-process content. Only `:attach`
-    directives in the most recent user message are processed.
-
-2.  **Context positioning**: When sending the conversation to the
-    provider, attachments are treated as if they were a user message
-    immediately preceding the assistant’s response. This keeps provider
-    caches stable.
-
-Inline attachments appear in the `.lec` file as XML blocks inside the
-assistant response. Editor plugins typically fold them by default to
-reduce visual clutter.
-
-> [!TIP]
->
-> Inline attachments are managed by Lectic. Don’t edit them by hand — if
-> you need to re-run a command, delete the attachment and add a new
-> `:attach` directive in your latest message.
+For details on how inline attachments are stored in the `.lec` file and
+how they interact with the provider, see [Inline
+Attachments](../04_conversation_format.qmd#inline-attachments) in the
+Conversation Format guide.
 
 
 
@@ -2428,7 +2393,7 @@ provide a list of configurations.
 interlocutors:
   - name: Boggle
     provider: anthropic
-    model: claude-3-sonnet-20240229
+    model: claude-sonnet-4-6
     prompt: You are an expert on personal finance.
   - name: Oggle
     provider: gemini
@@ -2525,7 +2490,7 @@ conversation’s configuration. The provided YAML is merged with the
 existing header, overriding any existing keys.
 
 ``` markdown
-:merge_yaml[{ interlocutor: { model: "claude-3-opus-20240229" } }]
+:merge_yaml[{ interlocutor: { model: "claude-opus-4-6" } }]
 ```
 
 This change persists for all subsequent turns in the conversation.
@@ -2694,12 +2659,14 @@ interlocutor:
 - If a file cannot be read or a command fails, Lectic reports an error
   and aborts the run. Fix the source and try again.
 
-See also
+## See also
 
 - [External Content](./01_external_content.qmd) for attaching files to
   user messages.
 - [Macros](../automation/01_macros.qmd) for passing variables into
   `exec:` expansions within macros.
+- [Configuration Keys](../reference/02_configuration.qmd) for the full
+  list of fields that accept `file:` and `exec:` sources.
 
 
 
@@ -2934,7 +2901,7 @@ interlocutor:
     - Body wraps at 72 characters
     - Explain what and why, not how
   provider: anthropic
-  model: claude-3-haiku-20240307
+  model: claude-sonnet-4-6
   max_tokens: 500
 ---
 
@@ -3034,7 +3001,7 @@ for file in $(git diff --cached --name-only); do
 interlocutor:
   name: Assistant
   prompt: Write a conventional commit message for this change. Output only the message.
-  model: claude-3-haiku-20240307
+  model: claude-sonnet-4-6
   max_tokens: 200
 ---
 
@@ -3090,7 +3057,7 @@ interlocutors:
       - Open questions that remain
       - Actionable conclusions
     provider: anthropic
-    model: claude-3-haiku-20240307
+    model: claude-haiku-4-20250514
 ---
 ```
 
@@ -3187,10 +3154,10 @@ Use cheaper/faster models for quick checks:
 ``` yaml
 interlocutors:
   - name: Deep
-    model: claude-sonnet-4-20250514  # For complex analysis
+    model: claude-opus-4-6  # For complex analysis
     
   - name: Quick
-    model: claude-3-haiku-20240307  # For quick sanity checks
+    model: claude-haiku-4-20250514  # For quick sanity checks
 ```
 
 ## Tips
@@ -3481,7 +3448,7 @@ interlocutor:
     
     Be thorough but concise. This summary will be the only context
     available for continuing the conversation.
-  model: claude-3-haiku-20240307
+  model: claude-haiku-4-20250514
   max_tokens: 1000
 ---
 
@@ -4415,6 +4382,12 @@ This section contains practical recipes showing how to combine Lectic’s
 primitives to build useful workflows. Each recipe is self-contained and
 can be adapted to your needs.
 
+The recipes assume you have Lectic installed and have worked through
+[Getting Started](../02_getting_started.qmd). Familiarity with
+[tools](../tools/01_overview.qmd) and
+[hooks](../automation/02_hooks.qmd) will help with the more advanced
+recipes, but the simpler ones explain everything as they go.
+
 ## Getting Started
 
 If you’re new to Lectic, start with these:
@@ -4724,17 +4697,6 @@ imports:
     optional: true
 ```
 
-`imports` paths also support the `local:` prefix, resolved relative to
-the config file that contains the value:
-
-``` yaml
-imports:
-  - local:./plugins/sales/module.yaml
-  - path: local:../shared/finance.yaml
-```
-
-`local:` paths must begin with `./` or `../`.
-
 - String form: required import path.
 - Object form:
   - `path`: (Required) import path.
@@ -4791,7 +4753,7 @@ configuration.
   `anthropic`, `anthropic/bedrock`, `openai` (Responses API),
   `openai/chat` (legacy Chat Completions), `gemini`, `ollama`, and
   `openrouter`.
-- `model`: The specific model to use, e.g., `claude-3-opus-20240229`.
+- `model`: The specific model to use, e.g., `claude-sonnet-4-6`.
 - `temperature`: A number between 0 and 1 controlling the randomness of
   the output.
 - `max_tokens`: The maximum number of tokens to generate in a response.
@@ -4902,8 +4864,6 @@ Connect to Model Context Protocol servers.
 
 - `think_about`: (String) Creates a thinking/scratchpad tool with the
   given prompt.
-- `serve_on_port`: (Integer) Creates a single-use web server on the
-  given port.
 - `native`: One of `search` or `code`. Enables provider built-in tools.
 - `kit`: Name of a tool kit to include.
 
@@ -5338,10 +5298,9 @@ service.
 | [`sqlite`](./03_sqlite.qmd) | Query SQLite databases | `sqlite: ./data.db` |
 | [`mcp`](./04_mcp.qmd) | Connect to MCP servers | `mcp_command: npx ...` |
 | [`agent`](./05_agent.qmd) | Call another interlocutor | `agent: OtherName` |
-| [`a2a`](./07_a2a.qmd) | Call a remote A2A agent | `a2a: http://.../agents/<id>` |
-| [`think`](./06_other_tools.qmd#the-think-tool) | Private reasoning scratchpad | `think_about: the problem` |
-| [`serve`](./06_other_tools.qmd#the-serve-tool) | Serve HTML to browser | `serve_on_port: 8080` |
-| [`native`](./06_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
+| [`a2a`](./06_a2a.qmd) | Call a remote A2A agent | `a2a: http://.../agents/<id>` |
+| [`think`](./07_other_tools.qmd#the-think-tool) | Private reasoning scratchpad | `think_about: the problem` |
+| [`native`](./07_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
 
 ## How Tool Calls Work
 
@@ -5480,12 +5439,11 @@ Each tool type has its own detailed guide:
 - **[Agent](./05_agent.qmd)**: Multi-LLM workflows. One interlocutor can
   delegate to another, enabling specialized agents.
 
-- **[A2A](./07_a2a.qmd)**: Talk to remote agents using the Agent2Agent
+- **[A2A](./06_a2a.qmd)**: Talk to remote agents using the Agent2Agent
   (A2A) protocol.
 
-- **[Other Tools](./06_other_tools.qmd)**: The `think` tool for
-  reasoning, `serve` for rendering HTML, and `native` for provider
-  built-ins like web search.
+- **[Other Tools](./07_other_tools.qmd)**: The `think` tool for
+  reasoning and `native` for provider built-ins like web search.
 
 > [!NOTE]
 >
@@ -5503,8 +5461,8 @@ command‑line applications.
 ## Configuration
 
 The snippets below show only the tool definition. They assume you have
-an interlocutor with a valid prompt and model configuration. See Getting
-Started for a full header example.
+an interlocutor with a valid prompt and model configuration. See
+[Getting Started](../02_getting_started.qmd) for a full header example.
 
 You configure an `exec` tool by providing the command to be executed.
 You can also provide a custom `name` for the LLM to use, a `usage`
@@ -5732,8 +5690,8 @@ knowledge base, or check the state of an application.
 ## Configuration
 
 The snippets below show only the tool definition. They assume you have
-an interlocutor with a valid prompt and model configuration. See Getting
-Started for a full header example.
+an interlocutor with a valid prompt and model configuration. See
+[Getting Started](../02_getting_started.qmd) for a full header example.
 
 To configure the tool, you must provide the path to the SQLite database
 file. The database schema is automatically introspected and provided to
@@ -5898,7 +5856,7 @@ You can find lists of available servers here:
 
 Note: The snippets below show only the tool definition. They assume you
 have an interlocutor with a valid prompt and model configuration. See
-Getting Started for a full header example.
+[Getting Started](../02_getting_started.qmd) for a full header example.
 
 You can connect to an MCP server in three ways: by running a local
 server as a command, or by connecting to a remote server over WebSockets
@@ -6157,151 +6115,6 @@ when to answer directly.
 
 
 
-# Other Tools: `think`, `serve`, and `native`
-
-This document covers three distinct types of tools: a cognitive tool for
-the LLM, a simple web server, and a way to access the native, built-in
-capabilities of the model provider.
-
-## The `think` Tool
-
-The `think` tool gives the LLM a private “scratch space” to pause and
-reason about a prompt before formulating its final response. This can
-improve the quality and thoughtfulness of the output, especially for
-complex or ambiguous questions.
-
-This technique was inspired by a post on [Anthropic’s engineering
-blog](https://www.anthropic.com/engineering/claude-think-tool). The
-output of the `think` tool is hidden from the user by default in the
-editor plugins, though it is still present in the `.lec` file.
-
-### Configuration
-
-``` yaml
-tools:
-  - think_about: >
-      What the user is really asking for, and what hidden assumptions they
-      might have.
-    name: scratchpad # Optional name
-```
-
-### Example
-
-``` markdown
-What's the best city in the world?
-
-:::Assistant
-
-<tool-call with="scratchpad">
-<arguments>
-<thought>
-┆"Best" is subjective. The user could mean best for travel, for
-┆food, for work, etc. I need to ask for clarification.
-</thought>
-</arguments>
-<results>
-<result type="text">
-┆thought complete.
-</result>
-</results>
-</tool-call>
-
-That depends on what you're looking for! Are you interested in the best city
-for tourism, career opportunities, or something else?
-:::
-```
-
-## The `serve` Tool
-
-The `serve` tool lets the LLM show you interactive content—HTML pages,
-visualizations, small web apps—directly in your browser. This is
-Lectic’s answer to “artifacts” features you might have seen in web-based
-LLM interfaces.
-
-Why use this instead of just writing HTML to a file? With `serve`, the
-content appears in your browser immediately. You don’t need to find the
-file and open it. The LLM can generate a data visualization, a diagram,
-or a playable game and you see it right away.
-
-When the LLM uses this tool, Lectic starts a server on the specified
-port and opens the page in your default browser. The server shuts down
-automatically after the first request is served, and the conversation
-resumes once your browser has loaded the page.
-
-### Configuration
-
-``` yaml
-tools:
-  - serve_on_port: 8080
-    name: web_server # Optional name
-```
-
-### Example
-
-``` markdown
-Generate a simple tic-tac-toe game in HTML and serve it to me.
-
-:::Assistant
-
-<tool-call with="web_server">
-<arguments>
-<pageHtml>
-┆<!DOCTYPE html>
-┆<html>
-┆<head>
-┆<title>Tic-Tac-Toe</title>
-┆... (rest of the HTML/JS/CSS) ...
-┆</head>
-┆<body>
-┆...
-┆</body>
-┆</html>
-</pageHtml>
-</arguments>
-<results>
-<result type="text">
-┆page is now available
-</result>
-</results>
-</tool-call>
-
-
-I have generated the game for you. It should be opening in your browser at
-http://localhost:8080.
-:::
-```
-
-## `native` Tools
-
-Native tools allow you to access functionality that is built directly
-into the LLM provider’s backend, such as web search or a code
-interpreter environment for data analysis.
-
-Support for native tools varies by provider.
-
-### Configuration
-
-You enable native tools by specifying their type.
-
-``` yaml
-tools:
-  - native: search # Enable the provider's built-in web search.
-  - native: code   # Enable the provider's built-in code interpreter.
-```
-
-### Provider Support
-
-- **Gemini**: Supports both `search` and `code`. Note that the Gemini
-  API has a limitation where you can only use one native tool at a time,
-  and it cannot be combined with other (non-native) tools.
-- **Anthropic**: Supports `search` only.
-- **OpenAI**: Supports both `search` and `code` via the `openai`
-  provider (not the legacy `openai/chat` provider).
-- **Codex**: Supports both `search` and `code` via the `codex` provider
-  (ChatGPT subscription, Codex backend).
-
-
-
 # Tools: Agent2Agent (A2A)
 
 The `a2a` tool lets your Lectic interlocutor call a remote agent that
@@ -6370,21 +6183,182 @@ The tool exposes these parameters:
 - `maxWaitSeconds` (optional): override the streaming max-wait for this
   call. When exceeded, the tool returns early with a `taskId`.
 
+## Example conversation
+
+Configuration:
+
+``` yaml
+interlocutors:
+  - name: Assistant
+    prompt: >
+      You coordinate with a remote research agent.
+    tools:
+      - name: researcher
+        a2a: http://127.0.0.1:41240/agents/research
+```
+
+Conversation:
+
+``` markdown
+Find recent papers on retrieval-augmented generation.
+
+:::Assistant
+
+<tool-call with="researcher">
+<arguments>
+<op>
+┆sendMsg
+</op>
+<text>
+┆Find recent papers on retrieval-augmented generation.
+</text>
+</arguments>
+<results>
+<result type="text">
+┆Here are three recent papers on RAG:
+┆1. "Adaptive RAG" (Chen et al., 2025) ...
+┆2. ...
+</result>
+<result type="application/json">
+┆{
+┆  "contextId": "ctx-abc123",
+┆  "taskId": "task-xyz789",
+┆  "agent": "research",
+┆  "baseUrl": "http://127.0.0.1:41240/agents/research",
+┆  "streaming": true
+┆}
+</result>
+</results>
+</tool-call>
+
+The remote agent found three recent papers on RAG. Here's a
+summary...
+
+:::
+```
+
+To continue the same conversation with the remote agent, the assistant
+passes the `contextId` from the metadata in subsequent calls.
+
 ## Output format
 
 The tool returns:
 
-1.  `text/plain`: the agent response text
-2.  0 or more additional results extracted from A2A message parts and
+1.  `text/plain`: the agent response text.
+2.  Zero or more additional results extracted from A2A message parts and
     artifact updates:
     - `application/pdf`, `image/*`, etc. are returned as `data:` URLs
       when provided as bytes, or as a normal URL when provided as a URI.
     - `application/json` results are emitted for `data` parts.
-3.  `application/json`: call metadata
+3.  `application/json`: call metadata.
 
 The metadata includes:
 
 - `contextId`, `taskId`: identifiers you can reuse
 - `agent`: the agent name from its agent card
 - `baseUrl`, `streaming`: call metadata
+
+
+
+# Other Tools: `think` and `native`
+
+This document covers two tool types: a cognitive scratchpad for the LLM,
+and provider-native tools like web search or code execution.
+
+`serve_on_port` is no longer a built-in tool. If you want browser
+previews, use a skill-based replacement. A bundled example lives at
+`extra/skills/serve`.
+
+## The `think` Tool
+
+The `think` tool gives the LLM a private “scratch space” to pause and
+reason about a prompt before formulating its final response. This can
+improve the quality and thoughtfulness of the output, especially for
+complex or ambiguous questions.
+
+This technique was inspired by a post on [Anthropic’s engineering
+blog](https://www.anthropic.com/engineering/claude-think-tool). The
+output of the `think` tool is hidden from the user by default in the
+editor plugins, though it is still present in the `.lec` file.
+
+### Configuration
+
+``` yaml
+tools:
+  - think_about: >
+      What the user is really asking for, and what hidden assumptions they
+      might have.
+    name: scratchpad # Optional name
+```
+
+### Example
+
+``` markdown
+What's the best city in the world?
+
+:::Assistant
+
+<tool-call with="scratchpad">
+<arguments>
+<thought>
+┆"Best" is subjective. The user could mean best for travel, for
+┆food, for work, etc. I need to ask for clarification.
+</thought>
+</arguments>
+<results>
+<result type="text">
+┆thought complete.
+</result>
+</results>
+</tool-call>
+
+That depends on what you're looking for! Are you interested in the best
+city for tourism, career opportunities, or something else?
+:::
+```
+
+## Serving HTML with a Skill
+
+If you want the old “render HTML in a browser” workflow, add the skills
+subcommand tool and include `extra/skills` in your skill roots.
+
+``` yaml
+tools:
+  - name: skills
+    exec: lectic skills ./extra/skills
+    usage: exec:lectic skills --prompt ./extra/skills
+```
+
+Then activate and run the bundled `serve` skill script via the `skills`
+tool. See [Agent Skills Support](../cookbook/08_skills_subcommand.qmd)
+for setup details.
+
+## `native` Tools
+
+Native tools allow you to access functionality that is built directly
+into the LLM provider’s backend, such as web search or a code
+interpreter environment for data analysis.
+
+Support for native tools varies by provider.
+
+### Configuration
+
+You enable native tools by specifying their type.
+
+``` yaml
+tools:
+  - native: search # Enable the provider's built-in web search.
+  - native: code   # Enable the provider's built-in code interpreter.
+```
+
+### Provider Support
+
+- **Gemini**: Supports both `search` and `code`. Note that the Gemini
+  API has a limitation where you can only use one native tool at a time,
+  and it cannot be combined with other (non-native) tools.
+- **Anthropic**: Supports `search` only.
+- **OpenAI**: Supports both `search` and `code` via the `openai`
+  provider (not the legacy `openai/chat` provider).
+- **Codex**: Supports both `search` and `code` via the `codex` provider
+  (ChatGPT subscription, Codex backend).
 

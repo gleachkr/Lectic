@@ -75,7 +75,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-251449ada0ddbdd49c494e2ec9d5d6a9.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-c30451789a0a2bcd5e941535c675cd30.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -259,13 +259,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/07_a2a.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/06_a2a.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">A2A</span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/06_other_tools.html" class="sidebar-item-text sidebar-link">
+  <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Other Tools</span></a>
   </div>
 </li>
@@ -462,11 +462,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ./plugins/sales/module.yaml</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> ./plugins/finance</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">optional</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>imports</code> paths also support the <code>local:</code> prefix, resolved relative to the config file that contains the value:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">imports</span><span class="kw">:</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> local:./plugins/sales/module.yaml</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> local:../shared/finance.yaml</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p><code>local:</code> paths must begin with <code>./</code> or <code>../</code>.</p>
 <ul>
 <li>String form: required import path.</li>
 <li>Object form:
@@ -502,7 +497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="model-configuration">Model Configuration</h3>
 <ul>
 <li><code>provider</code>: The LLM provider to use. Supported values include <code>anthropic</code>, <code>anthropic/bedrock</code>, <code>openai</code> (Responses API), <code>openai/chat</code> (legacy Chat Completions), <code>gemini</code>, <code>ollama</code>, and <code>openrouter</code>.</li>
-<li><code>model</code>: The specific model to use, e.g., <code>claude-3-opus-20240229</code>.</li>
+<li><code>model</code>: The specific model to use, e.g., <code>claude-sonnet-4-6</code>.</li>
 <li><code>temperature</code>: A number between 0 and 1 controlling the randomness of the output.</li>
 <li><code>max_tokens</code>: The maximum number of tokens to generate in a response.</li>
 <li><code>max_tool_use</code>: The maximum number of tool calls the LLM is allowed to make in a single turn.</li>
@@ -590,7 +585,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="anchored" data-anchor-id="other-tool-keys">Other tool keys</h4>
 <ul>
 <li><code>think_about</code>: (String) Creates a thinking/scratchpad tool with the given prompt.</li>
-<li><code>serve_on_port</code>: (Integer) Creates a single-use web server on the given port.</li>
 <li><code>native</code>: One of <code>search</code> or <code>code</code>. Enables provider built-in tools.</li>
 <li><code>kit</code>: Name of a tool kit to include.</li>
 </ul>
