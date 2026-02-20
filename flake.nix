@@ -34,6 +34,7 @@
           cp ${lectic}/bin/lectic $out/bin
 
           cp -r "$src/extra/plugins" "$out/share/"
+          cp -r "$src/extra/skills" "$out/share/"
 
           find "$src/extra" -type f -name "lectic-*" \
             ! -path "$src/extra/plugins/*" \

@@ -55,22 +55,6 @@ city for tourism, career opportunities, or something else?
 :::
 ```
 
-## Serving HTML with a Skill
-
-If you want the old "render HTML in a browser" workflow, add the skills
-subcommand tool and include `extra/skills` in your skill roots.
-
-```yaml
-tools:
-  - name: skills
-    exec: lectic skills ./extra/skills
-    usage: exec:lectic skills --prompt ./extra/skills
-```
-
-Then activate and run the bundled `serve` skill script via the `skills`
-tool. See [Agent Skills Support](../cookbook/08_skills_subcommand.qmd)
-for setup details.
-
 ## `native` Tools
 
 Native tools allow you to access functionality that is built directly into

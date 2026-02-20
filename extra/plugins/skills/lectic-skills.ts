@@ -2,7 +2,16 @@
 
 import { YAML } from "bun";
 import { readdirSync, statSync, existsSync, constants } from "node:fs";
-import { basename, resolve, join, extname, relative, isAbsolute } from "node:path";
+import {
+  basename,
+  delimiter,
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 
 type SkillFrontmatter = {
   name?: unknown;
@@ -43,22 +52,37 @@ type ParsedArgs = {
 function usage(): string {
   return [
     "Usage:",
-    "  lectic skills [SKILL_DIR ...] list [--json]",
-    "  lectic skills [SKILL_DIR ...] activate <name>",
-    "  lectic skills [SKILL_DIR ...] read <name> <relative-path>",
-    "  lectic skills [SKILL_DIR ...] run <name> <script> [args...]",
-    "  lectic skills --prompt [SKILL_DIR ...]",
+    "  lectic skills [command ...]",
+    "  lectic skills [ROOT ...] -- [command ...]",
+    "",
+    "Commands:",
+    "  list [--json]",
+    "  activate <name>",
+    "  read <name> <relative-path>",
+    "  run <name> <script> [args...]",
+    "  --prompt",
+    "  help",
     "",
     "Notes:",
-    "  - SKILL_DIR may be a single skill root (contains SKILL.md),",
-    "    or a directory containing multiple skill folders.",
-    "  - If you configured this as an exec tool, the SKILL_DIRs are",
-    "    usually baked into the tool command.",
+    "  - Without '--', default roots are used:",
+    "    LECTIC_RUNTIME and LECTIC_DATA (recursive scan).",
+    "  - With '--', every argument before '--' is a ROOT selector.",
+    "  - ROOT may be a runtime skill name, an explicit skill root path,",
+    "    or a directory containing skill roots.",
+    "  - Filesystem roots must be explicit paths (./... or /...).",
   ].join("\n");
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
-  const roots: string[] = [];
+  // Two modes:
+  // - no "--": use default roots, parse all args as command args
+  // - ROOT... -- COMMAND...: parse args before "--" as roots
+  const separatorIndex = argv.indexOf("--");
+  const roots = separatorIndex >= 0 ? argv.slice(0, separatorIndex) : [];
+  const commandArgs = separatorIndex >= 0
+    ? argv.slice(separatorIndex + 1)
+    : argv;
+
   const rest: string[] = [];
 
   let json = false;
@@ -67,7 +91,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   let command: string | null = null;
 
-  for (const arg of argv) {
+  for (const arg of commandArgs) {
     if (arg === "--json") {
       json = true;
       continue;
@@ -86,19 +110,29 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
-    if (command === null) {
-      roots.push(arg);
-    } else {
-      rest.push(arg);
-    }
+    rest.push(arg);
   }
 
   if (help) {
-    return { roots, command: "help", rest, json, prompt, help };
+    return {
+      roots,
+      command: "help",
+      rest,
+      json,
+      prompt,
+      help,
+    };
   }
 
   if (prompt) {
-    return { roots, command: "prompt", rest, json, prompt, help };
+    return {
+      roots,
+      command: "prompt",
+      rest,
+      json,
+      prompt,
+      help,
+    };
   }
 
   return {
@@ -120,6 +154,98 @@ function expandEnvVars(input: string): string {
 
 function resolveRoot(input: string): string {
   return resolve(expandEnvVars(input));
+}
+
+function parsePathList(input: string | undefined): string[] {
+  if (input === undefined) return [];
+
+  return input
+    .split(delimiter)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function runtimeRoots(): string[] {
+  return parsePathList(process.env["LECTIC_RUNTIME"]);
+}
+
+function runtimeAndDataRoots(): string[] {
+  const roots = runtimeRoots();
+
+  const dataDir = process.env["LECTIC_DATA"];
+  if (dataDir !== undefined && dataDir.trim() !== "") {
+    roots.push(dataDir.trim());
+  }
+
+  return roots;
+}
+
+function discoverSkillRootsRecursively(rootInput: string): string[] {
+  const root = resolveRoot(rootInput);
+
+  if (!existsSync(root)) return [];
+  if (!statSync(root).isDirectory()) return [];
+
+  const skillRoots = new Set<string>();
+  const glob = new Bun.Glob("**/SKILL.md");
+
+  for (const skillPath of glob.scanSync({
+    cwd: root,
+    absolute: true,
+    onlyFiles: true,
+    followSymlinks: true,
+  })) {
+    skillRoots.add(dirname(skillPath));
+  }
+
+  return [...skillRoots].sort();
+}
+
+async function discoverSkillsFromSearchRoots(
+  roots: string[],
+): Promise<Map<string, Skill>> {
+  const skillRoots = roots.flatMap(discoverSkillRootsRecursively);
+  return discoverSkills(skillRoots);
+}
+
+async function discoverSkillsFromRuntime(): Promise<Map<string, Skill>> {
+  return discoverSkillsFromSearchRoots(runtimeRoots());
+}
+
+async function discoverSkillsFromRuntimeAndData(): Promise<Map<string, Skill>> {
+  return discoverSkillsFromSearchRoots(runtimeAndDataRoots());
+}
+
+function isExplicitPathArg(arg: string): boolean {
+  const expanded = expandEnvVars(arg);
+  return expanded.startsWith(".") || expanded.startsWith("/");
+}
+
+async function resolveRootsAgainstRuntime(
+  roots: string[],
+): Promise<string[]> {
+  if (roots.length === 0) return roots;
+
+  const hasBareRoots = roots.some((arg) => !isExplicitPathArg(arg));
+  if (!hasBareRoots) return roots;
+
+  const runtimeSkills = await discoverSkillsFromRuntime();
+
+  return roots.map((arg) => {
+    if (isExplicitPathArg(arg)) {
+      return arg;
+    }
+
+    const runtimeSkill = runtimeSkills.get(arg);
+    if (!runtimeSkill) {
+      throw new Error(
+        `root '${arg}' is not an explicit path and does not match a `
+          + "runtime skill name (use ./path or /path for filesystem roots)",
+      );
+    }
+
+    return runtimeSkill.root;
+  });
 }
 
 function parseFrontmatter(text: string): {
@@ -239,7 +365,7 @@ async function loadSkillFromRootAsync(rootDir: string): Promise<Skill> {
 async function discoverSkills(roots: string[]): Promise<Map<string, Skill>> {
   const skills = new Map<string, Skill>();
 
-  for (const inputRoot of roots) {
+  for (const inputRoot of [...new Set(roots)]) {
     const root = normalizeSkillDir(inputRoot);
 
     const directSkillMd = join(root, "SKILL.md");
@@ -496,20 +622,31 @@ async function main() {
     return;
   }
 
-  if (parsed.roots.length === 0) {
-    throw new Error(
-      "no skills directories provided (pass one or more SKILL_DIR paths)",
-    );
-  }
-
-  const skills = await discoverSkills(parsed.roots);
+  const resolvedRoots = await resolveRootsAgainstRuntime(parsed.roots);
+  const skills = resolvedRoots.length > 0
+    ? await discoverSkills(resolvedRoots)
+    : await discoverSkillsFromRuntimeAndData();
 
   if (parsed.command === "prompt") {
+    if (parsed.rest.length > 0) {
+      throw new Error(
+        "--prompt does not accept positional arguments "
+          + "(use ROOT ... -- --prompt)",
+      );
+    }
+
     console.log(formatPrompt(skills));
     return;
   }
 
   if (parsed.command === "list") {
+    if (parsed.rest.length > 0) {
+      throw new Error(
+        "list does not accept positional arguments "
+          + "(use ROOT ... -- list to select roots)",
+      );
+    }
+
     if (parsed.json) {
       const list = [...skills.values()]
         .sort((a, b) => a.name.localeCompare(b.name))
