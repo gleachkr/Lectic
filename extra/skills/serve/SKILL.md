@@ -7,7 +7,7 @@ Use this skill when you want to show the user an interactive HTML artifact
 immediately (charts, demos, mockups, small apps).
 
 The script serves one page from a local HTTP server, opens the browser, then
-exits after the first successful request to `/`.
+exits after the first successful preview request.
 
 ## Script
 

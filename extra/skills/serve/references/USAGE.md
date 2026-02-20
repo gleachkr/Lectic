@@ -26,7 +26,7 @@ If no HTML source is provided, the script reads stdin when available.
 - Starts a local HTTP server.
 - Serves the page at `/` with `Content-Type: text/html`.
 - Opens the URL in the default browser unless `--no-open` is set.
-- Stops after the first successful `GET /` request.
+- Stops after the first successful preview request.
 
 ## Examples
 

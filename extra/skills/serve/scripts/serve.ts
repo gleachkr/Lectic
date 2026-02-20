@@ -20,7 +20,7 @@ function usage(): string {
     "",
     "Notes:",
     "  - If no source is specified, stdin is used when available.",
-    "  - The server serves one request at / and then exits.",
+    "  - The server exits after the first successful preview request.",
   ].join("\n");
 }
 
@@ -103,7 +103,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   return parsed;
 }
 
-async function openBrowser(url: string): Promise<void> {
+async function openBrowser(url: string): Promise<boolean> {
   const cmd = (() => {
     if (process.platform === "darwin") return ["open", url];
     if (process.platform === "win32") return ["cmd", "/c", "start", "", url];
@@ -114,9 +114,11 @@ async function openBrowser(url: string): Promise<void> {
     const proc = Bun.spawn(cmd, {
       stdio: ["ignore", "ignore", "ignore"],
     });
-    void proc.exited;
+
+    const exitCode = await proc.exited;
+    return exitCode === 0;
   } catch {
-    // Ignore browser-open errors.
+    return false;
   }
 }
 
@@ -144,6 +146,25 @@ async function loadHtml(parsed: ParsedArgs): Promise<string> {
   throw new Error("no HTML provided. Use --html, --file, --stdin, or pipe stdin");
 }
 
+function isCompletionRequest(req: Request, token?: string): boolean {
+  if (!token) {
+    return true;
+  }
+
+  const url = new URL(req.url);
+  return url.searchParams.get("__lectic_preview") === token;
+}
+
+function addCompletionToken(url: string, token?: string): string {
+  if (!token) {
+    return url;
+  }
+
+  const withToken = new URL(url);
+  withToken.searchParams.set("__lectic_preview", token);
+  return withToken.toString();
+}
+
 async function main() {
   const parsed = parseArgs(process.argv.slice(2));
 
@@ -159,13 +180,29 @@ async function main() {
     unblock = resolvePromise;
   });
 
+  let completionToken = parsed.openBrowser ? crypto.randomUUID() : undefined;
+
+  let done = false;
+  const stopAndExit = () => {
+    if (done) {
+      return;
+    }
+
+    done = true;
+    void server.stop();
+    unblock();
+  };
+
   const server = Bun.serve({
     port: parsed.port,
     routes: {
       "/": {
-        GET: () => {
-          void server.stop();
-          unblock();
+        GET: (req: Request) => {
+          if (isCompletionRequest(req, completionToken)) {
+            // Stop on the next task so the response can flush first.
+            setTimeout(stopAndExit, 0);
+          }
+
           return new Response(html, {
             headers: {
               "Content-Type": "text/html; charset=utf-8",
@@ -180,10 +217,15 @@ async function main() {
   });
 
   const url = `http://127.0.0.1:${server.port}/`;
+  const openUrl = addCompletionToken(url, completionToken);
   console.log(`Serving page at ${url}`);
 
   if (parsed.openBrowser) {
-    await openBrowser(url);
+    const opened = await openBrowser(openUrl);
+    if (!opened) {
+      completionToken = undefined;
+      console.error("warning: browser auto-open failed; open the URL manually.");
+    }
   } else {
     console.log("Browser launch disabled (--no-open).");
   }
