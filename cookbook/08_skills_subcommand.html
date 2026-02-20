@@ -419,12 +419,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#recipe-agent-skills-support" id="toc-recipe-agent-skills-support" class="nav-link active" data-scroll-target="#recipe-agent-skills-support">Recipe: Agent Skills Support</a>
   <ul class="collapse">
   <li><a href="#what-are-agent-skills" id="toc-what-are-agent-skills" class="nav-link" data-scroll-target="#what-are-agent-skills">What are Agent Skills?</a></li>
-  <li><a href="#goal" id="toc-goal" class="nav-link" data-scroll-target="#goal">Goal</a></li>
-  <li><a href="#the-subcommand" id="toc-the-subcommand" class="nav-link" data-scroll-target="#the-subcommand">The subcommand</a></li>
-  <li><a href="#skill-directories" id="toc-skill-directories" class="nav-link" data-scroll-target="#skill-directories">Skill directories</a></li>
-  <li><a href="#configure-it-as-an-exec-tool" id="toc-configure-it-as-an-exec-tool" class="nav-link" data-scroll-target="#configure-it-as-an-exec-tool">Configure it as an exec tool</a></li>
-  <li><a href="#example-workflow" id="toc-example-workflow" class="nav-link" data-scroll-target="#example-workflow">Example workflow</a></li>
-  <li><a href="#how-its-built" id="toc-how-its-built" class="nav-link" data-scroll-target="#how-its-built">How it’s built</a></li>
+  <li><a href="#prerequisite" id="toc-prerequisite" class="nav-link" data-scroll-target="#prerequisite">Prerequisite</a></li>
+  <li><a href="#create-a-skill" id="toc-create-a-skill" class="nav-link" data-scroll-target="#create-a-skill">Create a skill</a></li>
+  <li><a href="#point-lectic-at-your-skills" id="toc-point-lectic-at-your-skills" class="nav-link" data-scroll-target="#point-lectic-at-your-skills">Point Lectic at your skills</a></li>
+  <li><a href="#how-discovery-works" id="toc-how-discovery-works" class="nav-link" data-scroll-target="#how-discovery-works">How discovery works</a></li>
+  <li><a href="#model-workflow" id="toc-model-workflow" class="nav-link" data-scroll-target="#model-workflow">Model workflow</a></li>
   <li><a href="#safety-notes" id="toc-safety-notes" class="nav-link" data-scroll-target="#safety-notes">Safety notes</a></li>
   </ul></li>
   </ul>
@@ -438,106 +437,127 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="recipe-agent-skills-support" class="level1">
 <h1>Recipe: Agent Skills Support</h1>
-<p>This recipe adds support for the <a href="https://agentskills.io">Agent Skills</a> format by building a custom <code>lectic skills</code> subcommand.</p>
+<p>This recipe is about using the existing <code>lectic skills</code> plugin and creating skills for it. It does <strong>not</strong> walk through implementing the subcommand itself.</p>
 <section id="what-are-agent-skills" class="level2">
 <h2 class="anchored" data-anchor-id="what-are-agent-skills">What are Agent Skills?</h2>
 <p><a href="https://agentskills.io">Agent Skills</a> is an open format for packaging reusable capabilities that LLMs can load on demand. A skill is a folder containing:</p>
 <ul>
-<li><code>SKILL.md</code>: Instructions for the LLM (with YAML frontmatter for metadata)</li>
-<li><code>scripts/</code>: Executable scripts the LLM can run</li>
-<li><code>references/</code>: Documentation and examples the LLM can read</li>
+<li><code>SKILL.md</code>: instructions for the LLM (with YAML frontmatter)</li>
+<li><code>scripts/</code>: executable scripts the LLM can run</li>
+<li><code>references/</code>: docs and examples the LLM can read</li>
 </ul>
-<p>The format emphasizes “progressive disclosure”—the LLM sees only skill names and descriptions initially, then loads full instructions only when needed. This keeps prompts small while giving the LLM access to a large library of capabilities.</p>
-</section>
-<section id="goal" class="level2">
-<h2 class="anchored" data-anchor-id="goal">Goal</h2>
-<p>We’ll build a subcommand that gives your LLM access to a library of skills while keeping the base prompt small. It follows the skills spec’s “progressive disclosure” approach:</p>
+<p>The format emphasizes progressive disclosure:</p>
 <ol type="1">
-<li>Discovery: load only each skill’s name + description.</li>
-<li>Activation: load the full <code>SKILL.md</code> instructions for one skill.</li>
-<li>Resources: read reference files or run scripts only when needed.</li>
+<li>Discovery: see only skill names and descriptions.</li>
+<li>Activation: load full instructions for one skill.</li>
+<li>Resources: read files or run scripts only when needed.</li>
 </ol>
 </section>
-<section id="the-subcommand" class="level2">
-<h2 class="anchored" data-anchor-id="the-subcommand">The subcommand</h2>
-<p>Lectic resolves <code>lectic &lt;command&gt;</code> using git-style subcommands. We will create an executable named <code>lectic-skills.ts</code> (TypeScript), using Lectic’s built-in script runner (<code>lectic script</code>).</p>
-<p>Copy the repository’s <code>extra/lectic-skills.ts</code> to your config directory:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> /path/to/lectic/extra/lectic-skills.ts ~/.config/lectic/lectic-skills.ts</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> +x ~/.config/lectic/lectic-skills.ts</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Now <code>lectic skills</code> should resolve to that file.</p>
+<section id="prerequisite" class="level2">
+<h2 class="anchored" data-anchor-id="prerequisite">Prerequisite</h2>
+<p>This recipe assumes <code>lectic skills</code> is already available in your runtime (via your plugin setup).</p>
 </section>
-<section id="skill-directories" class="level2">
-<h2 class="anchored" data-anchor-id="skill-directories">Skill directories</h2>
-<p>The subcommand accepts one or more “skill directory” paths.</p>
-<p>Each path may be either:</p>
-<ul>
-<li>A single skill root (it contains <code>SKILL.md</code>)</li>
-<li>A directory that contains multiple skill roots as immediate children</li>
-</ul>
+<section id="create-a-skill" class="level2">
+<h2 class="anchored" data-anchor-id="create-a-skill">Create a skill</h2>
+<p>A skill root must contain <code>SKILL.md</code> with at least <code>name</code> and <code>description</code> in frontmatter.</p>
 <p>Example layout:</p>
 <pre class="text"><code>skills/
   pdf-processing/
     SKILL.md
     scripts/
+      extract.py
     references/
-  code-review/
-    SKILL.md</code></pre>
+      REFERENCE.md</code></pre>
+<p>Example <code>SKILL.md</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> pdf-processing</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> Extract and summarize text from PDFs.</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>Use this skill when the user asks about PDF content.</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Run <span class="in">`scripts/extract.py`</span> to extract text.</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Read <span class="in">`references/REFERENCE.md`</span> for edge cases and options.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Notes:</p>
+<ul>
+<li><code>name</code> must match the directory name.</li>
+<li>Keep descriptions short and specific.</li>
+<li>Put heavy details in references, not in the description.</li>
+</ul>
 </section>
-<section id="configure-it-as-an-exec-tool" class="level2">
-<h2 class="anchored" data-anchor-id="configure-it-as-an-exec-tool">Configure it as an exec tool</h2>
-<p>Add an exec tool that bakes in the skill directories:</p>
+<section id="point-lectic-at-your-skills" class="level2">
+<h2 class="anchored" data-anchor-id="point-lectic-at-your-skills">Point Lectic at your skills</h2>
+<p>Configure a tool that calls the subcommand.</p>
+<p>Use default discovery (runtime/data):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> skills</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> lectic skills ./skills $LECTIC_DATA/skills</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> exec:lectic skills --prompt ./skills $LECTIC_DATA/skills</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>This creates a single tool (named <code>skills</code>) that the model can use to:</p>
-<ul>
-<li><code>activate &lt;name&gt;</code> (load instructions)</li>
-<li><code>read &lt;name&gt; &lt;path&gt;</code> (load reference content)</li>
-<li><code>run &lt;name&gt; &lt;script&gt; ...</code> (execute bundled scripts)</li>
-</ul>
-<p>The discovery list (name + description for each skill) is included in the tool usage text generated by <code>--prompt</code>, so the model usually does not need to call <code>list</code>.</p>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> lectic skills</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> exec:lectic skills --prompt</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Pass explicit roots by placing them before <code>--</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> skills</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> lectic skills ./skills $LECTIC_DATA/skills --</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> exec:lectic skills ./skills $LECTIC_DATA/skills -- --prompt</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>--prompt</code> includes the discovery list in tool usage text, so the model usually does not need to call <code>list</code>.</p>
 </section>
-<section id="example-workflow" class="level2">
-<h2 class="anchored" data-anchor-id="example-workflow">Example workflow</h2>
+<section id="how-discovery-works" class="level2">
+<h2 class="anchored" data-anchor-id="how-discovery-works">How discovery works</h2>
+<p><code>lectic skills</code> has two modes:</p>
 <ol type="1">
-<li>The model activates a skill when relevant:</li>
+<li><strong>Default roots mode</strong> (no <code>--</code>):
+<ul>
+<li>uses <code>LECTIC_RUNTIME</code> and <code>LECTIC_DATA</code> recursively.</li>
+</ul></li>
+<li><strong>Explicit roots mode</strong> (<code>ROOT ... -- ...</code>):
+<ul>
+<li>all args before <code>--</code> are root selectors.</li>
+<li>all args after <code>--</code> are command args.</li>
+</ul></li>
+</ol>
+<p>Each explicit root selector may be either:</p>
+<ul>
+<li>a runtime skill name (for example <code>serve</code>),</li>
+<li>an explicit filesystem path to a skill root (<code>./foo</code> or <code>/foo</code>), or</li>
+<li>an explicit path to a directory whose immediate children are skill roots.</li>
+</ul>
+<p>Important:</p>
+<ul>
+<li>Filesystem roots must start with <code>.</code> or <code>/</code>.</li>
+<li>Bare selectors that do not match runtime skill names are errors.</li>
+<li><code>lectic skills -- ...</code> means explicit-roots mode with zero roots, which is equivalent to default roots mode.</li>
+</ul>
+</section>
+<section id="model-workflow" class="level2">
+<h2 class="anchored" data-anchor-id="model-workflow">Model workflow</h2>
+<p>Typical tool calls:</p>
+<ol type="1">
+<li>Activate a skill:</li>
 </ol>
 <pre class="text"><code>&lt;tool-call with="skills"&gt;
 &lt;arguments&gt;&lt;argv&gt;["activate","pdf-processing"]&lt;/argv&gt;&lt;/arguments&gt;
 ...&lt;/tool-call&gt;</code></pre>
-<ol start="3" type="1">
-<li>It reads references mentioned by <code>SKILL.md</code>:</li>
+<ol start="2" type="1">
+<li>Read a referenced file:</li>
 </ol>
 <pre class="text"><code>&lt;tool-call with="skills"&gt;
 &lt;arguments&gt;&lt;argv&gt;["read","pdf-processing","references/REFERENCE.md"]&lt;/argv&gt;&lt;/arguments&gt;
 ...&lt;/tool-call&gt;</code></pre>
-<ol start="4" type="1">
-<li>It runs a script bundled with the skill:</li>
+<ol start="3" type="1">
+<li>Run a skill script:</li>
 </ol>
 <pre class="text"><code>&lt;tool-call with="skills"&gt;
-&lt;arguments&gt;&lt;argv&gt;["run","pdf-processing","extract.py","--input","a.pdf"]&lt;/argv&gt;&lt;/arguments&gt;
+&lt;arguments&gt;&lt;argv&gt;["run","pdf-processing","extract.py","--input","a.pdf"]
+&lt;/argv&gt;&lt;/arguments&gt;
 ...&lt;/tool-call&gt;</code></pre>
-</section>
-<section id="how-its-built" class="level2">
-<h2 class="anchored" data-anchor-id="how-its-built">How it’s built</h2>
-<p>The subcommand is a small CLI wrapper around the skills folder format:</p>
-<ul>
-<li>It scans the provided directories for <code>SKILL.md</code> files.</li>
-<li>It parses the YAML frontmatter to build the discovery list.</li>
-<li><code>activate</code> returns the full skill instructions on demand.</li>
-<li><code>read</code> enforces path containment (no <code>..</code> escapes) and has a size cap.</li>
-<li><code>run</code> executes files in <code>scripts/</code> only, with the skill root as the working directory.</li>
-</ul>
 </section>
 <section id="safety-notes" class="level2">
 <h2 class="anchored" data-anchor-id="safety-notes">Safety notes</h2>
-<p>Running skill scripts is equivalent to granting the LLM another <code>exec</code> tool. In real use, you should combine this with one or more of:</p>
+<p>Running skill scripts is effectively another <code>exec</code> capability. In practice, combine this with one or more of:</p>
 <ul>
-<li>A <code>tool_use_pre</code> confirmation hook</li>
-<li>A sandbox wrapper (Bubblewrap, nsjail, etc.)</li>
+<li>a <code>tool_use_pre</code> confirmation hook</li>
+<li>a sandbox wrapper (Bubblewrap, nsjail, etc.)</li>
 </ul>
-<p>See <a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a> for practical options.</p>
+<p>See <a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a> for concrete options.</p>
 
 
 </section>

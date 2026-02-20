@@ -423,7 +423,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a></li>
   <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
   </ul></li>
-  <li><a href="#serving-html-with-a-skill" id="toc-serving-html-with-a-skill" class="nav-link" data-scroll-target="#serving-html-with-a-skill">Serving HTML with a Skill</a></li>
   <li><a href="#native-tools" id="toc-native-tools" class="nav-link" data-scroll-target="#native-tools"><code>native</code> Tools</a>
   <ul class="collapse">
   <li><a href="#configuration-1" id="toc-configuration-1" class="nav-link" data-scroll-target="#configuration-1">Configuration</a></li>
@@ -480,15 +479,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
-<section id="serving-html-with-a-skill" class="level2">
-<h2 class="anchored" data-anchor-id="serving-html-with-a-skill">Serving HTML with a Skill</h2>
-<p>If you want the old “render HTML in a browser” workflow, add the skills subcommand tool and include <code>extra/skills</code> in your skill roots.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> skills</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> lectic skills ./extra/skills</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> exec:lectic skills --prompt ./extra/skills</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Then activate and run the bundled <code>serve</code> skill script via the <code>skills</code> tool. See <a href="../cookbook/08_skills_subcommand.html">Agent Skills Support</a> for setup details.</p>
-</section>
 <section id="native-tools" class="level2">
 <h2 class="anchored" data-anchor-id="native-tools"><code>native</code> Tools</h2>
 <p>Native tools allow you to access functionality that is built directly into the LLM provider’s backend, such as web search or a code interpreter environment for data analysis.</p>
@@ -496,9 +486,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="configuration-1" class="level3">
 <h3 class="anchored" data-anchor-id="configuration-1">Configuration</h3>
 <p>You enable native tools by specifying their type.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> search</span><span class="co"> # Enable the provider's built-in web search.</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> code</span><span class="co">   # Enable the provider's built-in code interpreter.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> search</span><span class="co"> # Enable the provider's built-in web search.</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> code</span><span class="co">   # Enable the provider's built-in code interpreter.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="provider-support" class="level3">
 <h3 class="anchored" data-anchor-id="provider-support">Provider Support</h3>
