@@ -43,6 +43,15 @@ surface. So that's how you extend Lectic.
 
 ## Installation
 
+#### Linux / macOS quick install (GitHub Releases)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
+  | sh
+```
+
+To update later, rerun the same installer command.
+
 #### Homebrew
 
 ```bash
@@ -62,7 +71,7 @@ yay -S lectic-bin
 nix profile install github:gleachkr/lectic
 ```
 
-#### Linux / macOS (GitHub Releases)
+#### Linux / macOS manual install (release tarballs)
 
 ```bash
 tar -xzf lectic-vX.Y.Z-<platform>-<arch>.tar.gz

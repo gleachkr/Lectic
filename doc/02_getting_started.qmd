@@ -21,7 +21,16 @@ yay -S lectic-bin
 # or: paru -S lectic-bin
 ```
 
-#### Linux / macOS (release tarballs)
+#### Linux / macOS quick install (GitHub Releases)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
+  | sh
+```
+
+To update later, rerun the same installer command.
+
+#### Linux / macOS manual install (release tarballs)
 
 Download the matching release tarball from the
 [GitHub Releases page](https://github.com/gleachkr/Lectic/releases),
