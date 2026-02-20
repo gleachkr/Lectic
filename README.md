@@ -31,9 +31,10 @@ and hooks) combine to handle a wide range of workflows.
 (with directives), easy to read, parse, modify, share, search, archive, and 
 more.
 
-**Sensible Sandboxing.** Lectic lets you sandbox your LLM with any strategy or 
-combination of strategies you want: worktrees, bwrap, containers, or file 
-permissions.
+**Sensible Sandboxing.** Dangerous tools run in subprocesses, making it easy to 
+interpose any sandboxing strategy or combination of strategies you want: 
+worktrees, bwrap, containers, or file permissions. Sandboxing can be global, 
+agent level, or tool level.
 
 **Git style subcommands** Lectic is extensible with git style subcommands - 
 executables that live on your PATH or in Lectic's configuration directories. 
