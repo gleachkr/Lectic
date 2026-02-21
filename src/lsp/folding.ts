@@ -46,24 +46,17 @@ function getCollapsedText(raw: string): string {
   if (line.startsWith("<tool-call")) {
     const nameMatch = /with="([^"]*)"/.exec(line)
     const kindMatch = /kind="([^"]*)"/.exec(line)
+    const iconMatch = /icon="([^"]*)"/.exec(line)
     const name = nameMatch ? nameMatch[1] : "tool"
     const kind = kindMatch ? kindMatch[1] : ""
+    const icon = iconMatch ? iconMatch[1] : ""
 
     if (useNerdFont) {
-      let icon = " "
-      switch (kind) {
-        case "sqlite": icon = " "; break
-        case "exec": icon = " "; break
-        case "mcp": icon = " "; break
-        case "think": icon = " "; break
-        case "agent": icon = "󰚩 "; break
-        case "a2a": icon = "⇄ "; break
-      }
       return `${icon} ${name}`
-    } else {
-      const label = kind ? `${kind} tool` : "tool"
-      return `[${label}: ${name}]`
     }
+
+    const label = kind ? `${kind} tool` : "tool"
+    return `[${label}: ${name}]`
   }
 
   if (line.startsWith("<inline-attachment")) {

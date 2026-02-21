@@ -10,6 +10,7 @@ import { type HookSpec, isHookSpecList } from "../types/hook"
 export type AgentToolSpec = {
     agent: string
     name?: string
+    icon?: string
     usage?: string
     raw_output?: boolean
     hooks?: HookSpec[]
@@ -19,6 +20,7 @@ export function isAgentToolSpec(raw : unknown) : raw is AgentToolSpec {
     return raw !== null && 
         typeof raw === "object" && 
         "agent" in raw &&
+        ("icon" in raw ? typeof raw.icon === "string" : true) &&
         ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
@@ -26,6 +28,7 @@ export class AgentTool extends Tool {
 
     name: string
     kind = "agent"
+    icon: string
     agent: Interlocutor
     interlocutors: Interlocutor[]
     description: string
@@ -35,6 +38,7 @@ export class AgentTool extends Tool {
     constructor(spec: AgentToolSpec, interlocutors: Interlocutor[]) {
         super(spec.hooks)
         this.name = spec.name ?? `agent_tool_${AgentTool.count}`
+        this.icon = spec.icon ?? "󰚩"
         const agent = interlocutors.find(i => i.name === spec.agent)
         if (agent === undefined) throw Error(`There's no interlocutor named ${spec.agent}`)
         this.agent = agent

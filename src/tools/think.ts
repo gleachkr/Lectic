@@ -4,6 +4,7 @@ import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 export type ThinkToolSpec = {
     think_about: string
     name?: string
+    icon?: string
     usage?: string
     hooks?: HookSpec[]
 }
@@ -11,7 +12,8 @@ export type ThinkToolSpec = {
 export function isThinkToolSpec(raw : unknown) : raw is ThinkToolSpec {
     return raw !== null 
     && typeof raw === "object" 
-    && "think_about" in raw 
+    && "think_about" in raw
+    && ("icon" in raw ? typeof raw.icon === "string" : true)
     && ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
 }
 
@@ -19,12 +21,14 @@ export class ThinkTool extends Tool {
 
     name: string
     kind = "think"
+    icon: string
     description: string
     static count : number = 0
 
     constructor(spec: ThinkToolSpec) {
         super(spec.hooks)
         this.name = spec.name ?? `think_tool_${ThinkTool.count}`
+        this.icon = spec.icon ?? ""
         this.description = 
             `Use the tool to think about ${spec.think_about}. ` +
             `It will not obtain new information or change anything, but just append the thought to the log. ` +

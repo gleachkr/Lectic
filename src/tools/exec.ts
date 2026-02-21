@@ -11,6 +11,7 @@ export type ExecToolSpec = {
     exec: string
     usage?: string
     name?: string
+    icon?: string
     sandbox?: string
     env?: Record<string, string>
     schema?: Record<string, string>
@@ -25,6 +26,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         typeof raw.exec === "string" &&
         ("usage" in raw ? typeof raw.usage === "string" : true) &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
+        ("icon" in raw ? typeof raw.icon === "string" : true) &&
         ("timeoutSeconds" in raw ? typeof raw.timeoutSeconds === "number" : true) &&
         ("env" in raw 
             ? typeof raw.env === "object" && raw.env !== null && 
@@ -127,6 +129,7 @@ export class ExecTool extends Tool {
     exec: string
     isScript: boolean
     sandbox?: string
+    icon: string
     description: string
     env: Record<string, string>
     timeoutSeconds?: number
@@ -136,6 +139,7 @@ export class ExecTool extends Tool {
         super(spec.hooks)
         this.exec = spec.exec
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
+        this.icon = spec.icon ?? ""
         this.isScript = this.exec.split('\n').length > 1
         this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
         this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox

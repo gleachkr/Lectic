@@ -48,6 +48,7 @@ export abstract class Tool {
     abstract parameters: { [_ : string] : JSONSchema }
     abstract required : string[]
     abstract kind: string
+    icon?: string = ""
     hooks: Hook[]
 
     constructor(hooks?: HookSpec[]) {
@@ -87,6 +88,14 @@ export function ToolCallResults(s : string | string[], mimetype? : string) : Too
 
 const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
 
+function escapeXmlAttribute(value: string): string {
+    return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+}
+
+function unescapeXmlAttribute(value: string): string {
+    return value.replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+}
+
 export function serializeCall(tool: Tool | null, {name, args, results, id, isError} : ToolCall) : string {
     const values = [] 
     if (tool) {
@@ -106,8 +115,11 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
     const idstring = id ? ` id="${id}"` : ""
     const errorstring = isError !== undefined ? ` is-error="${isError}"` : ""
     const kindstring = tool ? ` kind="${tool.kind}"` : ""
+    const iconstring = tool?.icon
+        ? ` icon="${escapeXmlAttribute(tool.icon)}"`
+        : ""
 
-    return `<tool-call with="${name}"${idstring}${errorstring}${kindstring}>\n` +
+    return `<tool-call with="${name}"${idstring}${errorstring}${kindstring}${iconstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
         `<results>${results.map(r => r.toXml()).join("\n")}</results>\n` +
     `</tool-call>`
@@ -128,7 +140,7 @@ export function deserializeCall(tool: Tool | null, serialized : string)
     const re = /([a-zA-Z0-9_:-]+)="([^"]*)"/g
     let m
     while ((m = re.exec(attrsStr)) !== null) {
-        attributes[m[1]] = m[2].replace(/&quot;/g, '"')
+        attributes[m[1]] = unescapeXmlAttribute(m[2])
     }
 
     const name = attributes["with"]

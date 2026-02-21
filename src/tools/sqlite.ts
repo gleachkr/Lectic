@@ -10,6 +10,7 @@ export type SQLiteToolSpec = {
     sqlite: string
     details?: string
     name?: string
+    icon?: string
     limit? : number
     readonly?: boolean
     extensions?: string[] | string
@@ -22,6 +23,7 @@ export function isSQLiteToolSpec(raw : unknown) : raw is SQLiteToolSpec {
         typeof raw === "object" &&
         "sqlite" in raw &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
+        ("icon" in raw ? typeof raw.icon === "string" : true) &&
         ("limit" in raw ? typeof raw.limit === "number" : true) &&
         ("details" in raw ? typeof raw.details === "string" : true) &&
         ("readonly" in raw ? typeof raw.readonly === "boolean" : true) &&
@@ -56,6 +58,7 @@ export class SQLiteTool extends Tool {
 
     name: string
     kind = "sqlite"
+    icon: string
     details: string | undefined
     limit: number | undefined
     db: Database
@@ -64,6 +67,7 @@ export class SQLiteTool extends Tool {
     constructor(spec: SQLiteToolSpec) {
         super(spec.hooks)
         this.name = spec.name ?? `sqlite_tool_${SQLiteTool.count}`
+        this.icon = spec.icon ?? ""
         this.details = spec.details
         this.limit = spec.limit
 

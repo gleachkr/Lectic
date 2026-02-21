@@ -35,6 +35,7 @@ import {
 export type A2AToolSpec = {
   a2a: string
   name?: string
+  icon?: string
   usage?: string
   stream?: boolean
 
@@ -56,6 +57,7 @@ export function isA2AToolSpec(raw: unknown): raw is A2AToolSpec {
     "a2a" in raw &&
     typeof raw.a2a === "string" &&
     ("name" in raw ? typeof raw.name === "string" : true) &&
+    ("icon" in raw ? typeof raw.icon === "string" : true) &&
     ("usage" in raw ? typeof raw.usage === "string" : true) &&
     ("stream" in raw ? typeof raw.stream === "boolean" : true) &&
     ("headers" in raw
@@ -193,6 +195,7 @@ const DEFAULT_MAX_WAIT_SECONDS = 5
 export class A2ATool extends Tool {
   name: string
   kind = "a2a"
+  icon: string
 
   private readonly baseUrl: string
   private readonly clientBaseUrl: string
@@ -211,6 +214,7 @@ export class A2ATool extends Tool {
     super(spec.hooks)
 
     this.name = spec.name ?? `a2a_tool_${A2ATool.count}`
+    this.icon = spec.icon ?? "⇄"
     this.baseUrl = spec.a2a
     this.clientBaseUrl = spec.a2a.endsWith("/") ? spec.a2a : `${spec.a2a}/`
     this.streamDefault = spec.stream ?? true

@@ -194,6 +194,54 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
     });
 });
 
+describe('serializeCall icon metadata', () => {
+    it('includes icon attribute when tool has an icon', () => {
+        const tool: Tool = {
+            name: 'iconTool',
+            description: 'Tool with icon',
+            parameters: {},
+            kind: 'mock',
+            icon: '⚙️',
+            call: async (_arg) => ToolCallResults('ok'),
+            validateArguments: _ => null,
+            required: [],
+            hooks: []
+        }
+
+        const call = {
+            name: 'iconTool',
+            args: {},
+            results: ToolCallResults('ok')
+        }
+
+        const serialized = serializeCall(tool, call)
+        expect(serialized).toContain('icon="⚙️"')
+    })
+
+    it('escapes quotes in icon attributes', () => {
+        const tool: Tool = {
+            name: 'quotedIconTool',
+            description: 'Tool with quoted icon',
+            parameters: {},
+            kind: 'mock',
+            icon: 'x"y',
+            call: async (_arg) => ToolCallResults('ok'),
+            validateArguments: _ => null,
+            required: [],
+            hooks: []
+        }
+
+        const call = {
+            name: 'quotedIconTool',
+            args: {},
+            results: ToolCallResults('ok')
+        }
+
+        const serialized = serializeCall(tool, call)
+        expect(serialized).toContain('icon="x&quot;y"')
+    })
+})
+
 describe('Result escaping round-trip edge cases', () => {
     const tool: Tool = {
         name: 'edgeTool',

@@ -51,6 +51,7 @@ function validateRoot(root : MCPRoot) {
 
 type MCPSpec = (MCPSpecSTDIO | MCPSpecWebsocket | MCPSpecStreamableHTTP) & { 
     name?: string
+    icon?: string
     roots?: MCPRoot[]
     exclude?: string[]
     only?: string[]
@@ -62,6 +63,7 @@ type MCPToolSpec = {
     server_tool_name: string // the original name of the tool, known to the server
     server_name: string // the configured MCP server name (scheme prefix)
     description?: string
+    icon?: string
     sandbox?: string
     schema: ObjectSchema
     client: Client
@@ -106,6 +108,7 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
             isMCPSpecWebsocket(raw) || 
             isMCPSpecStreamableHttp(raw)) && 
            ("name" in raw ? typeof raw.name === "string" : true) &&
+           ("icon" in raw ? typeof raw.icon === "string" : true) &&
            ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true) &&
            ("only" in raw ? Array.isArray(raw.only) && raw.only.every(s => typeof s === "string") : true) &&
            ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
@@ -164,15 +167,27 @@ class MCPListResources extends Tool {
 
     server_name: string
     kind = "mcp"
+    icon: string
     description: string
     name : string
     client: Client
 
-    constructor({server_name, client, hooks}: {hooks?: HookSpec[], server_name : string, client: Client}) {
+    constructor({
+        server_name,
+        client,
+        icon,
+        hooks
+    }: {
+        hooks?: HookSpec[]
+        server_name: string
+        client: Client
+        icon?: string
+    }) {
         super(hooks)
         this.client = client
         this.server_name = server_name
         this.name = `${server_name}_list_resources`
+        this.icon = icon ?? ""
         // XXX: Which backends actually *require* the description field?
         this.description = 
             `This tool can be used to list resources provided by the MCP server ${server_name}. ` +
@@ -218,15 +233,27 @@ export class MCPTool extends Tool {
     static clientByHash : Record<string, Client> = {}
     static clientByName : Record<string, Client> = {}
 
-    constructor({name, server_tool_name, server_name, description, schema, client, hooks}: MCPToolSpec) {
+    icon: string
+
+    constructor({
+        name,
+        server_tool_name,
+        server_name,
+        description,
+        icon,
+        schema,
+        client,
+        hooks
+    }: MCPToolSpec) {
         super(hooks)
         this.client = client
         this.name = name
         this.server_tool_name = server_tool_name
         this.server_name = server_name
+        this.icon = icon ?? ""
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
-        
+
         this.parameters = schema.properties
         // XXX: MCP types don't require the required property. The JSON
         // Schema spec says that when it's omitted, nothing is required
@@ -404,6 +431,7 @@ export class MCPTool extends Tool {
                 server_tool_name: tool.name,
                 server_name: prefix,
                 description: tool.description,
+                icon: spec.icon,
                 // ↓ We cast here. The MCP docs seem to guarantee these are schemata
                 schema: tool.inputSchema as ObjectSchema,
                 client: client, // the tools share a single client
@@ -414,7 +442,8 @@ export class MCPTool extends Tool {
         if (spec.name) {
             associated_tools.push(new MCPListResources({
                 server_name: spec.name,
-                client
+                client,
+                icon: spec.icon,
             }))
         }
         
