@@ -311,6 +311,115 @@ describe("completions (unit)", () => {
     expect(labels.has("code")).toBeTrue()
   })
 
+  test("sandbox use refs suggest sandbox_defs names", async () => {
+    const text = [
+      "---",
+      "sandbox_defs:",
+      "  - name: safe",
+      "    sandbox: bwrap",
+      "interlocutor:",
+      "  name: A",
+      "  prompt: hi",
+      "  sandbox:",
+      "    use: ",
+      "---",
+      "",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes("use:"))
+    const char = lines[line].length
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text),
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    expect(hasLabel(arr, "safe")).toBeTrue()
+  })
+
+  test("hook use refs suggest hook_defs names", async () => {
+    const text = [
+      "---",
+      "hook_defs:",
+      "  - name: audit",
+      "    on: assistant_message",
+      "    do: echo audit",
+      "interlocutor:",
+      "  name: A",
+      "  prompt: hi",
+      "  hooks:",
+      "    - use: au",
+      "---",
+      "",
+    ].join("\n")
+
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes("use: au"))
+    const char = lines[line].length
+
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char } as any,
+      undefined,
+      buildTestBundle(text),
+    )
+
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    expect(hasLabel(arr, "audit")).toBeTrue()
+  })
+
+  test("env use refs include workspace env_defs names", async () => {
+    const wsDir = await mkdtemp(join(tmpdir(), "lectic-use-defs-"))
+    try {
+      await writeFile(
+        join(wsDir, "lectic.yaml"),
+        [
+          "env_defs:",
+          "  - name: shared_env",
+          "    env:",
+          "      MODE: strict",
+          "",
+        ].join("\n"),
+      )
+
+      const text = [
+        "---",
+        "interlocutor:",
+        "  name: A",
+        "  prompt: hi",
+        "  tools:",
+        "    - exec: bash",
+        "      env:",
+        "        use: sh",
+        "---",
+        "",
+      ].join("\n")
+
+      const lines = text.split(/\r?\n/)
+      const line = lines.findIndex(l => l.includes("use: sh"))
+      const char = lines[line].length
+
+      const items: any = await computeCompletions(
+        "file:///doc.lec",
+        text,
+        { line, character: char } as any,
+        wsDir,
+        buildTestBundle(text),
+      )
+
+      const arr = Array.isArray(items) ? items : (items?.items ?? [])
+      expect(hasLabel(arr, "shared_env")).toBeTrue()
+    } finally {
+      await rm(wsDir, { recursive: true, force: true })
+    }
+  })
+
   test("does not suggest macro names inside legacy :macro[...]", async () => {
     const text = `---\nmacros:\n  - name: summarize\n    expansion: exec:echo hi\n  - name: plan\n    expansion: file:./p\n---\n:macro[su]`
     const line = text.split(/\r?\n/).length - 1

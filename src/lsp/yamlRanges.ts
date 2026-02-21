@@ -12,6 +12,12 @@ function findHeaderMatch(text: string): RegExpExecArray | null {
 
 export type YamlPathRange = { path: (string | number)[], range: Range }
 
+type UseTargetRange = {
+  kind: "hook" | "env" | "sandbox"
+  target: string
+  range: Range
+}
+
 export type HeaderRangeIndex = {
   headerFullRange: Range,
   headerContentStartOffset: number,
@@ -21,6 +27,7 @@ export type HeaderRangeIndex = {
   agentTargetRanges: Array<{ target: string, range: Range }>,
   kitTargetRanges: Array<{ target: string, range: Range }>,
   nativeTypeRanges: Array<{ type: string, range: Range }>,
+  useTargetRanges: UseTargetRange[],
   toolItemRanges: Array<{ range: Range }>,
   fieldRanges: YamlPathRange[],
   findRangesByPath: (path: (string | number)[]) => Range[]
@@ -46,6 +53,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   const agentTargetRanges: Array<{ target: string, range: Range }> = []
   const kitTargetRanges: Array<{ target: string, range: Range }> = []
   const nativeTypeRanges: Array<{ type: string, range: Range }> = []
+  const useTargetRanges: UseTargetRange[] = []
   const toolItemRanges: Array<{ range: Range }> = []
   const fieldRanges: YamlPathRange[] = []
 
@@ -59,6 +67,37 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
   const pushIf = (map: unknown, key: string, path: (string | number)[]) => {
     const v = getValue(map, key)
     if (v) pushField(path, v)
+  }
+
+  function indexUseRef(
+    value: unknown,
+    kind: "hook" | "env" | "sandbox",
+    path: (string | number)[]
+  ) {
+    if (!isObjectRecord(value)) return
+
+    const useVal = getValue(value, "use")
+    if (!useVal) return
+
+    pushField([...path, "use"], useVal)
+
+    const r = nodeAbsRange(docText, useVal, contentStart)
+    if (!r) return
+
+    useTargetRanges.push({
+      kind,
+      target: stringOf(useVal) ?? "",
+      range: r,
+    })
+  }
+
+  function indexHookUses(hooksVal: unknown, basePath: (string | number)[]) {
+    const hooks = itemsOf(hooksVal)
+    hooks.forEach((entry, i) => {
+      if (!isObjectRecord(entry)) return
+      pushField([...basePath, i], entry)
+      indexUseRef(entry, "hook", [...basePath, i])
+    })
   }
 
   function indexTools(toolsVal: unknown, basePath: (string | number)[]) {
@@ -95,6 +134,28 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
         const r = nodeAbsRange(docText, nval, contentStart)
         if (r) nativeTypeRanges.push({ type: ntype, range: r })
       }
+
+      const hooksVal = getValue(t, 'hooks')
+      if (hooksVal) {
+        pushField([...basePath, 'tools', i, 'hooks'], hooksVal)
+        indexHookUses(hooksVal, [...basePath, 'tools', i, 'hooks'])
+      }
+
+      const envVal = getValue(t, 'env')
+      if (envVal) {
+        pushField([...basePath, 'tools', i, 'env'], envVal)
+        indexUseRef(envVal, 'env', [...basePath, 'tools', i, 'env'])
+      }
+
+      const sandboxVal = getValue(t, 'sandbox')
+      if (sandboxVal) {
+        pushField([...basePath, 'tools', i, 'sandbox'], sandboxVal)
+        indexUseRef(
+          sandboxVal,
+          'sandbox',
+          [...basePath, 'tools', i, 'sandbox']
+        )
+      }
     })
   }
 
@@ -120,6 +181,12 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
         }
       } else if (key === 'tools') {
         toolsVal = valueNode
+      } else if (key === 'sandbox') {
+        indexUseRef(valueNode, 'sandbox', [...basePath, key])
+      } else if (key === 'hooks') {
+        indexHookUses(valueNode, [...basePath, key])
+      } else if (key === 'env') {
+        indexUseRef(valueNode, 'env', [...basePath, key])
       }
 
       pushField([...basePath, key], valueNode)
@@ -162,6 +229,10 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
       pushIf(mMap, 'pre', ['macros', i, 'pre'])
       pushIf(mMap, 'post', ['macros', i, 'post'])
       pushIf(mMap, 'env', ['macros', i, 'env'])
+      const macroEnvVal = getValue(mMap, 'env')
+      if (macroEnvVal) {
+        indexUseRef(macroEnvVal, 'env', ['macros', i, 'env'])
+      }
       pushIf(mMap, 'description', ['macros', i, 'description'])
       pushIf(mMap, 'completions', ['macros', i, 'completions'])
       pushIf(
@@ -206,15 +277,31 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     }
   })
 
+  // top-level sandbox
+  const rootSandboxVal = getPair(root, 'sandbox')?.value
+  if (rootSandboxVal) {
+    pushField(['sandbox'], rootSandboxVal)
+    indexUseRef(rootSandboxVal, 'sandbox', ['sandbox'])
+  }
+
   // hooks list
   const hooksVal = getPair(root, 'hooks')?.value
-  if (hooksVal) pushField(['hooks'], hooksVal)
+  if (hooksVal) {
+    pushField(['hooks'], hooksVal)
+  }
   const hookItems = itemsOf(hooksVal)
   hookItems.forEach((hMap, i) => {
     if (isObjectRecord(hMap)) {
       pushField(['hooks', i], hMap)
+      indexUseRef(hMap, 'hook', ['hooks', i])
       pushIf(hMap, 'on', ['hooks', i, 'on'])
       pushIf(hMap, 'do', ['hooks', i, 'do'])
+
+      const hookEnv = getValue(hMap, 'env')
+      if (hookEnv) {
+        pushField(['hooks', i, 'env'], hookEnv)
+        indexUseRef(hookEnv, 'env', ['hooks', i, 'env'])
+      }
     }
   })
 
@@ -230,6 +317,7 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     agentTargetRanges,
     kitTargetRanges,
     nativeTypeRanges,
+    useTargetRanges,
     toolItemRanges,
     fieldRanges,
     findRangesByPath

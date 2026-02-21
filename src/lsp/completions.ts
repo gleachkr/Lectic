@@ -19,6 +19,8 @@ import { directiveAtPositionFromBundle, findSingleColonStart, computeReplaceRang
 import { isLecticHeaderSpec } from "../types/lectic"
 import { mergedHeaderSpecForDocDetailed, getYaml } from "../parsing/parse"
 import type { AnalysisBundle } from "./analysisTypes"
+import { resolveConfigChain } from "../utils/configDiscovery"
+import { mergeValues } from "../utils/merge"
 import { buildHeaderRangeIndex } from "./yamlRanges"
 import { parseYaml, getValue, itemsOf, stringOf } from "./utils/yamlAst"
 import { modelRegistry } from "./models"
@@ -58,6 +60,70 @@ const INTERLOCUTOR_FIELD_ITEMS: Array<{ key: string, detail: string, sort: strin
     detail: 'Interlocutor property',
     sort: String(idx + 1).padStart(2, '0') + '_' + key,
   }))
+
+type UseRefKind = "hook" | "env" | "sandbox"
+
+type UseDefCatalog = {
+  hook: string[]
+  env: string[]
+  sandbox: string[]
+}
+
+function readNamedDefs(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+
+  const out: string[] = []
+  const seen = new Set<string>()
+
+  for (const entry of raw) {
+    if (!isObjectRecord(entry)) continue
+    const name = entry["name"]
+    if (typeof name !== "string") continue
+
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+
+    seen.add(key)
+    out.push(name)
+  }
+
+  return out
+}
+
+async function collectUseDefCatalog(
+  docText: string,
+  docDir: string | undefined,
+): Promise<UseDefCatalog> {
+  try {
+    const headerYaml = getYaml(docText)
+    const chain = await resolveConfigChain({
+      includeSystem: true,
+      workspaceStartDir: docDir,
+      document:
+        typeof headerYaml === "string" && headerYaml.length > 0
+          ? { yaml: headerYaml, dir: docDir }
+          : undefined,
+    })
+
+    let merged: unknown = {}
+    for (const source of chain.sources) {
+      if (source.parsed === null || source.parsed === undefined) continue
+      merged = mergeValues(merged, source.parsed)
+    }
+
+    if (!isObjectRecord(merged)) {
+      return { hook: [], env: [], sandbox: [] }
+    }
+
+    return {
+      hook: readNamedDefs(merged["hook_defs"]),
+      env: readNamedDefs(merged["env_defs"]),
+      sandbox: readNamedDefs(merged["sandbox_defs"]),
+    }
+  } catch {
+    return { hook: [], env: [], sandbox: [] }
+  }
+}
 
 function computeValueEdit(
   lineText: string,
@@ -191,6 +257,71 @@ export async function computeCompletions(
       if (pos.character < r.end.character) return false
       const between = lineText.slice(r.end.character, pos.character)
       return between.trim() === ''
+    }
+
+    const linePrefixWithCursor = lineText.slice(0, pos.character)
+    const useColonIdx = linePrefixWithCursor.lastIndexOf(':')
+    const looksLikeUseLine =
+      insideHeaderRange
+      && useColonIdx >= 0
+      && /use\s*$/i.test(
+        linePrefixWithCursor.slice(0, useColonIdx).trimEnd()
+      )
+
+    let useKind: UseRefKind | null = null
+
+    const useRangeHit = header.useTargetRanges.find(ur =>
+      inRangeOrTrailingSpace(ur.range)
+    )
+    if (useRangeHit) {
+      useKind = useRangeHit.kind
+    }
+
+    if (!useKind && looksLikeUseLine) {
+      const contextHit = header.fieldRanges
+        .filter(fr => {
+          const last = fr.path[fr.path.length - 1]
+          if (last !== 'hooks' && last !== 'env' && last !== 'sandbox') {
+            return false
+          }
+          return inRangeOrTrailingSpace(fr.range)
+        })
+        .sort((a, b) => b.path.length - a.path.length)[0]
+
+      const last = contextHit?.path[contextHit.path.length - 1]
+      if (last === 'hooks') {
+        useKind = 'hook'
+      } else if (last === 'env' || last === 'sandbox') {
+        useKind = last
+      }
+    }
+
+    if (useKind) {
+      const defs = await collectUseDefCatalog(docText, docDir)
+      const names = defs[useKind]
+
+      const edit = computeValueEdit(lineText, pos)
+      const prefixLc = edit.prefixLc
+      const textEditRange = edit.range
+
+      for (const name of names) {
+        if (prefixLc && !startsWithCI(name, prefixLc)) continue
+
+        const textEdit: TextEdit = {
+          range: textEditRange,
+          newText: name,
+        }
+
+        items.push({
+          label: name,
+          kind: CompletionItemKind.Value,
+          detail: `${useKind} definition`,
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit,
+        })
+      }
+
+      return items
     }
 
     const interlocutorNameHit = header.fieldRanges.find(fr => {

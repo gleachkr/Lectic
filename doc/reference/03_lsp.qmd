@@ -34,8 +34,9 @@ The LSP suggests completions as you type:
   `completions`, the LSP suggests argument values from inline data, `file:`
   sources, or `exec:` sources. `exec:` defaults to manual trigger policy.
 - **YAML header fields**: In the frontmatter, get suggestions for
-  interlocutor properties (`provider`, `model`, `thinking_effort`, etc.), tool types,
-  kit names, and model names.
+  interlocutor properties (`provider`, `model`, `thinking_effort`,
+  etc.), tool types, kit names, model names, and `use:` reference
+  values (`hook_defs`, `env_defs`, `sandbox_defs`).
 - **Tool types**: Type `-` inside a `tools:` array to see available tool
   kinds (`exec`, `sqlite`, `mcp_command`, `native`, etc.).
 
@@ -160,6 +161,8 @@ completions reflects what will actually be available.
   - `:ask[` / `:aside[` for interlocutor names
   - `:macro_name[` for macro argument completions (if configured)
 - `-` in a `tools:` array triggers tool type completions
+- `use:` in YAML maps suggests definition names for the matching kind
+  (`hook`, `env`, or `sandbox`)
 
 ### Limitations
 
