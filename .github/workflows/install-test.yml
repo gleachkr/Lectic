@@ -1,0 +1,180 @@
+name: Installer smoke test
+
+on:
+  pull_request:
+  push:
+    branches: ["**"]
+
+jobs:
+  install-script:
+    name: install.sh on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Build a local release fixture for this runner
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bun install --frozen-lockfile
+
+          bun build \
+            --compile \
+            --outfile lectic \
+            --define process.env.NODE_ENV="'production'" \
+            src/main.ts src/lsp/parserWorker.ts
+
+          case "$(uname -s)" in
+            Linux)
+              os="linux"
+              ;;
+            Darwin)
+              os="darwin"
+              ;;
+            *)
+              echo "unsupported os" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$(uname -m)" in
+            x86_64|amd64)
+              arch="x86_64"
+              ;;
+            arm64|aarch64)
+              arch="aarch64"
+              ;;
+            *)
+              echo "unsupported arch" >&2
+              exit 1
+              ;;
+          esac
+
+          tag="v0.0.0-ci"
+          asset="lectic-${tag}-${os}-${arch}.tar.gz"
+
+          fixture_dir="$RUNNER_TEMP/install-fixture"
+          mkdir -p "$fixture_dir"
+
+          cp ./lectic "$fixture_dir/lectic"
+          chmod +x "$fixture_dir/lectic"
+          tar -C "$fixture_dir" -czf "$fixture_dir/$asset" lectic
+          rm "$fixture_dir/lectic"
+
+          (
+            cd "$fixture_dir"
+            shasum -a 256 "$asset" > SHA256SUMS
+          )
+
+          printf '{"tag_name":"%s"}\n' "$tag" > "$fixture_dir/latest.json"
+
+          {
+            echo "INSTALL_FIXTURE_DIR=$fixture_dir"
+            echo "INSTALL_FIXTURE_TAG=$tag"
+            echo "INSTALL_FIXTURE_ASSET=$asset"
+          } >> "$GITHUB_ENV"
+
+      - name: Run install.sh smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fake_bin="$RUNNER_TEMP/fake-bin"
+          mkdir -p "$fake_bin"
+
+          cat > "$fake_bin/curl" <<'EOF'
+          #!/bin/sh
+          set -eu
+
+          out=""
+          url=""
+
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --output)
+                out="$2"
+                shift 2
+                ;;
+              --fail|--silent|--show-error|--location)
+                shift
+                ;;
+              *)
+                url="$1"
+                shift
+                ;;
+            esac
+          done
+
+          if [ -z "$url" ]; then
+            echo "fake curl: missing url" >&2
+            exit 1
+          fi
+
+          case "$url" in
+            https://api.github.com/repos/*/releases/latest)
+              src="$INSTALL_FIXTURE_DIR/latest.json"
+              ;;
+            https://github.com/*/releases/download/"$INSTALL_FIXTURE_TAG"/SHA256SUMS)
+              src="$INSTALL_FIXTURE_DIR/SHA256SUMS"
+              ;;
+            https://github.com/*/releases/download/"$INSTALL_FIXTURE_TAG"/"$INSTALL_FIXTURE_ASSET")
+              src="$INSTALL_FIXTURE_DIR/$INSTALL_FIXTURE_ASSET"
+              ;;
+            *)
+              echo "fake curl: unexpected url: $url" >&2
+              exit 1
+              ;;
+          esac
+
+          if [ -n "$out" ]; then
+            cp "$src" "$out"
+          else
+            cat "$src"
+          fi
+          EOF
+
+          chmod +x "$fake_bin/curl"
+
+          export PATH="$fake_bin:$PATH"
+          export LECTIC_INSTALL_REPO="test-owner/test-repo"
+
+          latest_bin="$RUNNER_TEMP/latest-bin"
+          explicit_bin="$RUNNER_TEMP/explicit-bin"
+
+          sh ./install.sh --version latest --bin-dir "$latest_bin"
+          "$latest_bin/lectic" --version > "$RUNNER_TEMP/latest-version.txt"
+          test -s "$RUNNER_TEMP/latest-version.txt"
+
+          cat ./install.sh \
+            | sh -s -- "$INSTALL_FIXTURE_TAG" --bin-dir "$explicit_bin"
+
+          "$explicit_bin/lectic" --version > "$RUNNER_TEMP/explicit-version.txt"
+          test -s "$RUNNER_TEMP/explicit-version.txt"
+
+          "$explicit_bin/lectic" --help > /dev/null
+
+          cat <<'EOF' > "$RUNNER_TEMP/minimal.lec"
+          ---
+          interlocutor:
+            name: Assistant
+            prompt: hi
+          ---
+
+          hello
+          EOF
+
+          "$explicit_bin/lectic" parse -f "$RUNNER_TEMP/minimal.lec" > /dev/null
