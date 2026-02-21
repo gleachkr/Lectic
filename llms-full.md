@@ -4825,6 +4825,8 @@ These keys are shared across multiple tool types:
   from the tool type.
 - `usage`: Instructions for the LLM on when and how to use the tool.
   Accepts a string, `file:`, or `exec:` source.
+- `icon`: Optional icon string serialized into `<tool-call ...>` XML.
+  The LSP folding UI uses this when `NERD_FONT=1`.
 - `hooks`: A list of hooks scoped to this tool (typically `tool_use_pre`
   and/or `tool_use_post`).
 

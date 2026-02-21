@@ -533,6 +533,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><code>name</code>: A custom name for the tool. If omitted, a default is derived from the tool type.</li>
 <li><code>usage</code>: Instructions for the LLM on when and how to use the tool. Accepts a string, <code>file:</code>, or <code>exec:</code> source.</li>
+<li><code>icon</code>: Optional icon string serialized into <code>&lt;tool-call ...&gt;</code> XML. The LSP folding UI uses this when <code>NERD_FONT=1</code>.</li>
 <li><code>hooks</code>: A list of hooks scoped to this tool (typically <code>tool_use_pre</code> and/or <code>tool_use_post</code>).</li>
 </ul>
 </section>
