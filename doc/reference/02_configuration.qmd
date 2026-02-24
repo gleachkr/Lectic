@@ -157,6 +157,8 @@ Run commands and scripts.
   tool takes a required `arguments` array of strings.
 - `sandbox`: Command string to wrap execution. Arguments supported.
 - `timeoutSeconds`: Seconds to wait before aborting.
+- `limit`: Maximum output characters returned across stdout and stderr.
+  Excess output is truncated. Default: `100000`.
 - `env`: Environment variables to set for the subprocess.
 
 #### `sqlite` tool keys

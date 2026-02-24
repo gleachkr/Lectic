@@ -56,6 +56,8 @@ tools:
   or `wrapper.sh arg1`). See safety below. Overrides any interlocutor-level
   or top-level sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
+- `limit`: Maximum number of output characters returned across stdout and
+  stderr. Output beyond this is truncated. Default: `100000`.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the tool
   takes named string parameters (exposed as env vars). When absent, the tool
@@ -92,6 +94,10 @@ Lectic captures stdout and stderr separately and returns both to the model.
 It also includes the numeric exit code when it is non‑zero. You will see
 these serialized inside the tool call results as XML tags like <stdout>,
 <stderr>, and <exitCode>.
+
+To avoid flooding context, exec output is capped by `limit` (default
+`100000` characters). When truncation happens, results include a
+`<truncated>...</truncated>` marker.
 
 If a timeout occurs, Lectic kills the subprocess and throws an error that
 includes any partial stdout and stderr collected so far.

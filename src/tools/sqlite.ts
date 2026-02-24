@@ -60,8 +60,9 @@ export class SQLiteTool extends Tool {
     kind = "sqlite"
     icon: string
     details: string | undefined
-    limit: number | undefined
+    limit: number
     db: Database
+    static defaultLimit = 10_000
     static count : number = 0
 
     constructor(spec: SQLiteToolSpec) {
@@ -69,7 +70,7 @@ export class SQLiteTool extends Tool {
         this.name = spec.name ?? `sqlite_tool_${SQLiteTool.count}`
         this.icon = spec.icon ?? ""
         this.details = spec.details
-        this.limit = spec.limit
+        this.limit = spec.limit ?? SQLiteTool.defaultLimit
 
         const dbPath = expandEnv(spec.sqlite)
         const dbMissing = !existsSync(dbPath)
@@ -170,7 +171,7 @@ export class SQLiteTool extends Tool {
                 // some string sanitization, like '\n' for newlines, which the
                 // LLM will sometimes think is just part of the string.
                 const rslt = YAML.stringify(rslt_rows)
-                if (rslt.length > (this.limit ?? 10_000)) {
+                if (rslt.length > this.limit) {
                     throw Error("result was too large, try a more selective query.")
                 }
                 rslts.push(rslt)

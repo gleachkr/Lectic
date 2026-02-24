@@ -120,6 +120,27 @@ describe("ExecTool (async)", () => {
     },
   );
 
+  it("defaults output limit to 100k characters", () => {
+    const tool = new ExecTool(
+      { exec: "/bin/echo", name: "echo-default-limit" },
+      "Interlocutor_Name",
+    );
+    expect(tool.limit).toBe(100_000);
+  });
+
+  it("truncates large output when limit is set", async () => {
+    const tool = new ExecTool(
+      { exec: "/bin/echo", name: "echo-limited", limit: 5 },
+      "Interlocutor_Name",
+    );
+    const res = await tool.call({ argv: ["abcdefghij"] });
+    const out = texts(res).join("\n");
+    expect(out).toContain("<stdout>abcde</stdout>");
+    expect(out).toContain(
+      "<truncated>output exceeded 5 characters and was truncated</truncated>",
+    );
+  });
+
   it("sandbox with arguments wraps execution", async () => {
       const tool = new ExecTool(
           { 

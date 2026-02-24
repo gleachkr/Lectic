@@ -16,6 +16,7 @@ export type ExecToolSpec = {
     env?: Record<string, string>
     schema?: Record<string, string>
     timeoutSeconds?: number
+    limit?: number
     hooks? : HookSpec[]
 }
 
@@ -28,6 +29,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         ("name" in raw ? typeof raw.name === "string" : true) &&
         ("icon" in raw ? typeof raw.icon === "string" : true) &&
         ("timeoutSeconds" in raw ? typeof raw.timeoutSeconds === "number" : true) &&
+        ("limit" in raw ? typeof raw.limit === "number" : true) &&
         ("env" in raw 
             ? typeof raw.env === "object" && raw.env !== null && 
                 Object.values(raw.env).every(v => typeof v === "string")
@@ -133,7 +135,9 @@ export class ExecTool extends Tool {
     description: string
     env: Record<string, string>
     timeoutSeconds?: number
+    limit: number
     static count : number = 0
+    static defaultLimit = 100_000
 
     constructor(spec: ExecToolSpec, interlocutor_name : string) {
         super(spec.hooks)
@@ -144,6 +148,7 @@ export class ExecTool extends Tool {
         this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
         this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox
         this.timeoutSeconds = spec.timeoutSeconds
+        this.limit = spec.limit ?? ExecTool.defaultLimit
 
         if (spec.schema) {
             this.parameters = {}
@@ -168,6 +173,7 @@ export class ExecTool extends Tool {
                  `So for example if you supply ARG_ONE and ARG_TWO, what is run is literally \`"${this.exec} "ARG_ONE" "ARG_TWO"\`. ` +
                  `If the command requires command line flags, those should be included in the list of arguments. `)) +
             `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features. ` +
+            `Tool output is truncated to at most ${this.limit} characters to avoid overwhelming context windows. ` +
             `The user cannot see the tool call result. You must explicitly report any requested information to the user. ` +
             (spec.usage ?? "")
         ExecTool.count++
@@ -201,10 +207,27 @@ export class ExecTool extends Tool {
             proc = spawnCommand(this.exec, args, this.sandbox, env)
         }
 
-        const collected = { stdout: "", stderr: "" }
+        const collected = { stdout: "", stderr: "", truncated: false }
+        let remaining = this.limit
+
+        const appendLimited = (channel: "stdout" | "stderr", chunk: string) => {
+            if (remaining <= 0) {
+                collected.truncated = true
+                return
+            }
+            if (chunk.length <= remaining) {
+                collected[channel] += chunk
+                remaining -= chunk.length
+                return
+            }
+            collected[channel] += chunk.slice(0, remaining)
+            remaining = 0
+            collected.truncated = true
+        }
+
         const rslt = Promise.all([
-            readStream(proc.stdout, s => collected.stdout += s),
-            readStream(proc.stderr, s => collected.stderr += s),
+            readStream(proc.stdout, s => appendLimited("stdout", s)),
+            readStream(proc.stderr, s => appendLimited("stderr", s)),
         ]).then(() => proc.exited).then((code) => {
             // Clean up CLI output after collection is complete
             collected.stdout = sanitizeCliOutput(collected.stdout)
@@ -220,6 +243,9 @@ export class ExecTool extends Tool {
             const results: string[] = []
             if (collected.stdout.length > 0) results.push(`<stdout>${collected.stdout}</stdout>`)
             if (collected.stderr.length > 0) results.push(`<stderr>${collected.stderr}</stderr>`)
+            if (collected.truncated) {
+                results.push(`<truncated>output exceeded ${this.limit} characters and was truncated</truncated>`)
+            }
             if (code !== 0) results.push(`<exitCode>${code}</exitCode>`)
             return ToolCallResults(results, "application/xml")
         } catch (e) {
@@ -228,6 +254,9 @@ export class ExecTool extends Tool {
                 const chunks: string[] = []
                 if (collected.stdout.length > 0) chunks.push(`<stdout>${collected.stdout}</stdout>`)
                 if (collected.stderr.length > 0) chunks.push(`<stderr>${collected.stderr}</stderr>`)
+                if (collected.truncated) {
+                    chunks.push(`<truncated>output exceeded ${this.limit} characters and was truncated</truncated>`)
+                }
                 chunks.push(`<error>Killed Process: ${e.message} after ${this.timeoutSeconds} second timeout</error>`)
                 throw new Error(chunks.join(""))
             }
