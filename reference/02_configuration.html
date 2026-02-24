@@ -545,6 +545,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>schema</code>: A map of parameter name → description. When present, the tool takes named string parameters (exposed as env vars). When absent, the tool takes a required <code>arguments</code> array of strings.</li>
 <li><code>sandbox</code>: Command string to wrap execution. Arguments supported.</li>
 <li><code>timeoutSeconds</code>: Seconds to wait before aborting.</li>
+<li><code>limit</code>: Maximum output characters returned across stdout and stderr. Excess output is truncated. Default: <code>100000</code>.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
 </ul>
 </section>

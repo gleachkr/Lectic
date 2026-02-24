@@ -4841,6 +4841,8 @@ Run commands and scripts.
   the tool takes a required `arguments` array of strings.
 - `sandbox`: Command string to wrap execution. Arguments supported.
 - `timeoutSeconds`: Seconds to wait before aborting.
+- `limit`: Maximum output characters returned across stdout and stderr.
+  Excess output is truncated. Default: `100000`.
 - `env`: Environment variables to set for the subprocess.
 
 #### `sqlite` tool keys
@@ -4994,7 +4996,8 @@ The LSP suggests completions as you type:
   trigger policy.
 - **YAML header fields**: In the frontmatter, get suggestions for
   interlocutor properties (`provider`, `model`, `thinking_effort`,
-  etc.), tool types, kit names, and model names.
+  etc.), tool types, kit names, model names, and `use:` reference values
+  (`hook_defs`, `env_defs`, `sandbox_defs`).
 - **Tool types**: Type `-` inside a `tools:` array to see available tool
   kinds (`exec`, `sqlite`, `mcp_command`, `native`, etc.).
 
@@ -5120,6 +5123,8 @@ completions reflects what will actually be available.
   - `:ask[` / `:aside[` for interlocutor names
   - `:macro_name[` for macro argument completions (if configured)
 - `-` in a `tools:` array triggers tool type completions
+- `use:` in YAML maps suggests definition names for the matching kind
+  (`hook`, `env`, or `sandbox`)
 
 ### Limitations
 
@@ -5527,6 +5532,8 @@ tools:
   (e.g. `/path/to/script.sh` or `wrapper.sh arg1`). See safety below.
   Overrides any interlocutor-level or top-level sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
+- `limit`: Maximum number of output characters returned across stdout
+  and stderr. Output beyond this is truncated. Default: `100000`.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the
   tool takes named string parameters (exposed as env vars). When absent,
@@ -5564,6 +5571,10 @@ Lectic captures stdout and stderr separately and returns both to the
 model. It also includes the numeric exit code when it is non‑zero. You
 will see these serialized inside the tool call results as XML tags like
 , , and .
+
+To avoid flooding context, exec output is capped by `limit` (default
+`100000` characters). When truncation happens, results include a
+`<truncated>...</truncated>` marker.
 
 If a timeout occurs, Lectic kills the subprocess and throws an error
 that includes any partial stdout and stderr collected so far.

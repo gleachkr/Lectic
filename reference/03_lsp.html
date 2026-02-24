@@ -480,7 +480,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Directives</strong>: Type <code>:</code> to see built-in directives (<code>:cmd</code>, <code>:env</code>, <code>:fetch</code>, <code>:verbatim</code>, <code>:once</code>, <code>:discard</code>, <code>:attach</code>, <code>:ask</code>, <code>:aside</code>, <code>:reset</code>) and any macros you’ve defined.</li>
 <li><strong>Interlocutor names</strong>: Inside <code>:ask[</code> or <code>:aside[</code>, the LSP suggests names from your configuration.</li>
 <li><strong>Macro argument values</strong>: Inside <code>:macro_name[...]</code>, if the macro defines <code>completions</code>, the LSP suggests argument values from inline data, <code>file:</code> sources, or <code>exec:</code> sources. <code>exec:</code> defaults to manual trigger policy.</li>
-<li><strong>YAML header fields</strong>: In the frontmatter, get suggestions for interlocutor properties (<code>provider</code>, <code>model</code>, <code>thinking_effort</code>, etc.), tool types, kit names, and model names.</li>
+<li><strong>YAML header fields</strong>: In the frontmatter, get suggestions for interlocutor properties (<code>provider</code>, <code>model</code>, <code>thinking_effort</code>, etc.), tool types, kit names, model names, and <code>use:</code> reference values (<code>hook_defs</code>, <code>env_defs</code>, <code>sandbox_defs</code>).</li>
 <li><strong>Tool types</strong>: Type <code>-</code> inside a <code>tools:</code> array to see available tool kinds (<code>exec</code>, <code>sqlite</code>, <code>mcp_command</code>, <code>native</code>, etc.).</li>
 </ul>
 <p>Completions are case-insensitive and respect any prefix you’ve typed.</p>
@@ -584,6 +584,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>:macro_name[</code> for macro argument completions (if configured)</li>
 </ul></li>
 <li><code>-</code> in a <code>tools:</code> array triggers tool type completions</li>
+<li><code>use:</code> in YAML maps suggests definition names for the matching kind (<code>hook</code>, <code>env</code>, or <code>sandbox</code>)</li>
 </ul>
 </section>
 <section id="limitations" class="level3">
