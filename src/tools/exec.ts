@@ -257,7 +257,7 @@ export class ExecTool extends Tool {
                 if (collected.truncated) {
                     chunks.push(`<truncated>output exceeded ${this.limit} characters and was truncated</truncated>`)
                 }
-                chunks.push(`<error>Killed Process: ${e.message} after ${this.timeoutSeconds} second timeout</error>`)
+                chunks.push(`<error>Killed Process: ${e.message}</error>`)
                 throw new Error(chunks.join(""))
             }
             throw e
