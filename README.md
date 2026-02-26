@@ -46,8 +46,7 @@ surface. So that's how you extend Lectic.
 #### Linux / macOS quick install (GitHub Releases)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
-  | sh
+curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh | sh
 ```
 
 To update later, rerun the same installer command.
