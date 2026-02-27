@@ -8,6 +8,7 @@ import { lecticEnv } from "../utils/xdg"
 import type { InlineAttachment } from "../types/inlineAttachment"
 import { parseReferences, nodeContentRaw } from "./markdown"
 import { MessageAttachment } from "../types/attachment"
+import { escapeXmlAttribute } from "./xml"
 
 const processor = remark().use(remarkDirective)
 
@@ -89,10 +90,6 @@ function messageEnvToEnv(messageEnv?: MacroMessageEnv): Record<string, string> {
   }
 }
 
-function escapeXmlAttr(raw: string): string {
-  return raw.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
-}
-
 type FetchTarget = {
   uri: string
   title: string
@@ -150,7 +147,7 @@ async function builtinFetch(bodyRaw: string): Promise<string> {
   for (const att of atts) {
     if (!(await att.exists())) {
       out.push(
-        `<error>Could not fetch ${escapeXmlAttr(att.URI)}: not found</error>`
+        `<error>Could not fetch ${escapeXmlAttribute(att.URI)}: not found</error>`
       )
       continue
     }
@@ -158,7 +155,7 @@ async function builtinFetch(bodyRaw: string): Promise<string> {
     const parts = await att.getParts()
     if (parts.length === 0) {
       out.push(
-        `<error>Could not fetch ${escapeXmlAttr(att.URI)}: empty result</error>`
+        `<error>Could not fetch ${escapeXmlAttribute(att.URI)}: empty result</error>`
       )
       continue
     }
@@ -174,9 +171,9 @@ async function builtinFetch(bodyRaw: string): Promise<string> {
         continue
       }
 
-      const titleAttr = escapeXmlAttr(part.title)
-      const uriAttr = escapeXmlAttr(part.URI)
-      const typeAttr = mt ? ` type="${escapeXmlAttr(mt)}"` : ""
+      const titleAttr = escapeXmlAttribute(part.title)
+      const uriAttr = escapeXmlAttribute(part.URI)
+      const typeAttr = mt ? ` type="${escapeXmlAttribute(mt)}"` : ""
       const text = Buffer.from(part.bytes).toString()
       out.push(
         `<file title="${titleAttr}" uri="${uriAttr}"${typeAttr}>` +
@@ -199,7 +196,7 @@ async function builtinCmd(cmdTextRaw: string): Promise<string> {
   const result = await $`${rawCmd}`.nothrow().quiet()
 
   // XML attribute escaping
-  const fromAttr = escapeXmlAttr(cmdText)
+  const fromAttr = escapeXmlAttribute(cmdText)
 
   if (result.exitCode === 0) {
     return (

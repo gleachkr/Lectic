@@ -1,4 +1,11 @@
-import { unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
+import {
+    unwrap,
+    extractElements,
+    escapeTags,
+    unescapeTags,
+    escapeXmlAttribute,
+    unescapeXmlAttribute,
+} from "../parsing/xml.ts"
 import { serialize, deserialize, validateAgainstSchema } from "./schema.ts"
 import type { JSONSchema } from "./schema.ts"
 import { Hook, type HookSpec } from "./hook"
@@ -87,14 +94,6 @@ export function ToolCallResults(s : string | string[], mimetype? : string) : Too
 }
 
 const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
-
-function escapeXmlAttribute(value: string): string {
-    return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
-}
-
-function unescapeXmlAttribute(value: string): string {
-    return value.replace(/&quot;/g, '"').replace(/&amp;/g, "&")
-}
 
 export function serializeCall(tool: Tool | null, {name, args, results, id, isError} : ToolCall) : string {
     const values = [] 

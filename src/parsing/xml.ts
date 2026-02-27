@@ -53,3 +53,11 @@ export function unescapeTags(string : string) {
         .replace(/^\r?\n/, '')
         .replace(/<│/g, '<')
 }
+
+export function escapeXmlAttribute(value: string): string {
+    return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+}
+
+export function unescapeXmlAttribute(value: string): string {
+    return value.replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+}

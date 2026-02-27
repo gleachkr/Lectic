@@ -4,7 +4,10 @@ import { remark } from "remark"
 import remarkDirective from "remark-directive"
 import { nodeRaw } from "../parsing/markdown"
 import { isSerializedCall } from "../types/tool"
-import { isSerializedInlineAttachment } from "../types/inlineAttachment"
+import {
+  defaultInlineAttachmentIcon,
+  isSerializedInlineAttachment,
+} from "../types/inlineAttachment"
 import type { Root } from "mdast"
 
 export function buildFoldingRangesFromAst(ast: Root, docText: string): LspFoldingRange[] {
@@ -39,17 +42,19 @@ export function buildFoldingRangesFromAst(ast: Root, docText: string): LspFoldin
   return out
 }
 
+function getAttribute(line: string, name: string): string | undefined {
+  const match = new RegExp(`${name}="([^"]*)"`).exec(line)
+  return match?.[1]
+}
+
 function getCollapsedText(raw: string): string {
   const useNerdFont = process.env["NERD_FONT"] === "1"
   const line = raw.split("\n")[0].trim()
 
   if (line.startsWith("<tool-call")) {
-    const nameMatch = /with="([^"]*)"/.exec(line)
-    const kindMatch = /kind="([^"]*)"/.exec(line)
-    const iconMatch = /icon="([^"]*)"/.exec(line)
-    const name = nameMatch ? nameMatch[1] : "tool"
-    const kind = kindMatch ? kindMatch[1] : ""
-    const icon = iconMatch ? iconMatch[1] : ""
+    const name = getAttribute(line, "with") ?? "tool"
+    const kind = getAttribute(line, "kind") ?? ""
+    const icon = getAttribute(line, "icon") ?? ""
 
     if (useNerdFont) {
       return `${icon} ${name}`
@@ -60,17 +65,16 @@ function getCollapsedText(raw: string): string {
   }
 
   if (line.startsWith("<inline-attachment")) {
-    const kindMatch = /kind="([^"]*)"/.exec(line)
-    const rawKind = kindMatch ? kindMatch[1] : "attach"
+    const rawKind = getAttribute(line, "kind") ?? "attach"
     const kind = rawKind === "cmd" ? "attach" : rawKind
+    const fallbackIcon = defaultInlineAttachmentIcon(kind)
+    const icon = getAttribute(line, "icon") ?? fallbackIcon
 
     if (useNerdFont) {
-      if (kind === "hook") return "󱐋 hook"
-      if (kind === "attach") return "  attach"
-      return "  attachment"
-    } else {
-      return `[${kind}]`
+      return `${icon} ${kind}`
     }
+
+    return `[${kind}]`
   }
 
   return "..."

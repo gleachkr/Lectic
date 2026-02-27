@@ -97,7 +97,7 @@ describe("folding ranges (collapsedText)", () => {
     process.env["NERD_FONT"] = "1"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="attach">\n<command>ls</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
     const ranges = await buildFoldingRanges(text)
-    expect(ranges[0].collapsedText).toBe("  attach")
+    expect(ranges[0].collapsedText).toBe(" attach")
   })
 
   test("inline-attachment shows hook icon when NERD_FONT=1", async () => {
@@ -105,5 +105,12 @@ describe("folding ranges (collapsedText)", () => {
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="hook">\n<command>hook.sh</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges[0].collapsedText).toBe("󱐋 hook")
+  })
+
+  test("inline-attachment prefers XML icon when NERD_FONT=1", async () => {
+    process.env["NERD_FONT"] = "1"
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="attach" icon="🧪">\n<command>hook.sh</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
+    const ranges = await buildFoldingRanges(text)
+    expect(ranges[0].collapsedText).toBe("🧪 attach")
   })
 })

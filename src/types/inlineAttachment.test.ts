@@ -16,10 +16,12 @@ describe("inline attachment serialization", () => {
     const xml = serializeInlineAttachment(a)
     const b = deserializeInlineAttachment(xml)
 
+    expect(xml).toContain('icon=""')
     expect(b.kind).toBe("attach")
     expect(b.command).toBe(a.command)
     expect(b.content).toBe(a.content)
     expect(b.mimetype).toBe("text/plain")
+    expect(b.icon).toBe("")
   })
 
   it("roundtrips a simple attach attachment with empty command", () => {
@@ -33,10 +35,12 @@ describe("inline attachment serialization", () => {
     const xml = serializeInlineAttachment(a)
     const b = deserializeInlineAttachment(xml)
 
+    expect(xml).toContain('icon=""')
     expect(b.kind).toBe("attach")
     expect(b.command).toBe("")
     expect(b.content).toBe("derp")
     expect(b.mimetype).toBe("text/plain")
+    expect(b.icon).toBe("")
   })
 
   it("roundtrips attachment with attributes", () => {
@@ -51,7 +55,24 @@ describe("inline attachment serialization", () => {
     const xml = serializeInlineAttachment(a)
     const b = deserializeInlineAttachment(xml)
 
+    expect(xml).toContain('icon="󱐋"')
     expect(b.kind).toBe("hook")
+    expect(b.icon).toBe("󱐋")
     expect(b.attributes).toEqual({ abc: "text", other: 'val with "' })
+  })
+
+  it("uses a custom icon when provided", () => {
+    const a = {
+      kind: "attach" as const,
+      command: "test",
+      content: "foo",
+      icon: "🧪",
+    }
+
+    const xml = serializeInlineAttachment(a)
+    const b = deserializeInlineAttachment(xml)
+
+    expect(xml).toContain('icon="🧪"')
+    expect(b.icon).toBe("🧪")
   })
 })
