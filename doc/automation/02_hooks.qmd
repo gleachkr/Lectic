@@ -11,7 +11,7 @@ of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has five possible fields:
+A hook has six possible fields:
 
 - `on`: (Required) A single event name or a list of event names to listen for.
 - `do`: (Required) The command or inline script to run when the event fires.
@@ -23,6 +23,9 @@ A hook has five possible fields:
   same name (e.g., one in your global config and one in a project config),
   the one defined later (or with higher precedence) overrides the earlier
   one. This allows you to replace default hooks with custom behavior.
+  For inline hooks, this name is serialized into the attachment XML and
+  shown by LSP folding.
+- `icon`: (Optional) Icon string for inline hook attachments.
 - `env`: (Optional) A map of environment variables to inject into the hook's
   execution environment.
 

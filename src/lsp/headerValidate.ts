@@ -21,6 +21,84 @@ export type Issue = {
   severity: "error" | "warning"
 }
 
+function isValidHookOnValue(value: unknown): boolean {
+  return typeof value === "string"
+    ? HOOK_EVENT_TYPES.includes(value as keyof HookEvents)
+    : Array.isArray(value)
+      && value.every(
+        (item) => typeof item === "string"
+          && HOOK_EVENT_TYPES.includes(item as keyof HookEvents)
+      )
+}
+
+function validateHookObject(
+  hook: Record<string, unknown>,
+  pathBase: (string | number)[],
+  issues: Issue[]
+): void {
+  if (!("on" in hook)) {
+    issues.push({
+      code: "hook.on.missing",
+      message: Messages.hook.onMissing(),
+      path: [...pathBase, "on"],
+      severity: "error",
+    })
+  } else if (typeof hook["on"] !== "string" && !Array.isArray(hook["on"])) {
+    issues.push({
+      code: "hook.on.type",
+      message: Messages.hook.onType(),
+      path: [...pathBase, "on"],
+      severity: "error",
+    })
+  } else if (!isValidHookOnValue(hook["on"])) {
+    issues.push({
+      code: "hook.on.value",
+      message: Messages.hook.onValue(HOOK_EVENT_TYPES),
+      path: [...pathBase, "on"],
+      severity: "error",
+    })
+  }
+
+  if (!("do" in hook) || typeof hook["do"] !== "string") {
+    issues.push({
+      code: "hook.do.missing",
+      message: Messages.hook.doMissing(),
+      path: [...pathBase, "do"],
+      severity: "error",
+    })
+  }
+
+  if ("name" in hook && typeof hook["name"] !== "string") {
+    issues.push({
+      code: "hook.name.type",
+      message: Messages.hook.nameType(),
+      path: [...pathBase, "name"],
+      severity: "error",
+    })
+  }
+
+  if ("icon" in hook && typeof hook["icon"] !== "string") {
+    issues.push({
+      code: "hook.icon.type",
+      message: Messages.hook.iconType(),
+      path: [...pathBase, "icon"],
+      severity: "error",
+    })
+  }
+
+  if (
+    "env" in hook
+    && (typeof hook["env"] !== "object" || hook["env"] === null)
+  ) {
+    issues.push({
+      code: "hook.env.type",
+      message: Messages.hook.envType(),
+      path: [...pathBase, "env"],
+      severity: "error",
+    })
+  }
+}
+
 export function validateHeaderShape(spec: unknown): Issue[] {
   const issues: Issue[] = []
   if (spec === null || typeof spec !== "object") {
@@ -222,46 +300,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           }
           if (isUseRefObject(h)) return
 
-
-          if (!("on" in h)) {
-            issues.push({
-              code: "hook.on.missing",
-              message: Messages.hook.onMissing(),
-              path: [...pathBase, "hooks", i, "on"],
-              severity: "error"
-            })
-          } else if (typeof h["on"] !== "string" && !Array.isArray(h["on"])) {
-            issues.push({
-              code: "hook.on.type",
-              message: Messages.hook.onType(),
-              path: [...pathBase, "hooks", i, "on"],
-              severity: "error"
-            })
-          } else {
-            const allowed = HOOK_EVENT_TYPES
-            const ok = typeof h["on"] === "string"
-              ? allowed.includes(h["on"] as keyof HookEvents)
-              : h["on"].every(
-                (x) => typeof x === "string"
-                  && allowed.includes(x as keyof HookEvents)
-              )
-            if (!ok) {
-              issues.push({
-                code: "hook.on.value",
-                message: Messages.hook.onValue(allowed),
-                path: [...pathBase, "hooks", i, "on"],
-                severity: "error"
-              })
-            }
-          }
-          if (!("do" in h) || typeof h["do"] !== "string") {
-            issues.push({
-              code: "hook.do.missing",
-              message: Messages.hook.doMissing(),
-              path: [...pathBase, "hooks", i, "do"],
-              severity: "error"
-            })
-          }
+          validateHookObject(h, [...pathBase, "hooks", i], issues)
         })
       }
     }
@@ -542,45 +581,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
 
         if (isUseRefObject(h)) return
 
-        if (!("on" in h)) {
-          issues.push({
-            code: "hook.on.missing",
-            message: Messages.hook.onMissing(),
-            path: ["hooks", i, "on"],
-            severity: "error"
-          })
-        } else if (typeof h["on"] !== "string" && !Array.isArray(h["on"])) {
-          issues.push({
-            code: "hook.on.type",
-            message: Messages.hook.onType(),
-            path: ["hooks", i, "on"],
-            severity: "error"
-          })
-        } else {
-          const allowed = HOOK_EVENT_TYPES
-          const ok = typeof h["on"] === "string"
-            ? allowed.includes(h["on"] as keyof HookEvents)
-            : h["on"].every(
-              (x) => typeof x === "string"
-                && allowed.includes(x as keyof HookEvents)
-            )
-          if (!ok) {
-            issues.push({
-              code: "hook.on.value",
-              message: Messages.hook.onValue(allowed),
-              path: ["hooks", i, "on"],
-              severity: "error"
-            })
-          }
-        }
-        if (!("do" in h) || typeof h["do"] !== "string") {
-          issues.push({
-            code: "hook.do.missing",
-            message: Messages.hook.doMissing(),
-            path: ["hooks", i, "do"],
-            severity: "error"
-          })
-        }
+        validateHookObject(h, ["hooks", i], issues)
       })
     }
   }

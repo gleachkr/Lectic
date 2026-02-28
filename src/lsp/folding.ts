@@ -69,9 +69,15 @@ function getCollapsedText(raw: string): string {
     const kind = rawKind === "cmd" ? "attach" : rawKind
     const fallbackIcon = defaultInlineAttachmentIcon(kind)
     const icon = getAttribute(line, "icon") ?? fallbackIcon
+    const name = getAttribute(line, "name")
 
     if (useNerdFont) {
-      return `${icon} ${kind}`
+      const label = name ?? kind
+      return `${icon} ${label}`
+    }
+
+    if (name) {
+      return `[${kind}: ${name}]`
     }
 
     return `[${kind}]`

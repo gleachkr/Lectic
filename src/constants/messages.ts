@@ -84,6 +84,7 @@ export const Messages = {
     doMissing: () => `Hook needs to be given with a "do" field.`,
     envType: () => `The "env" field of a hook must be an object.`,
     nameType: () => `The "name" field of a hook must be a string.`,
+    iconType: () => `The "icon" field of a hook must be a string.`,
     baseNeedsOnDo: (raw: unknown) =>
       `Hook needs to be given with at least "on" and "do" fields. Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for hook`,

@@ -109,6 +109,23 @@ echo "LECTIC:ONLY:headers"`,
         expect(results[0].content.trim()).toBe("")
     })
 
+    it("adds hook name and icon metadata to inline attachments", () => {
+        const hook = new Hook({
+            on: "user_message",
+            do: "echo 'content'",
+            inline: true,
+            name: "audit",
+            icon: "🔎",
+        })
+
+        const results = runHooks([hook], "user_message", {})
+        expect(results).toHaveLength(1)
+        expect(results[0].icon).toBe("🔎")
+        expect(results[0].attributes).toEqual({
+            name: "audit",
+        })
+    })
+
     it("runs assistant_final when TOOL_USE_DONE is set", () => {
         const hook = new Hook({
             on: "assistant_final",

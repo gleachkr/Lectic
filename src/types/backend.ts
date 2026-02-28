@@ -67,12 +67,21 @@ function runHooksInternal(
       if (opt?.collectInline === false) continue
       if (output && output.trim().length > 0) {
         const { content, attributes } = parseHookOutput(output)
+
+        const mergedAttributes = { ...attributes }
+        if (hook.name) {
+          mergedAttributes["name"] = hook.name
+        }
+
         inline.push({
           kind: "hook",
           command: hook.do,
           content,
           mimetype: "text/plain",
-          attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+          icon: hook.icon,
+          attributes: Object.keys(mergedAttributes).length > 0
+            ? mergedAttributes
+            : undefined,
         })
       }
     } catch (e) {

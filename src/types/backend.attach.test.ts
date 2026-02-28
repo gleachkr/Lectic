@@ -6,7 +6,11 @@ describe("UserMessage inlineAttachments", () => {
     const msg = new UserMessage({ content: ":attach[derp]" })
 
     // Simulate this being the last message.
-    await msg.expandMacros([], { MESSAGE_TEXT: msg.content,  MESSAGE_INDEX: 1, MESSAGES_LENGTH: 1 })
+    await msg.expandMacros([], {
+      MESSAGE_TEXT: msg.content,
+      MESSAGE_INDEX: 1,
+      MESSAGES_LENGTH: 1,
+    })
 
     expect(msg.inlineAttachments).toHaveLength(1)
     expect(msg.inlineAttachments[0].kind).toBe("attach")
@@ -15,6 +19,29 @@ describe("UserMessage inlineAttachments", () => {
 
     // :attach expands to nothing in the final user message.
     expect(msg.content).not.toContain(":attach[")
+  })
+
+  it("supports :attach metadata attributes", async () => {
+    const msg = new UserMessage({
+      content: ":attach[payload]{icon=\"🧪\" name=\"snapshot\" id=\"x1\"}",
+    })
+
+    await msg.expandMacros([], {
+      MESSAGE_TEXT: msg.content,
+      MESSAGE_INDEX: 1,
+      MESSAGES_LENGTH: 1,
+    })
+
+    expect(msg.inlineAttachments).toHaveLength(1)
+    const att = msg.inlineAttachments[0]
+
+    expect(att.icon).toBe("🧪")
+    expect(att.mimetype).toBe("text/plain")
+    expect(att.attributes).toEqual({
+      name: "snapshot",
+      id: "x1",
+      icon: "🧪",
+    })
   })
 })
 

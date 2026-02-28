@@ -80,6 +80,7 @@ function attrsToEnv(
   return out
 }
 
+
 function messageEnvToEnv(messageEnv?: MacroMessageEnv): Record<string, string> {
   if (!messageEnv) return {}
 
@@ -373,11 +374,21 @@ export async function expandMacrosWithAttachments(
         }
         case "attach" : {
           if (childrenExpanded.length > 0) {
+            const attributes: Record<string, string> = {}
+
+            for (const [k, v] of Object.entries(node.attributes ?? {})) {
+              if (k === "ARG") continue
+              attributes[k] = typeof v === "string" ? v : ""
+            }
+
             inlineAttachments.push({
               kind: "attach",
               command: "",
               content: childrenExpanded,
               mimetype: "text/plain",
+              icon: attributes["icon"],
+              attributes:
+                Object.keys(attributes).length > 0 ? attributes : undefined,
             })
           }
 

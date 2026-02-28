@@ -84,8 +84,9 @@ export const DIRECTIVE_DOCS: DirectiveDoc[] = [
     title: "attach verbatim inline text as an inline attachment",
     body:
       "Create an inline attachment whose content is exactly the text inside " +
-      "the brackets. The attachment is treated as extra user context for the " +
-      "next assistant turn.",
+      "the brackets. Optional attributes include name/icon (fold display). " +
+      "The attachment is treated as extra user context for the next " +
+      "assistant turn.",
     insert: ":attach[${0:text}]",
     sortText: "01_attach",
   },

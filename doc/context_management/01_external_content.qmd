@@ -145,12 +145,23 @@ The `:attach[...]` directive creates an **inline attachment**. The content
 inside the brackets is stored in the assistant's response block (after macro
 expansion) and sent to the LLM as additional user context.
 
+You can optionally set metadata with directive attributes:
+
+- `icon`: custom fold icon in LSP/editor UIs
+- `name`: custom fold label in LSP/editor UIs
+
 ```markdown
 Here's the current state of the config:
 
 :attach[:config_status_macro[]]
 
 What do you think of this configuration?
+```
+
+With custom fold display metadata:
+
+```markdown
+:attach[:cmd[git diff --staged]]{name="staged diff" icon=""}
 ```
 
 When Lectic processes this, it creates an inline attachment that appears at

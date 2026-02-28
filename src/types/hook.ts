@@ -32,6 +32,7 @@ export type HookSpec = {
     do: string
     inline?: boolean
     name?: string
+    icon?: string
     env?: Record<string, string>
 }
 
@@ -58,6 +59,9 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     }
     if ("name" in raw && typeof raw.name !== "string") {
         throw Error(Messages.hook.nameType())
+    }
+    if ("icon" in raw && typeof raw.icon !== "string") {
+        throw Error(Messages.hook.iconType())
     }
     if ("env" in raw && (typeof raw.env !== "object" || raw.env === null)) {
         throw Error(Messages.hook.envType())
@@ -120,13 +124,16 @@ export class Hook {
     do : string
     inline : boolean
     name? : string
+    icon? : string
     env : Record<string, string>
 
     constructor(spec : HookSpec) {
+        validateHookSpec(spec)
         this.on = typeof spec.on === "string" ? [spec.on] : spec.on
         this.do = spec.do
         this.inline = spec.inline ?? false
         this.name = spec.name
+        this.icon = spec.icon
         this.env = spec.env || {}
     }
 

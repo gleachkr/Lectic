@@ -260,6 +260,11 @@ in a key name.
 - `inline`: (Optional) Boolean. If `true`, the output of the hook is
   captured and injected into the conversation. Defaults to `false`.
 - `name`: (Optional) A name for the hook. Used for merging and overriding
-  hooks from different configuration sources.
+  hooks from different configuration sources. For inline hooks, this is also
+  serialized as a `name` attribute on `<inline-attachment kind="hook">`
+  blocks and shown in LSP fold text.
+- `icon`: (Optional) Icon string for inline hook attachments. If provided,
+  it is serialized as the `icon` attribute and used by LSP folding when
+  `NERD_FONT=1`.
 - `env`: (Optional) A dictionary of environment variables to be set when
   the hook runs.

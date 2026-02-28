@@ -81,7 +81,8 @@ Lectic records some generated content directly into the transcript as
 
 Inline attachments appear inside the assistant's response block as XML.
 They include a `<command>` field (the hook's `do` value, or empty for
-`:attach`) and a `<content>` field.
+`:attach`) and a `<content>` field. They may also include attributes like
+`icon` and `name` used by editor folding UIs.
 
 Example (`:attach[...]`):
 

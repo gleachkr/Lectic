@@ -39,4 +39,14 @@ describe("header field diagnostics for hooks", () => {
       const d = findDiag(diags, "Hook \"on\" needs to be one of")
       expect(d).toBeDefined()
     })
+
+  test("hook icon must be a string", async () => {
+    const text =
+      `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n` +
+      `    - on: user_message\n      do: echo\n      icon: 12\n---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, 'The "icon" field of a hook must be a string')
+    expect(d).toBeDefined()
+  })
 })

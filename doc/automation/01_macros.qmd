@@ -197,8 +197,13 @@ want the macro to run once, and you don't want to pass the output to the LLM.
 Captures its expanded children as an inline attachment stored in the
 assistant's response block. Only processed in the final message.
 
+You can optionally add attributes to control metadata:
+
+- `icon` for fold display icon
+- `name` for fold display label
+
 ```markdown
-:attach[:cmd[git diff --staged]]
+:attach[:cmd[git diff --staged]]{name="staged diff" icon=""}
 ```
 
 See [External Content](../context_management/01_external_content.qmd#inline-attachments-with-attach)

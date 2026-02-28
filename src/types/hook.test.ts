@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Hook } from "./hook"
+import { Hook, validateHookSpec } from "./hook"
 
 describe("Hook", () => {
     test("validates spec", () => {
@@ -9,6 +9,19 @@ describe("Hook", () => {
         expect(() => new Hook({ on: "tool_use_post", do: "echo 'post'" })).not.toThrow()
         expect(() => new Hook({ on: "assistant_final", do: "echo 'final'" })).not.toThrow()
         expect(() => new Hook({ on: "assistant_intermediate", do: "echo 'mid'" })).not.toThrow()
+        expect(() => new Hook({
+            on: "assistant_message",
+            do: "echo 'icon'",
+            icon: "🔎",
+        })).not.toThrow()
+    })
+
+    test("rejects non-string icons", () => {
+        expect(() => validateHookSpec({
+            on: "assistant_message",
+            do: "echo 'icon'",
+            icon: 1,
+        })).toThrow('The "icon" field of a hook must be a string.')
     })
 
     test("execute single line", () => {
