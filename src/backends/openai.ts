@@ -18,6 +18,7 @@ import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { ToolCall, ToolCallResult } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { strictify } from "../types/schema.ts"
+import type { ThoughtBlock } from "../types/thought"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.2",
@@ -401,6 +402,14 @@ export class OpenAIBackend extends Backend<
           })),
       })
     }
+  }
+
+  protected extractThoughtBlocks(
+    _final: OpenAI.Chat.Completions.ChatCompletion
+  ): ThoughtBlock[] {
+    // The legacy Chat Completions API does not expose
+    // thinking/reasoning blocks.
+    return []
   }
 
   get client() {

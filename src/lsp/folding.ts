@@ -8,6 +8,7 @@ import {
   defaultInlineAttachmentIcon,
   isSerializedInlineAttachment,
 } from "../types/inlineAttachment"
+import { isSerializedThoughtBlock } from "../types/thought"
 import type { Root } from "mdast"
 
 export function buildFoldingRangesFromAst(ast: Root, docText: string): LspFoldingRange[] {
@@ -23,7 +24,11 @@ export function buildFoldingRangesFromAst(ast: Root, docText: string): LspFoldin
       const pos = b.position
       if (!pos?.start || !pos?.end) continue
       const raw = nodeRaw(b, docText)
-      if (!isSerializedCall(raw) && !isSerializedInlineAttachment(raw)) continue
+      if (
+        !isSerializedCall(raw) &&
+        !isSerializedInlineAttachment(raw) &&
+        !isSerializedThoughtBlock(raw)
+      ) continue
 
       const startLine =  Math.max(0, (pos.start.line ?? 1) - 1)
       const endLine =  Math.max(0, (pos.end.line ?? 1) - 1)
@@ -81,6 +86,18 @@ function getCollapsedText(raw: string): string {
     }
 
     return `[${kind}]`
+  }
+
+  if (line.startsWith("<thought-block")) {
+    const provider = getAttribute(line, "provider")
+    const kind = getAttribute(line, "provider-kind")
+    const label = [provider, kind].filter(Boolean).join(" ")
+
+    if (useNerdFont) {
+      return label ? `🧠 ${label}` : "🧠 thought"
+    }
+
+    return label ? `[thought: ${label}]` : "[thought]"
   }
 
   return "..."

@@ -107,6 +107,18 @@ function inlineAttachmentLabel(raw: string): string {
   return `${kind} attachment`
 }
 
+function thoughtBlockLabel(raw: string): string {
+  const firstLine = raw.split(/\r?\n/)[0]?.trim() ?? raw.trim()
+  const provider = /provider="([^"]*)"/.exec(firstLine)?.[1]
+  const kind = /provider-kind="([^"]*)"/.exec(firstLine)?.[1]
+  const status = /status="([^"]*)"/.exec(firstLine)?.[1]
+
+  const label = [provider, kind].filter(Boolean).join(" ")
+  if (status && label) return `thought: ${label} (${status})`
+  if (label) return `thought: ${label}`
+  return "thought"
+}
+
 function trimBlankSpan(text: string, fromOff: number, toOff: number): [number, number] | null {
   // Trim leading blanks
   let s = fromOff
@@ -207,7 +219,7 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
   const bodyStartOff = docText.length - body.length
 
   type ChildSpan = {
-    kind: 'tool-call' | 'inline-attachment'
+    kind: 'tool-call' | 'inline-attachment' | 'thought-block'
     absStart: number
     absEnd: number
   }
@@ -220,6 +232,11 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
     })),
     ...bundle.inlineAttachmentBlocks.map(b => ({
       kind: 'inline-attachment' as const,
+      absStart: b.absStart,
+      absEnd: b.absEnd,
+    })),
+    ...bundle.thoughtBlockBlocks.map(b => ({
+      kind: 'thought-block' as const,
       absStart: b.absStart,
       absEnd: b.absEnd,
     })),
@@ -291,10 +308,14 @@ export function buildDocumentSymbols(docText: string, bundle: AnalysisBundle): D
         const raw = docText.slice(c.absStart, Math.min(c.absEnd, c.absStart + 400))
         cName = toolCallLabel(raw)
         cKind = LspSymbolKind.Function
-      } else {
+      } else if (c.kind === 'inline-attachment') {
         const raw = docText.slice(c.absStart, Math.min(c.absEnd, c.absStart + 4000))
         cName = inlineAttachmentLabel(raw)
         cKind = LspSymbolKind.File
+      } else {
+        const raw = docText.slice(c.absStart, Math.min(c.absEnd, c.absStart + 400))
+        cName = thoughtBlockLabel(raw)
+        cKind = LspSymbolKind.Object
       }
 
       children.push({

@@ -13,6 +13,7 @@ function mkBundleForSpan(start: number, end: number): AnalysisBundle {
     blocks: [],
     toolCallBlocks: [],
     inlineAttachmentBlocks: [{ absStart: start, absEnd: end }],
+    thoughtBlockBlocks: [],
   }
 }
 

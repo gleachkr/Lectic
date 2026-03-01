@@ -65,6 +65,14 @@ describe("folding ranges (inline-attachment)", () => {
   })
 })
 
+describe("folding ranges (thought-block)", () => {
+  test("simple thought-block folds including closing tag line", async () => {
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<thought-block provider="openai" provider-kind="reasoning">\n<summary>\n┆inspect parser\n</summary>\n</thought-block>\n:::\nAfter\n`
+    const ranges = await buildFoldingRanges(text)
+    expect(toPairs(ranges)).toEqual([[5, 9]])
+  })
+})
+
 describe("folding ranges (collapsedText)", () => {
   const originalNerdFont = process.env["NERD_FONT"]
 
@@ -123,5 +131,16 @@ describe("folding ranges (collapsedText)", () => {
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<inline-attachment kind="attach" icon="🧪">\n<command>hook.sh</command>\n<content>x</content>\n</inline-attachment>\n:::\n`
     const ranges = await buildFoldingRanges(text)
     expect(ranges[0].collapsedText).toBe("🧪 attach")
+  })
+
+  test("thought-block collapsed text includes provider and kind", async () => {
+    process.env["NERD_FONT"] = "1"
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<thought-block provider="openai" provider-kind="reasoning">\n<summary>\n┆x\n</summary>\n</thought-block>\n:::\n`
+    const ranges = await buildFoldingRanges(text)
+    expect(ranges[0].collapsedText).toBe("🧠 openai reasoning")
+
+    process.env["NERD_FONT"] = "0"
+    const rangesNoNerd = await buildFoldingRanges(text)
+    expect(rangesNoNerd[0].collapsedText).toBe("[thought: openai reasoning]")
   })
 })

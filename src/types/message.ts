@@ -21,6 +21,11 @@ import {
   type InlineAttachment,
 } from "./inlineAttachment"
 import type { MessageLink } from "./link"
+import {
+  deserializeThoughtBlock,
+  isSerializedThoughtBlock,
+  type ThoughtBlock,
+} from "./thought"
 
 export type MessageDirective = {
     name: string
@@ -33,6 +38,7 @@ export type MessageInteraction = {
     text : string
     calls: ToolCall[]
     attachments: InlineAttachment[]
+    thoughts: ThoughtBlock[]
 }
 
 export class UserMessage {
@@ -100,30 +106,55 @@ export class AssistantMessage {
         let curText : RootContent[] = []
         let curCalls : ToolCall[] = []
         let curAttachments: InlineAttachment[] = []
+        let curThoughts: ThoughtBlock[] = []
         const interactions : MessageInteraction[] = []
 
         const flush = () => {
-            if (curText.length > 0 || curCalls.length > 0 || curAttachments.length > 0) {
+            if (
+              curText.length > 0 ||
+              curCalls.length > 0 ||
+              curAttachments.length > 0 ||
+              curThoughts.length > 0
+            ) {
                 let text = ""
                 if (curText.length > 0) {
                     const content_start = curText[0].position?.start.offset
                     const content_end = curText[curText.length - 1].position?.end.offset
                     text = raw.slice(content_start, content_end)
                 }
-                interactions.push({ text, calls: curCalls, attachments: curAttachments })
+                interactions.push({
+                  text,
+                  calls: curCalls,
+                  attachments: curAttachments,
+                  thoughts: curThoughts,
+                })
                 curText = []
                 curCalls = []
                 curAttachments = []
+                curThoughts = []
             }
         }
+
+        // Grouping rules:
+        //
+        // - Attachments start a new interaction (they become
+        //   user-injected context), so any accumulated text,
+        //   calls, or thoughts flush first.
+        //
+        // - Tool calls and thought blocks accumulate together
+        //   in the current interaction. When plain text follows
+        //   them, we flush to start a new text run.
+        //
+        // - Consecutive text nodes accumulate without flushing.
 
         for (const block of blocks) {
             const blockRaw = nodeRaw(block, raw)
             if (block.type === "html" && isSerializedInlineAttachment(blockRaw)) {
-                // If we have accumulated text or calls, flush them first.
-                // This ensures the attachment starts a NEW interaction context
-                // (as a user message injection) following the previous text.
-                if (curText.length > 0 || curCalls.length > 0) {
+                if (
+                  curText.length > 0 ||
+                  curCalls.length > 0 ||
+                  curThoughts.length > 0
+                ) {
                     flush()
                 }
                 curAttachments.push(deserializeInlineAttachment(blockRaw))
@@ -133,8 +164,10 @@ export class AssistantMessage {
                 const call = deserializeCall(this.tools[name] ?? null, blockRaw)
                 if (call === null) throw Error("Parse error for tool call: couldn't deserialize call")
                 curCalls.push(call)
+            } else if (block.type === "html" && isSerializedThoughtBlock(blockRaw)) {
+                curThoughts.push(deserializeThoughtBlock(blockRaw))
             } else {
-                if (curCalls.length !== 0) flush()
+                if (curCalls.length !== 0 || curThoughts.length !== 0) flush()
                 curText.push(block)
             }
         }

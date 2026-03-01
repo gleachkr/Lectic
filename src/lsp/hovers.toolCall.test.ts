@@ -13,6 +13,7 @@ function mkBundleWithToolSpan(start: number, end: number): AnalysisBundle {
     blocks: [],
     toolCallBlocks: [{ absStart: start, absEnd: end }],
     inlineAttachmentBlocks: [],
+    thoughtBlockBlocks: [],
   }
 }
 
@@ -65,6 +66,7 @@ describe("hover: tool-call block", () => {
       blocks: [],
       toolCallBlocks: [],
       inlineAttachmentBlocks: [],
+      thoughtBlockBlocks: [],
     }
 
     const pos = offsetToPosition(doc, s + 10)

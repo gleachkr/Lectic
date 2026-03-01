@@ -21,6 +21,7 @@ import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
 import { unescapeTags, extractElements, unwrap } from "../parsing/xml" 
 import { deserializeInlineAttachment } from "../types/inlineAttachment"
+import { deserializeThoughtBlock } from "../types/thought"
 import { stringify } from "yaml"
 
 export async function computeHover(
@@ -77,6 +78,10 @@ export async function computeHover(
   // 2.5) Inline attachment hover: show command and content
   const attachHover = inlineAttachmentHover(docText, pos, bundle)
   if (attachHover) return attachHover
+
+  // 2.7) Thought block hover: show thought segments.
+  const thoughtHover = thoughtBlockHover(docText, pos, bundle)
+  if (thoughtHover) return thoughtHover
 
   // 3) Link hover: small preview for local text files
   const hrefHover = await linkHover(docText, pos, docDir, bundle)
@@ -440,6 +445,72 @@ function inlineAttachmentHover(
       // not a valid inline attachment; ignore
     }
   }
+  return null
+}
+
+function thoughtBlockHover(
+  docText: string,
+  pos: Position,
+  bundle: AnalysisBundle
+): Hover | null {
+  const absPos = positionToOffset(docText, pos)
+  const blocks = bundle.thoughtBlockBlocks
+
+  for (const b of blocks) {
+    if (absPos < b.absStart || absPos > b.absEnd) continue
+
+    const serialized = docText.slice(b.absStart, b.absEnd)
+
+    try {
+      const thought = deserializeThoughtBlock(serialized)
+      const parts: string[] = []
+
+      const providerLabel = [
+        thought.provider,
+        thought.providerKind,
+      ].filter(Boolean).join(" ")
+
+      if (providerLabel.length > 0) {
+        parts.push(`Provider: ${providerLabel}`)
+      }
+
+      if (thought.status) {
+        parts.push(`Status: ${thought.status}`)
+      }
+
+      if (thought.summary && thought.summary.length > 0) {
+        const text = thought.summary.join("\n")
+        parts.push(
+          `## summary\n\n${codeFenceLang(text, "")}`
+        )
+      }
+
+      if (thought.content && thought.content.length > 0) {
+        const text = thought.content.join("\n")
+        parts.push(
+          `## content\n\n${codeFenceLang(text, "")}`
+        )
+      }
+
+      if (thought.opaque) {
+        for (const name of Object.keys(thought.opaque)) {
+          parts.push(`## opaque: ${name}\n\n(not previewable)`)
+        }
+      }
+
+      const value = parts.join("\n\n")
+      return {
+        contents: { kind: MarkupKind.Markdown, value },
+        range: LspRange.create(
+          offsetToPosition(docText, b.absStart),
+          offsetToPosition(docText, b.absEnd)
+        )
+      }
+    } catch {
+      // not a valid thought block; ignore
+    }
+  }
+
   return null
 }
 

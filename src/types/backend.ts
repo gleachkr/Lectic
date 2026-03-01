@@ -11,6 +11,7 @@ import {
   type InlineAttachment,
 } from "./inlineAttachment"
 import { isObjectRecord } from "./guards"
+import { serializeThoughtBlock, type ThoughtBlock } from "./thought"
 
 export type BackendUsage = {
   input: number
@@ -369,6 +370,10 @@ export abstract class Backend<TMessage, TFinal> {
     lectic: Lectic
   }): Promise<void>
 
+  protected abstract extractThoughtBlocks(
+    final: TFinal
+  ): ThoughtBlock[]
+
   async *evaluate(
     lectic: Lectic,
     opt?: BackendEvaluateOptions
@@ -453,6 +458,16 @@ export abstract class Backend<TMessage, TFinal> {
       }
 
       const reply = await final
+
+      // Emit thought blocks from the provider response.
+      const thoughts = this.extractThoughtBlocks(reply)
+      if (thoughts.length > 0) {
+        const thoughtXml = thoughts
+          .map(serializeThoughtBlock)
+          .join("\n\n")
+        yield "\n\n"
+        yield thoughtXml
+      }
 
       const hasToolCalls = this.finalHasToolCalls(reply)
       const usage = this.finalUsage(reply)

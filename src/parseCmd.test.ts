@@ -219,6 +219,36 @@ I will use a tool.
         expect(toolCall.value).toContain('with="test_tool"')
     })
 
+    it('should parse thought blocks as assistant XML nodes', async () => {
+        const content = `---
+interlocutor:
+  name: Bot
+  provider: ollama
+  model: mock-1
+  prompt: You are a bot
+---
+Use thought block
+:::Bot
+<thought-block provider="openai" provider-kind="reasoning" status="completed">
+<summary>
+┆Need to check parser output.
+</summary>
+</thought-block>
+:::
+`
+        writeFileSync(testFile, content)
+
+        await parseCmd({ file: testFile })
+
+        const output = JSON.parse(logs.join(''))
+        const asstMsg = output.messages[1]
+        const thought = asstMsg.content.find((n: any) => n.type === 'thought-block')
+
+        expect(asstMsg.role).toBe("assistant")
+        expect(thought).toBeDefined()
+        expect(thought.value).toContain('provider="openai"')
+    })
+
     it('should reverse parse JSON to lectic', async () => {
         const jsonInput = {
             header: {
@@ -241,6 +271,7 @@ I will use a tool.
                     name: "ReverseBot",
                     content: [
                          { type: "paragraph", children: [{ type: "text", value: "Response" }] },
+                         { type: "thought-block", value: '<thought-block><summary>\n┆test\n</summary></thought-block>' },
                          { type: "tool-call", value: '<tool-call with="tool"></tool-call>' }
                     ]
                 }
@@ -257,6 +288,7 @@ I will use a tool.
         expect(output).toContain('Hello reverse')
         expect(output).toContain(':::ReverseBot')
         expect(output).toContain('Response')
+        expect(output).toContain('<thought-block><summary>')
         expect(output).toContain('<tool-call with="tool"></tool-call>')
     })
 

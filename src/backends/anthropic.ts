@@ -20,6 +20,7 @@ import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { MessageStream } from "@anthropic-ai/sdk/lib/MessageStream.mjs"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema.js"
+import type { ThoughtBlock } from "../types/thought"
 
 // Yield only text deltas from an Anthropic stream, plus blank lines when
 // server tool use blocks begin (to preserve formatting semantics).
@@ -115,6 +116,31 @@ function updateCache(messages: Anthropic.Messages.MessageParam[]) {
   }
 }
 
+function thoughtBlocksToAnthropicParts(
+  thoughts: ThoughtBlock[]
+): Anthropic.Messages.ContentBlockParam[] {
+  const parts: Anthropic.Messages.ContentBlockParam[] = []
+
+  for (const thought of thoughts) {
+    if (thought.providerKind === "redacted_thinking") {
+      const data = thought.opaque?.["redacted_data"]
+      if (data) {
+        parts.push({ type: "redacted_thinking", data })
+      }
+      continue
+    }
+
+    const thinking = (thought.content ?? []).join("\n")
+    const signature = thought.opaque?.["signature"]
+
+    if (thinking.length > 0 && signature) {
+      parts.push({ type: "thinking", thinking, signature })
+    }
+  }
+
+  return parts
+}
+
 function getTools(lectic: Lectic): Anthropic.Messages.ToolUnion[] {
   const nativeTools = (lectic.header.interlocutor.tools || [])
     .filter((tool) => "native" in tool)
@@ -201,6 +227,8 @@ export class AnthropicBackend extends Backend<
 
         const modelParts: Anthropic.Messages.ContentBlockParam[] = []
         const userParts: Anthropic.Messages.ContentBlockParam[] = []
+
+        modelParts.push(...thoughtBlocksToAnthropicParts(interaction.thoughts))
 
         if (interaction.text.length > 0) {
           modelParts.push({ type: "text" as const, text: interaction.text })
@@ -424,6 +452,39 @@ export class AnthropicBackend extends Backend<
     }
 
     if (content.length > 0) messages.push({ role: "user", content })
+  }
+
+  protected extractThoughtBlocks(
+    final: Anthropic.Messages.Message
+  ): ThoughtBlock[] {
+    const blocks: ThoughtBlock[] = []
+    let order = 0
+
+    for (const block of final.content) {
+      if (block.type === "thinking") {
+        blocks.push({
+          provider: "anthropic",
+          providerKind: "thinking",
+          status: "completed",
+          order: order++,
+          ...(block.thinking
+            ? { content: [block.thinking] }
+            : {}),
+          ...(block.signature
+            ? { opaque: { signature: block.signature } }
+            : {}),
+        })
+      } else if (block.type === "redacted_thinking") {
+        blocks.push({
+          provider: "anthropic",
+          providerKind: "redacted_thinking",
+          order: order++,
+          opaque: { redacted_data: block.data },
+        })
+      }
+    }
+
+    return blocks
   }
 }
 

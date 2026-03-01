@@ -3,6 +3,7 @@ import { directivesFromAst, referencesFromAst, nodeRaw, parseBlocks } from "../p
 import { findUrlRangeInNodeRaw } from "./linkTargets"
 import { isSerializedCall } from "../types/tool"
 import { isSerializedInlineAttachment } from "../types/inlineAttachment"
+import { isSerializedThoughtBlock } from "../types/thought"
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
 import type { Root } from "mdast"
@@ -13,6 +14,7 @@ import type {
   BlockSpan,
   ToolCallBlockSpan,
   InlineAttachmentBlockSpan,
+  ThoughtBlockSpan,
 } from "./analysisTypes"
 
 export function buildBundleFromAst(
@@ -26,6 +28,7 @@ export function buildBundleFromAst(
   const blocks: BlockSpan[] = []
   const toolCallBlocks: ToolCallBlockSpan[] = []
   const inlineAttachmentBlocks: InlineAttachmentBlockSpan[] = []
+  const thoughtBlockBlocks: ThoughtBlockSpan[] = []
 
   const body = getBody(docText)
   const headerOffset = docText.length - body.length
@@ -84,6 +87,8 @@ export function buildBundleFromAst(
               toolCallBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
             } else if (isSerializedInlineAttachment(raw)) {
               inlineAttachmentBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
+            } else if (isSerializedThoughtBlock(raw)) {
+              thoughtBlockBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
             }
           }
         }
@@ -102,7 +107,17 @@ export function buildBundleFromAst(
   }
   if (cursor < docText.length) blocks.push({ kind: 'user', absStart: cursor, absEnd: docText.length })
 
-  return { uri, version, headerOffset, directives, links, blocks, toolCallBlocks, inlineAttachmentBlocks }
+  return {
+    uri,
+    version,
+    headerOffset,
+    directives,
+    links,
+    blocks,
+    toolCallBlocks,
+    inlineAttachmentBlocks,
+    thoughtBlockBlocks,
+  }
 }
 
 export function buildBundle(docText: string, uri = "file:///doc.lec", version = 1): AnalysisBundle {

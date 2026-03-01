@@ -25,6 +25,7 @@ import {
 import { inlineReset, type InlineAttachment, } from "../types/inlineAttachment"
 import type { ToolCall } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
+import type { ThoughtBlock } from "../types/thought"
 
 type GeminiFinal = {
   response: GenerateContentResponse
@@ -212,6 +213,40 @@ function getTools(lectic: Lectic): Gemini.FunctionDeclaration[] {
   return tools
 }
 
+function thoughtBlocksToGeminiParts(
+  thoughts: ThoughtBlock[]
+): Part[] {
+  const parts: Part[] = []
+
+  for (const thought of thoughts) {
+    const signature =
+      thought.opaque?.["thought_signature"]
+
+    const texts = [
+      ...(thought.summary ?? []),
+      ...(thought.content ?? []),
+    ]
+
+    if (texts.length === 0 && signature) {
+      parts.push({
+        thought: true,
+        thoughtSignature: signature,
+      })
+      continue
+    }
+
+    texts.forEach((text, idx) => {
+      const part: Part = { thought: true, text }
+      if (idx === 0 && signature) {
+        part.thoughtSignature = signature
+      }
+      parts.push(part)
+    })
+  }
+
+  return parts
+}
+
 async function partToContent(part: MessageAttachmentPart): Promise<Part | null> {
   const media_type = part.mimetype
   let bytes = part.bytes
@@ -317,6 +352,8 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
 
         const modelParts: Part[] = []
         const userParts: Part[] = []
+
+        modelParts.push(...thoughtBlocksToGeminiParts(interaction.thoughts))
 
         if (interaction.text.length > 0) {
           modelParts.push({ text: interaction.text })
@@ -514,5 +551,42 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
     }
 
     messages.push({ role: "user", parts: userParts })
+  }
+
+  protected extractThoughtBlocks(
+    final: GeminiFinal
+  ): ThoughtBlock[] {
+    const parts =
+      final.response.candidates?.[0]?.content?.parts ?? []
+    const blocks: ThoughtBlock[] = []
+    let order = 0
+
+    for (const part of parts) {
+      if (part.thought !== true) continue
+
+      const hasText =
+        typeof part.text === "string" &&
+        part.text.length > 0
+      const hasSig = !!part.thoughtSignature
+
+      if (!hasText && !hasSig) continue
+
+      blocks.push({
+        provider: "gemini",
+        providerKind: "thinking",
+        order: order++,
+        ...(hasText ? { content: [part.text!] } : {}),
+        ...(hasSig
+          ? {
+              opaque: {
+                thought_signature:
+                  part.thoughtSignature!,
+              },
+            }
+          : {}),
+      })
+    }
+
+    return blocks
   }
 }

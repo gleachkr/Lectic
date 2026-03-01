@@ -5,6 +5,7 @@ import type { Interlocutor } from "./interlocutor"
 import type { Tool } from './tool';
 import { expect, it, describe } from "bun:test";
 import { serializeInlineAttachment } from "./inlineAttachment";
+import { serializeThoughtBlock } from "./thought";
 
 describe('UserMessage', () => {
     describe('containedLinks', () => {
@@ -389,6 +390,30 @@ describe('AssistantMessage', () => {
         expect(interactions[1].text).toContain('then some text');
         expect(interactions[1].calls.length).toBe(0);
     });
+
+    it('extracts thought blocks into interactions', () => {
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
+        const thought = serializeThoughtBlock({
+            provider: 'openai',
+            providerKind: 'reasoning',
+            status: 'completed',
+            order: 1,
+            summary: [
+                'Need to inspect parse output first.',
+            ]
+        })
+        const content = `before\n\n${thought}\n\nafter`
+        const msg = new AssistantMessage({ content, interlocutor: fake })
+        const interactions = msg.parseAssistantContent().interactions
+
+        expect(interactions.length).toBe(2)
+        expect(interactions[0].thoughts.length).toBe(1)
+        expect(interactions[0].thoughts[0].provider).toBe('openai')
+        expect(interactions[0].thoughts[0].summary).toEqual(
+          ['Need to inspect parse output first.']
+        )
+        expect(interactions[1].thoughts.length).toBe(0)
+    })
 
     it('returns a single text-only interaction when there are no tool calls', () => {
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;

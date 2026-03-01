@@ -6,6 +6,7 @@ import { dirname } from 'path'
 import { UserMessage, AssistantMessage } from './types/message'
 import { isSerializedCall } from './types/tool'
 import { isSerializedInlineAttachment } from './types/inlineAttachment'
+import { isSerializedThoughtBlock } from './types/thought'
 import { remark } from 'remark'
 import remarkDirective from 'remark-directive'
 import * as YAML from 'yaml'
@@ -23,7 +24,13 @@ type InlineAttachmentNode = {
     value: string
 }
 
-type ParsedContentNode = RootContent | ToolCallNode | InlineAttachmentNode
+type ThoughtBlockNode = {
+    type: 'thought-block'
+    value: string
+}
+
+type ParsedContentNode =
+    RootContent | ToolCallNode | InlineAttachmentNode | ThoughtBlockNode
 
 type ParsedMessage = {
     role: 'user' | 'assistant'
@@ -45,6 +52,12 @@ function isToolCallNode(node: unknown ): node is ToolCallNode {
 function isInlineAttachmentNode(node: unknown): node is InlineAttachmentNode {
     return isObjectRecord(node) && 
         node["type"] === 'inline-attachment' && 
+        typeof node["value"] === 'string'
+}
+
+function isThoughtBlockNode(node: unknown): node is ThoughtBlockNode {
+    return isObjectRecord(node) &&
+        node["type"] === 'thought-block' &&
         typeof node["value"] === 'string'
 }
 
@@ -102,6 +115,10 @@ async function handleParse(opts: ParseOpts) {
                     }
                     if (isSerializedInlineAttachment(node.value)) {
                         content.push({ type: 'inline-attachment', value: node.value })
+                        continue
+                    }
+                    if (isSerializedThoughtBlock(node.value)) {
+                        content.push({ type: 'thought-block', value: node.value })
                         continue
                     }
                 }
@@ -177,6 +194,9 @@ async function handleReverse(opts: ParseOpts) {
                         flushMarkdown()
                         output += `${node.value.trim()}\n\n`
                     } else if (isInlineAttachmentNode(node)) {
+                        flushMarkdown()
+                        output += `${node.value.trim()}\n\n`
+                    } else if (isThoughtBlockNode(node)) {
                         flushMarkdown()
                         output += `${node.value.trim()}\n\n`
                     } else {

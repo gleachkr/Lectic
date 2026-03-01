@@ -34,6 +34,11 @@ export type InlineAttachmentBlockSpan = {
   absEnd: number
 }
 
+export type ThoughtBlockSpan = {
+  absStart: number
+  absEnd: number
+}
+
 export type AnalysisBundle = {
   uri: string
   version: number
@@ -43,6 +48,7 @@ export type AnalysisBundle = {
   blocks: BlockSpan[]
   toolCallBlocks: ToolCallBlockSpan[]
   inlineAttachmentBlocks: InlineAttachmentBlockSpan[]
+  thoughtBlockBlocks: ThoughtBlockSpan[]
 }
 
 export type AnalyzeRequest = {

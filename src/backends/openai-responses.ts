@@ -19,6 +19,7 @@ import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { ToolCall } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { strictify } from "../types/schema.ts"
+import type { ThoughtBlock } from "../types/thought"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.2",
@@ -31,6 +32,39 @@ const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5-codex",
   "gpt-4.1",
 ]
+
+function thoughtBlockToReasoningItem(
+  thought: ThoughtBlock
+): OpenAI.Responses.ResponseReasoningItem {
+  const summary = (thought.summary ?? []).map((s) => ({
+    type: "summary_text" as const,
+    text: s,
+  }))
+
+  const content = (thought.content ?? []).map((s) => ({
+    type: "reasoning_text" as const,
+    text: s,
+  }))
+
+  const encrypted =
+    thought.opaque?.["encrypted_content"]
+
+  const status =
+    thought.status === "in_progress" ||
+    thought.status === "completed" ||
+    thought.status === "incomplete"
+      ? thought.status
+      : undefined
+
+  return {
+    type: "reasoning",
+    id: thought.id ?? Bun.randomUUIDv7(),
+    summary,
+    content: content.length > 0 ? content : undefined,
+    encrypted_content: encrypted,
+    status,
+  }
+}
 
 function getTools(lectic: Lectic): OpenAI.Responses.Tool[] {
   const tools: OpenAI.Responses.Tool[] = []
@@ -168,6 +202,13 @@ export class OpenAIResponsesBackend extends Backend<
               text: a.content,
             })),
           })
+        }
+
+        const thoughts = [...interaction.thoughts].sort(
+          (a, b) => (a.order ?? 0) - (b.order ?? 0)
+        )
+        for (const thought of thoughts) {
+          results.push(thoughtBlockToReasoningItem(thought))
         }
 
         if (interaction.text) {
@@ -400,6 +441,57 @@ export class OpenAIResponsesBackend extends Backend<
         output: JSON.stringify(call.results.filter((r) => !isAttachmentMime(r.mimetype))),
       })
     }
+  }
+
+  protected extractThoughtBlocks(
+    final: OpenAI.Responses.Response
+  ): ThoughtBlock[] {
+    const blocks: ThoughtBlock[] = []
+    let order = 0
+
+    for (const item of final.output) {
+      if (item.type !== "reasoning") continue
+
+      const summary: string[] = []
+      const content: string[] = []
+      const opaque: Record<string, string> = {}
+
+      if (Array.isArray(item.summary)) {
+        for (const s of item.summary) {
+          if (s.type === "summary_text" && s.text) {
+            summary.push(s.text)
+          }
+        }
+      }
+
+      if (Array.isArray(item.content)) {
+        for (const c of item.content) {
+          if (c.type === "reasoning_text" && c.text) {
+            content.push(c.text)
+          }
+        }
+      }
+
+      if (item.encrypted_content) {
+        opaque["encrypted_content"] =
+          item.encrypted_content
+      }
+
+      blocks.push({
+        provider: "openai",
+        providerKind: "reasoning",
+        id: item.id,
+        status: item.status ?? undefined,
+        order: order++,
+        ...(summary.length > 0 ? { summary } : {}),
+        ...(content.length > 0 ? { content } : {}),
+        ...(Object.keys(opaque).length > 0
+          ? { opaque }
+          : {}),
+      })
+    }
+
+    return blocks
   }
 
   get client() {
