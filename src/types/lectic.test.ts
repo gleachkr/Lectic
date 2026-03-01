@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ExecTool } from '../tools/exec';
 import { SQLiteTool } from '../tools/sqlite';
-import { ThinkTool } from '../tools/think';
 import { AgentTool } from '../tools/agent';
 import { A2ATool } from '../tools/a2a';
 import { expect, it, describe } from "bun:test";
@@ -194,22 +193,6 @@ describe('LecticHeader', () => {
         required: ['score'],
         additionalProperties: false,
       });
-    });
-
-    it('should correctly initialize a ThinkTool', async () => {
-        const spec = {
-          interlocutor: {
-            name: 'Tester',
-            prompt: 'Test prompt',
-            tools: [{ think_about: 'the problem' }]
-          }
-        };
-        const header = new LecticHeader(spec);
-        await header.initialize();
-        const interlocutor = header.interlocutor;
-        // Default name for think tool is 'think'
-        const thinkTool = Object.values(interlocutor.registry ?? {}).find(tool => tool instanceof ThinkTool)
-        expect(thinkTool).toBeInstanceOf(ThinkTool);
     });
 
     it('should correctly initialize an AgentTool', async () => {

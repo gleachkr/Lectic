@@ -270,7 +270,6 @@ const TOOL_SPEC_KEYS = [
   "mcp_shttp",
   "agent",
   "a2a",
-  "think_about",
   "native",
   "kit",
 ]

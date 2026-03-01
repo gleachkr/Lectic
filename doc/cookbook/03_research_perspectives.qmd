@@ -20,9 +20,6 @@ interlocutors:
     model: claude-sonnet-4-20250514
     tools:
       - native: search
-      - think_about: >
-          What are the key questions here? What might I be missing?
-          What assumptions am I making?
 
   - name: Critic  
     prompt: |
@@ -55,8 +52,7 @@ microservices and monolithic architectures for a team of 5 developers
 building a B2B SaaS product.
 ```
 
-The Researcher will explore the topic, potentially using web search and
-their thinking tool.
+The Researcher will explore the topic, potentially using web search.
 
 ### Get a quick critique
 

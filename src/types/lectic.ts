@@ -12,7 +12,6 @@ import { validateHookSpec, Hook, type HookSpec } from "./hook"
 import { UserMessage } from "./message"
 import { isExecToolSpec, ExecTool, type ExecToolSpec } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool, type SQLiteToolSpec } from "../tools/sqlite"
-import { isThinkToolSpec, ThinkTool } from "../tools/think"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
 import { isAgentToolSpec, AgentTool, type AgentToolSpec } from "../tools/agent"
 import { isA2AToolSpec, A2ATool, type A2AToolSpec } from "../tools/a2a"
@@ -212,8 +211,6 @@ export class LecticHeader {
                 loadedSpec.details = await loadFrom(spec.details)
                 loadedSpec.init_sql = await loadFrom(spec.init_sql)
                 register(new SQLiteTool(loadedSpec))
-            } else if (isThinkToolSpec(spec)) {
-                register(new ThinkTool(spec))
             } else if (isAgentToolSpec(spec)) {
                 const loadedSpec: AgentToolSpec = { ...spec }
                 loadedSpec.usage = await loadFrom(spec.usage)

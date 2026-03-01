@@ -1,59 +1,6 @@
-# Other Tools: `think` and `native`
+# Other Tools: `native`
 
-This document covers two tool types: a cognitive scratchpad for the LLM,
-and provider-native tools like web search or code execution.
-
-`serve_on_port` is no longer a built-in tool. If you want browser previews,
-use a skill-based replacement. A bundled example lives at
-`extra/skills/serve`.
-
-## The `think` Tool
-
-The `think` tool gives the LLM a private "scratch space" to pause and
-reason about a prompt before formulating its final response. This can
-improve the quality and thoughtfulness of the output, especially for
-complex or ambiguous questions.
-
-This technique was inspired by a post on [Anthropic's engineering
-blog](https://www.anthropic.com/engineering/claude-think-tool). The output
-of the `think` tool is hidden from the user by default in the editor
-plugins, though it is still present in the `.lec` file.
-
-### Configuration
-
-```yaml
-tools:
-  - think_about: >
-      What the user is really asking for, and what hidden assumptions they
-      might have.
-    name: scratchpad # Optional name
-```
-
-### Example
-
-```markdown
-What's the best city in the world?
-
-:::Assistant
-
-<tool-call with="scratchpad">
-<arguments>
-<thought>
-┆"Best" is subjective. The user could mean best for travel, for
-┆food, for work, etc. I need to ask for clarification.
-</thought>
-</arguments>
-<results>
-<result type="text">
-┆thought complete.
-</result>
-</results>
-</tool-call>
-
-That depends on what you're looking for! Are you interested in the best
-city for tourism, career opportunities, or something else?
-:::
-```
+This document covers provider-native tools like web search or code execution.
 
 ## `native` Tools
 
