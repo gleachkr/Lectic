@@ -1,4 +1,4 @@
-import { expect, it, describe, spyOn } from "bun:test";
+import { expect, it, describe } from "bun:test";
 import { AnthropicBackend } from "./anthropic";
 import { OpenAIResponsesBackend } from "./openai-responses";
 import { GeminiBackend } from "./gemini";
@@ -27,9 +27,8 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
-    // @ts-ignore
     const { messages } = await backend.handleMessage(msg, fakeLectic);
-    
+
     // The message should be empty or not contain thought parts
     // AnthropicBackend handles messages by interactions.
     // results.push({ role: "assistant", content: modelParts })
@@ -48,7 +47,6 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
-    // @ts-ignore
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].content).toContainEqual({
@@ -73,7 +71,6 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
-    // @ts-ignore
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(0);
   });
@@ -94,7 +91,6 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
-    // @ts-ignore
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].type).toBe("reasoning");
@@ -111,7 +107,6 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
-    // @ts-ignore
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].parts).toHaveLength(0);
@@ -128,7 +123,6 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
-    // @ts-ignore
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].parts).toContainEqual({
