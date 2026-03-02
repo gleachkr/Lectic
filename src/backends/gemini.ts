@@ -219,6 +219,8 @@ function thoughtBlocksToGeminiParts(
   const parts: Part[] = []
 
   for (const thought of thoughts) {
+    if (thought.provider && thought.provider !== "gemini") continue
+
     const signature =
       thought.opaque?.["thought_signature"]
 

@@ -122,6 +122,8 @@ function thoughtBlocksToAnthropicParts(
   const parts: Anthropic.Messages.ContentBlockParam[] = []
 
   for (const thought of thoughts) {
+    if (thought.provider && thought.provider !== "anthropic") continue
+
     if (thought.providerKind === "redacted_thinking") {
       const data = thought.opaque?.["redacted_data"]
       if (data) {

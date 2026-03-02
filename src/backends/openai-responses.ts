@@ -208,6 +208,7 @@ export class OpenAIResponsesBackend extends Backend<
           (a, b) => (a.order ?? 0) - (b.order ?? 0)
         )
         for (const thought of thoughts) {
+          if (thought.provider && thought.provider !== "openai") continue
           results.push(thoughtBlockToReasoningItem(thought))
         }
 
