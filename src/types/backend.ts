@@ -462,13 +462,17 @@ export abstract class Backend<TMessage, TFinal> {
       const { chunks, final } = await this.createCompletion({ messages, lectic })
 
       let assistant = ""
+      let hadThought = false
       for await (const chunk of chunks) {
         if (chunk.kind === "text") {
+          if (hadThought) yield "\n\n"
           yield chunk.text
           assistant += chunk.text
+          hadThought = false
         } else {
           yield "\n\n"
           yield serializeThoughtBlock(chunk.block)
+          hadThought = true
         }
       }
 
