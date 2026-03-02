@@ -167,18 +167,162 @@ def _record_hook_usage() -> int:
     return 0
 
 
+GENAI_PRICES_URL = (
+    "https://raw.githubusercontent.com/pydantic/genai-prices/main/"
+    "prices/data.json"
+)
+
+
+def _extract_base_price(value: Any) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    # Some entries use tiered pricing:
+    # {"base": 3, "tiers": [{"start": 200000, "price": 6}]}
+    if isinstance(value, dict):
+        base = value.get("base")
+        if isinstance(base, (int, float)):
+            return float(base)
+
+    return 0.0
+
+
+def _extract_match_aliases(match: Any) -> List[str]:
+    out: List[str] = []
+
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+
+        for key in ("equals", "starts_with", "contains", "ends_with"):
+            raw = node.get(key)
+            if isinstance(raw, str) and raw:
+                out.append(raw)
+
+        for key in ("or", "and"):
+            raw = node.get(key)
+            if isinstance(raw, list):
+                for child in raw:
+                    walk(child)
+
+    walk(match)
+    return out
+
+
+def _extract_prices_dict(raw: Any) -> Dict[str, Any]:
+    if isinstance(raw, dict):
+        return raw
+
+    # Some entries use multiple price points with constraints.
+    # We pick the first entry as the default.
+    if isinstance(raw, list) and raw:
+        first = raw[0]
+        if isinstance(first, dict):
+            maybe = first.get("prices")
+            if isinstance(maybe, dict):
+                return maybe
+
+    return {}
+
+
+def _normalize_genai_prices(data: Any) -> Dict[str, Any]:
+    if not isinstance(data, list):
+        raise TypeError("genai-prices data must be a JSON array")
+
+    price_by_id: Dict[str, Dict[str, float]] = {}
+
+    for provider in data:
+        if not isinstance(provider, dict):
+            continue
+
+        models = provider.get("models")
+        if not isinstance(models, list):
+            continue
+
+        for model in models:
+            if not isinstance(model, dict):
+                continue
+
+            model_id = model.get("id")
+            if not isinstance(model_id, str) or not model_id:
+                continue
+
+            prices_raw = model.get("prices")
+            prices = _extract_prices_dict(prices_raw)
+
+            input_mtok = _extract_base_price(prices.get("input_mtok"))
+            output_mtok = _extract_base_price(prices.get("output_mtok"))
+            cache_read_mtok = _extract_base_price(prices.get("cache_read_mtok"))
+
+            if cache_read_mtok == 0.0:
+                cache_read_mtok = input_mtok
+
+            aliases = set([model_id])
+            for alias in _extract_match_aliases(model.get("match")):
+                aliases.add(alias)
+
+            entry = {
+                "input": input_mtok,
+                "output": output_mtok,
+                "input_cached": cache_read_mtok,
+            }
+
+            for alias in aliases:
+                existing = price_by_id.get(alias)
+                if existing is None:
+                    price_by_id[alias] = entry
+                    continue
+
+                # Prefer entries with non-zero pricing information.
+                for k in ("input", "output", "input_cached"):
+                    if existing.get(k, 0.0) == 0.0 and entry[k] != 0.0:
+                        existing[k] = entry[k]
+
+    prices_out = []
+    for p_id, p in sorted(price_by_id.items()):
+        prices_out.append(
+            {
+                "id": p_id,
+                "input": p.get("input", 0.0),
+                "output": p.get("output", 0.0),
+                "input_cached": p.get("input_cached", p.get("input", 0.0)),
+            }
+        )
+
+    return {
+        "source": GENAI_PRICES_URL,
+        "refreshed_at": _now_iso_utc(),
+        "prices": prices_out,
+    }
+
+
 def _refresh_prices() -> int:
     import urllib.request
 
-    url = "https://www.llm-prices.com/current-v1.json"
+    url = GENAI_PRICES_URL
     path = _prices_path()
     print(f"Refreshing prices from {url}...")
+
     try:
-        with urllib.request.urlopen(url) as response:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "lectic-usage"},
+        )
+        with urllib.request.urlopen(req) as response:
             data = json.loads(response.read().decode("utf-8"))
-            _atomic_write_json(path, data)
-            print(f"Prices saved to {path}")
-            return 0
+
+        if isinstance(data, list):
+            out = _normalize_genai_prices(data)
+        elif isinstance(data, dict):
+            # Backwards compatibility if the upstream format changes, or if
+            # the user points this at a llm-prices-like payload.
+            out = data
+        else:
+            raise TypeError("prices payload must be a JSON object or array")
+
+        _atomic_write_json(path, out)
+        print(f"Prices saved to {path}")
+        return 0
     except Exception as e:
         print(f"Error refreshing prices: {e}", file=sys.stderr)
         return 1
@@ -501,7 +645,9 @@ def main(argv: List[str]) -> int:
     parser.add_argument(
         "--refresh-prices",
         action="store_true",
-        help="Download fresh pricing data from llm-prices.com",
+        help=(
+            "Download fresh pricing data from pydantic/genai-prices"
+        ),
     )
 
     args = parser.parse_args(argv)
