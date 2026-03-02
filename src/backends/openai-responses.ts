@@ -1,7 +1,7 @@
 import OpenAI from "openai"
 import type { Message } from "../types/message"
 import type { HasModel, Lectic } from "../types/lectic"
-import type { BackendCompletion, BackendUsage } from "../types/backend"
+import type { BackendCompletion, BackendUsage, StreamChunk } from "../types/backend"
 import { Backend } from "../types/backend"
 import { type LLMProvider } from "../types/provider"
 import { type MessageAttachmentPart } from "../types/attachment"
@@ -340,16 +340,75 @@ export class OpenAIResponsesBackend extends Backend<
       store: false,
     })
 
-    async function* text(): AsyncGenerator<string> {
+    async function* chunks(): AsyncGenerator<StreamChunk> {
+      let thoughtOrder = 0
+
       for await (const event of stream) {
         if (event.type === "response.output_text.delta") {
-          yield event.delta || ""
+          yield { kind: "text", text: event.delta || "" }
+        }
+
+        if (
+          event.type === "response.output_item.done" &&
+          event.item.type === "reasoning"
+        ) {
+          const item = event.item
+          const summary: string[] = []
+          const content: string[] = []
+          const opaque: Record<string, string> = {}
+
+          if (Array.isArray(item.summary)) {
+            for (const s of item.summary) {
+              if (
+                s.type === "summary_text" &&
+                s.text
+              ) {
+                summary.push(s.text)
+              }
+            }
+          }
+
+          if (Array.isArray(item.content)) {
+            for (const c of item.content) {
+              if (
+                c.type === "reasoning_text" &&
+                c.text
+              ) {
+                content.push(c.text)
+              }
+            }
+          }
+
+          if (item.encrypted_content) {
+            opaque["encrypted_content"] =
+              item.encrypted_content
+          }
+
+          yield {
+            kind: "thought",
+            block: {
+              provider: "openai",
+              providerKind: "reasoning",
+              id: item.id,
+              status: item.status ?? undefined,
+              order: thoughtOrder++,
+              ...(summary.length > 0
+                ? { summary }
+                : {}),
+              ...(content.length > 0
+                ? { content }
+                : {}),
+              ...(Object.keys(opaque).length > 0
+                ? { opaque }
+                : {}),
+            },
+          }
         }
       }
     }
 
     return {
-      text: text(),
+      chunks: chunks(),
       final: stream.finalResponse(),
     }
   }
@@ -442,57 +501,6 @@ export class OpenAIResponsesBackend extends Backend<
         output: JSON.stringify(call.results.filter((r) => !isAttachmentMime(r.mimetype))),
       })
     }
-  }
-
-  protected extractThoughtBlocks(
-    final: OpenAI.Responses.Response
-  ): ThoughtBlock[] {
-    const blocks: ThoughtBlock[] = []
-    let order = 0
-
-    for (const item of final.output) {
-      if (item.type !== "reasoning") continue
-
-      const summary: string[] = []
-      const content: string[] = []
-      const opaque: Record<string, string> = {}
-
-      if (Array.isArray(item.summary)) {
-        for (const s of item.summary) {
-          if (s.type === "summary_text" && s.text) {
-            summary.push(s.text)
-          }
-        }
-      }
-
-      if (Array.isArray(item.content)) {
-        for (const c of item.content) {
-          if (c.type === "reasoning_text" && c.text) {
-            content.push(c.text)
-          }
-        }
-      }
-
-      if (item.encrypted_content) {
-        opaque["encrypted_content"] =
-          item.encrypted_content
-      }
-
-      blocks.push({
-        provider: "openai",
-        providerKind: "reasoning",
-        id: item.id,
-        status: item.status ?? undefined,
-        order: order++,
-        ...(summary.length > 0 ? { summary } : {}),
-        ...(content.length > 0 ? { content } : {}),
-        ...(Object.keys(opaque).length > 0
-          ? { opaque }
-          : {}),
-      })
-    }
-
-    return blocks
   }
 
   get client() {

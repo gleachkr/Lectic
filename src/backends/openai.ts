@@ -1,7 +1,7 @@
 import OpenAI from "openai"
 import type { Message } from "../types/message"
 import type { HasModel, Lectic } from "../types/lectic"
-import type { BackendCompletion, BackendUsage } from "../types/backend"
+import type { BackendCompletion, BackendUsage, StreamChunk } from "../types/backend"
 import { Backend } from "../types/backend"
 import type { LLMProvider } from "../types/provider"
 import { type MessageAttachmentPart } from "../types/attachment"
@@ -18,7 +18,6 @@ import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { ToolCall, ToolCallResult } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { strictify } from "../types/schema.ts"
-import type { ThoughtBlock } from "../types/thought"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.2",
@@ -297,14 +296,17 @@ export class OpenAIBackend extends Backend<
       response_format,
     })
 
-    async function* text(): AsyncGenerator<string> {
+    async function* chunks(): AsyncGenerator<StreamChunk> {
       for await (const event of stream) {
-        yield event.choices[0].delta.content || ""
+        yield {
+          kind: "text",
+          text: event.choices[0].delta.content || "",
+        }
       }
     }
 
     return {
-      text: text(),
+      chunks: chunks(),
       final: stream.finalChatCompletion(),
     }
   }
@@ -402,14 +404,6 @@ export class OpenAIBackend extends Backend<
           })),
       })
     }
-  }
-
-  protected extractThoughtBlocks(
-    _final: OpenAI.Chat.Completions.ChatCompletion
-  ): ThoughtBlock[] {
-    // The legacy Chat Completions API does not expose
-    // thinking/reasoning blocks.
-    return []
   }
 
   get client() {

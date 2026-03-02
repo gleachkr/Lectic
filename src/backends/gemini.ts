@@ -9,7 +9,7 @@ import {
 } from "@google/genai"
 import type { Message } from "../types/message"
 import type { HasModel, Lectic } from "../types/lectic"
-import type { BackendCompletion, BackendUsage, } from "../types/backend"
+import type { BackendCompletion, BackendUsage, StreamChunk } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
 import { type MessageAttachmentPart } from "../types/attachment"
@@ -151,10 +151,12 @@ async function* accumulateStream(opt: {
   response: AsyncGenerator<GenerateContentResponse>
   accumulator: GenerateContentResponse
   functionCalls: FunctionCall[]
-}): AsyncGenerator<string> {
+}): AsyncGenerator<StreamChunk> {
   const accFirst = ensureCandidate0(opt.accumulator)
   const accParts = accFirst.content?.parts
   if (!accParts) throw new Error("Gemini accumulator missing parts")
+
+  let thoughtOrder = 0
 
   for await (const chunk of opt.response) {
     const first = chunk.candidates?.[0]
@@ -162,18 +164,46 @@ async function* accumulateStream(opt: {
 
     if (parts && parts.length > 0) {
       for (const part of parts) {
-        if (part.thought !== true && typeof part.text === "string") {
-          yield part.text
+        if (part.thought === true) {
+          const hasText =
+            typeof part.text === "string" &&
+            part.text.length > 0
+          const hasSig = !!part.thoughtSignature
+
+          if (hasText || hasSig) {
+            yield {
+              kind: "thought",
+              block: {
+                provider: "gemini",
+                providerKind: "thinking",
+                order: thoughtOrder++,
+                ...(hasText
+                  ? { content: [part.text!] }
+                  : {}),
+                ...(hasSig
+                  ? {
+                      opaque: {
+                        thought_signature:
+                          part.thoughtSignature!,
+                      },
+                    }
+                  : {}),
+              },
+            }
+          }
+        } else if (typeof part.text === "string") {
+          yield { kind: "text", text: part.text }
         }
         if (part.codeExecutionResult) {
-          yield "\n\n"
+          yield { kind: "text", text: "\n\n" }
         }
         accParts.push(part)
       }
     }
 
     if (first?.finishReason) {
-      ensureCandidate0(opt.accumulator).finishReason = first.finishReason
+      ensureCandidate0(opt.accumulator).finishReason =
+        first.finishReason
     }
 
     opt.accumulator.usageMetadata =
@@ -181,7 +211,10 @@ async function* accumulateStream(opt: {
     opt.accumulator.promptFeedback =
       chunk.promptFeedback ?? opt.accumulator.promptFeedback
 
-    if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+    if (
+      chunk.functionCalls &&
+      chunk.functionCalls.length > 0
+    ) {
       opt.functionCalls.push(...chunk.functionCalls)
     }
   }
@@ -467,7 +500,7 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
       resolveFinal = resolve
     })
 
-    async function* text(): AsyncGenerator<string> {
+    async function* chunks(): AsyncGenerator<StreamChunk> {
       for await (const chunk of accumulateStream({
         response,
         accumulator: accumulatedResponse,
@@ -475,10 +508,13 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
       })) {
         yield chunk
       }
-      resolveFinal({ response: accumulatedResponse, functionCalls })
+      resolveFinal({
+        response: accumulatedResponse,
+        functionCalls,
+      })
     }
 
-    return { text: text(), final }
+    return { chunks: chunks(), final }
   }
 
   protected finalHasToolCalls(final: GeminiFinal): boolean {
@@ -572,40 +608,4 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
     messages.push({ role: "user", parts: userParts })
   }
 
-  protected extractThoughtBlocks(
-    final: GeminiFinal
-  ): ThoughtBlock[] {
-    const parts =
-      final.response.candidates?.[0]?.content?.parts ?? []
-    const blocks: ThoughtBlock[] = []
-    let order = 0
-
-    for (const part of parts) {
-      if (part.thought !== true) continue
-
-      const hasText =
-        typeof part.text === "string" &&
-        part.text.length > 0
-      const hasSig = !!part.thoughtSignature
-
-      if (!hasText && !hasSig) continue
-
-      blocks.push({
-        provider: "gemini",
-        providerKind: "thinking",
-        order: order++,
-        ...(hasText ? { content: [part.text!] } : {}),
-        ...(hasSig
-          ? {
-              opaque: {
-                thought_signature:
-                  part.thoughtSignature!,
-              },
-            }
-          : {}),
-      })
-    }
-
-    return blocks
-  }
 }

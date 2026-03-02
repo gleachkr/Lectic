@@ -316,8 +316,12 @@ export async function resolveToolCalls(
   return results
 }
 
+export type StreamChunk =
+  | { kind: "text"; text: string }
+  | { kind: "thought"; block: ThoughtBlock }
+
 export type BackendCompletion<TFinal> = {
-  text: AsyncIterable<string>
+  chunks: AsyncIterable<StreamChunk>
   final: Promise<TFinal>
 }
 
@@ -379,10 +383,6 @@ export abstract class Backend<TMessage, TFinal> {
     hookAttachments: InlineAttachment[]
     lectic: Lectic
   }): Promise<void>
-
-  protected abstract extractThoughtBlocks(
-    final: TFinal
-  ): ThoughtBlock[]
 
   async *evaluate(
     lectic: Lectic,
@@ -459,25 +459,20 @@ export abstract class Backend<TMessage, TFinal> {
     let pendingHookRes: InlineAttachment[] = []
 
     for (;;) {
-      const { text, final } = await this.createCompletion({ messages, lectic })
+      const { chunks, final } = await this.createCompletion({ messages, lectic })
 
       let assistant = ""
-      for await (const chunk of text) {
-        yield chunk
-        assistant += chunk
+      for await (const chunk of chunks) {
+        if (chunk.kind === "text") {
+          yield chunk.text
+          assistant += chunk.text
+        } else {
+          yield "\n\n"
+          yield serializeThoughtBlock(chunk.block)
+        }
       }
 
       const reply = await final
-
-      // Emit thought blocks from the provider response.
-      const thoughts = this.extractThoughtBlocks(reply)
-      if (thoughts.length > 0) {
-        const thoughtXml = thoughts
-          .map(serializeThoughtBlock)
-          .join("\n\n")
-        yield "\n\n"
-        yield thoughtXml
-      }
 
       const hasToolCalls = this.finalHasToolCalls(reply)
       const usage = this.finalUsage(reply)

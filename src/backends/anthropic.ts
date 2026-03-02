@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { AnthropicBedrock } from "@anthropic-ai/bedrock-sdk"
 import type { Message } from "../types/message"
 import type { Lectic, HasModel } from "../types/lectic"
-import type { BackendCompletion, BackendUsage, } from "../types/backend"
+import type { BackendCompletion, BackendUsage, StreamChunk } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
 import type { ToolCall, ToolCallResult } from "../types/tool"
@@ -22,23 +22,66 @@ import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema.js"
 import type { ThoughtBlock } from "../types/thought"
 
-// Yield only text deltas from an Anthropic stream, plus blank lines when
-// server tool use blocks begin (to preserve formatting semantics).
-export async function* anthropicTextChunks(
+// Yield text deltas and complete thought blocks from an
+// Anthropic stream, preserving provider ordering.
+export async function* anthropicStreamChunks(
   stream: MessageStream
-): AsyncGenerator<string> {
-  for await (const messageEvent of stream) {
-    if (
-      messageEvent.type === "content_block_delta" &&
-      messageEvent.delta.type === "text_delta"
-    ) {
-      yield messageEvent.delta.text
+): AsyncGenerator<StreamChunk> {
+  let thinkingText = ""
+  let thinkingSignature = ""
+  let insideThinking = false
+  let thoughtOrder = 0
+
+  for await (const event of stream) {
+    if (event.type === "content_block_start") {
+      const block = event.content_block
+      if (block?.type === "thinking") {
+        insideThinking = true
+        thinkingText = ""
+        thinkingSignature = ""
+      } else if (block?.type === "redacted_thinking") {
+        yield {
+          kind: "thought",
+          block: {
+            provider: "anthropic",
+            providerKind: "redacted_thinking",
+            order: thoughtOrder++,
+            opaque: { redacted_data: block.data },
+          },
+        }
+      } else if (block?.type === "server_tool_use") {
+        yield { kind: "text", text: "\n\n" }
+      }
     }
-    if (
-      messageEvent.type === "content_block_start" &&
-      messageEvent.content_block?.type === "server_tool_use"
-    ) {
-      yield "\n\n"
+
+    if (event.type === "content_block_delta") {
+      const delta = event.delta
+      if (delta.type === "thinking_delta") {
+        thinkingText += delta.thinking
+      } else if (delta.type === "signature_delta") {
+        thinkingSignature = delta.signature
+      } else if (delta.type === "text_delta") {
+        yield { kind: "text", text: delta.text }
+      }
+    }
+
+    if (event.type === "content_block_stop" && insideThinking) {
+      insideThinking = false
+      yield {
+        kind: "thought",
+        block: {
+          provider: "anthropic",
+          providerKind: "thinking",
+          status: "completed",
+          order: thoughtOrder++,
+          ...(thinkingText.length > 0
+            ? { content: [thinkingText] }
+            : {}),
+          ...(thinkingSignature.length > 0
+            ? { opaque: { signature: thinkingSignature } }
+            : {}),
+        },
+      }
     }
   }
 }
@@ -365,7 +408,7 @@ export class AnthropicBackend extends Backend<
     })
 
     return {
-      text: anthropicTextChunks(stream),
+      chunks: anthropicStreamChunks(stream),
       final: stream.finalMessage(),
     }
   }
@@ -456,38 +499,6 @@ export class AnthropicBackend extends Backend<
     if (content.length > 0) messages.push({ role: "user", content })
   }
 
-  protected extractThoughtBlocks(
-    final: Anthropic.Messages.Message
-  ): ThoughtBlock[] {
-    const blocks: ThoughtBlock[] = []
-    let order = 0
-
-    for (const block of final.content) {
-      if (block.type === "thinking") {
-        blocks.push({
-          provider: "anthropic",
-          providerKind: "thinking",
-          status: "completed",
-          order: order++,
-          ...(block.thinking
-            ? { content: [block.thinking] }
-            : {}),
-          ...(block.signature
-            ? { opaque: { signature: block.signature } }
-            : {}),
-        })
-      } else if (block.type === "redacted_thinking") {
-        blocks.push({
-          provider: "anthropic",
-          providerKind: "redacted_thinking",
-          order: order++,
-          opaque: { redacted_data: block.data },
-        })
-      }
-    }
-
-    return blocks
-  }
 }
 
 export class AnthropicBedrockBackend extends AnthropicBackend {
