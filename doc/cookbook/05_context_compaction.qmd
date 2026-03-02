@@ -100,14 +100,6 @@ Keep it concise but complete. Return summary text only.
    stop an extra follow-up pass.
 5. Next turn starts from the compacted summary.
 
-## Important tradeoff
-
-This pattern uses a separate `lectic` call for summarization.
-
-That is usually good for speed and control, but it means compaction does not
-use the active assistant's own reasoning mode or thinking blocks.
-Summary quality depends on your compaction prompt and selected model.
-
 ## Variation: use the active assistant to summarize first
 
 If you want compaction to use the same assistant (including its reasoning
