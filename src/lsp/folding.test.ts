@@ -137,7 +137,7 @@ describe("folding ranges (collapsedText)", () => {
     process.env["NERD_FONT"] = "1"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<thought-block provider="openai" provider-kind="reasoning">\n<summary>\n┆x\n</summary>\n</thought-block>\n:::\n`
     const ranges = await buildFoldingRanges(text)
-    expect(ranges[0].collapsedText).toBe("🧠 openai reasoning")
+    expect(ranges[0].collapsedText).toBe(" openai reasoning")
 
     process.env["NERD_FONT"] = "0"
     const rangesNoNerd = await buildFoldingRanges(text)

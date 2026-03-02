@@ -94,7 +94,7 @@ function getCollapsedText(raw: string): string {
     const label = [provider, kind].filter(Boolean).join(" ")
 
     if (useNerdFont) {
-      return label ? `🧠 ${label}` : "🧠 thought"
+      return label ? ` ${label}` : " thought"
     }
 
     return label ? `[thought: ${label}]` : "[thought]"
