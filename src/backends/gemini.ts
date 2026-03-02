@@ -360,12 +360,16 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
         }
 
         for (const call of interaction.calls) {
+          const sig = call.opaque?.["thought_signature"]
           modelParts.push({
             functionCall: {
               name: call.name,
               args: call.args,
               id: call.id,
             },
+            ...(sig
+              ? { thoughtSignature: sig }
+              : {}),
           })
         }
 
@@ -517,11 +521,24 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
     final: GeminiFinal,
     _registry: ToolRegistry
   ): ToolCallEntry[] {
-    return final.functionCalls.map((call) => ({
-      id: call.id ?? Bun.randomUUIDv7(),
-      name: call.name ?? "",
-      args: call.args,
-    }))
+    // Build a map from function call parts to their
+    // thoughtSignature. The signature lives on the Part
+    // alongside the functionCall, not inside FunctionCall
+    // itself.
+    const parts = final.response.candidates?.[0]?.content?.parts ?? []
+    const fcParts = parts.filter((p) => p.functionCall)
+
+    return final.functionCalls.map((call, i) => {
+      const sig = fcParts[i].thoughtSignature
+      return {
+        id: call.id ?? Bun.randomUUIDv7(),
+        name: call.name ?? "",
+        args: call.args,
+        ...(sig
+          ? { opaque: { thought_signature: sig } }
+          : {}),
+      }
+    })
   }
 
   protected async appendToolResults(opt: {

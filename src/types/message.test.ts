@@ -473,4 +473,31 @@ describe('AssistantMessage', () => {
         expect(interactions[0].calls.length).toBe(1);
         expect(interactions[0].calls[0].name).toBe('echo');
     });
+
+    it('preserves opaque data on tool calls through parse round-trip', () => {
+        const tool: Tool = {
+            name: 'sigTool',
+            description: 'tool with opaque data',
+            parameters: { q: { type: 'string', description: 'q' } },
+            kind: 'mock',
+            call: async (_arg) => ToolCallResults('ok'),
+            validateArguments: _ => null,
+            required: [],
+            hooks: []
+        };
+        const call = {
+            name: 'sigTool',
+            args: { q: 'test' },
+            results: ToolCallResults('done'),
+            opaque: { thought_signature: 'SIG_ABC_123' }
+        };
+        const s = serializeCall(tool, call);
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: { sigTool: tool } } as any;
+        const msg = new AssistantMessage({ content: `text\n\n${s}\n\nmore`, interlocutor: fake });
+        const interactions = msg.parseAssistantContent().interactions;
+        expect(interactions[0].calls.length).toBe(1);
+        expect(interactions[0].calls[0].opaque).toEqual({
+            thought_signature: 'SIG_ABC_123'
+        });
+    });
 });

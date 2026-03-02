@@ -296,3 +296,68 @@ describe('Result escaping round-trip edge cases', () => {
         expect(deserialized).toEqual(call);
     });
 });
+
+describe('Tool call opaque data round-trip', () => {
+    const tool: Tool = {
+        name: 'opaqueTool',
+        description: 'Tool with opaque data',
+        parameters: { q: { type: 'string', description: 'query' } },
+        kind: 'mock',
+        call: async (_arg) => ToolCallResults('ok'),
+        validateArguments: _ => null,
+        required: [],
+        hooks: []
+    };
+
+    it('roundtrips a tool call with opaque data', () => {
+        const call = {
+            name: 'opaqueTool',
+            args: { q: 'hello' },
+            results: ToolCallResults('ok'),
+            opaque: { thought_signature: 'AbCdEf123==' }
+        };
+        const serialized = serializeCall(tool, call);
+        const deserialized = deserializeCall(tool, serialized);
+        expect(deserialized).toEqual(call);
+    });
+
+    it('roundtrips a tool call with multiple opaque entries', () => {
+        const call = {
+            name: 'opaqueTool',
+            args: { q: 'test' },
+            results: ToolCallResults('done'),
+            opaque: {
+                thought_signature: 'sig1',
+                extra_data: 'data2'
+            }
+        };
+        const serialized = serializeCall(tool, call);
+        const deserialized = deserializeCall(tool, serialized);
+        expect(deserialized).toEqual(call);
+    });
+
+    it('omits opaque field when not present', () => {
+        const call = {
+            name: 'opaqueTool',
+            args: { q: 'test' },
+            results: ToolCallResults('ok')
+        };
+        const serialized = serializeCall(tool, call);
+        const deserialized = deserializeCall(tool, serialized);
+        expect(deserialized).toEqual(call);
+        expect(deserialized!.opaque).toBeUndefined();
+    });
+
+    it('serialized output contains opaque elements', () => {
+        const call = {
+            name: 'opaqueTool',
+            args: { q: 'hello' },
+            results: ToolCallResults('ok'),
+            opaque: { thought_signature: 'SIG_VALUE' }
+        };
+        const serialized = serializeCall(tool, call);
+        expect(serialized).toContain(
+            '<opaque name="thought_signature">SIG_VALUE</opaque>'
+        );
+    });
+});

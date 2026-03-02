@@ -176,7 +176,13 @@ export function emitUserMessageEvent(
 
 export type ToolRegistry = Record<string, Tool>
 
-export type ToolCallEntry = { id?: string; name: string; args: unknown }
+export type ToolCallEntry = {
+  id?: string
+  name: string
+  args: unknown
+  /** Provider-specific opaque data to pass through. */
+  opaque?: Record<string, string>
+}
 
 type ToolCallErrorKind =
   | "invalid_args"
@@ -300,7 +306,11 @@ export async function resolveToolCalls(
       runHooksNoInline(hooks, "tool_use_post", postEnv)
     }
 
-    return { name, args, id, isError, results: callResults }
+    const opaque = entry.opaque
+    return {
+      name, args, id, isError, results: callResults,
+      ...(opaque ? { opaque } : {}),
+    }
   }))
 
   return results

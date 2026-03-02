@@ -86,6 +86,8 @@ export type ToolCall = {
     results : ToolCallResult[]
     id? : string
     isError? : boolean
+    /** Provider-specific opaque data (e.g. Gemini thought signatures). */
+    opaque? : Record<string, string>
 }
 
 // Backwards-compatible helper; prefer ToolCallResult.fromStrings
@@ -95,7 +97,7 @@ export function ToolCallResults(s : string | string[], mimetype? : string) : Too
 
 const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
 
-export function serializeCall(tool: Tool | null, {name, args, results, id, isError} : ToolCall) : string {
+export function serializeCall(tool: Tool | null, {name, args, results, id, isError, opaque} : ToolCall) : string {
     const values = [] 
     if (tool) {
         for (const key in tool.parameters) {
@@ -118,9 +120,18 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
         ? ` icon="${escapeXmlAttribute(tool.icon)}"`
         : ""
 
+    let opaquestring = ""
+    if (opaque && Object.keys(opaque).length > 0) {
+        const entries = Object.entries(opaque)
+            .map(([k, v]) => `<opaque name="${escapeXmlAttribute(k)}">${v}</opaque>`)
+            .join("\n")
+        opaquestring = `\n${entries}`
+    }
+
     return `<tool-call with="${name}"${idstring}${errorstring}${kindstring}${iconstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
-        `<results>${results.map(r => r.toXml()).join("\n")}</results>\n` +
+        `<results>${results.map(r => r.toXml()).join("\n")}</results>` +
+        `${opaquestring}\n` +
     `</tool-call>`
 }
 
@@ -148,7 +159,9 @@ export function deserializeCall(tool: Tool | null, serialized : string)
 
     if (!name) return null
 
-    const [argstring, results] = extractElements(inner)
+    const elements = extractElements(inner)
+    const argstring = elements[0]
+    const resultsString = elements[1]
 
     let args: Record<string, unknown> = {}
 
@@ -162,10 +175,34 @@ export function deserializeCall(tool: Tool | null, serialized : string)
         if (name !== tool.name) throw new Error(`Unexpected tool-call name, expected "${tool.name}", got "${name}"`)
     }
 
-    const resultsArray = extractElements(unwrap(results, "results"))
+    const resultsArray = extractElements(unwrap(resultsString, "results"))
+
+    // Parse opaque elements (elements after <arguments> and <results>)
+    const opaque: Record<string, string> = {}
+    for (let i = 2; i < elements.length; i++) {
+        const el = elements[i]
+        if (el.startsWith("<opaque")) {
+            const nameMatch = /\bname="([^"]*)"/.exec(el)
+            const oKey = nameMatch
+                ? unescapeXmlAttribute(nameMatch[1])
+                : ""
+            const oVal = el.replace(
+                /^<opaque[^>]*>([\s\S]*)<\/opaque>$/,
+                "$1"
+            )
+            opaque[oKey] = oVal
+        }
+    }
 
     const isError = isErrorStr === "true" ? true : isErrorStr === "false" ? false : undefined
-    return { name, args, results : resultsArray.map(ToolCallResult.fromXml), id, isError }
+    return {
+        name,
+        args,
+        results: resultsArray.map(ToolCallResult.fromXml),
+        id,
+        isError,
+        ...(Object.keys(opaque).length > 0 ? { opaque } : {}),
+    }
 }
 
 export function getSerializedCallName(call : string) : string | null {
