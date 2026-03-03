@@ -5,6 +5,46 @@ All notable changes to Lectic are documented in this file.
 The format is intentionally simple so GitHub Actions can extract the notes
 for a tag and publish them on the corresponding GitHub Release.
 
+## v0.0.3 [Unreleased]
+
+### Added
+
+- Native "thinking" support for Anthropic and Gemini models, with
+  configurable `thinking_effort` and `thinking_budget` settings.
+- Serialized thought blocks in conversation logs with LSP hover and folding
+  support.
+- Configurable icons for tools, hooks, and inline attachments, which are
+  preserved in the XML and displayed in editor UIs.
+- `limit` field for `exec` tools to cap the total characters returned from
+  stdout and stderr.
+- New `install.sh` script for streamlined installation and automated
+  `install-test` coverage in CI.
+- New `lectic-task` plugin at `extra/plugins/lectic-task` providing a
+  task-board TUI and persistent task tracking.
+- Migrated `lectic-skills` to a plugin at `extra/plugins/skills` and added
+  new built-in skills for local serving and TUI checklists.
+- Support for `icon` and `name` attributes on `:attach` and `:hook`
+  directives to control UI presentation.
+- Autocomplete and diagnostics for `use:` references in the YAML header.
+
+### Changed
+
+- Updated context compaction recipe and documentation to reflect recent
+  pattern improvements.
+- Improved tool-calling stability and signature handling for Gemini models.
+- Refined timeout error messages to be less redundant.
+- `extra/tab_complete` now handles subcommand discovery more robustly.
+
+### Fixed
+
+- Gemini tool calling signatures for complex parameter sets.
+- `lectic parse` flag handling and reconstruction correctness.
+- LSP folding and symbols for large configuration headers.
+
+### Removed
+
+- Legacy `think` tool.
+
 ## v0.0.2 - 2026-02-14
 
 ### Added
