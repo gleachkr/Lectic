@@ -27,6 +27,7 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
+    // @ts-expect-error - accessing protected method for testing
     const { messages } = await backend.handleMessage(msg, fakeLectic);
 
     // The message should be empty or not contain thought parts
@@ -47,6 +48,7 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
+    // @ts-expect-error - accessing protected method for testing
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].content).toContainEqual({
@@ -71,6 +73,7 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
+    // @ts-expect-error - accessing protected method for testing
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(0);
   });
@@ -91,6 +94,7 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
+    // @ts-expect-error - accessing protected method for testing
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].type).toBe("reasoning");
@@ -107,6 +111,7 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
+    // @ts-expect-error - accessing protected method for testing
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].parts).toHaveLength(0);
@@ -123,6 +128,7 @@ describe("Thought provider matching", () => {
       interlocutor: fakeLectic.header.interlocutor,
     });
 
+    // @ts-expect-error - accessing protected method for testing
     const { messages } = await backend.handleMessage(msg, fakeLectic);
     expect(messages).toHaveLength(1);
     expect(messages[0].parts).toContainEqual({
