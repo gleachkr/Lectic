@@ -11,7 +11,7 @@ of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has six possible fields:
+A hook has seven possible fields:
 
 - `on`: (Required) A single event name or a list of event names to listen for.
 - `do`: (Required) The command or inline script to run when the event fires.
@@ -28,6 +28,8 @@ A hook has six possible fields:
 - `icon`: (Optional) Icon string for inline hook attachments.
 - `env`: (Optional) A map of environment variables to inject into the hook's
   execution environment.
+- `allow_failure`: (Optional) A boolean. If `true`, non-zero exit status from
+  this hook is ignored. Defaults to `false`.
 
 ```yaml
 hooks:
@@ -43,9 +45,17 @@ with a shebang (e.g., `#!/bin/bash`). If it is a single line, it is treated
 as a command. Commands are executed directly (not through a shell), so
 shell features like command substitution will not work.
 
-Hook commands run synchronously. By default, their stdout, stderr, and exit
-status are ignored by Lectic. However, if you set `inline: true`, the standard
-output is captured and added to the conversation.
+Hook commands run synchronously.
+
+For most events, a non-zero exit status is treated as an error and aborts the
+current run.
+
+`tool_use_pre` is special: a non-zero exit blocks the tool call
+(permission denied). If you set `allow_failure: true` on that hook,
+the non-zero exit is ignored and the tool call continues.
+
+If you set `inline: true`, standard output is captured and added to the
+conversation.
 
 - For `user_message` events, the output is injected as context for the LLM
   before it generates a response. It also appears at the top of the
@@ -113,7 +123,8 @@ If both base and alias hooks are configured for a pass, Lectic executes base
     - Token usage variables (if available).
     - Standard Lectic variables.
   - When: After arguments are collected, before execution.
-  - Behavior: Non-zero exit blocks the call (permission denied).
+  - Behavior: Non-zero exit blocks the call (permission denied), unless
+    `allow_failure: true` is set on that hook.
 
 - `tool_use_post`
   - Environment:

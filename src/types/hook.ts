@@ -33,6 +33,7 @@ export type HookSpec = {
     inline?: boolean
     name?: string
     icon?: string
+    allow_failure?: boolean
     env?: Record<string, string>
 }
 
@@ -65,6 +66,9 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     }
     if ("env" in raw && (typeof raw.env !== "object" || raw.env === null)) {
         throw Error(Messages.hook.envType())
+    }
+    if ("allow_failure" in raw && typeof raw.allow_failure !== "boolean") {
+        throw Error(Messages.hook.allowFailureType())
     }
     const validOn = typeof raw.on === "string"
         ? isHookEventName(raw.on)
@@ -125,6 +129,7 @@ export class Hook {
     inline : boolean
     name? : string
     icon? : string
+    allow_failure : boolean
     env : Record<string, string>
 
     constructor(spec : HookSpec) {
@@ -134,18 +139,35 @@ export class Hook {
         this.inline = spec.inline ?? false
         this.name = spec.name
         this.icon = spec.icon
+        this.allow_failure = spec.allow_failure ?? false
         this.env = spec.env || {}
     }
 
     execute(env : Record<string, string | undefined> = {}, stdin? : string) 
-        : { output: string | undefined, exitCode: number } {
+        : { output: string | undefined, stderr: string, exitCode: number } {
         const mergedEnv = { ...this.env, ...env }
         if (this.do.split("\n").length > 1) {
-            const result = execScriptFull(this.do, mergedEnv, stdin ? new Blob([stdin]) : undefined)
-            return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
+            const result = execScriptFull(
+                this.do,
+                mergedEnv,
+                stdin ? new Blob([stdin]) : undefined
+            )
+            return {
+                output: this.inline ? result.stdout : undefined,
+                stderr: result.stderr,
+                exitCode: result.exitCode,
+            }
         } else {
-            const result = execCmdFull(expandEnv(this.do, mergedEnv), mergedEnv, stdin ? new Blob([stdin]) : undefined)
-            return { output: this.inline ? result.stdout : undefined, exitCode: result.exitCode }
+            const result = execCmdFull(
+                expandEnv(this.do, mergedEnv),
+                mergedEnv,
+                stdin ? new Blob([stdin]) : undefined
+            )
+            return {
+                output: this.inline ? result.stdout : undefined,
+                stderr: result.stderr,
+                exitCode: result.exitCode,
+            }
         }
     }
 

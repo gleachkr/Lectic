@@ -191,7 +191,15 @@ export async function generate() {
                 runEndEnv["TOKEN_USAGE_TOTAL"] = String(tokenTotals.total)
             }
 
-            runHooksNoInline(getScopedHooks(lectic), "run_end", runEndEnv)
+            try {
+                runHooksNoInline(getScopedHooks(lectic), "run_end", runEndEnv)
+            } catch (error) {
+                exitCode = 1
+                const message = error instanceof Error
+                    ? error.message
+                    : JSON.stringify(error)
+                await Logger.write(`\n<hook-error>\n${message}\n</hook-error>`)
+            }
         }
     }
 

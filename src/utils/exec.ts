@@ -8,21 +8,27 @@ export function execScriptFull(script : string, env: Record<string, string | und
         path
     ], {
         stdin,
-        stderr: "ignore",
         env: { ...process.env, ...lecticEnv, ...env }
     })
     cleanup()
-    return { stdout: proc.stdout.toString(), exitCode: proc.exitCode };
+    return {
+        stdout: proc.stdout.toString(),
+        stderr: proc.stderr.toString(),
+        exitCode: proc.exitCode,
+    }
 }
 
 export function execCmdFull(cmd: string, env: Record<string, string | undefined> = {}, stdin? : Blob) {
     const args = parseCommandToArgv(cmd)
     const proc = Bun.spawnSync(args, {
         stdin,
-        stderr: "ignore",
         env: { ...process.env, ...lecticEnv, ...env }
-    });
-    return { stdout: proc.stdout.toString(), exitCode: proc.exitCode };
+    })
+    return {
+        stdout: proc.stdout.toString(),
+        stderr: proc.stderr.toString(),
+        exitCode: proc.exitCode,
+    }
 }
 
 export function execScript(script : string, env: Record<string, string | undefined> = {}, stdin? : Blob) {

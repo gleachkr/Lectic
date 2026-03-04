@@ -14,6 +14,11 @@ describe("Hook", () => {
             do: "echo 'icon'",
             icon: "🔎",
         })).not.toThrow()
+        expect(() => new Hook({
+            on: "assistant_message",
+            do: "echo 'best effort'",
+            allow_failure: true,
+        })).not.toThrow()
     })
 
     test("rejects non-string icons", () => {
@@ -22,6 +27,14 @@ describe("Hook", () => {
             do: "echo 'icon'",
             icon: 1,
         })).toThrow('The "icon" field of a hook must be a string.')
+    })
+
+    test("rejects non-boolean allow_failure", () => {
+        expect(() => validateHookSpec({
+            on: "assistant_message",
+            do: "echo 'x'",
+            allow_failure: "yes",
+        })).toThrow('The "allow_failure" field of a hook must be a boolean.')
     })
 
     test("execute single line", () => {

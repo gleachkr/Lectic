@@ -266,3 +266,5 @@ in a key name.
   `NERD_FONT=1`.
 - `env`: (Optional) A dictionary of environment variables to be set when
   the hook runs.
+- `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
+  from this hook is ignored. Defaults to `false`.

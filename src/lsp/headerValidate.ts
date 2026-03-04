@@ -87,6 +87,18 @@ function validateHookObject(
   }
 
   if (
+    "allow_failure" in hook
+    && typeof hook["allow_failure"] !== "boolean"
+  ) {
+    issues.push({
+      code: "hook.allow_failure.type",
+      message: Messages.hook.allowFailureType(),
+      path: [...pathBase, "allow_failure"],
+      severity: "error",
+    })
+  }
+
+  if (
     "env" in hook
     && (typeof hook["env"] !== "object" || hook["env"] === null)
   ) {

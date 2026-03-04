@@ -226,6 +226,30 @@ echo "LECTIC:LATE:header"`,
         expect(results[0].attributes).toBeUndefined()
         expect(results[0].content).toContain("LECTIC:LATE:header")
     })
+
+    it("throws when a hook exits non-zero", () => {
+        const hook = new Hook({
+            on: "user_message",
+            do: "#!/bin/bash\necho fail >&2\nexit 7",
+            inline: true,
+        })
+
+        expect(() => runHooks([hook], "user_message", {})).toThrow(
+            "Hook \"#!/bin/bash\" failed for user_message with exit code 7"
+        )
+    })
+
+    it("allows a failing hook when allow_failure is true", () => {
+        const hook = new Hook({
+            on: "user_message",
+            do: "#!/bin/bash\necho ignored >&2\nexit 7",
+            inline: true,
+            allow_failure: true,
+        })
+
+        const results = runHooks([hook], "user_message", {})
+        expect(results).toHaveLength(0)
+    })
 })
 
 describe("emitAssistantMessageEvent", () => {
@@ -313,6 +337,22 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         expect(results[0].isError).toBe(false)
     })
 
+    it("allows failing tool_use_pre hook when allow_failure is true", async () => {
+        const hook = new Hook({
+            on: "tool_use_pre",
+            do: "#!/bin/bash\nexit 1",
+            allow_failure: true,
+        })
+        const lectic = { header : { hooks: [hook], interlocutor: {} } }
+        const entries = [{ name: "mock_tool", args: {} }]
+        const results = await resolveToolCalls(entries, registry, {
+            lectic: lectic as any,
+        })
+
+        expect(results[0].isError).toBe(false)
+        expect(results[0].results[0].content).toBe("mock result")
+    })
+
     it("emits tool_use_post with TOOL_CALL_RESULTS on success", async () => {
         const out = join(
             tmpdir(),
@@ -380,5 +420,58 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         expect(results[0].results[0].content).toBe("Tool use permission denied")
         expect(written).toContain('"type":"blocked"')
         expect(written).toContain('"message":"Tool use permission denied"')
+    })
+
+    it("throws when a tool_use_post hook exits non-zero", async () => {
+        const failingPostHook = new Hook({
+            on: "tool_use_post",
+            do: "#!/bin/bash\necho post-fail >&2\nexit 2",
+        })
+
+        const lectic = {
+            header: {
+                hooks: [failingPostHook],
+                interlocutor: {},
+            },
+        }
+
+        const entries = [{ name: "mock_tool", args: {} }]
+
+        let error: unknown
+        try {
+            await resolveToolCalls(entries, registry, {
+                lectic: lectic as any,
+            })
+        } catch (e) {
+            error = e
+        }
+
+        expect(error).toBeInstanceOf(Error)
+        expect((error as Error).message).toContain(
+            'Hook "#!/bin/bash" failed for tool_use_post with exit code 2'
+        )
+    })
+
+    it("allows failing tool_use_post hook when allow_failure is true", async () => {
+        const failingPostHook = new Hook({
+            on: "tool_use_post",
+            do: "#!/bin/bash\nexit 2",
+            allow_failure: true,
+        })
+
+        const lectic = {
+            header: {
+                hooks: [failingPostHook],
+                interlocutor: {},
+            },
+        }
+
+        const entries = [{ name: "mock_tool", args: {} }]
+        const results = await resolveToolCalls(entries, registry, {
+            lectic: lectic as any,
+        })
+
+        expect(results[0].isError).toBe(false)
+        expect(results[0].results[0].content).toBe("mock result")
     })
 })

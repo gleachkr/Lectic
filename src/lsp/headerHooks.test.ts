@@ -49,4 +49,18 @@ describe("header field diagnostics for hooks", () => {
     const d = findDiag(diags, 'The "icon" field of a hook must be a string')
     expect(d).toBeDefined()
   })
+
+  test("hook allow_failure must be a boolean", async () => {
+    const text =
+      `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n` +
+      `    - on: user_message\n      do: echo\n      allow_failure: nope\n` +
+      `---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(
+      diags,
+      'The "allow_failure" field of a hook must be a boolean'
+    )
+    expect(d).toBeDefined()
+  })
 })

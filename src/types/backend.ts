@@ -1,4 +1,3 @@
-import { Logger } from "../logging/logger"
 import { type Lectic, type HasModel } from "./lectic"
 import { type Message } from "./message"
 import { getActiveHooks, type Hook, type HookEvents } from "./hook"
@@ -63,30 +62,40 @@ function runHooksInternal(
   const active = getActiveHooks(hooks, event, env)
 
   for (const hook of active) {
-    try {
-      const { output } = hook.execute(env, opt?.stdin)
-      if (opt?.collectInline === false) continue
-      if (output && output.trim().length > 0) {
-        const { content, attributes } = parseHookOutput(output)
+    const { output, stderr, exitCode } = hook.execute(env, opt?.stdin)
 
-        const mergedAttributes = { ...attributes }
-        if (hook.name) {
-          mergedAttributes["name"] = hook.name
-        }
+    if (exitCode !== 0 && !hook.allow_failure) {
+      const label = hook.name
+        ? `"${hook.name}"`
+        : `"${hook.do.split("\n")[0]}"`
+      const stderrLine = stderr.trim()
+      const suffix = stderrLine.length > 0
+        ? `\nstderr: ${stderrLine}`
+        : ""
+      throw new Error(
+        `Hook ${label} failed for ${event} with exit code ${exitCode}${suffix}`
+      )
+    }
 
-        inline.push({
-          kind: "hook",
-          command: hook.do,
-          content,
-          mimetype: "text/plain",
-          icon: hook.icon,
-          attributes: Object.keys(mergedAttributes).length > 0
-            ? mergedAttributes
-            : undefined,
-        })
+    if (opt?.collectInline === false) continue
+    if (output && output.trim().length > 0) {
+      const { content, attributes } = parseHookOutput(output)
+
+      const mergedAttributes = { ...attributes }
+      if (hook.name) {
+        mergedAttributes["name"] = hook.name
       }
-    } catch (e) {
-      Logger.debug(`An error occurred during the hook execution of ${hook.do}`, e)
+
+      inline.push({
+        kind: "hook",
+        command: hook.do,
+        content,
+        mimetype: "text/plain",
+        icon: hook.icon,
+        attributes: Object.keys(mergedAttributes).length > 0
+          ? mergedAttributes
+          : undefined,
+      })
     }
   }
 
@@ -275,7 +284,7 @@ export async function resolveToolCalls(
       const preHooks = getActiveHooks(hooks, "tool_use_pre", preEnv)
       for (const hook of preHooks) {
         const { exitCode } = hook.execute(preEnv)
-        if (exitCode !== 0) {
+        if (exitCode !== 0 && !hook.allow_failure) {
           throw new ToolCallError("blocked", "Tool use permission denied")
         }
       }
