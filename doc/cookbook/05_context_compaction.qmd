@@ -29,7 +29,6 @@ Create `$LECTIC_CONFIG/hooks/compact.sh`:
 
 ```bash
 #!/usr/bin/env bash
-set -euo pipefail
 
 # Trigger compaction once total tokens reach this value.
 LIMIT=200000
@@ -45,13 +44,25 @@ if [[ -n "${COMPACTION_UNDERWAY:-}" ]]; then
 fi
 export COMPACTION_UNDERWAY=1
 
+# Only compact if there's more work to be done.
+if [[ -n $TOOL_USE_DONE ]]; then
+exit 0  
+fi
+
 PROMPT_FILE="$LECTIC_CONFIG/hooks/compact-prompt.md"
 
-SUMMARY="$({
-  cat
-  printf "\n\n**WARNING: context almost full at %s tokens.**\n\n" "$TOTAL"
-  cat "$PROMPT_FILE"
-} | lectic -S)"
+# The conversation body comes in on stdin.
+CONVERSATION="$(cat <<EOF
+
+$(cat)
+
+**WARNING, context almost full at $TOTAL tokens.**"
+
+$(cat "$PROMPT_FILE")
+EOF
+)"
+
+SUMMARY=$(echo "$CONVERSATION" | lectic -S)
 
 cat <<EOF
 LECTIC:reset
