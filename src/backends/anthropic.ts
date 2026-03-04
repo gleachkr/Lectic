@@ -21,6 +21,7 @@ import type { MessageStream } from "@anthropic-ai/sdk/lib/MessageStream.mjs"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema.js"
 import type { ThoughtBlock } from "../types/thought"
+import type { OutputConfig } from "@anthropic-ai/sdk/resources"
 
 // Yield text deltas and complete thought blocks from an
 // Anthropic stream, preserving provider ordering.
@@ -379,14 +380,19 @@ export class AnthropicBackend extends Backend<
     const model = lectic.header.interlocutor.model
 
     const output_schema = lectic.header.interlocutor.output_schema
-    const output_config = output_schema
-      ? {
-          format: {
+    const output_config : OutputConfig = {}
+
+    if (output_schema) {
+      output_config.format = {
             type: "json_schema" as const,
             schema: transformJSONSchema(output_schema),
-          },
-        }
-      : undefined
+      }
+    }
+
+    if (lectic.header.interlocutor.thinking_effort &&
+        lectic.header.interlocutor.thinking_effort !== "none") {
+      output_config.effort = lectic.header.interlocutor.thinking_effort
+    }
 
     Logger.debug("anthropic - messages", messages)
 
@@ -399,12 +405,14 @@ export class AnthropicBackend extends Backend<
       tools: getTools(lectic),
       output_config,
       thinking:
-        lectic.header.interlocutor.thinking_budget !== undefined
-          ? {
-              type: "enabled",
-              budget_tokens: lectic.header.interlocutor.thinking_budget,
-            }
-          : undefined,
+        lectic.header.interlocutor.thinking_budget !== undefined ? {
+          type: "enabled",
+          budget_tokens: lectic.header.interlocutor.thinking_budget,
+        } : output_config.effort ? {
+          type: "adaptive",
+        } : lectic.header.interlocutor.thinking_effort === "none" ? {
+          type: "disabled",
+        } : undefined
     })
 
     return {
