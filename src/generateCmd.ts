@@ -14,7 +14,10 @@ import {
   runHooksNoInline,
   type BackendUsage,
 } from "./types/backend"
-import { getIncludes, getLecticString } from "./utils/cli"
+import {
+  getIncludes,
+  getLecticString,
+} from "./utils/cli"
 import { lecticEnv } from "./utils/xdg"
 
 const OUTPUT_FORMATS = ["full", "block", "raw", "clean", "none"] as const
@@ -77,9 +80,12 @@ async function resolveOutputFormat(opts: OptionValues): Promise<OutputFormat> {
   return "full"
 }
 
-async function validateOptions(opts: OptionValues): Promise<OutputFormat> {
-  if (opts["inplace"] && opts["file"]) {
-    await failAndExit("You can't combine --file and --inplace")
+async function validateOptions(
+  opts: OptionValues
+): Promise<OutputFormat> {
+
+  if (opts["inplace"] && !opts["file"]) {
+    await failAndExit("You can't use --inplace without --file")
   }
 
   if (opts["version"]) {
@@ -136,9 +142,7 @@ export async function generate() {
 
   if (opts["log"]) Logger.logfile = opts["log"]
 
-  if (opts["inplace"] || opts["file"]) {
-      lecticEnv["LECTIC_FILE"] = opts["inplace"] || opts["file"]
-  }
+  lecticEnv["LECTIC_FILE"] = opts["file"]
 
   if (format === "none") Logger.outfile = createWriteStream("/dev/null")
 
@@ -219,8 +223,8 @@ export async function generate() {
     if (showBlock) await Logger.write(footer)
     lectic.body.raw += footer
 
-    if (opts["inplace"]) {
-      Logger.outfile = createWriteStream(opts["inplace"])
+    if (opts["inplace"] && opts["file"]) {
+      Logger.outfile = createWriteStream(opts["file"])
       await Logger.write(`${lecticString.trim()}\n\n`)
       await Logger.write(header)
       await Logger.write(assistantRaw)

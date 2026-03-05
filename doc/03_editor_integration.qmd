@@ -13,7 +13,7 @@ started quickly:
 - **VS Code**: Install the extension from
   [releases](https://github.com/gleachkr/Lectic/releases) and use
   `Cmd+L` / `Alt+L`.
-- **Other editors**: Run `lectic -i file.lec` from a keybinding.
+- **Other editors**: Run `lectic -if file.lec` from a keybinding.
 
 ## The LSP Server
 
@@ -150,10 +150,10 @@ with Lectic. The basic pattern:
 cat file.lec | lectic > file.lec
 ```
 
-Or use `-i` for in-place updates:
+Or use `-i` with `-f` for in-place updates:
 
 ```bash
-lectic -i file.lec
+lectic -if file.lec
 ```
 
 ### Emacs
@@ -220,7 +220,7 @@ Install the LSP package, then add to LSP settings:
 
 ## Tips
 
-- **Working directory matters.** When you run `lectic -i file.lec`, tools
+- **Working directory matters.** When you run `lectic -if file.lec`, tools
   and file references resolve relative to the file's directory. Most
   editor plugins handle this automatically.
 

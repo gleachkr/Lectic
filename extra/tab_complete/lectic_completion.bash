@@ -241,10 +241,12 @@ _lectic_complete() {
     word="${COMP_WORDS[i]}"
 
     case "${word}" in
-      -f|--file|-i|--inplace|-l|--log|--format)
+      -f|--file|-l|--log|--format)
         ((i++))
         ;;
-      --file=*|--inplace=*|--log=*|--format=*)
+      -i|--inplace)
+        ;;
+      --file=*|--log=*|--format=*)
         ;;
       --)
         ((i++))

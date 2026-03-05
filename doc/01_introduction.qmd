@@ -54,7 +54,7 @@ information, go-to-definition, and folding for `.lec` files. You can use
 Lectic with Neovim, VS Code, or any editor that speaks LSP.
 
 For editors without LSP support, the basic workflow still works: edit a
-file, run `lectic -i file.lec`, and the response is appended.
+file, run `lectic -if file.lec`, and the response is appended.
 
 ### Bring your own language
 

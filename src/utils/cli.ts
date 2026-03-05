@@ -8,17 +8,17 @@ import {
 } from "./configDiscovery"
 import { lecticEnv } from "./xdg"
 
-export async function getLecticString(opts : OptionValues) : Promise<string> {
-    if (opts["inplace"] || opts["file"]) {
-        const path = opts["inplace"] || opts["file"]
-        const fileText = await Bun.file(path).text()
-        const pipeText = process.stdin.isTTY 
-            ? "" 
-            : `\n\n${await Bun.stdin.text()}` 
-        return fileText + pipeText
-    } else {
-        return Bun.stdin.text()
-    }
+export async function getLecticString(opts: OptionValues): Promise<string> {
+  const path = opts["file"]
+
+  if (!path) return Bun.stdin.text()
+
+  const fileText = await Bun.file(path).text()
+  const pipeText = process.stdin.isTTY
+    ? ""
+    : `\n\n${await Bun.stdin.text()}`
+
+  return fileText + pipeText
 }
 
 export async function getIncludes(

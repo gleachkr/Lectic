@@ -1,6 +1,6 @@
 import { program, type OptionValues } from 'commander'
 import { parseLectic, getYaml } from './parsing/parse'
-import { getLecticString, getIncludes } from './utils/cli'
+import { getIncludes, getLecticString, } from './utils/cli'
 import { dirname } from 'path'
 
 import { UserMessage, AssistantMessage } from './types/message'
@@ -91,7 +91,7 @@ async function handleParse(opts: ParseOpts) {
     // interlocutors in the body. But for the output `header` field, we use the
     // raw YAML from the file.
     
-    const docPath = (opts["inplace"] || opts["file"]) as string | undefined
+    const docPath = opts["file"]
     const docDir = docPath ? dirname(docPath) : process.cwd()
 
     const includes = await getIncludes(rawHeaderYaml, docDir, docDir)

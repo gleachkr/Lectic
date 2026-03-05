@@ -141,9 +141,8 @@ guide for details.
   Path to the conversation file (`.lec`) to process. If omitted, Lectic
   reads from standard input.
 
-- `-i`, `--inplace <PATH>`
-  Read from the given file and update it in place. Mutually exclusive with
-  `--file`.
+- `-i`, `--inplace`
+  Update the file in place. Requires `--file`.
 
 - `--format <mode>`
   Controls output shape and visibility. Supported modes:
@@ -171,7 +170,7 @@ guide for details.
 
 ## Constraints
 
-- --inplace cannot be combined with --file.
+- --inplace requires --file.
 - --format cannot be combined with legacy output flags:
   --short, --Short, or --quiet.
 
@@ -179,7 +178,7 @@ guide for details.
 
 - Generate the next message in a file and update it in place:
   ```bash
-  lectic -i conversation.lec
+  lectic -if conversation.lec
   ```
 
 - Read from stdin and write the full result to stdout:
@@ -194,7 +193,7 @@ guide for details.
 
 - Add a message from the command line and update the file:
   ```bash
-  echo "This is a new message." | lectic -i conversation.lec
+  echo "This is a new message." | lectic -if conversation.lec
   ```
 
 - Stream user-facing text only (hide tools and thoughts):

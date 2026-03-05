@@ -118,11 +118,12 @@ model based on your API keys, so you don't need to specify them.
 Create a file called `hello.lec` with the content above, then run:
 
 ```bash
-lectic -i hello.lec
+lectic -if hello.lec
 ```
 
-The `-i` flag updates the file in place. Lectic sends your message to
-the LLM and appends the response:
+The `-i` flag updates the file in place, and `-f` selects the
+conversation file. Lectic sends your message to the LLM and appends the
+response:
 
 ```markdown
 ---
@@ -143,7 +144,7 @@ often see Ferris in Rust documentation and community materials.
 ```
 
 To continue the conversation, add your next message below the `:::`
-block and run `lectic -i hello.lec` again.
+block and run `lectic -if hello.lec` again.
 
 ### Use a tool
 
@@ -166,7 +167,7 @@ What is today's date?
 Run it:
 
 ```bash
-lectic -i tools.lec
+lectic -if tools.lec
 ```
 
 The response now includes an XML block showing the tool call and its
@@ -225,7 +226,7 @@ you've exported it in the same shell session:
 
 ```bash
 export ANTHROPIC_API_KEY="your-api-key-here"
-lectic -i hello.lec
+lectic -if hello.lec
 ```
 
 If you set the key in `.bashrc` or `.zshrc`, restart your terminal or

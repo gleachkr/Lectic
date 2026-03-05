@@ -81,7 +81,7 @@ tools:
 
 The current working directory for `exec` is:
 
-- If you run with `-f` or `-i`: the directory containing the `.lec` file.
+- If you run with `-f`: the directory containing the `.lec` file.
 - Otherwise: the directory from which you invoked the `lectic` command.
 
 This means relative paths in your commands and scripts resolve relative to

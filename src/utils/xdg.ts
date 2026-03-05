@@ -48,7 +48,7 @@ export const lecticDataDir = () => process.env['LECTIC_DATA'] || join(getBaseDir
 export const lecticCacheDir = () => process.env['LECTIC_CACHE'] || join(getBaseDir('cache'), appName);
 export const lecticStateDir = () => process.env['LECTIC_STATE'] || join(getBaseDir('state'), appName);
 export const lecticTempDir = () => join(tmpdir(), appName);
-export const lecticEnv = {
+export const lecticEnv: Record<string, string | undefined> = {
     LECTIC_CONFIG: lecticConfigDir(),
     LECTIC_DATA: lecticDataDir(),
     LECTIC_STATE: lecticStateDir(),

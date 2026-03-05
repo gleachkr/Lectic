@@ -105,7 +105,7 @@ src/users.ts. It should reject empty names and invalid email formats.
 Run it:
 
 ```bash
-lectic -i task.lec
+lectic -if task.lec
 ```
 
 The assistant will:

@@ -6,7 +6,7 @@ pipe them, edit them, and interact with LLMs in whatever editor you like.
 
 ```bash
 # Continue a conversation
-lectic -i chat.lec
+lectic -if chat.lec
 
 # Pipe in a question
 echo "Summarize this: $(cat notes.md)" | lectic -f template.lec
@@ -104,7 +104,7 @@ What's the weather like on Mars?
 3. Run Lectic:
 
 ```bash
-lectic -i chat.lec
+lectic -if chat.lec
 ```
 
 Lectic appends the response to the file. Add another message and run again

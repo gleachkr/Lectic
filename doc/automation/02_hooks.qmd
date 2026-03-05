@@ -298,7 +298,7 @@ Notes:
 - Requires the `sqlite3` command-line tool to be installed and on your PATH.
 - The hook inspects which variable is set to decide whether the event was a
   user or assistant message.
-- `LECTIC_FILE` is populated when using `-f`/`-i` and may be empty when
+- `LECTIC_FILE` is populated when using `-f` and may be empty when
   streaming from stdin.
 - Adjust the table schema to suit your use case.
 

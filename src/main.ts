@@ -26,7 +26,7 @@ program
 .option('-S, --Short', 'Deprecated alias for --format raw')
 .option('-f, --file <lectic>',  'Lectic to read from')
 .option('-q, --quiet', 'Deprecated alias for --format none')
-.option('-i, --inplace <lectic>',  'Lectic to read from and update in place' )
+.option('-i, --inplace', 'Update the file in place (requires --file)')
 .option('-l, --log <logfile>',  'Log debugging information')
 .option('-v, --version',  'Print version information')
 .argument('[subcommand]', 'Subcommand to run')

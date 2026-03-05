@@ -124,15 +124,16 @@ interlocutor:
 
 - `file:` and `exec:` resolve relative paths and run commands in the current
   working directory of the lectic process (the directory from which you
-  invoked the command). If you used -f or -i, note that the working
-  directory does not automatically switch to the .lec file's directory for
-  these expansions. Use absolute paths or cd if you need a different base.
+  invoked the command). If you used `-f`, note that the working
+  directory does not automatically switch to the `.lec` file's directory
+  for these expansions. Use absolute paths or `cd` if you need a
+  different base.
 - `local:` is the exception: it is resolved relative to the config source
   file where it appears, then rewritten to an absolute path.
 - Standard Lectic environment variables are provided, including
-  `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, `LECTIC_TEMP`, and
-  `LECTIC_FILE` (when using `-f` or `-i`). Your shell environment is also passed
-  through.
+  `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`,
+  `LECTIC_TEMP`, and `LECTIC_FILE` (when using `-f`). Your shell
+  environment is also passed through.
 - Macro expansions can inject additional variables into `exec:` via directive
   attributes. See the [Macros guide](../automation/01_macros.qmd) for details.
 
