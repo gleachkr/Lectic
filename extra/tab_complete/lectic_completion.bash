@@ -208,9 +208,24 @@ __lectic_init_subcommands
 __lectic_source_completion_plugins
 
 _lectic_complete() {
-  local cur
+  local cur prev
   cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
   COMPREPLY=()
+
+  if [[ "${prev}" == "--format" ]]; then
+    COMPREPLY=( $(compgen -W "full block raw clean none" -- "${cur}") )
+    return 0
+  fi
+
+  if [[ "${cur}" == --format=* ]]; then
+    local value_prefix="${cur#--format=}"
+    COMPREPLY=(
+      $(compgen -W "full block raw clean none" -- "${value_prefix}" \
+        | sed 's|^|--format=|')
+    )
+    return 0
+  fi
 
   # Find the subcommand position, accounting for global options.
   # This is a best-effort parser for the most common shapes:
@@ -226,10 +241,10 @@ _lectic_complete() {
     word="${COMP_WORDS[i]}"
 
     case "${word}" in
-      -f|--file|-i|--inplace|-l|--log)
+      -f|--file|-i|--inplace|-l|--log|--format)
         ((i++))
         ;;
-      --file=*|--inplace=*|--log=*)
+      --file=*|--inplace=*|--log=*|--format=*)
         ;;
       --)
         ((i++))
@@ -249,8 +264,8 @@ _lectic_complete() {
   if [[ -z "${subcmd_idx}" ]]; then
     # No subcommand yet. Offer global options and known subcommands.
     local global_opts
-    global_opts="-s --short -S --Short -f --file -i --inplace -l --log "
-    global_opts+="-q --quiet -v --version -h --help"
+    global_opts="--format -s --short -S --Short -f --file "
+    global_opts+="-i --inplace -l --log -q --quiet -v --version -h --help"
 
     if [[ "${cur}" == -* ]]; then
       COMPREPLY=( $(compgen -W "${global_opts}" -- "${cur}") )

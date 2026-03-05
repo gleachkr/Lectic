@@ -230,5 +230,5 @@ Install the LSP package, then add to LSP settings:
 - **Fold tool calls.** Long tool outputs can obscure the conversation.
   Both the Neovim and VS Code plugins fold these by default.
 
-- **Stream for long responses.** The `-s` flag outputs just the new
-  response, which editor plugins use to stream incrementally.
+- **Stream for long responses.** Use `--format block` to output just the
+  new assistant block, which editor plugins can stream incrementally.

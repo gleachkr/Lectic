@@ -359,8 +359,6 @@ hooks:
 The pattern `nvim --server "$NVIM" --remote-expr "luaeval('...')"` lets
 you execute arbitrary Lua in the running Neovim instance. Some ideas:
 
-- Play a sound: `vim.fn.system('paplay /usr/share/sounds/...')`
-- Flash the screen: `vim.cmd('sleep 100m | redraw!')`
 - Update a status line variable
 - Trigger a custom autocommand: `vim.api.nvim_exec_autocmds('User', {pattern = 'LecticDone'})`
 

@@ -38,7 +38,7 @@ if [[ "$TOTAL" -lt "$LIMIT" ]]; then
   exit 0
 fi
 
-# Prevent recursion when this script itself calls `lectic -S`.
+# Prevent recursion when this script itself calls `lectic`.
 if [[ -n "${COMPACTION_UNDERWAY:-}" ]]; then
   exit 0
 fi
@@ -62,7 +62,7 @@ $(cat "$PROMPT_FILE")
 EOF
 )"
 
-SUMMARY=$(echo "$CONVERSATION" | lectic -S)
+SUMMARY=$(echo "$CONVERSATION" | lectic --format clean)
 
 cat <<EOF
 LECTIC:reset

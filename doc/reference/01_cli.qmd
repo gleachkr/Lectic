@@ -145,19 +145,26 @@ guide for details.
   Read from the given file and update it in place. Mutually exclusive with
   `--file`.
 
-- `-s`, `--short`
-  Only emit the newly generated assistant message, not the full updated
-  conversation.
+- `--format <mode>`
+  Controls output shape and visibility. Supported modes:
+  - `full`: print full updated conversation (default)
+  - `block`: print only the new `:::Speaker ... :::` block
+  - `raw`: print only the new assistant message content
+  - `clean`: stream only assistant text, stripping tool calls, thought
+    blocks, and inline attachments
+  - `none`: print nothing
 
-- `-S`, `--Short`
-  Like `--short`, but emits only the raw message text (without the
-  `:::Speaker` wrapper).
+- `-s`, `--short` (deprecated)
+  Alias for `--format block`.
+
+- `-S`, `--Short` (deprecated)
+  Alias for `--format raw`.
 
 - `-l`, `--log <PATH>`
   Write detailed debug logs to the given file.
 
-- `-q`, `--quiet`
-  Suppress printing the assistant's response to stdout.
+- `-q`, `--quiet` (deprecated)
+  Alias for `--format none`.
 
 - `-h`, `--help`
   Show help for all flags and options.
@@ -165,7 +172,8 @@ guide for details.
 ## Constraints
 
 - --inplace cannot be combined with --file.
-- --quiet cannot be combined with --short or --Short.
+- --format cannot be combined with legacy output flags:
+  --short, --Short, or --quiet.
 
 ## Common examples
 
@@ -179,14 +187,19 @@ guide for details.
   cat conversation.lec | lectic
   ```
 
-- Stream just the new assistant message:
+- Stream just the new assistant block:
   ```bash
-  lectic -s -f conversation.lec
+  lectic --format block -f conversation.lec
   ```
 
 - Add a message from the command line and update the file:
   ```bash
   echo "This is a new message." | lectic -i conversation.lec
+  ```
+
+- Stream user-facing text only (hide tools and thoughts):
+  ```bash
+  lectic --format clean -f conversation.lec
   ```
 
 - List available models for detected providers:

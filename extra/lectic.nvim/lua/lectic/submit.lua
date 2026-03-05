@@ -98,7 +98,7 @@ function M.submit_lectic()
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
-    process = vim.system({"lectic", "-s"}, {
+    process = vim.system({"lectic", "--format", "block"}, {
       stdin = true,
       stdout = on_stdout,
       env = env,

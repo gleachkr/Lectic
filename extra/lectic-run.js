@@ -175,8 +175,8 @@ export default async function main() {
     await proc.exited;
     
   } else {
-    // Default: Run piping content, short mode implies output to stdout
-    const proc = Bun.spawn(["lectic", "-S"], {
+    // Default: Run piping content, raw mode implies output to stdout
+    const proc = Bun.spawn(["lectic", "--format", "raw"], {
         env,
         stdio: ["pipe", "inherit", "inherit"]
     });

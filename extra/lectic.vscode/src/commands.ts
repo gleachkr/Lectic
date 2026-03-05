@@ -96,8 +96,8 @@ function getWorkingDirectory(document: vscode.TextDocument): string {
 
 /**
  * Command: lectic.submit
- * Sends the current buffer content to 'lectic -s', streams the output
- * back into the editor using a serialized queue.
+ * Sends the current buffer content to 'lectic --format block', streams
+ * the output back into the editor using a serialized queue.
  */
 export async function submitLectic() {
     logDebug("Command 'lectic.submit' triggered.");
@@ -151,7 +151,7 @@ export async function submitLectic() {
     logDebug(`Content length to send: ${contentToSend.length}`);
 
     const status = vscode.window.setStatusBarMessage(`$(sync~spin) Running lectic...`);
-    const commandArgs = ['-s'];
+    const commandArgs = ['--format', 'block'];
     const cwd = getWorkingDirectory(document);
     const spawnOptions: cp.SpawnOptions = { cwd: cwd, env: process.env };
 
@@ -379,7 +379,7 @@ async function transformSelection(directive: string) {
 
 
     const status = vscode.window.setStatusBarMessage(`$(sync~spin) Transforming selection...`);
-    const commandArgs = ['-S'];
+    const commandArgs = ['--format', 'raw'];
     const cwd = getWorkingDirectory(document);
     const spawnOptions: cp.SpawnOptions = { cwd: cwd, env: process.env };
 

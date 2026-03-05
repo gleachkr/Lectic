@@ -343,6 +343,7 @@ export type AssistantPassInfo = {
 
 export type BackendEvaluateOptions = {
   onAssistantPassText?: (text: string, info: AssistantPassInfo) => void
+  onAssistantTextDelta?: (text: string) => void | Promise<void>
 }
 
 export abstract class Backend<TMessage, TFinal> {
@@ -440,6 +441,7 @@ export abstract class Backend<TMessage, TFinal> {
       lectic: lectic as Lectic & HasModel,
       inlinePreface,
       onAssistantPassText: opt?.onAssistantPassText,
+      onAssistantTextDelta: opt?.onAssistantTextDelta,
     })
   }
 
@@ -448,6 +450,7 @@ export abstract class Backend<TMessage, TFinal> {
     lectic: Lectic & HasModel
     inlinePreface: InlineAttachment[]
     onAssistantPassText?: (text: string, info: AssistantPassInfo) => void
+    onAssistantTextDelta?: (text: string) => void | Promise<void>
   }): AsyncGenerator<string> {
     const { messages, lectic } = opt
 
@@ -477,6 +480,7 @@ export abstract class Backend<TMessage, TFinal> {
           if (hadThought) yield "\n\n"
           yield chunk.text
           assistant += chunk.text
+          await opt.onAssistantTextDelta?.(chunk.text)
           hadThought = false
         } else {
           yield "\n\n"
