@@ -456,7 +456,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><strong>Neovim</strong>: Install the plugin from <code>extra/lectic.nvim</code>, add the LSP config below, and use <code>&lt;localleader&gt;l</code> to submit.</li>
 <li><strong>VS Code</strong>: Install the extension from <a href="https://github.com/gleachkr/Lectic/releases">releases</a> and use <code>Cmd+L</code> / <code>Alt+L</code>.</li>
-<li><strong>Other editors</strong>: Run <code>lectic -i file.lec</code> from a keybinding.</li>
+<li><strong>Other editors</strong>: Run <code>lectic -if file.lec</code> from a keybinding.</li>
 </ul>
 <section id="the-lsp-server" class="level2">
 <h2 class="anchored" data-anchor-id="the-lsp-server">The LSP Server</h2>
@@ -602,8 +602,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="other-editors">Other Editors</h2>
 <p>Any editor that can run an external command on the current buffer works with Lectic. The basic pattern:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> file.lec <span class="kw">|</span> <span class="ex">lectic</span> <span class="op">&gt;</span> file.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Or use <code>-i</code> for in-place updates:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> file.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Or use <code>-i</code> with <code>-f</code> for in-place updates:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-if</span> file.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="emacs" class="level3">
 <h3 class="anchored" data-anchor-id="emacs">Emacs</h3>
 <p>A minimal setup using <code>shell-command-on-region</code>:</p>
@@ -657,10 +657,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tips" class="level2">
 <h2 class="anchored" data-anchor-id="tips">Tips</h2>
 <ul>
-<li><p><strong>Working directory matters.</strong> When you run <code>lectic -i file.lec</code>, tools and file references resolve relative to the file’s directory. Most editor plugins handle this automatically.</p></li>
+<li><p><strong>Working directory matters.</strong> When you run <code>lectic -if file.lec</code>, tools and file references resolve relative to the file’s directory. Most editor plugins handle this automatically.</p></li>
 <li><p><strong>Use the LSP for header editing.</strong> Completions for model names, tool types, and interlocutor properties save time and catch typos.</p></li>
 <li><p><strong>Fold tool calls.</strong> Long tool outputs can obscure the conversation. Both the Neovim and VS Code plugins fold these by default.</p></li>
-<li><p><strong>Stream for long responses.</strong> The <code>-s</code> flag outputs just the new response, which editor plugins use to stream incrementally.</p></li>
+<li><p><strong>Stream for long responses.</strong> Use <code>--format block</code> to output just the new assistant block, which editor plugins can stream incrementally.</p></li>
 </ul>
 
 

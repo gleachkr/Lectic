@@ -578,7 +578,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="attach-create-inline-attachment" class="level3">
 <h3 class="anchored" data-anchor-id="attach-create-inline-attachment"><code>:attach</code> — Create Inline Attachment</h3>
 <p>Captures its expanded children as an inline attachment stored in the assistant’s response block. Only processed in the final message.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:cmd[git diff --staged]</span><span class="co">]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You can optionally add attributes to control metadata:</p>
+<ul>
+<li><code>icon</code> for fold display icon</li>
+<li><code>name</code> for fold display label</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:cmd[git diff --staged]</span><span class="co">]</span>{name="staged diff" icon=""}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>See <a href="../context_management/01_external_content.html#inline-attachments-with-attach">External Content</a> for full details on how inline attachments work and when to use them.</p>
 </section>
 </section>

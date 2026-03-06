@@ -451,13 +451,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Hooks are defined in your YAML configuration under the <code>hooks</code> key, per-tool in the <code>hooks</code> key of a tool specification, or per-interlocutor in the <code>hooks</code> key of an interlocutor specification.</p>
 <section id="hook-configuration" class="level2">
 <h2 class="anchored" data-anchor-id="hook-configuration">Hook configuration</h2>
-<p>A hook has five possible fields:</p>
+<p>A hook has seven possible fields:</p>
 <ul>
 <li><code>on</code>: (Required) A single event name or a list of event names to listen for.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event fires.</li>
 <li><code>inline</code>: (Optional) A boolean. If <code>true</code>, the standard output of the command is captured and injected into the conversation. Defaults to <code>false</code>. Inline injection is only meaningful for <code>user_message</code>, <code>assistant_message</code>, and the <code>assistant_*</code> aliases.</li>
-<li><code>name</code>: (Optional) A string name for the hook. If multiple hooks have the same name (e.g., one in your global config and one in a project config), the one defined later (or with higher precedence) overrides the earlier one. This allows you to replace default hooks with custom behavior.</li>
+<li><code>name</code>: (Optional) A string name for the hook. If multiple hooks have the same name (e.g., one in your global config and one in a project config), the one defined later (or with higher precedence) overrides the earlier one. This allows you to replace default hooks with custom behavior. For inline hooks, this name is serialized into the attachment XML and shown by LSP folding.</li>
+<li><code>icon</code>: (Optional) Icon string for inline hook attachments.</li>
 <li><code>env</code>: (Optional) A map of environment variables to inject into the hook’s execution environment.</li>
+<li><code>allow_failure</code>: (Optional) A boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
 </ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> logger</span></span>
@@ -466,7 +468,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">LOG_FILE</span><span class="kw">:</span><span class="at"> /tmp/lectic.log</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> ./log-activity.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If <code>do</code> contains multiple lines, it is treated as a script and must begin with a shebang (e.g., <code>#!/bin/bash</code>). If it is a single line, it is treated as a command. Commands are executed directly (not through a shell), so shell features like command substitution will not work.</p>
-<p>Hook commands run synchronously. By default, their stdout, stderr, and exit status are ignored by Lectic. However, if you set <code>inline: true</code>, the standard output is captured and added to the conversation.</p>
+<p>Hook commands run synchronously.</p>
+<p>For most events, a non-zero exit status is treated as an error and aborts the current run.</p>
+<p><code>tool_use_pre</code> is special: a non-zero exit blocks the tool call (permission denied). If you set <code>allow_failure: true</code> on that hook, the non-zero exit is ignored and the tool call continues.</p>
+<p>If you set <code>inline: true</code>, standard output is captured and added to the conversation.</p>
 <ul>
 <li>For <code>user_message</code> events, the output is injected as context for the LLM before it generates a response. It also appears at the top of the assistant’s response block.</li>
 <li>For <code>assistant_message</code> events, the output is appended to the end of the assistant’s response block. This will trigger another reply from the assistant, so be careful to only fire an inline hook when you want the assistant to generate more content.</li>
@@ -536,7 +541,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Standard Lectic variables.</li>
 </ul></li>
 <li>When: After arguments are collected, before execution.</li>
-<li>Behavior: Non-zero exit blocks the call (permission denied).</li>
+<li>Behavior: Non-zero exit blocks the call (permission denied), unless <code>allow_failure: true</code> is set on that hook.</li>
 </ul></li>
 <li><code>tool_use_post</code>
 <ul>
@@ -689,7 +694,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>Requires the <code>sqlite3</code> command-line tool to be installed and on your PATH.</li>
 <li>The hook inspects which variable is set to decide whether the event was a user or assistant message.</li>
-<li><code>LECTIC_FILE</code> is populated when using <code>-f</code>/<code>-i</code> and may be empty when streaming from stdin.</li>
+<li><code>LECTIC_FILE</code> is populated when using <code>-f</code> and may be empty when streaming from stdin.</li>
 <li>Adjust the table schema to suit your use case.</li>
 </ul>
 </section>
@@ -729,8 +734,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The pattern <code>nvim --server "$NVIM" --remote-expr "luaeval('...')"</code> lets you execute arbitrary Lua in the running Neovim instance. Some ideas:</p>
 <ul>
-<li>Play a sound: <code>vim.fn.system('paplay /usr/share/sounds/...')</code></li>
-<li>Flash the screen: <code>vim.cmd('sleep 100m | redraw!')</code></li>
 <li>Update a status line variable</li>
 <li>Trigger a custom autocommand: <code>vim.api.nvim_exec_autocmds('User', {pattern = 'LecticDone'})</code></li>
 </ul>

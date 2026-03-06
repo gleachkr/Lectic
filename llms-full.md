@@ -54,7 +54,7 @@ hover information, go-to-definition, and folding for `.lec` files. You
 can use Lectic with Neovim, VS Code, or any editor that speaks LSP.
 
 For editors without LSP support, the basic workflow still works: edit a
-file, run `lectic -i file.lec`, and the response is appended.
+file, run `lectic -if file.lec`, and the response is appended.
 
 ### Bring your own language
 
@@ -297,11 +297,12 @@ based on your API keys, so you don’t need to specify them.
 Create a file called `hello.lec` with the content above, then run:
 
 ``` bash
-lectic -i hello.lec
+lectic -if hello.lec
 ```
 
-The `-i` flag updates the file in place. Lectic sends your message to
-the LLM and appends the response:
+The `-i` flag updates the file in place, and `-f` selects the
+conversation file. Lectic sends your message to the LLM and appends the
+response:
 
 ``` markdown
 ---
@@ -322,7 +323,7 @@ often see Ferris in Rust documentation and community materials.
 ```
 
 To continue the conversation, add your next message below the `:::`
-block and run `lectic -i hello.lec` again.
+block and run `lectic -if hello.lec` again.
 
 ### Use a tool
 
@@ -345,7 +346,7 @@ What is today's date?
 Run it:
 
 ``` bash
-lectic -i tools.lec
+lectic -if tools.lec
 ```
 
 The response now includes an XML block showing the tool call and its
@@ -402,7 +403,7 @@ you’ve exported it in the same shell session:
 
 ``` bash
 export ANTHROPIC_API_KEY="your-api-key-here"
-lectic -i hello.lec
+lectic -if hello.lec
 ```
 
 If you set the key in `.bashrc` or `.zshrc`, restart your terminal or
@@ -480,7 +481,7 @@ started quickly:
 - **VS Code**: Install the extension from
   [releases](https://github.com/gleachkr/Lectic/releases) and use
   `Cmd+L` / `Alt+L`.
-- **Other editors**: Run `lectic -i file.lec` from a keybinding.
+- **Other editors**: Run `lectic -if file.lec` from a keybinding.
 
 ## The LSP Server
 
@@ -618,10 +619,10 @@ with Lectic. The basic pattern:
 cat file.lec | lectic > file.lec
 ```
 
-Or use `-i` for in-place updates:
+Or use `-i` with `-f` for in-place updates:
 
 ``` bash
-lectic -i file.lec
+lectic -if file.lec
 ```
 
 ### Emacs
@@ -688,7 +689,7 @@ Install the LSP package, then add to LSP settings:
 
 ## Tips
 
-- **Working directory matters.** When you run `lectic -i file.lec`,
+- **Working directory matters.** When you run `lectic -if file.lec`,
   tools and file references resolve relative to the file’s directory.
   Most editor plugins handle this automatically.
 
@@ -698,8 +699,8 @@ Install the LSP package, then add to LSP settings:
 - **Fold tool calls.** Long tool outputs can obscure the conversation.
   Both the Neovim and VS Code plugins fold these by default.
 
-- **Stream for long responses.** The `-s` flag outputs just the new
-  response, which editor plugins use to stream incrementally.
+- **Stream for long responses.** Use `--format block` to output just the
+  new assistant block, which editor plugins can stream incrementally.
 
 
 
@@ -788,7 +789,8 @@ Lectic records some generated content directly into the transcript as
 
 Inline attachments appear inside the assistant’s response block as XML.
 They include a `<command>` field (the hook’s `do` value, or empty for
-`:attach`) and a `<content>` field.
+`:attach`) and a `<content>` field. They may also include attributes
+like `icon` and `name` used by editor folding UIs.
 
 Example (`:attach[...]`):
 
@@ -1393,8 +1395,13 @@ to the LLM.
 Captures its expanded children as an inline attachment stored in the
 assistant’s response block. Only processed in the final message.
 
+You can optionally add attributes to control metadata:
+
+- `icon` for fold display icon
+- `name` for fold display label
+
 ``` markdown
-:attach[:cmd[git diff --staged]]
+:attach[:cmd[git diff --staged]]{name="staged diff" icon=""}
 ```
 
 See [External
@@ -1593,7 +1600,7 @@ in the `hooks` key of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has five possible fields:
+A hook has seven possible fields:
 
 - `on`: (Required) A single event name or a list of event names to
   listen for.
@@ -1607,9 +1614,13 @@ A hook has five possible fields:
   the same name (e.g., one in your global config and one in a project
   config), the one defined later (or with higher precedence) overrides
   the earlier one. This allows you to replace default hooks with custom
-  behavior.
+  behavior. For inline hooks, this name is serialized into the
+  attachment XML and shown by LSP folding.
+- `icon`: (Optional) Icon string for inline hook attachments.
 - `env`: (Optional) A map of environment variables to inject into the
   hook’s execution environment.
+- `allow_failure`: (Optional) A boolean. If `true`, non-zero exit status
+  from this hook is ignored. Defaults to `false`.
 
 ``` yaml
 hooks:
@@ -1625,9 +1636,17 @@ begin with a shebang (e.g., `#!/bin/bash`). If it is a single line, it
 is treated as a command. Commands are executed directly (not through a
 shell), so shell features like command substitution will not work.
 
-Hook commands run synchronously. By default, their stdout, stderr, and
-exit status are ignored by Lectic. However, if you set `inline: true`,
-the standard output is captured and added to the conversation.
+Hook commands run synchronously.
+
+For most events, a non-zero exit status is treated as an error and
+aborts the current run.
+
+`tool_use_pre` is special: a non-zero exit blocks the tool call
+(permission denied). If you set `allow_failure: true` on that hook, the
+non-zero exit is ignored and the tool call continues.
+
+If you set `inline: true`, standard output is captured and added to the
+conversation.
 
 - For `user_message` events, the output is injected as context for the
   LLM before it generates a response. It also appears at the top of the
@@ -1697,7 +1716,8 @@ base `assistant_message` hooks first, then the alias hooks.
     - Token usage variables (if available).
     - Standard Lectic variables.
   - When: After arguments are collected, before execution.
-  - Behavior: Non-zero exit blocks the call (permission denied).
+  - Behavior: Non-zero exit blocks the call (permission denied), unless
+    `allow_failure: true` is set on that hook.
 - `tool_use_post`
   - Environment:
     - `TOOL_NAME`: Tool name.
@@ -1872,7 +1892,7 @@ Notes:
   PATH.
 - The hook inspects which variable is set to decide whether the event
   was a user or assistant message.
-- `LECTIC_FILE` is populated when using `-f`/`-i` and may be empty when
+- `LECTIC_FILE` is populated when using `-f` and may be empty when
   streaming from stdin.
 - Adjust the table schema to suit your use case.
 
@@ -1935,8 +1955,6 @@ hooks:
 The pattern `nvim --server "$NVIM" --remote-expr "luaeval('...')"` lets
 you execute arbitrary Lua in the running Neovim instance. Some ideas:
 
-- Play a sound: `vim.fn.system('paplay /usr/share/sounds/...')`
-- Flash the screen: `vim.cmd('sleep 100m | redraw!')`
 - Update a status line variable
 - Trigger a custom autocommand:
   `vim.api.nvim_exec_autocmds('User', {pattern = 'LecticDone'})`
@@ -2316,12 +2334,23 @@ The `:attach[...]` directive creates an **inline attachment**. The
 content inside the brackets is stored in the assistant’s response block
 (after macro expansion) and sent to the LLM as additional user context.
 
+You can optionally set metadata with directive attributes:
+
+- `icon`: custom fold icon in LSP/editor UIs
+- `name`: custom fold label in LSP/editor UIs
+
 ``` markdown
 Here's the current state of the config:
 
 :attach[:config_status_macro[]]
 
 What do you think of this configuration?
+```
+
+With custom fold display metadata:
+
+``` markdown
+:attach[:cmd[git diff --staged]]{name="staged diff" icon=""}
 ```
 
 When Lectic processes this, it creates an inline attachment that appears
@@ -2637,15 +2666,15 @@ interlocutor:
 
 - `file:` and `exec:` resolve relative paths and run commands in the
   current working directory of the lectic process (the directory from
-  which you invoked the command). If you used -f or -i, note that the
-  working directory does not automatically switch to the .lec file’s
-  directory for these expansions. Use absolute paths or cd if you need a
-  different base.
+  which you invoked the command). If you used `-f`, note that the
+  working directory does not automatically switch to the `.lec` file’s
+  directory for these expansions. Use absolute paths or `cd` if you need
+  a different base.
 - `local:` is the exception: it is resolved relative to the config
   source file where it appears, then rewritten to an absolute path.
 - Standard Lectic environment variables are provided, including
   `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`,
-  `LECTIC_TEMP`, and `LECTIC_FILE` (when using `-f` or `-i`). Your shell
+  `LECTIC_TEMP`, and `LECTIC_FILE` (when using `-f`). Your shell
   environment is also passed through.
 - Macro expansions can inject additional variables into `exec:` via
   directive attributes. See the [Macros
@@ -2776,7 +2805,7 @@ src/users.ts. It should reject empty names and invalid email formats.
 Run it:
 
 ``` bash
-lectic -i task.lec
+lectic -if task.lec
 ```
 
 The assistant will:
@@ -3036,9 +3065,6 @@ interlocutors:
     model: claude-sonnet-4-20250514
     tools:
       - native: search
-      - think_about: >
-          What are the key questions here? What might I be missing?
-          What assumptions am I making?
 
   - name: Critic  
     prompt: |
@@ -3071,8 +3097,7 @@ microservices and monolithic architectures for a team of 5 developers
 building a B2B SaaS product.
 ```
 
-The Researcher will explore the topic, potentially using web search and
-their thinking tool.
+The Researcher will explore the topic, potentially using web search.
 
 ### Get a quick critique
 
@@ -3378,206 +3403,142 @@ tools:
 
 # Recipe: Context Compaction
 
-This recipe shows how to automatically handle long conversations by
-summarizing and resetting context when token usage gets high.
+This recipe shows how to compact long conversations before they hit
+context limits.
 
-## The Problem
+Compaction means:
 
-Long conversations hit context limits. Before that happens, you want to:
+1.  summarize prior discussion,
+2.  reset old context, then
+3.  continue from a short handoff summary.
 
-1.  Summarize what’s been discussed
-2.  Reset the context window
-3.  Continue with the summary as the new starting point
+## Recommended automatic hook (external summarizer)
 
-## Automatic Compaction Hook
+This version is robust in practice and avoids recursive compaction.
 
-This hook monitors token usage and triggers compaction when a threshold
-is reached:
+### Hook definition
 
 ``` yaml
 hooks:
-  - on: assistant_message
+  - name: compact
+    on: assistant_message
     inline: true
-    do: |
-      #!/bin/bash
-      
-      # Configuration
-      LIMIT=80000        # Trigger compaction at this token count
-      
-      TOTAL="${TOKEN_USAGE_TOTAL:-0}"
-      
-      if [[ $TOTAL -lt $LIMIT ]]; then
-        exit 0  # No output, no action
-      fi
-      
-      # The conversation body comes in on stdin.
-      # Indent it as a code block for the summarizer.
-      CONVERSATION=$(sed 's/^/    /')
-      
-      # Generate summary using a separate lectic call
-      SUMMARY=$(echo "$CONVERSATION" | lectic -f ~/.config/lectic/summarize.lec -S)
-      
-      # Output with reset header
-      echo "LECTIC:reset"
-      echo "LECTIC:final"
-      echo ""
-      echo "**Context compacted at $TOTAL tokens.**"
-      echo ""
-      echo "Summary of previous discussion:"
-      echo "$SUMMARY"
+    do: $LECTIC_CONFIG/hooks/compact.sh
 ```
 
-The `LECTIC:reset` header clears prior context. The `LECTIC:final`
-header prevents the assistant from responding to the compaction notice
-itself.
+### Compaction script
 
-## The Summarization Prompt
+Create `$LECTIC_CONFIG/hooks/compact.sh`:
 
-Create `~/.config/lectic/summarize.lec`:
+``` bash
+#!/usr/bin/env bash
+
+# Trigger compaction once total tokens reach this value.
+LIMIT=200000
+TOTAL="${TOKEN_USAGE_TOTAL:-0}"
+
+if [[ "$TOTAL" -lt "$LIMIT" ]]; then
+  exit 0
+fi
+
+# Prevent recursion when this script itself calls `lectic`.
+if [[ -n "${COMPACTION_UNDERWAY:-}" ]]; then
+  exit 0
+fi
+export COMPACTION_UNDERWAY=1
+
+# Only compact if there's more work to be done.
+if [[ -n $TOOL_USE_DONE ]]; then
+exit 0  
+fi
+
+PROMPT_FILE="$LECTIC_CONFIG/hooks/compact-prompt.md"
+
+# The conversation body comes in on stdin.
+CONVERSATION="$(cat <<EOF
+
+$(cat)
+
+**WARNING, context almost full at $TOTAL tokens.**"
+
+$(cat "$PROMPT_FILE")
+EOF
+)"
+
+SUMMARY=$(echo "$CONVERSATION" | lectic --format clean)
+
+cat <<EOF
+LECTIC:reset
+LECTIC:final
+
+**Context compacted at $TOTAL tokens.**
+
+Summary of previous discussion:
+<summary>
+$SUMMARY
+</summary>
+
+Please continue with your task.
+EOF
+```
+
+Make it executable:
+
+``` bash
+chmod +x "$LECTIC_CONFIG/hooks/compact.sh"
+```
+
+### Summarizer instructions
+
+Create `$LECTIC_CONFIG/hooks/compact-prompt.md`:
 
 ``` markdown
----
-interlocutor:
-  name: Summarizer
-  prompt: |
-    Summarize the following conversation concisely. Include:
-    - Key decisions made
-    - Important information established
-    - Current task or question being addressed
-    - Any pending items or open threads
-    
-    Be thorough but concise. This summary will be the only context
-    available for continuing the conversation.
-  model: claude-haiku-4-20250514
-  max_tokens: 1000
----
+Summarize the conversation for handoff to a fresh context.
 
-Summarize this conversation:
+Include:
+- current objective
+- key decisions and constraints
+- important file paths, commands, and outputs
+- open questions and next concrete step
+
+Keep it concise but complete. Return summary text only.
 ```
 
-The conversation text is piped to stdin and appended to the prompt
-file’s content.
+## How this works
 
-## How It Works
+1.  Hook runs after each assistant pass.
+2.  If token usage is below `LIMIT`, nothing happens.
+3.  If over `LIMIT`, stdin conversation is piped to a separate
+    `lectic -S` summarizer call.
+4.  Hook outputs `LECTIC:reset` to drop prior context and `LECTIC:final`
+    to stop an extra follow-up pass.
+5.  Next turn starts from the compacted summary.
 
-1.  After each assistant message, the hook checks `TOKEN_USAGE_TOTAL`
-2.  The conversation body so far is available on stdin
-3.  If over the limit, the hook pipes the conversation to a separate
-    lectic instance for summarization
-4.  The summary is output with the `reset` header, clearing old context
-5.  The next turn starts fresh with only the summary as context
+## Variation: use the active assistant to summarize first
 
-## Variations
-
-### Manual compaction trigger
-
-Instead of automatic triggering, add a macro:
+If you want compaction to use the same assistant (including its
+reasoning behavior), use an in-band reset flow with `:reset[]`.
 
 ``` yaml
 macros:
   - name: compact
     expansion: |
-      exec:#!/bin/bash
-      echo ":reset[]"
-      echo ""
-      echo "Please summarize our conversation so far, focusing on key"
-      echo "decisions, important context, and any open questions."
+      exec:#!/usr/bin/env bash
+      cat <<'EOF'
+      :reset[]
+
+      Before reset applies, summarize our discussion with:
+      - current goal
+      - decisions and constraints
+      - important files/commands
+      - remaining tasks
+      EOF
 ```
 
 Usage: `:compact[]`
 
-This asks the current assistant to summarize before resetting, rather
-than using a separate summarization call.
-
-### Archive before compacting
-
-Save the full conversation before resetting:
-
-``` yaml
-hooks:
-  - on: assistant_message
-    inline: true
-    do: |
-      #!/bin/bash
-      TOTAL="${TOKEN_USAGE_TOTAL:-0}"
-      LIMIT=80000
-      
-      if [[ $TOTAL -lt $LIMIT ]]; then
-        exit 0
-      fi
-      
-      # Archive the current conversation
-      ARCHIVE_DIR="${LECTIC_DATA}/archives"
-      mkdir -p "$ARCHIVE_DIR"
-      
-      TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-      BASE=$(basename "${LECTIC_FILE:-.lec}" .lec)
-      ARCHIVE_FILE="$ARCHIVE_DIR/$BASE-$TIMESTAMP.lec"
-      
-      # Save stdin (the conversation) to the archive
-      cat > "$ARCHIVE_FILE"
-      
-      # Now generate summary (re-read from archive since stdin is consumed)
-      SUMMARY=$(sed 's/^/    /' "$ARCHIVE_FILE" | \
-                lectic -f ~/.config/lectic/summarize.lec -S)
-      
-      echo "LECTIC:reset"
-      echo "LECTIC:final"
-      echo ""
-      echo "**Context compacted. Archived to: $ARCHIVE_FILE**"
-      echo ""
-      echo "Summary:"
-      echo "$SUMMARY"
-```
-
-### Warning before compaction
-
-Give a warning at 70% capacity, compact at 90%:
-
-``` yaml
-hooks:
-  - on: assistant_message
-    inline: true
-    do: |
-      #!/bin/bash
-      TOTAL="${TOKEN_USAGE_TOTAL:-0}"
-      WARN_LIMIT=70000
-      HARD_LIMIT=90000
-      
-      if [[ $TOTAL -gt $HARD_LIMIT ]]; then
-        # Full compaction
-        CONVERSATION=$(sed 's/^/    /')
-        SUMMARY=$(echo "$CONVERSATION" | \
-                  lectic -f ~/.config/lectic/summarize.lec -S)
-        echo "LECTIC:reset"
-        echo "LECTIC:final"
-        echo ""
-        echo "**Context limit reached. Compacted.**"
-        echo ""
-        echo "$SUMMARY"
-      elif [[ $TOTAL -gt $WARN_LIMIT ]]; then
-        # Just warn
-        cat > /dev/null  # Consume stdin
-        echo "LECTIC:final"
-        echo ""
-        echo "*Note: Context at ${TOTAL} tokens. Consider* :reset[] *soon.*"
-      fi
-```
-
-## Tips
-
-- **Test your summarizer.** A bad summary loses important context. Try
-  it manually on a few conversations first.
-
-- **Use a fast model for summarization.** Haiku or similar is fine for
-  summaries and keeps compaction quick.
-
-- **Consider what to preserve.** Code snippets, file paths, and specific
-  decisions are often more important than general discussion.
-
-- **Monitor compaction frequency.** If you’re compacting every few
-  messages, your conversations might be too verbose or you might need a
-  larger context model.
+This is not as automatic, but it gives the model one response to produce
+the handoff summary before context is truncated.
 
 
 
@@ -4603,32 +4564,40 @@ guide for details.
 - `-f`, `--file <PATH>` Path to the conversation file (`.lec`) to
   process. If omitted, Lectic reads from standard input.
 
-- `-i`, `--inplace <PATH>` Read from the given file and update it in
-  place. Mutually exclusive with `--file`.
+- `-i`, `--inplace` Update the file in place. Requires `--file`.
 
-- `-s`, `--short` Only emit the newly generated assistant message, not
-  the full updated conversation.
+- `--format <mode>` Controls output shape and visibility. Supported
+  modes:
 
-- `-S`, `--Short` Like `--short`, but emits only the raw message text
-  (without the `:::Speaker` wrapper).
+  - `full`: print full updated conversation (default)
+  - `block`: print only the new `:::Speaker ... :::` block
+  - `raw`: print only the new assistant message content
+  - `clean`: stream only assistant text, stripping tool calls, thought
+    blocks, and inline attachments
+  - `none`: print nothing
+
+- `-s`, `--short` (deprecated) Alias for `--format block`.
+
+- `-S`, `--Short` (deprecated) Alias for `--format raw`.
 
 - `-l`, `--log <PATH>` Write detailed debug logs to the given file.
 
-- `-q`, `--quiet` Suppress printing the assistant’s response to stdout.
+- `-q`, `--quiet` (deprecated) Alias for `--format none`.
 
 - `-h`, `--help` Show help for all flags and options.
 
 ## Constraints
 
-- –inplace cannot be combined with –file.
-- –quiet cannot be combined with –short or –Short.
+- –inplace requires –file.
+- –format cannot be combined with legacy output flags: –short, –Short,
+  or –quiet.
 
 ## Common examples
 
 - Generate the next message in a file and update it in place:
 
   ``` bash
-  lectic -i conversation.lec
+  lectic -if conversation.lec
   ```
 
 - Read from stdin and write the full result to stdout:
@@ -4637,16 +4606,22 @@ guide for details.
   cat conversation.lec | lectic
   ```
 
-- Stream just the new assistant message:
+- Stream just the new assistant block:
 
   ``` bash
-  lectic -s -f conversation.lec
+  lectic --format block -f conversation.lec
   ```
 
 - Add a message from the command line and update the file:
 
   ``` bash
-  echo "This is a new message." | lectic -i conversation.lec
+  echo "This is a new message." | lectic -if conversation.lec
+  ```
+
+- Stream user-facing text only (hide tools and thoughts):
+
+  ``` bash
+  lectic --format clean -f conversation.lec
   ```
 
 - List available models for detected providers:
@@ -4883,8 +4858,6 @@ Connect to Model Context Protocol servers.
 
 #### Other tool keys
 
-- `think_about`: (String) Creates a thinking/scratchpad tool with the
-  given prompt.
 - `native`: One of `search` or `code`. Enables provider built-in tools.
 - `kit`: Name of a tool kit to include.
 
@@ -4955,9 +4928,16 @@ in a key name.
 - `inline`: (Optional) Boolean. If `true`, the output of the hook is
   captured and injected into the conversation. Defaults to `false`.
 - `name`: (Optional) A name for the hook. Used for merging and
-  overriding hooks from different configuration sources.
+  overriding hooks from different configuration sources. For inline
+  hooks, this is also serialized as a `name` attribute on
+  `<inline-attachment kind="hook">` blocks and shown in LSP fold text.
+- `icon`: (Optional) Icon string for inline hook attachments. If
+  provided, it is serialized as the `icon` attribute and used by LSP
+  folding when `NERD_FONT=1`.
 - `env`: (Optional) A dictionary of environment variables to be set when
   the hook runs.
+- `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
+  from this hook is ignored. Defaults to `false`.
 
 # LSP Server Reference
 
@@ -5323,7 +5303,6 @@ service.
 | [`mcp`](./04_mcp.qmd) | Connect to MCP servers | `mcp_command: npx ...` |
 | [`agent`](./05_agent.qmd) | Call another interlocutor | `agent: OtherName` |
 | [`a2a`](./06_a2a.qmd) | Call a remote A2A agent | `a2a: http://.../agents/<id>` |
-| [`think`](./07_other_tools.qmd#the-think-tool) | Private reasoning scratchpad | `think_about: the problem` |
 | [`native`](./07_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
 
 ## How Tool Calls Work
@@ -5466,8 +5445,8 @@ Each tool type has its own detailed guide:
 - **[A2A](./06_a2a.qmd)**: Talk to remote agents using the Agent2Agent
   (A2A) protocol.
 
-- **[Other Tools](./07_other_tools.qmd)**: The `think` tool for
-  reasoning and `native` for provider built-ins like web search.
+- **[Other Tools](./07_other_tools.qmd)**: `native` for provider
+  built-ins like web search.
 
 > [!NOTE]
 >
@@ -5557,8 +5536,7 @@ tools:
 
 The current working directory for `exec` is:
 
-- If you run with `-f` or `-i`: the directory containing the `.lec`
-  file.
+- If you run with `-f`: the directory containing the `.lec` file.
 - Otherwise: the directory from which you invoked the `lectic` command.
 
 This means relative paths in your commands and scripts resolve relative
@@ -6061,8 +6039,7 @@ tool that points to the `name` of the other.
 
 In this setup, `Kirk` is the main interlocutor. He has a tool named
 `communicator` which, when used, will call the `Spock` interlocutor.
-`Spock` has his own set of tools, including a `think_about` tool to
-encourage careful reasoning.
+`Spock` has his own set of tools.
 
 ``` yaml
 interlocutors:
@@ -6078,7 +6055,7 @@ interlocutors:
       You are Mr. Spock. You respond with pure logic, suppressing all
       emotion.
     tools:
-      - think_about: how to logically solve the problem presented.
+      - exec: bc
 ```
 
 ## Example Conversation
@@ -6290,62 +6267,10 @@ The metadata includes:
 
 
 
-# Other Tools: `think` and `native`
+# Other Tools: `native`
 
-This document covers two tool types: a cognitive scratchpad for the LLM,
-and provider-native tools like web search or code execution.
-
-`serve_on_port` is no longer a built-in tool. If you want browser
-previews, use a skill-based replacement. A bundled example lives at
-`extra/skills/serve`.
-
-## The `think` Tool
-
-The `think` tool gives the LLM a private “scratch space” to pause and
-reason about a prompt before formulating its final response. This can
-improve the quality and thoughtfulness of the output, especially for
-complex or ambiguous questions.
-
-This technique was inspired by a post on [Anthropic’s engineering
-blog](https://www.anthropic.com/engineering/claude-think-tool). The
-output of the `think` tool is hidden from the user by default in the
-editor plugins, though it is still present in the `.lec` file.
-
-### Configuration
-
-``` yaml
-tools:
-  - think_about: >
-      What the user is really asking for, and what hidden assumptions they
-      might have.
-    name: scratchpad # Optional name
-```
-
-### Example
-
-``` markdown
-What's the best city in the world?
-
-:::Assistant
-
-<tool-call with="scratchpad">
-<arguments>
-<thought>
-┆"Best" is subjective. The user could mean best for travel, for
-┆food, for work, etc. I need to ask for clarification.
-</thought>
-</arguments>
-<results>
-<result type="text">
-┆thought complete.
-</result>
-</results>
-</tool-call>
-
-That depends on what you're looking for! Are you interested in the best
-city for tourism, career opportunities, or something else?
-:::
-```
+This document covers provider-native tools like web search or code
+execution.
 
 ## `native` Tools
 

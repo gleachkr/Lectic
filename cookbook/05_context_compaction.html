@@ -418,17 +418,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#recipe-context-compaction" id="toc-recipe-context-compaction" class="nav-link active" data-scroll-target="#recipe-context-compaction">Recipe: Context Compaction</a>
   <ul class="collapse">
-  <li><a href="#the-problem" id="toc-the-problem" class="nav-link" data-scroll-target="#the-problem">The Problem</a></li>
-  <li><a href="#automatic-compaction-hook" id="toc-automatic-compaction-hook" class="nav-link" data-scroll-target="#automatic-compaction-hook">Automatic Compaction Hook</a></li>
-  <li><a href="#the-summarization-prompt" id="toc-the-summarization-prompt" class="nav-link" data-scroll-target="#the-summarization-prompt">The Summarization Prompt</a></li>
-  <li><a href="#how-it-works" id="toc-how-it-works" class="nav-link" data-scroll-target="#how-it-works">How It Works</a></li>
-  <li><a href="#variations" id="toc-variations" class="nav-link" data-scroll-target="#variations">Variations</a>
+  <li><a href="#recommended-automatic-hook-external-summarizer" id="toc-recommended-automatic-hook-external-summarizer" class="nav-link" data-scroll-target="#recommended-automatic-hook-external-summarizer">Recommended automatic hook (external summarizer)</a>
   <ul class="collapse">
-  <li><a href="#manual-compaction-trigger" id="toc-manual-compaction-trigger" class="nav-link" data-scroll-target="#manual-compaction-trigger">Manual compaction trigger</a></li>
-  <li><a href="#archive-before-compacting" id="toc-archive-before-compacting" class="nav-link" data-scroll-target="#archive-before-compacting">Archive before compacting</a></li>
-  <li><a href="#warning-before-compaction" id="toc-warning-before-compaction" class="nav-link" data-scroll-target="#warning-before-compaction">Warning before compaction</a></li>
+  <li><a href="#hook-definition" id="toc-hook-definition" class="nav-link" data-scroll-target="#hook-definition">Hook definition</a></li>
+  <li><a href="#compaction-script" id="toc-compaction-script" class="nav-link" data-scroll-target="#compaction-script">Compaction script</a></li>
+  <li><a href="#summarizer-instructions" id="toc-summarizer-instructions" class="nav-link" data-scroll-target="#summarizer-instructions">Summarizer instructions</a></li>
   </ul></li>
-  <li><a href="#tips" id="toc-tips" class="nav-link" data-scroll-target="#tips">Tips</a></li>
+  <li><a href="#how-this-works" id="toc-how-this-works" class="nav-link" data-scroll-target="#how-this-works">How this works</a></li>
+  <li><a href="#variation-use-the-active-assistant-to-summarize-first" id="toc-variation-use-the-active-assistant-to-summarize-first" class="nav-link" data-scroll-target="#variation-use-the-active-assistant-to-summarize-first">Variation: use the active assistant to summarize first</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -441,177 +438,121 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="recipe-context-compaction" class="level1">
 <h1>Recipe: Context Compaction</h1>
-<p>This recipe shows how to automatically handle long conversations by summarizing and resetting context when token usage gets high.</p>
-<section id="the-problem" class="level2">
-<h2 class="anchored" data-anchor-id="the-problem">The Problem</h2>
-<p>Long conversations hit context limits. Before that happens, you want to:</p>
+<p>This recipe shows how to compact long conversations before they hit context limits.</p>
+<p>Compaction means:</p>
 <ol type="1">
-<li>Summarize what’s been discussed</li>
-<li>Reset the context window</li>
-<li>Continue with the summary as the new starting point</li>
+<li>summarize prior discussion,</li>
+<li>reset old context, then</li>
+<li>continue from a short handoff summary.</li>
 </ol>
-</section>
-<section id="automatic-compaction-hook" class="level2">
-<h2 class="anchored" data-anchor-id="automatic-compaction-hook">Automatic Compaction Hook</h2>
-<p>This hook monitors token usage and triggers compaction when a threshold is reached:</p>
+<section id="recommended-automatic-hook-external-summarizer" class="level2">
+<h2 class="anchored" data-anchor-id="recommended-automatic-hook-external-summarizer">Recommended automatic hook (external summarizer)</h2>
+<p>This version is robust in practice and avoids recursive compaction.</p>
+<section id="hook-definition" class="level3">
+<h3 class="anchored" data-anchor-id="hook-definition">Hook definition</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>      #!/bin/bash</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      # Configuration</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      LIMIT=80000        # Trigger compaction at this token count</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>      TOTAL="${TOKEN_USAGE_TOTAL:-0}"</span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>      if [[ $TOTAL -lt $LIMIT ]]; then</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>        exit 0  # No output, no action</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>      fi</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>      # The conversation body comes in on stdin.</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>      # Indent it as a code block for the summarizer.</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>      CONVERSATION=$(sed 's/^/    /')</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>      # Generate summary using a separate lectic call</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>      SUMMARY=$(echo "$CONVERSATION" | lectic -f ~/.config/lectic/summarize.lec -S)</span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>      # Output with reset header</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>      echo "LECTIC:reset"</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>      echo "LECTIC:final"</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>      echo ""</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>      echo "**Context compacted at $TOTAL tokens.**"</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>      echo ""</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>      echo "Summary of previous discussion:"</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>      echo "$SUMMARY"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>LECTIC:reset</code> header clears prior context. The <code>LECTIC:final</code> header prevents the assistant from responding to the compaction notice itself.</p>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> compact</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> $LECTIC_CONFIG/hooks/compact.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="the-summarization-prompt" class="level2">
-<h2 class="anchored" data-anchor-id="the-summarization-prompt">The Summarization Prompt</h2>
-<p>Create <code>~/.config/lectic/summarize.lec</code>:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="an">interlocutor:</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">  name: Summarizer</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">  prompt: |</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">    Summarize the following conversation concisely. Include:</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co">    - Key decisions made</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co">    - Important information established</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">    - Current task or question being addressed</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">    - Any pending items or open threads</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">    </span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co">    Be thorough but concise. This summary will be the only context</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co">    available for continuing the conversation.</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">  model: claude-haiku-4-20250514</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co">  max_tokens: 1000</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<section id="compaction-script" class="level3">
+<h3 class="anchored" data-anchor-id="compaction-script">Compaction script</h3>
+<p>Create <code>$LECTIC_CONFIG/hooks/compact.sh</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env bash</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Trigger compaction once total tokens reach this value.</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="va">LIMIT</span><span class="op">=</span>200000</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="va">TOTAL</span><span class="op">=</span><span class="st">"</span><span class="va">${TOKEN_USAGE_TOTAL</span><span class="op">:-</span>0<span class="va">}</span><span class="st">"</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">[[</span> <span class="st">"</span><span class="va">$TOTAL</span><span class="st">"</span> <span class="ot">-lt</span> <span class="st">"</span><span class="va">$LIMIT</span><span class="st">"</span> <span class="kw">]];</span> <span class="cf">then</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="bu">exit</span> 0</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Prevent recursion when this script itself calls `lectic`.</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">[[</span> <span class="ot">-n</span> <span class="st">"</span><span class="va">${COMPACTION_UNDERWAY</span><span class="op">:-</span><span class="va">}</span><span class="st">"</span> <span class="kw">]];</span> <span class="cf">then</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="bu">exit</span> 0</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">COMPACTION_UNDERWAY</span><span class="op">=</span>1</span>
 <span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>Summarize this conversation:</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The conversation text is piped to stdin and appended to the prompt file’s content.</p>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Only compact if there's more work to be done.</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">[[</span> <span class="ot">-n</span> <span class="va">$TOOL_USE_DONE</span> <span class="kw">]];</span> <span class="cf">then</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="bu">exit</span> 0  </span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="va">PROMPT_FILE</span><span class="op">=</span><span class="st">"</span><span class="va">$LECTIC_CONFIG</span><span class="st">/hooks/compact-prompt.md"</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co"># The conversation body comes in on stdin.</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="va">CONVERSATION</span><span class="op">=</span><span class="st">"</span><span class="va">$(</span><span class="fu">cat</span> <span class="op">&lt;&lt;EOF</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="va">$(</span><span class="fu">cat</span><span class="va">)</span></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="st">**WARNING, context almost full at </span><span class="va">$TOTAL</span><span class="st"> tokens.**"</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="va">$(</span><span class="fu">cat</span> <span class="st">"</span><span class="va">$PROMPT_FILE</span><span class="st">"</span><span class="va">)</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a><span class="op">EOF</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="va">)</span><span class="st">"</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="va">SUMMARY</span><span class="op">=</span><span class="va">$(</span><span class="bu">echo</span> <span class="st">"</span><span class="va">$CONVERSATION</span><span class="st">"</span> <span class="kw">|</span> <span class="ex">lectic</span> <span class="at">--format</span> clean<span class="va">)</span></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&lt;&lt;EOF</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="st">LECTIC:reset</span></span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="st">LECTIC:final</span></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a><span class="st">**Context compacted at </span><span class="va">$TOTAL</span><span class="st"> tokens.**</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a><span class="st">Summary of previous discussion:</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a><span class="st">&lt;summary&gt;</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a><span class="va">$SUMMARY</span></span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a><span class="st">&lt;/summary&gt;</span></span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a><span class="st">Please continue with your task.</span></span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Make it executable:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> +x <span class="st">"</span><span class="va">$LECTIC_CONFIG</span><span class="st">/hooks/compact.sh"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="how-it-works" class="level2">
-<h2 class="anchored" data-anchor-id="how-it-works">How It Works</h2>
+<section id="summarizer-instructions" class="level3">
+<h3 class="anchored" data-anchor-id="summarizer-instructions">Summarizer instructions</h3>
+<p>Create <code>$LECTIC_CONFIG/hooks/compact-prompt.md</code>:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Summarize the conversation for handoff to a fresh context.</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>Include:</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>current objective</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>key decisions and constraints</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>important file paths, commands, and outputs</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>open questions and next concrete step</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>Keep it concise but complete. Return summary text only.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="how-this-works" class="level2">
+<h2 class="anchored" data-anchor-id="how-this-works">How this works</h2>
 <ol type="1">
-<li>After each assistant message, the hook checks <code>TOKEN_USAGE_TOTAL</code></li>
-<li>The conversation body so far is available on stdin</li>
-<li>If over the limit, the hook pipes the conversation to a separate lectic instance for summarization</li>
-<li>The summary is output with the <code>reset</code> header, clearing old context</li>
-<li>The next turn starts fresh with only the summary as context</li>
+<li>Hook runs after each assistant pass.</li>
+<li>If token usage is below <code>LIMIT</code>, nothing happens.</li>
+<li>If over <code>LIMIT</code>, stdin conversation is piped to a separate <code>lectic -S</code> summarizer call.</li>
+<li>Hook outputs <code>LECTIC:reset</code> to drop prior context and <code>LECTIC:final</code> to stop an extra follow-up pass.</li>
+<li>Next turn starts from the compacted summary.</li>
 </ol>
 </section>
-<section id="variations" class="level2">
-<h2 class="anchored" data-anchor-id="variations">Variations</h2>
-<section id="manual-compaction-trigger" class="level3">
-<h3 class="anchored" data-anchor-id="manual-compaction-trigger">Manual compaction trigger</h3>
-<p>Instead of automatic triggering, add a macro:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> compact</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    expansion</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>      exec:#!/bin/bash</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>      echo ":reset[]"</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>      echo ""</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>      echo "Please summarize our conversation so far, focusing on key"</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>      echo "decisions, important context, and any open questions."</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="variation-use-the-active-assistant-to-summarize-first" class="level2">
+<h2 class="anchored" data-anchor-id="variation-use-the-active-assistant-to-summarize-first">Variation: use the active assistant to summarize first</h2>
+<p>If you want compaction to use the same assistant (including its reasoning behavior), use an in-band reset flow with <code>:reset[]</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">macros</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> compact</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">    expansion</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>      exec:#!/usr/bin/env bash</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      cat &lt;&lt;'EOF'</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      :reset[]</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>      Before reset applies, summarize our discussion with:</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>      - current goal</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>      - decisions and constraints</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>      - important files/commands</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>      - remaining tasks</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>      EOF</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Usage: <code>:compact[]</code></p>
-<p>This asks the current assistant to summarize before resetting, rather than using a separate summarization call.</p>
-</section>
-<section id="archive-before-compacting" class="level3">
-<h3 class="anchored" data-anchor-id="archive-before-compacting">Archive before compacting</h3>
-<p>Save the full conversation before resetting:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>      #!/bin/bash</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>      TOTAL="${TOKEN_USAGE_TOTAL:-0}"</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>      LIMIT=80000</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>      if [[ $TOTAL -lt $LIMIT ]]; then</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        exit 0</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>      fi</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>      # Archive the current conversation</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>      ARCHIVE_DIR="${LECTIC_DATA}/archives"</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>      mkdir -p "$ARCHIVE_DIR"</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>      TIMESTAMP=$(date +%Y%m%d-%H%M%S)</span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>      BASE=$(basename "${LECTIC_FILE:-.lec}" .lec)</span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>      ARCHIVE_FILE="$ARCHIVE_DIR/$BASE-$TIMESTAMP.lec"</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>      # Save stdin (the conversation) to the archive</span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>      cat &gt; "$ARCHIVE_FILE"</span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>      # Now generate summary (re-read from archive since stdin is consumed)</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>      SUMMARY=$(sed 's/^/    /' "$ARCHIVE_FILE" | \</span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>                lectic -f ~/.config/lectic/summarize.lec -S)</span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>      echo "LECTIC:reset"</span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>      echo "LECTIC:final"</span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>      echo ""</span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>      echo "**Context compacted. Archived to: $ARCHIVE_FILE**"</span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>      echo ""</span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>      echo "Summary:"</span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>      echo "$SUMMARY"</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="warning-before-compaction" class="level3">
-<h3 class="anchored" data-anchor-id="warning-before-compaction">Warning before compaction</h3>
-<p>Give a warning at 70% capacity, compact at 90%:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">on</span><span class="kw">:</span><span class="at"> assistant_message</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">inline</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    do</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      #!/bin/bash</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>      TOTAL="${TOKEN_USAGE_TOTAL:-0}"</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      WARN_LIMIT=70000</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>      HARD_LIMIT=90000</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>      </span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>      if [[ $TOTAL -gt $HARD_LIMIT ]]; then</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        # Full compaction</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        CONVERSATION=$(sed 's/^/    /')</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        SUMMARY=$(echo "$CONVERSATION" | \</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>                  lectic -f ~/.config/lectic/summarize.lec -S)</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>        echo "LECTIC:reset"</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        echo "LECTIC:final"</span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>        echo ""</span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        echo "**Context limit reached. Compacted.**"</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        echo ""</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        echo "$SUMMARY"</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>      elif [[ $TOTAL -gt $WARN_LIMIT ]]; then</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>        # Just warn</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>        cat &gt; /dev/null  # Consume stdin</span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>        echo "LECTIC:final"</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>        echo ""</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>        echo "*Note: Context at ${TOTAL} tokens. Consider* :reset[] *soon.*"</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>      fi</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-</section>
-<section id="tips" class="level2">
-<h2 class="anchored" data-anchor-id="tips">Tips</h2>
-<ul>
-<li><p><strong>Test your summarizer.</strong> A bad summary loses important context. Try it manually on a few conversations first.</p></li>
-<li><p><strong>Use a fast model for summarization.</strong> Haiku or similar is fine for summaries and keeps compaction quick.</p></li>
-<li><p><strong>Consider what to preserve.</strong> Code snippets, file paths, and specific decisions are often more important than general discussion.</p></li>
-<li><p><strong>Monitor compaction frequency.</strong> If you’re compacting every few messages, your conversations might be too verbose or you might need a larger context model.</p></li>
-</ul>
+<p>This is not as automatic, but it gives the model one response to produce the handoff summary before context is truncated.</p>
 
 
 </section>

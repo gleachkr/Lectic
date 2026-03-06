@@ -482,7 +482,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>The <code>:attach[...]</code> directive (<code>kind="attach"</code>)</li>
 <li>Inline hooks (<code>kind="hook"</code>)</li>
 </ul>
-<p>Inline attachments appear inside the assistant’s response block as XML. They include a <code>&lt;command&gt;</code> field (the hook’s <code>do</code> value, or empty for <code>:attach</code>) and a <code>&lt;content&gt;</code> field.</p>
+<p>Inline attachments appear inside the assistant’s response block as XML. They include a <code>&lt;command&gt;</code> field (the hook’s <code>do</code> value, or empty for <code>:attach</code>) and a <code>&lt;content&gt;</code> field. They may also include attributes like <code>icon</code> and <code>name</code> used by editor folding UIs.</p>
 <p>Example (<code>:attach[...]</code>):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"attach"</span>&gt;</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;&lt;/<span class="kw">command</span>&gt;</span>

@@ -523,9 +523,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="working-directory-and-environment" class="level2">
 <h2 class="anchored" data-anchor-id="working-directory-and-environment">Working directory and environment</h2>
 <ul>
-<li><code>file:</code> and <code>exec:</code> resolve relative paths and run commands in the current working directory of the lectic process (the directory from which you invoked the command). If you used -f or -i, note that the working directory does not automatically switch to the .lec file’s directory for these expansions. Use absolute paths or cd if you need a different base.</li>
+<li><code>file:</code> and <code>exec:</code> resolve relative paths and run commands in the current working directory of the lectic process (the directory from which you invoked the command). If you used <code>-f</code>, note that the working directory does not automatically switch to the <code>.lec</code> file’s directory for these expansions. Use absolute paths or <code>cd</code> if you need a different base.</li>
 <li><code>local:</code> is the exception: it is resolved relative to the config source file where it appears, then rewritten to an absolute path.</li>
-<li>Standard Lectic environment variables are provided, including <code>LECTIC_CONFIG</code>, <code>LECTIC_DATA</code>, <code>LECTIC_CACHE</code>, <code>LECTIC_STATE</code>, <code>LECTIC_TEMP</code>, and <code>LECTIC_FILE</code> (when using <code>-f</code> or <code>-i</code>). Your shell environment is also passed through.</li>
+<li>Standard Lectic environment variables are provided, including <code>LECTIC_CONFIG</code>, <code>LECTIC_DATA</code>, <code>LECTIC_CACHE</code>, <code>LECTIC_STATE</code>, <code>LECTIC_TEMP</code>, and <code>LECTIC_FILE</code> (when using <code>-f</code>). Your shell environment is also passed through.</li>
 <li>Macro expansions can inject additional variables into <code>exec:</code> via directive attributes. See the <a href="../automation/01_macros.html">Macros guide</a> for details.</li>
 </ul>
 </section>

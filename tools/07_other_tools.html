@@ -416,16 +416,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#other-tools-think-and-native" id="toc-other-tools-think-and-native" class="nav-link active" data-scroll-target="#other-tools-think-and-native">Other Tools: <code>think</code> and <code>native</code></a>
+  <li><a href="#other-tools-native" id="toc-other-tools-native" class="nav-link active" data-scroll-target="#other-tools-native">Other Tools: <code>native</code></a>
   <ul class="collapse">
-  <li><a href="#the-think-tool" id="toc-the-think-tool" class="nav-link" data-scroll-target="#the-think-tool">The <code>think</code> Tool</a>
-  <ul class="collapse">
-  <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a></li>
-  <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
-  </ul></li>
   <li><a href="#native-tools" id="toc-native-tools" class="nav-link" data-scroll-target="#native-tools"><code>native</code> Tools</a>
   <ul class="collapse">
-  <li><a href="#configuration-1" id="toc-configuration-1" class="nav-link" data-scroll-target="#configuration-1">Configuration</a></li>
+  <li><a href="#configuration" id="toc-configuration" class="nav-link" data-scroll-target="#configuration">Configuration</a></li>
   <li><a href="#provider-support" id="toc-provider-support" class="nav-link" data-scroll-target="#provider-support">Provider Support</a></li>
   </ul></li>
   </ul></li>
@@ -438,57 +433,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<section id="other-tools-think-and-native" class="level1">
-<h1>Other Tools: <code>think</code> and <code>native</code></h1>
-<p>This document covers two tool types: a cognitive scratchpad for the LLM, and provider-native tools like web search or code execution.</p>
-<p><code>serve_on_port</code> is no longer a built-in tool. If you want browser previews, use a skill-based replacement. A bundled example lives at <code>extra/skills/serve</code>.</p>
-<section id="the-think-tool" class="level2">
-<h2 class="anchored" data-anchor-id="the-think-tool">The <code>think</code> Tool</h2>
-<p>The <code>think</code> tool gives the LLM a private “scratch space” to pause and reason about a prompt before formulating its final response. This can improve the quality and thoughtfulness of the output, especially for complex or ambiguous questions.</p>
-<p>This technique was inspired by a post on <a href="https://www.anthropic.com/engineering/claude-think-tool">Anthropic’s engineering blog</a>. The output of the <code>think</code> tool is hidden from the user by default in the editor plugins, though it is still present in the <code>.lec</code> file.</p>
-<section id="configuration" class="level3">
-<h3 class="anchored" data-anchor-id="configuration">Configuration</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">  - </span><span class="fu">think_about</span><span class="kw">:</span><span class="at"> </span><span class="ch">&gt;</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>      What the user is really asking for, and what hidden assumptions they</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>      might have.</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> scratchpad</span><span class="co"> # Optional name</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="example" class="level3">
-<h3 class="anchored" data-anchor-id="example">Example</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>What's the best city in the world?</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>:::Assistant</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">tool-call</span><span class="ot"> with</span><span class="op">=</span><span class="st">"scratchpad"</span><span class="dt">&gt;</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">thought</span><span class="dt">&gt;</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>┆"Best" is subjective. The user could mean best for travel, for</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>┆food, for work, etc. I need to ask for clarification.</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">thought</span><span class="dt">&gt;</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">arguments</span><span class="dt">&gt;</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">results</span><span class="dt">&gt;</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">result</span><span class="ot"> type</span><span class="op">=</span><span class="st">"text"</span><span class="dt">&gt;</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>┆thought complete.</span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">result</span><span class="dt">&gt;</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">results</span><span class="dt">&gt;</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">tool-call</span><span class="dt">&gt;</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>That depends on what you're looking for! Are you interested in the best</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>city for tourism, career opportunities, or something else?</span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-</section>
+<section id="other-tools-native" class="level1">
+<h1>Other Tools: <code>native</code></h1>
+<p>This document covers provider-native tools like web search or code execution.</p>
 <section id="native-tools" class="level2">
 <h2 class="anchored" data-anchor-id="native-tools"><code>native</code> Tools</h2>
 <p>Native tools allow you to access functionality that is built directly into the LLM provider’s backend, such as web search or a code interpreter environment for data analysis.</p>
 <p>Support for native tools varies by provider.</p>
-<section id="configuration-1" class="level3">
-<h3 class="anchored" data-anchor-id="configuration-1">Configuration</h3>
+<section id="configuration" class="level3">
+<h3 class="anchored" data-anchor-id="configuration">Configuration</h3>
 <p>You enable native tools by specifying their type.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> search</span><span class="co"> # Enable the provider's built-in web search.</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> code</span><span class="co">   # Enable the provider's built-in code interpreter.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> search</span><span class="co"> # Enable the provider's built-in web search.</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> code</span><span class="co">   # Enable the provider's built-in code interpreter.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="provider-support" class="level3">
 <h3 class="anchored" data-anchor-id="provider-support">Provider Support</h3>

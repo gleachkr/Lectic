@@ -537,8 +537,8 @@ Warning
 <section id="create-and-run" class="level3">
 <h3 class="anchored" data-anchor-id="create-and-run">Create and run</h3>
 <p>Create a file called <code>hello.lec</code> with the content above, then run:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> hello.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The <code>-i</code> flag updates the file in place. Lectic sends your message to the LLM and appends the response:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-if</span> hello.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The <code>-i</code> flag updates the file in place, and <code>-f</code> selects the conversation file. Lectic sends your message to the LLM and appends the response:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="an">interlocutor:</span></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">  name: Assistant</span></span>
@@ -554,7 +554,7 @@ Warning
 <span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>often see Ferris in Rust documentation and community materials.</span>
 <span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>To continue the conversation, add your next message below the <code>:::</code> block and run <code>lectic -i hello.lec</code> again.</p>
+<p>To continue the conversation, add your next message below the <code>:::</code> block and run <code>lectic -if hello.lec</code> again.</p>
 </section>
 <section id="use-a-tool" class="level3">
 <h3 class="anchored" data-anchor-id="use-a-tool">Use a tool</h3>
@@ -570,7 +570,7 @@ Warning
 <span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="at">What is today's date?</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Run it:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> tools.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-if</span> tools.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The response now includes an XML block showing the tool call and its results:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>:::Assistant</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -616,7 +616,7 @@ Tip
 <h3 class="anchored" data-anchor-id="no-api-key-found-or-similar-error">“No API key found” or similar error</h3>
 <p>Lectic needs at least one provider key in your environment. Make sure you’ve exported it in the same shell session:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">ANTHROPIC_API_KEY</span><span class="op">=</span><span class="st">"your-api-key-here"</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> hello.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-if</span> hello.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If you set the key in <code>.bashrc</code> or <code>.zshrc</code>, restart your terminal or run <code>source ~/.bashrc</code> to pick it up.</p>
 </section>
 <section id="response-is-empty-or-tool-calls-arent-working" class="level3">

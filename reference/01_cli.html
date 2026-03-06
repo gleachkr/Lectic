@@ -536,40 +536,50 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><p><code>-v</code>, <code>--version</code> Prints the version string.</p></li>
 <li><p><code>-f</code>, <code>--file &lt;PATH&gt;</code> Path to the conversation file (<code>.lec</code>) to process. If omitted, Lectic reads from standard input.</p></li>
-<li><p><code>-i</code>, <code>--inplace &lt;PATH&gt;</code> Read from the given file and update it in place. Mutually exclusive with <code>--file</code>.</p></li>
-<li><p><code>-s</code>, <code>--short</code> Only emit the newly generated assistant message, not the full updated conversation.</p></li>
-<li><p><code>-S</code>, <code>--Short</code> Like <code>--short</code>, but emits only the raw message text (without the <code>:::Speaker</code> wrapper).</p></li>
+<li><p><code>-i</code>, <code>--inplace</code> Update the file in place. Requires <code>--file</code>.</p></li>
+<li><p><code>--format &lt;mode&gt;</code> Controls output shape and visibility. Supported modes:</p>
+<ul>
+<li><code>full</code>: print full updated conversation (default)</li>
+<li><code>block</code>: print only the new <code>:::Speaker ... :::</code> block</li>
+<li><code>raw</code>: print only the new assistant message content</li>
+<li><code>clean</code>: stream only assistant text, stripping tool calls, thought blocks, and inline attachments</li>
+<li><code>none</code>: print nothing</li>
+</ul></li>
+<li><p><code>-s</code>, <code>--short</code> (deprecated) Alias for <code>--format block</code>.</p></li>
+<li><p><code>-S</code>, <code>--Short</code> (deprecated) Alias for <code>--format raw</code>.</p></li>
 <li><p><code>-l</code>, <code>--log &lt;PATH&gt;</code> Write detailed debug logs to the given file.</p></li>
-<li><p><code>-q</code>, <code>--quiet</code> Suppress printing the assistant’s response to stdout.</p></li>
+<li><p><code>-q</code>, <code>--quiet</code> (deprecated) Alias for <code>--format none</code>.</p></li>
 <li><p><code>-h</code>, <code>--help</code> Show help for all flags and options.</p></li>
 </ul>
 </section>
 <section id="constraints" class="level2">
 <h2 class="anchored" data-anchor-id="constraints">Constraints</h2>
 <ul>
-<li>–inplace cannot be combined with –file.</li>
-<li>–quiet cannot be combined with –short or –Short.</li>
+<li>–inplace requires –file.</li>
+<li>–format cannot be combined with legacy output flags: –short, –Short, or –quiet.</li>
 </ul>
 </section>
 <section id="common-examples" class="level2">
 <h2 class="anchored" data-anchor-id="common-examples">Common examples</h2>
 <ul>
 <li><p>Generate the next message in a file and update it in place:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-i</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-if</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Read from stdin and write the full result to stdout:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
-<li><p>Stream just the new assistant message:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">-s</span> <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<li><p>Stream just the new assistant block:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">--format</span> block <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Add a message from the command line and update the file:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"This is a new message."</span> <span class="kw">|</span> <span class="ex">lectic</span> <span class="at">-i</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">"This is a new message."</span> <span class="kw">|</span> <span class="ex">lectic</span> <span class="at">-if</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<li><p>Stream user-facing text only (hide tools and thoughts):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> <span class="at">--format</span> clean <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>List available models for detected providers:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> models</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> models</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Start the LSP server (stdio transport):</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> lsp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> lsp</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Parse a file to JSON:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 <li><p>Round-trip a file through parsing and reconstruction:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span> parse <span class="at">--reverse</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> parse <span class="at">-f</span> conversation.lec <span class="kw">|</span> <span class="ex">lectic</span> parse <span class="at">--reverse</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
 </ul>
 
 

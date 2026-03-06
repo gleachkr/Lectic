@@ -586,7 +586,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="other-tool-keys" class="level4">
 <h4 class="anchored" data-anchor-id="other-tool-keys">Other tool keys</h4>
 <ul>
-<li><code>think_about</code>: (String) Creates a thinking/scratchpad tool with the given prompt.</li>
 <li><code>native</code>: One of <code>search</code> or <code>code</code>. Enables provider built-in tools.</li>
 <li><code>kit</code>: Name of a tool kit to include.</li>
 </ul>
@@ -630,8 +629,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, <code>assistant_final</code>, <code>assistant_intermediate</code>, <code>tool_use_pre</code>, <code>tool_use_post</code>, <code>run_start</code>, <code>run_end</code>, and <code>error</code>. <code>error</code> is a derived alias of <code>run_end</code> and fires only when <code>RUN_STATUS=error</code>.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event occurs. If multi‑line, it must start with a shebang (e.g., <code>#!/bin/bash</code>). Event context is provided as environment variables. See the Hooks guide for details.</li>
 <li><code>inline</code>: (Optional) Boolean. If <code>true</code>, the output of the hook is captured and injected into the conversation. Defaults to <code>false</code>.</li>
-<li><code>name</code>: (Optional) A name for the hook. Used for merging and overriding hooks from different configuration sources.</li>
+<li><code>name</code>: (Optional) A name for the hook. Used for merging and overriding hooks from different configuration sources. For inline hooks, this is also serialized as a <code>name</code> attribute on <code>&lt;inline-attachment kind="hook"&gt;</code> blocks and shown in LSP fold text.</li>
+<li><code>icon</code>: (Optional) Icon string for inline hook attachments. If provided, it is serialized as the <code>icon</code> attribute and used by LSP folding when <code>NERD_FONT=1</code>.</li>
 <li><code>env</code>: (Optional) A dictionary of environment variables to be set when the hook runs.</li>
+<li><code>allow_failure</code>: (Optional) Boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
 </ul>
 
 

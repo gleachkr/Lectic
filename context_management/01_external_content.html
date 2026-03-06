@@ -534,24 +534,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="inline-attachments-with-attach">Inline Attachments with <code>:attach</code></h2>
 <p>While <code>:cmd</code> inserts command output directly into your message text, sometimes you want to provide context that appears as a separate attachment — for example, to keep the conversation transcript cleaner or to control caching behavior.</p>
 <p>The <code>:attach[...]</code> directive creates an <strong>inline attachment</strong>. The content inside the brackets is stored in the assistant’s response block (after macro expansion) and sent to the LLM as additional user context.</p>
+<p>You can optionally set metadata with directive attributes:</p>
+<ul>
+<li><code>icon</code>: custom fold icon in LSP/editor UIs</li>
+<li><code>name</code>: custom fold label in LSP/editor UIs</li>
+</ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>Here's the current state of the config:</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:config_status_macro[]</span><span class="co">]</span></span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>What do you think of this configuration?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>With custom fold display metadata:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>:attach<span class="co">[</span><span class="ot">:cmd[git diff --staged]</span><span class="co">]</span>{name="staged diff" icon=""}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>When Lectic processes this, it creates an inline attachment that appears at the top of the assistant’s response:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"attach"</span>&gt;</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;&lt;/<span class="kw">command</span>&gt;</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">content</span><span class="ot"> type=</span><span class="st">"text/plain"</span>&gt;</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>┆server:</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>┆  port: 8080</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>┆  host: localhost</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">content</span>&gt;</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">inline-attachment</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span><span class="ot"> kind=</span><span class="st">"attach"</span>&gt;</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;&lt;/<span class="kw">command</span>&gt;</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">content</span><span class="ot"> type=</span><span class="st">"text/plain"</span>&gt;</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>┆server:</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>┆  port: 8080</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>┆  host: localhost</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">content</span>&gt;</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>&lt;/<span class="kw">inline-attachment</span>&gt;</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <section id="combining-attach-with-cmd" class="level3">
 <h3 class="anchored" data-anchor-id="combining-attach-with-cmd">Combining <code>:attach</code> with <code>:cmd</code></h3>
 <p>You can compose <code>:attach</code> and <code>:cmd</code> to get the best of both worlds — run a command and store its output as an attachment:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="an">Review this diff:</span><span class="co"> :attach[:cmd[git diff --staged]]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="an">Review this diff:</span><span class="co"> :attach[:cmd[git diff --staged]]</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>This executes <code>git diff --staged</code>, then wraps the result as an inline attachment. The attachment is cached in the transcript, so re-running Lectic won’t re-execute the command.</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
