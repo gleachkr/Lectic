@@ -9,8 +9,9 @@ for a tag and publish them on the corresponding GitHub Release.
 
 ### Added
 
-- Native "thinking" support for Anthropic and Gemini models, with
-  configurable `thinking_effort` and `thinking_budget` settings.
+- Native "thinking" support for Anthropic and Gemini models, including
+  Anthropic adaptive thinking plus configurable `thinking_effort` and
+  `thinking_budget` settings.
 - Serialized thought blocks in conversation logs with LSP hover and folding
   support.
 - Configurable icons for tools, hooks, and inline attachments, which are
@@ -29,6 +30,10 @@ for a tag and publish them on the corresponding GitHub Release.
 
 ### Changed
 
+- Non-zero hook exits now abort the current run by default unless
+  `allow_failure: true` is set.
+- Consolidated CLI output controls around `--format`; legacy `-s`, `-S`,
+  and `-q` remain as deprecated aliases.
 - Updated context compaction recipe and documentation to reflect recent
   pattern improvements.
 - Improved tool-calling stability and signature handling for Gemini models.
@@ -39,6 +44,8 @@ for a tag and publish them on the corresponding GitHub Release.
 
 - Gemini tool calling signatures for complex parameter sets.
 - `lectic parse` flag handling and reconstruction correctness.
+- Restored `-i`/`--inplace` as a boolean flag so `lectic -if <file>` and
+  `lectic -i -f <file>` work correctly.
 - LSP folding and symbols for large configuration headers.
 
 ### Removed

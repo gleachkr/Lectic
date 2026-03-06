@@ -13,7 +13,8 @@ Examples:
 What it does:
   - updates package.json and package-lock.json version
   - changes CHANGELOG header for the version from
-    "## v<version> - unreleased" to "## v<version> - <YYYY-MM-DD>"
+    "## v<version> [Unreleased]" to "## v<version> - <YYYY-MM-DD>"
+    (also accepts the older "## v<version> - unreleased" form)
   - creates commit "Release v<version>"
   - creates tag "v<version>"
   - optionally pushes commit and tag when --push is set
@@ -76,8 +77,8 @@ if [[ -n "$(git tag -l "v${VERSION}")" ]]; then
   exit 1
 fi
 
-if ! grep -q "^## v${VERSION} - unreleased$" CHANGELOG.md; then
-  echo "Missing changelog header: ## v${VERSION} - unreleased" >&2
+if ! grep -Eq "^## v${VERSION} (\[Unreleased\]|- unreleased)$" CHANGELOG.md; then
+  echo "Missing changelog header: ## v${VERSION} [Unreleased]" >&2
   exit 1
 fi
 
@@ -106,13 +107,19 @@ const fs = require("fs");
 
 const version = process.env.VERSION;
 const releaseDate = process.env.RELEASE_DATE;
-const oldHeader = `## v${version} - unreleased`;
+const oldHeaders = [
+  `## v${version} [Unreleased]`,
+  `## v${version} - unreleased`,
+];
 const newHeader = `## v${version} - ${releaseDate}`;
 
 const path = "CHANGELOG.md";
 const content = fs.readFileSync(path, "utf8");
-if (!content.includes(oldHeader)) {
-  throw new Error(`Missing changelog header: ${oldHeader}`);
+const oldHeader = oldHeaders.find((header) => content.includes(header));
+if (!oldHeader) {
+  throw new Error(
+    `Missing changelog header: ## v${version} [Unreleased]`
+  );
 }
 fs.writeFileSync(path, content.replace(oldHeader, newHeader), "utf8");
 NODE
