@@ -25,6 +25,7 @@ jobs:
             --max-retries 2
             --retry-wait-time 2
             --exclude '^(github\+repo|s3|file)://'
+            --exclude '^https://mcp.context7'
             --exclude '^https?://(localhost|127\.0\.0\.1)(:\d+)?(/|$)'
             README.md
             './doc/**/*.qmd'
