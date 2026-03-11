@@ -1,0 +1,24 @@
+# Lectic TODO plugin config
+#
+# Import this file from your project or user config.
+#
+# Example:
+# imports:
+#   - ./extra/plugins/lectic-todo/lectic.yaml
+#
+# Provides:
+# - :todo[] macro with ripgrep-backed argument completion
+# - code-fenced TODO expansion with nearby context and line numbers
+
+macros:
+  - name: todo
+    description: Expand a TODO match into a code fence with nearby context.
+    env:
+      TODO_PLUGIN_ROOT: local:./
+      TODO_MAX_RESULTS: "200"
+      TODO_CONTEXT: "2"
+      TODO_COMPLETION_CONTEXT: "1"
+      TODO_RG_TIMEOUT_SECONDS: "2"
+    completion_trigger: manual
+    completions: exec:bash "$TODO_PLUGIN_ROOT/scripts/complete.sh"
+    expansion: exec:bash "$TODO_PLUGIN_ROOT/scripts/expand.sh"
