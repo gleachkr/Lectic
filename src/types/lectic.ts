@@ -349,7 +349,7 @@ export class Lectic {
             const message = this.body.messages[idx]
             if (message instanceof UserMessage) {
                 await message.expandMacros(this.header.macros, { 
-                    MESSAGE_TEXT: message.content,
+                    MESSAGE_TEXT: message.raw,
                     MESSAGE_INDEX : idx + 1,
                     MESSAGES_LENGTH : this.body.messages.length
                 })

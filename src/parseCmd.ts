@@ -101,10 +101,10 @@ async function handleParse(opts: ParseOpts) {
     
     for (const msg of lectic.body.messages) {
         if (msg instanceof UserMessage) {
-            const ast = remark().use(remarkDirective).parse(msg.content)
+            const ast = remark().use(remarkDirective).parse(msg.raw)
             messages.push({ role: 'user', content: ast.children })
         } else if (msg instanceof AssistantMessage) {
-            const ast = remark().use(remarkDirective).parse(msg.content)
+            const ast = remark().use(remarkDirective).parse(msg.raw)
             const content: ParsedContentNode[] = []
             
             for (const node of ast.children) {

@@ -8,6 +8,23 @@ import { serializeInlineAttachment } from "./inlineAttachment";
 import { serializeThoughtBlock } from "./thought";
 
 describe('UserMessage', () => {
+    it('stores stripped content and preserves raw text', () => {
+        const message = new UserMessage({
+            content: 'Alpha <!-- hidden --> Beta\n\n<!-- block -->\n\nGamma'
+        });
+        expect(message.content).toBe('Alpha  Beta\n\n\n\nGamma');
+        expect(message.raw).toBe(
+            'Alpha <!-- hidden --> Beta\n\n<!-- block -->\n\nGamma'
+        );
+    });
+
+    it('preserves escaped comment syntax in content', () => {
+        const content = 'Use `<!-- literal -->` and &lt;!-- shown --&gt;.';
+        const message = new UserMessage({ content });
+        expect(message.content).toBe(content);
+        expect(message.raw).toBe(content);
+    });
+
     describe('containedLinks', () => {
         it('should extract a simple markdown link', () => {
             const message = new UserMessage({ content: 'Check out this [link](https://example.com).' });
@@ -414,6 +431,15 @@ describe('AssistantMessage', () => {
         )
         expect(interactions[1].thoughts.length).toBe(0)
     })
+
+    it('skips block-level markdown comments in assistant interactions', () => {
+        const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;
+        const content = 'before\n\n<!-- block -->\n\nafter';
+        const msg = new AssistantMessage({ content, interlocutor: fake });
+        const interactions = msg.parseAssistantContent().interactions;
+        expect(interactions).toHaveLength(1);
+        expect(interactions[0].text).toBe('before\n\n\n\nafter');
+    });
 
     it('returns a single text-only interaction when there are no tool calls', () => {
         const fake: Interlocutor = { name: 'A', prompt: '', registry: {} } as any;

@@ -4,6 +4,66 @@ import remarkDirective from "remark-directive"
 import type { Root, RootContent, Parent, Link, Image } from "mdast"
 import type { TextDirective } from "mdast-util-directive"
 
+export type RawRange = [number, number]
+
+export function parseMarkdown(raw: string): Root {
+    return remark().use(remarkDirective).parse(raw)
+}
+
+export function isHtmlComment(value: string): boolean {
+    return /^<!--[\s\S]*?-->$/.test(value.trim())
+}
+
+export function commentRangesFromAst(ast: Root): RawRange[] {
+    const ranges: RawRange[] = []
+
+    visit(ast, "html", node => {
+        if (!isHtmlComment(node.value)) return
+
+        const start = node.position?.start.offset
+        const end = node.position?.end.offset
+        if (typeof start !== "number" || typeof end !== "number") return
+
+        ranges.push([start, end])
+    })
+
+    ranges.sort((a, b) => a[0] - b[0])
+    return ranges
+}
+
+export function stripRanges(
+    raw: string,
+    ranges: RawRange[],
+    span?: { start: number, end: number }
+): string {
+    const start = span?.start ?? 0
+    const end = span?.end ?? raw.length
+
+    if (ranges.length === 0) return raw.slice(start, end)
+
+    let out = ""
+    let cursor = start
+
+    for (const [rangeStart, rangeEnd] of ranges) {
+        if (rangeEnd <= start) continue
+        if (rangeStart >= end) break
+
+        const clippedStart = Math.max(start, rangeStart)
+        const clippedEnd = Math.min(end, rangeEnd)
+
+        if (clippedStart > cursor) out += raw.slice(cursor, clippedStart)
+        if (clippedEnd > cursor) cursor = clippedEnd
+    }
+
+    if (cursor < end) out += raw.slice(cursor, end)
+    return out
+}
+
+export function stripCommentNodes(raw: string): string {
+    const ast = parseMarkdown(raw)
+    return stripRanges(raw, commentRangesFromAst(ast))
+}
+
 export function nodeRaw(node : RootContent, raw : string) : string {
     const content_start = node.position?.start.offset
     const content_end = node.position?.end.offset
@@ -24,9 +84,7 @@ export function nodeContentRaw(node : Parent, raw : string) : string {
 // Collect link/image nodes that are in user chunks only (i.e., not inside
 // any containerDirective such as interlocutor blocks).
 export function parseReferences(raw: string) : (Link | Image)[] {
-    // Enable remark-directive so containerDirective nodes are recognized.
-    const ast = remark().use(remarkDirective).parse(raw)
-    return referencesFromAst(ast)
+    return referencesFromAst(parseMarkdown(raw))
 }
 
 // Collect link/image nodes from an existing AST (user chunks only)
@@ -42,8 +100,7 @@ export function referencesFromAst(ast: Root): (Link | Image)[] {
 
 // Collect textDirective nodes in user chunks only (skip assistant blocks).
 export function parseDirectives(raw: string) : TextDirective[] {
-    const ast = remark().use(remarkDirective).parse(raw)
-    return directivesFromAst(ast)
+    return directivesFromAst(parseMarkdown(raw))
 }
 
 // Collect textDirective nodes from an existing AST (user chunks only)
@@ -96,5 +153,5 @@ export function replaceDirectives(
 }
 
 export function parseBlocks(raw: string) : RootContent[] {
-    return remark().use(remarkDirective).parse(raw).children
+    return parseMarkdown(raw).children
 }

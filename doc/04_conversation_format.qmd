@@ -53,6 +53,9 @@ So is this. You can include any markdown you like, such as **bold text** or
 `inline code`.
 ```
 
+Markdown HTML comments such as `<!-- note to self -->` are preserved in the
+`.lec` file, but they are not sent to the provider as user-visible text.
+
 ## Assistant Responses
 
 Lectic uses "container directives" to represent messages from the LLM. These
@@ -70,6 +73,20 @@ Some content.
 ```
 
 Markdown code fences inside assistant blocks can also use three backticks.
+
+Assistant blocks can contain both prose and structured records. Lectic may
+serialize tool activity, provider reasoning, and generated attachments inside
+assistant blocks using XML-shaped records such as:
+
+- `<tool-call>`
+- `<thought-block>`
+- `<inline-attachment>`
+
+These records are part of the transcript. When Lectic continues a
+conversation with the same interlocutor, it reconstructs them as structured
+history. When a different interlocutor needs to see an earlier assistant
+turn, Lectic forwards only the prose parts of the block and wraps them in a
+speaker tag.
 
 ### Inline Attachments
 

@@ -10,7 +10,7 @@ import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
   systemPrompt,
-  wrapText,
+  wrapForeignAssistantMessage,
   pdfFragment,
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
@@ -324,10 +324,7 @@ export class AnthropicBackend extends Backend<
             content: [
               {
                 type: "text" as const,
-                text: wrapText({
-                  text: msg.content || "…",
-                  name: msg.name,
-                }),
+                text: wrapForeignAssistantMessage(msg),
               },
             ],
           },

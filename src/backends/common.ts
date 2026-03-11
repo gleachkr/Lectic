@@ -1,13 +1,20 @@
 import { PDFDocument } from "pdf-lib"
 import type { Lectic } from "../types/lectic"
 import type { Tool, ToolCall } from "../types/tool"
-import type { UserMessage } from "../types/message"
+import type { AssistantMessage, UserMessage } from "../types/message"
 import type { MessageLink } from "../types/link"
 import { MessageAttachment, type MessageAttachmentPart } from "../types/attachment"
 import { destrictify, type JSONSchema } from "../types/schema.ts"
 
-export function wrapText({text, name} : { text : string, name: string}) {
-    return `<speaker name="${name}">${text}</speaker>`
+export function wrapForeignAssistantMessage(
+    msg: AssistantMessage
+): string {
+    const text = msg.parseAssistantContent().interactions
+        .map((interaction) => interaction.text)
+        .filter((text) => text.length > 0)
+        .join("\n\n")
+
+    return `<speaker name="${msg.name}">${text || "…"}</speaker>`
 }
 
 export function systemPrompt(lectic : Lectic) {

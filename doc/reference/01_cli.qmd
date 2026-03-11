@@ -150,7 +150,8 @@ guide for details.
   - `block`: print only the new `:::Speaker ... :::` block
   - `raw`: print only the new assistant message content
   - `clean`: stream only assistant text, stripping tool calls, thought
-    blocks, and inline attachments
+    blocks, and inline attachments. This is similar to the prose-only view
+    used when replaying one interlocutor's prior assistant turn to another.
   - `none`: print nothing
 
 - `-s`, `--short` (deprecated)

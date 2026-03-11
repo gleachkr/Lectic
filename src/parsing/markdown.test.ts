@@ -4,8 +4,44 @@ import {
   parseDirectives,
   parseReferences,
   nodeContentRaw,
+  stripCommentNodes,
 } from "./markdown";
 import type { TextDirective } from "mdast-util-directive";
+
+describe("stripCommentNodes", () => {
+  it("removes inline and block markdown comments", () => {
+    const input = [
+      "Alpha <!-- hidden --> Beta",
+      "",
+      "<!-- block -->",
+      "",
+      "Gamma",
+    ].join("\n")
+
+    expect(stripCommentNodes(input)).toBe([
+      "Alpha  Beta",
+      "",
+      "",
+      "",
+      "Gamma",
+    ].join("\n"))
+  })
+
+  it("preserves non-comment html", () => {
+    const input = "Keep <span>visible</span> and drop <!-- hidden -->."
+    expect(stripCommentNodes(input)).toBe("Keep <span>visible</span> and drop .")
+  })
+
+  it("preserves escaped comment syntax and code spans", () => {
+    const input = [
+      "Use `<!-- literal -->` here.",
+      "",
+      "And show &lt;!-- escaped --&gt; too.",
+    ].join("\n")
+
+    expect(stripCommentNodes(input)).toBe(input)
+  })
+})
 
 describe("replaceDirectives", () => {
   it("replaces a known directive and leaves unknown intact", () => {

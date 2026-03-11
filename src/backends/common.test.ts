@@ -4,7 +4,70 @@ import { join } from "path"
 import { tmpdir } from "os"
 import { emitAssistantMessageEvent, resolveToolCalls, runHooks } from "../types/backend"
 import { Hook } from "../types/hook"
-import { Tool, ToolCallResults } from "../types/tool"
+import {
+    serializeCall,
+    Tool,
+    ToolCallResults,
+} from "../types/tool"
+import { AssistantMessage } from "../types/message"
+import { serializeInlineAttachment } from "../types/inlineAttachment"
+import { serializeThoughtBlock } from "../types/thought"
+import { wrapForeignAssistantMessage } from "./common"
+
+describe("wrapForeignAssistantMessage", () => {
+    it("keeps only assistant prose for wrapped foreign messages", () => {
+        const tool: Tool = {
+            name: "echo",
+            description: "echo tool",
+            parameters: {
+                s: { type: "string", description: "text" },
+            },
+            required: [],
+            kind: "mock",
+            hooks: [],
+            call: async (_args) => ToolCallResults("ok"),
+            validateArguments: _ => null,
+        }
+
+        const attachment = serializeInlineAttachment({
+            kind: "attach",
+            command: "echo context",
+            content: "attached context",
+        })
+        const thought = serializeThoughtBlock({
+            provider: "openai",
+            content: ["private reasoning"],
+        })
+        const call = serializeCall(tool, {
+            name: "echo",
+            args: { s: "hi" },
+            results: ToolCallResults("done"),
+        })
+        const msg = new AssistantMessage({
+            content: [
+                "before <!-- hidden --> text",
+                "",
+                attachment,
+                "",
+                thought,
+                "",
+                call,
+                "",
+                "after",
+            ].join("\n"),
+            interlocutor: {
+                name: "Other",
+                prompt: "",
+                registry: { echo: tool },
+            } as any,
+        })
+
+        expect(wrapForeignAssistantMessage(msg)).toBe(
+            '<speaker name="Other">before <!-- hidden --> text\n\n' +
+            'after</speaker>'
+        )
+    })
+})
 
 describe("runHooks", () => {
     it("handles simple text output without headers", () => {

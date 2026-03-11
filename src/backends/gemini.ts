@@ -16,7 +16,7 @@ import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
   systemPrompt,
-  wrapText,
+  wrapForeignAssistantMessage,
   pdfFragment,
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
@@ -441,7 +441,7 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
         messages: [
           {
             role: "user",
-            parts: [{ text: wrapText({ text: msg.content, name: msg.name }) }],
+            parts: [{ text: wrapForeignAssistantMessage(msg) }],
           },
         ],
         reset: false,
@@ -450,9 +450,9 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
 
     const parts: MessageAttachmentPart[] = await gatherMessageAttachmentParts(msg)
 
-    if (msg.content.length === 0) msg.content = "…"
+    const text = msg.content || "…"
 
-    const content: Part[] = [{ text: msg.content }]
+    const content: Part[] = [{ text }]
 
     for (const part of parts) {
       try {

@@ -25,25 +25,35 @@ always having the final say.
 ## Imports (Modular Configuration)
 
 You can split configuration across multiple files with top-level `imports`.
-Each import can be either a string path or an object with `path` and
-optional `optional: true`.
+Each import can be one of:
+
+- a string path,
+- an object with `path` and optional `optional: true`, or
+- an object with `plugin` and optional `optional: true`.
 
 ```yaml
 imports:
   - ./.lectic/plugins/sales/module.yaml
   - path: ./.lectic/plugins/finance
     optional: true
+  - plugin: lectic-task
 ```
 
 Important details:
 
 - Relative import paths are resolved from the file that declares them.
 - If an import path is a directory, Lectic loads `<dir>/lectic.yaml`.
+- `plugin: NAME` searches recursively, in order, through:
+  1. `LECTIC_RUNTIME` entries,
+  2. `LECTIC_CONFIG`, then
+  3. `LECTIC_DATA`.
+- Plugin imports match a directory named `NAME` containing `lectic.yaml`.
 - Imports are recursive, so imported files can have their own `imports`.
 - Import cycles are detected and reported as errors.
 
-This is useful for plugin bundles, shared team defaults, and separating
-large configs into smaller modules.
+Use `plugin:` when a plugin has already been installed into one of Lectic's
+runtime/config/data roots and you want its bundled config. Use `path:` or a
+string path for in-repo modules and other explicit filesystem imports.
 
 ## Overriding Default Directories
 

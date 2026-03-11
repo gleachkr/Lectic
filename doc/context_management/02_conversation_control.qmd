@@ -63,6 +63,12 @@ conversation then reverts back to the previously active speaker for the
 This is useful for quick interjections or for getting a second opinion
 without derailing the main flow of the conversation.
 
+When one interlocutor is shown an earlier turn from another interlocutor,
+Lectic forwards the prose from that assistant block with the original
+speaker name attached. Structured transcript records such as `<tool-call>`,
+`<thought-block>`, and `<inline-attachment>` are omitted from this
+cross-interlocutor view.
+
 ## Context Management with `:reset`
 
 As a conversation grows longer, the context sent to the LLM on each turn also

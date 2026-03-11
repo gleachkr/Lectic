@@ -8,7 +8,7 @@ import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
   systemPrompt,
-  wrapText,
+  wrapForeignAssistantMessage,
   pdfFragment,
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
@@ -259,10 +259,7 @@ export class OpenAIResponsesBackend extends Backend<
           content: [
             {
               type: "input_text",
-              text: wrapText({
-                text: msg.content || "…",
-                name: msg.name,
-              }),
+              text: wrapForeignAssistantMessage(msg),
             },
           ],
         },

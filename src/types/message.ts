@@ -5,6 +5,8 @@ import {
   parseBlocks,
   nodeContentRaw,
   nodeRaw,
+  stripCommentNodes,
+  isHtmlComment,
 } from "../parsing/markdown"
 import {
   expandMacrosWithAttachments,
@@ -42,13 +44,15 @@ export type MessageInteraction = {
 }
 
 export class UserMessage {
+    raw : string
     content : string
     role = "user" as const
     inlineAttachments: InlineAttachment[] = []
     macroSideEffects: MacroSideEffect[] = []
 
-    constructor({content} : {content : string}) {
-        this.content = content
+    constructor({content, raw} : {content : string, raw?: string}) {
+        this.raw = raw ?? content
+        this.content = stripCommentNodes(content)
     }
 
     containedLinks() : MessageLink[] {
@@ -86,12 +90,18 @@ export class UserMessage {
 }
 
 export class AssistantMessage {
+    raw : string
     content : string
     name: string
     tools: Record<string, Tool>
     role = "assistant" as const
 
-    constructor({ content, interlocutor } : {content : string, interlocutor: Interlocutor}) {
+    constructor({ content, raw, interlocutor } : {
+        content : string,
+        raw?: string,
+        interlocutor: Interlocutor,
+    }) {
+        this.raw = raw ?? content
         this.content = content
         this.name = interlocutor.name
         this.tools = interlocutor.registry ?? {}
@@ -109,6 +119,27 @@ export class AssistantMessage {
         let curThoughts: ThoughtBlock[] = []
         const interactions : MessageInteraction[] = []
 
+        const buildText = (blocks: RootContent[]) => {
+            let text = ""
+            let cursor: number | null = null
+
+            for (const block of blocks) {
+                const start = block.position?.start.offset
+                const end = block.position?.end.offset
+                if (typeof start !== "number" || typeof end !== "number") {
+                    continue
+                }
+
+                if (cursor !== null)  text += raw.slice(cursor, start)
+
+                if (!isHtmlComment(nodeRaw(block, raw))) text += nodeRaw(block, raw)
+
+                cursor = end
+            }
+
+            return text
+        }
+
         const flush = () => {
             if (
               curText.length > 0 ||
@@ -116,14 +147,8 @@ export class AssistantMessage {
               curAttachments.length > 0 ||
               curThoughts.length > 0
             ) {
-                let text = ""
-                if (curText.length > 0) {
-                    const content_start = curText[0].position?.start.offset
-                    const content_end = curText[curText.length - 1].position?.end.offset
-                    text = raw.slice(content_start, content_end)
-                }
                 interactions.push({
-                  text,
+                  text: buildText(curText),
                   calls: curCalls,
                   attachments: curAttachments,
                   thoughts: curThoughts,
@@ -149,6 +174,7 @@ export class AssistantMessage {
 
         for (const block of blocks) {
             const blockRaw = nodeRaw(block, raw)
+
             if (block.type === "html" && isSerializedInlineAttachment(blockRaw)) {
                 if (
                   curText.length > 0 ||
