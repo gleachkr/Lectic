@@ -32,13 +32,16 @@ Then import the plugin config in your project or user config:
 
 ```yaml
 imports:
-  - $LECTIC_DATA/plugins/lectic-task/lectic.yaml
+  - plugin: lectic-task
 ```
+
+This searches `LECTIC_RUNTIME`, `LECTIC_CONFIG`, and `LECTIC_DATA`
+recursively for a directory named `lectic-task` containing `lectic.yaml`.
 
 ### Option B: use in-repo
 
-If you run from this repo and have subcommand discovery configured for this
-path, you can import directly:
+If you run from this repo and have not installed the plugin into a Lectic
+runtime/config/data root, import it by path:
 
 ```yaml
 imports:

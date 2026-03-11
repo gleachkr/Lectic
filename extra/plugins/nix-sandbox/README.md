@@ -36,10 +36,16 @@ Then import from project config:
 
 ```yaml
 imports:
-  - $LECTIC_DATA/plugins/nix-sandbox/lectic.yaml
+  - plugin: nix-sandbox
 ```
 
+This searches `LECTIC_RUNTIME`, `LECTIC_CONFIG`, and `LECTIC_DATA`
+recursively for a directory named `nix-sandbox` containing `lectic.yaml`.
+
 ### Option B: keep plugin in-repo
+
+If you have not installed the plugin into a Lectic runtime/config/data
+root, import it by path:
 
 ```yaml
 imports:

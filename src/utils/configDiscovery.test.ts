@@ -9,6 +9,35 @@ import {
 } from "./configDiscovery"
 
 describe("config discovery", () => {
+  async function withEnv(
+    patch: Record<string, string | undefined>,
+    run: () => Promise<void>
+  ) {
+    const before = new Map<string, string | undefined>()
+    for (const key of Object.keys(patch)) {
+      before.set(key, process.env[key])
+    }
+
+    try {
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined) {
+          delete process.env[key]
+        } else {
+          process.env[key] = value
+        }
+      }
+      await run()
+    } finally {
+      for (const [key, value] of before.entries()) {
+        if (value === undefined) {
+          delete process.env[key]
+        } else {
+          process.env[key] = value
+        }
+      }
+    }
+  }
+
   test("findWorkspaceConfigPath walks up to lectic.yaml", async () => {
     const root = mkdtempSync(join(tmpdir(), "lectic-config-walk-"))
     const nested = join(root, "a", "b", "c")
@@ -413,6 +442,181 @@ describe("config discovery", () => {
 
       expect(out.issues).toHaveLength(0)
       expect(out.sources.map(s => s.path)).toContain(join(root, "module.yaml"))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("plugin imports resolve from LECTIC_RUNTIME", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-plugin-runtime-"))
+    const runtimeDir = join(root, "runtime")
+    const pluginDir = join(runtimeDir, "plugins", "lectic-task")
+
+    try {
+      mkdirSync(pluginDir, { recursive: true })
+      writeFileSync(
+        join(pluginDir, "lectic.yaml"),
+        ["macros:", "  - name: helper", "    expansion: hi", ""].join("\n")
+      )
+
+      await withEnv(
+        {
+          LECTIC_RUNTIME: runtimeDir,
+          LECTIC_CONFIG: join(root, "config"),
+          LECTIC_DATA: join(root, "data"),
+        },
+        async () => {
+          const out = await resolveConfigChain({
+            includeSystem: false,
+            document: {
+              yaml: [
+                "imports:",
+                "  - plugin: lectic-task",
+                "interlocutor:",
+                "  name: Doc",
+                "  prompt: p",
+                "",
+              ].join("\n"),
+              dir: root,
+            },
+          })
+
+          expect(out.issues).toHaveLength(0)
+          expect(out.sources.map(s => s.path)).toContain(
+            join(pluginDir, "lectic.yaml")
+          )
+        }
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("plugin imports fall back to LECTIC_CONFIG before LECTIC_DATA", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-plugin-fallback-"))
+    const configPlugin = join(root, "config", "plugins", "shared")
+    const dataPlugin = join(root, "data", "plugins", "shared")
+
+    try {
+      mkdirSync(configPlugin, { recursive: true })
+      mkdirSync(dataPlugin, { recursive: true })
+      writeFileSync(
+        join(configPlugin, "lectic.yaml"),
+        ["macros:", "  - name: from_config", "    expansion: yes", ""].join(
+          "\n"
+        )
+      )
+      writeFileSync(
+        join(dataPlugin, "lectic.yaml"),
+        ["macros:", "  - name: from_data", "    expansion: no", ""].join(
+          "\n"
+        )
+      )
+
+      await withEnv(
+        {
+          LECTIC_RUNTIME: undefined,
+          LECTIC_CONFIG: join(root, "config"),
+          LECTIC_DATA: join(root, "data"),
+        },
+        async () => {
+          const out = await resolveConfigChain({
+            includeSystem: false,
+            document: {
+              yaml: [
+                "imports:",
+                "  - plugin: shared",
+                "interlocutor:",
+                "  name: Doc",
+                "  prompt: p",
+                "",
+              ].join("\n"),
+              dir: root,
+            },
+          })
+
+          expect(out.issues).toHaveLength(0)
+          expect(out.sources.map(s => s.path)).toContain(
+            join(configPlugin, "lectic.yaml")
+          )
+          expect(out.sources.map(s => s.path)).not.toContain(
+            join(dataPlugin, "lectic.yaml")
+          )
+        }
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("optional plugin imports are skipped when missing", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-plugin-optional-"))
+
+    try {
+      await withEnv(
+        {
+          LECTIC_RUNTIME: undefined,
+          LECTIC_CONFIG: join(root, "config"),
+          LECTIC_DATA: join(root, "data"),
+        },
+        async () => {
+          const out = await resolveConfigChain({
+            includeSystem: false,
+            document: {
+              yaml: [
+                "imports:",
+                "  - plugin: missing-plugin",
+                "    optional: true",
+                "interlocutor:",
+                "  name: Doc",
+                "  prompt: p",
+                "",
+              ].join("\n"),
+              dir: root,
+            },
+          })
+
+          expect(out.issues).toHaveLength(0)
+          expect(out.sources.map(s => s.source)).toEqual(["document"])
+        }
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("missing plugin imports report a clear error", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-plugin-missing-"))
+
+    try {
+      await withEnv(
+        {
+          LECTIC_RUNTIME: undefined,
+          LECTIC_CONFIG: join(root, "config"),
+          LECTIC_DATA: join(root, "data"),
+        },
+        async () => {
+          const out = await resolveConfigChain({
+            includeSystem: false,
+            document: {
+              yaml: [
+                "imports:",
+                "  - plugin: missing-plugin",
+                "interlocutor:",
+                "  name: Doc",
+                "  prompt: p",
+                "",
+              ].join("\n"),
+              dir: root,
+            },
+          })
+
+          expect(out.issues).toHaveLength(1)
+          expect(out.issues[0].phase).toBe("import")
+          expect(out.issues[0].message).toContain("missing-plugin")
+          expect(out.issues[0].message).toContain("LECTIC_RUNTIME")
+        }
+      )
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

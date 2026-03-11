@@ -1,11 +1,20 @@
+import { existsSync, realpathSync, statSync } from "fs"
 import { stat } from "fs/promises"
-import { dirname, isAbsolute, join, normalize, resolve } from "path"
+import {
+  basename,
+  delimiter,
+  dirname,
+  isAbsolute,
+  join,
+  normalize,
+  resolve,
+} from "path"
 
 import * as YAML from "yaml"
 
 import { rewriteLocalInNode } from "./localPath"
 import { expandEnv } from "./replace"
-import { lecticConfigDir } from "./xdg"
+import { lecticConfigDir, lecticDataDir } from "./xdg"
 
 export type ConfigSourceKind =
   | "system"
@@ -39,9 +48,100 @@ export type ResolveConfigChainOptions = {
   }
 }
 
-type ImportRef = {
-  path: string
-  optional: boolean
+type SearchDir = {
+  dir: string
+  recursive: boolean
+}
+
+type ImportRef =
+  | {
+      kind: "path"
+      path: string
+      optional: boolean
+    }
+  | {
+      kind: "plugin"
+      plugin: string
+      optional: boolean
+    }
+
+function runtimeSearchDirs(): SearchDir[] {
+  const runtime = process.env["LECTIC_RUNTIME"]
+  if (runtime === undefined) return []
+
+  return runtime
+    .split(delimiter)
+    .map(dir => dir.trim())
+    .filter(Boolean)
+    .map(dir => ({ dir, recursive: true }))
+}
+
+function pluginSearchDirs(): SearchDir[] {
+  return [
+    ...runtimeSearchDirs(),
+    { dir: lecticConfigDir(), recursive: true },
+    { dir: lecticDataDir(), recursive: true },
+  ]
+}
+
+function findPluginConfigsInDir(
+  dir: string,
+  plugin: string,
+  recursive: boolean
+): string[] {
+  if (!existsSync(dir)) return []
+
+  let st
+  try {
+    st = statSync(dir)
+  } catch {
+    return []
+  }
+  if (!st.isDirectory()) return []
+
+  const pattern = recursive ? "**/lectic.yaml" : "*/lectic.yaml"
+  const glob = new Bun.Glob(pattern)
+  const found = new Set<string>()
+
+  for (const maybePath of glob.scanSync({
+    cwd: dir,
+    absolute: true,
+    onlyFiles: true,
+    followSymlinks: true,
+  })) {
+    if (basename(dirname(maybePath)) !== plugin) continue
+
+    try {
+      found.add(realpathSync(maybePath))
+    } catch {
+      // Ignore broken symlinks or races.
+    }
+  }
+
+  return [...found].sort()
+}
+
+async function resolvePluginImport(plugin: string): Promise<string | null> {
+  if (plugin.includes("/") || plugin.includes("\\")) {
+    throw new Error("plugin import names must not contain path separators")
+  }
+
+  for (const loc of pluginSearchDirs()) {
+    const matches = findPluginConfigsInDir(loc.dir, plugin, loc.recursive)
+
+    if (matches.length > 1) {
+      throw new Error(
+        `multiple plugins named '${plugin}' available:\n `
+          + `${matches.join("\n")}\n`
+      )
+    }
+
+    if (matches.length === 1) {
+      return matches[0]
+    }
+  }
+
+  return null
 }
 
 export async function findWorkspaceConfigPath(
@@ -87,60 +187,84 @@ function parseImportRefs(
 
   for (const item of maybeImports) {
     let rawPath: string | undefined
+    let rawPlugin: string | undefined
     let optional = false
 
     if (typeof item === "string") {
       rawPath = item
     } else if (typeof item === "object" && item !== null) {
-      const rec = item as { path?: unknown, optional?: unknown }
+      const rec = item as {
+        path?: unknown
+        plugin?: unknown
+        optional?: unknown
+      }
       if (typeof rec.path === "string") {
         rawPath = rec.path
+      }
+      if (typeof rec.plugin === "string") {
+        rawPlugin = rec.plugin
       }
       if (typeof rec.optional === "boolean") {
         optional = rec.optional
       }
     }
 
-    if (typeof rawPath !== "string") {
+    if ((rawPath === undefined) === (rawPlugin === undefined)) {
       issues.push({
         source,
         phase: "import",
         id,
         message:
-          "each import must be a string or an object with " +
-          "a string path",
+          "each import must be a string or an object with exactly " +
+          "one of path or plugin",
       })
       continue
     }
 
-    const expanded = expandEnv(rawPath.trim())
-    if (!expanded) {
+    if (typeof rawPath === "string") {
+      const expanded = expandEnv(rawPath.trim())
+      if (!expanded) {
+        issues.push({
+          source,
+          phase: "import",
+          id,
+          message: "import path cannot be empty",
+        })
+        continue
+      }
+
+      if (!isAbsolute(expanded) && !baseDir) {
+        issues.push({
+          source,
+          phase: "import",
+          id,
+          message:
+            `cannot resolve relative import ${JSON.stringify(expanded)} ` +
+            "without a base directory",
+        })
+        continue
+      }
+
+      const resolvedPath = isAbsolute(expanded)
+        ? normalize(expanded)
+        : normalize(resolve(baseDir ?? ".", expanded))
+
+      out.push({ kind: "path", path: resolvedPath, optional })
+      continue
+    }
+
+    const plugin = expandEnv((rawPlugin ?? "").trim())
+    if (!plugin) {
       issues.push({
         source,
         phase: "import",
         id,
-        message: "import path cannot be empty",
+        message: "plugin import name cannot be empty",
       })
       continue
     }
 
-    if (!isAbsolute(expanded) && !baseDir) {
-      issues.push({
-        source,
-        phase: "import",
-        id,
-        message:
-          `cannot resolve relative import ${JSON.stringify(expanded)} ` +
-          "without a base directory",
-      })
-      continue
-    }
-
-    const resolvedPath = isAbsolute(expanded)
-      ? normalize(expanded)
-      : normalize(resolve(baseDir ?? ".", expanded))
-
-    out.push({ path: resolvedPath, optional })
+    out.push({ kind: "plugin", plugin, optional })
   }
 
   return out
@@ -252,9 +376,7 @@ export async function resolveConfigChain(
           dirname(id),
           issues
         )
-        for (const ref of refs) {
-          await visitFile(ref.path, "import", ref.optional, id)
-        }
+        await visitImportRefs(refs, source, id)
       }
     } finally {
       active.delete(id)
@@ -267,6 +389,45 @@ export async function resolveConfigChain(
       text: resolvedText,
       parsed,
     })
+  }
+
+  const visitImportRefs = async (
+    refs: ImportRef[],
+    source: ConfigSourceKind,
+    id: string
+  ) => {
+    for (const ref of refs) {
+      if (ref.kind === "path") {
+        await visitFile(ref.path, "import", ref.optional, id)
+        continue
+      }
+
+      try {
+        const resolved = await resolvePluginImport(ref.plugin)
+        if (resolved === null) {
+          if (ref.optional) continue
+          issues.push({
+            source,
+            phase: "import",
+            id,
+            message:
+              `plugin '${ref.plugin}' could not be found in `
+                + "LECTIC_RUNTIME, LECTIC_CONFIG, or LECTIC_DATA",
+          })
+          continue
+        }
+
+        await visitFile(resolved, "import", ref.optional, id)
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        issues.push({
+          source,
+          phase: "import",
+          id,
+          message,
+        })
+      }
+    }
   }
 
   if (opts.includeSystem ?? true) {
@@ -326,9 +487,7 @@ export async function resolveConfigChain(
         opts.document?.dir,
         issues
       )
-      for (const ref of refs) {
-        await visitFile(ref.path, "import", ref.optional, id)
-      }
+      await visitImportRefs(refs, "document", id)
     }
 
     sources.push({
