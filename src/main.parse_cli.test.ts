@@ -16,7 +16,7 @@ async function runMain(argv: string[]): Promise<CliResult> {
     const proc = Bun.spawn({
         cmd: [process.execPath, mainPath, ...argv],
         cwd: process.cwd(),
-        env: process.env,
+        env: { ...process.env, LECTIC_CONFIG : "not-a-directory" },
         stdout: 'pipe',
         stderr: 'pipe',
     })
