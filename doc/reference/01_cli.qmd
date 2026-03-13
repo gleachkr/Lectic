@@ -20,6 +20,8 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   structure. Useful for programmatic analysis and modification.
 
   Flags:
+  - `-f`, `--file <PATH>`: Path to the `.lec` file to parse. If omitted,
+    reads from standard input.
   - `--yaml`: Emit YAML instead of JSON.
   - `--reverse`: Ingest JSON (or YAML) output and reconstruct the original
     lectic file.

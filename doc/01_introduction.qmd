@@ -121,7 +121,7 @@ appends it when you run the command.
 
 A more interesting setup with tools:
 
-```yaml
+````markdown
 ---
 interlocutor:
   name: Assistant
@@ -132,9 +132,7 @@ interlocutor:
     - exec: rg --json
       name: search
 ---
-```
 
-```markdown
 Review the error handling in src/main.ts. Are there any uncaught
 exceptions?
 
@@ -153,7 +151,7 @@ Looking at the code, I can see several places where exceptions might not
 be caught...
 
 :::
-```
+````
 
 The assistant reads files and searches the codebase to answer your question.
 Tool calls appear inline in the response so you can see exactly what

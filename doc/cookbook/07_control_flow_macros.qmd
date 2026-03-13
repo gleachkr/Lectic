@@ -1,4 +1,4 @@
-# Control Flow with Macros
+# Recipe: Control Flow with Macros
 
 ::: {.callout-note}
 ## Advanced Recipe

@@ -20,6 +20,12 @@ included configuration files.
 - `sandbox`: A default sandbox command string applied to all `exec` tools
   and local `mcp_command` tools, unless overridden by
   `interlocutor.sandbox` or a tool's own `sandbox` setting.
+- `hook_defs`: A list of reusable named hook definitions. See
+  [Reusable Definitions](#reusable-definitions-with-use) below.
+- `env_defs`: A list of reusable named environment variable maps. See
+  [Reusable Definitions](#reusable-definitions-with-use) below.
+- `sandbox_defs`: A list of reusable named sandbox command strings. See
+  [Reusable Definitions](#reusable-definitions-with-use) below.
 
 ---
 
@@ -94,6 +100,10 @@ An interlocutor object defines a single LLM "personality" or configuration.
   validated as a JSON Schema. This is forwarded to backends that support
   structured outputs. See [Structured Outputs](./04_structured_outputs.qmd)
   for the supported schema subset and provider notes.
+- `a2a`: Optional object for configuring this interlocutor as an A2A
+  agent when using `lectic a2a`. Fields:
+  - `id`: Custom agent ID (defaults to the interlocutor name).
+  - `description`: Agent description exposed in the A2A agent card.
 
 ### Model Configuration
 
@@ -114,6 +124,8 @@ An interlocutor object defines a single LLM "personality" or configuration.
 - `thinking_budget`: Optional integer token budget for providers that
   support structured thinking phases (Anthropic, Anthropic/Bedrock,
   Gemini). Ignored by the `openai` and `openai/chat` providers.
+- `nocache`: Optional boolean. If `true`, disables prompt caching on the
+  Anthropic provider. Defaults to `false`.
 
 #### Providers and defaults
 
@@ -121,10 +133,14 @@ If you don’t specify `provider`, Lectic picks a default based on your
 environment. It checks for known API keys in this order and uses the first
 one it finds:
 
-1. ANTHROPIC_API_KEY
-2. GEMINI_API_KEY
-3. OPENAI_API_KEY
-4. OPENROUTER_API_KEY
+1. ANTHROPIC_API_KEY → `anthropic`
+2. GEMINI_API_KEY → `gemini`
+3. OPENAI_API_KEY → `openai/chat`
+4. OPENROUTER_API_KEY → `openrouter`
+
+Note that `OPENAI_API_KEY` auto-selects `openai/chat` (the legacy Chat
+Completions API), **not** `openai` (the Responses API). If you want the
+Responses API, set `provider: openai` explicitly.
 
 AWS credentials for Bedrock are not considered for auto‑selection. If you
 want Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly
@@ -228,6 +244,8 @@ in a key name.
 
 - `name`: (Required) The name of the macro, used when invoking it with
   `:name[]` or `:name[args]`.
+- `description`: (Optional) Short documentation for the macro. Shown in
+  LSP hover info and autocomplete.
 - `expansion`: (Optional) The content to be expanded. Can be a string, or
   loaded via `file:` or `exec:`. Equivalent to `post` if provided. See
   [External Prompts](../context_management/03_external_prompts.qmd)
@@ -286,3 +304,83 @@ in a key name.
   the hook runs.
 - `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
+
+---
+
+## Reusable Definitions with `use`
+
+To avoid repeating the same hooks, environment maps, or sandbox commands
+across multiple interlocutors or tools, you can define them once at the
+top level and reference them by name with `{use: "<name>"}`.
+
+### `hook_defs`
+
+A list of named hook definitions. Each entry is a normal hook object
+(with `on`, `do`, etc.) plus a required `name`.
+
+```yaml
+hook_defs:
+  - name: confirm
+    on: tool_use_pre
+    do: zenity --question --text="Allow $TOOL_NAME?"
+```
+
+You can then reference this hook anywhere a hook list is expected:
+
+```yaml
+interlocutor:
+  name: Assistant
+  prompt: You are helpful.
+  hooks:
+    - { use: confirm }
+```
+
+### `env_defs`
+
+A list of named environment variable maps. Each entry has a `name` and
+an `env` object.
+
+```yaml
+env_defs:
+  - name: project_paths
+    env:
+      PROJECT_ROOT: /home/user/project
+      BUILD_DIR: /home/user/project/dist
+```
+
+Reference with `{use: "<name>"}` anywhere an `env` field is expected:
+
+```yaml
+tools:
+  - exec: ./build.sh
+    name: build
+    env: { use: project_paths }
+```
+
+### `sandbox_defs`
+
+A list of named sandbox command strings. Each entry has a `name` and a
+`sandbox` string.
+
+```yaml
+sandbox_defs:
+  - name: bwrap
+    sandbox: /usr/local/bin/bwrap-sandbox.sh
+```
+
+Reference with `{use: "<name>"}` anywhere a `sandbox` field is expected:
+
+```yaml
+tools:
+  - exec: bash
+    name: shell
+    sandbox: { use: bwrap }
+```
+
+### Resolution
+
+`use` references are resolved early, before the rest of the configuration
+is processed. They work anywhere `hooks`, `env`, or `sandbox` fields
+appear — on interlocutors, tools, or at the top level. If a referenced
+name is not found in the corresponding `*_defs` list, Lectic reports an
+error.

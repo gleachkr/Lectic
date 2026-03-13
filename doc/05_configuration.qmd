@@ -123,8 +123,8 @@ interlocutor:
 
 If you place this project config at `./lectic.yaml` in your working
 directory, Lectic will merge it with your system defaults and the
-document header using the precedence above. The `haiku` interlocutor
-will be configured with the `claude-haiku-4` model, and it will have
+document header using the precedence above. The `sonnet` interlocutor
+will be configured with the `claude-sonnet-4-6` model, and it will have
 access to a `bash` tool and an `agent` tool that can call `opus`.
-You can switch to `opus` within the conversation if needed, using an 
+You can switch to `opus` within the conversation if needed, using an
 [`:ask[]` directive](./context_management/02_conversation_control.qmd).

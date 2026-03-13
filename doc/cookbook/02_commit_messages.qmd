@@ -18,7 +18,7 @@ if git diff --cached --quiet; then
   exit 1
 fi
 
-lectic -f ~/.config/lectic/commit-prompt.lec -S
+lectic -f ~/.config/lectic/commit-prompt.lec --format raw
 ```
 
 Make it executable:
@@ -135,7 +135,7 @@ if git diff --cached --quiet; then
   exit 1
 fi
 
-lectic -f "$PROMPT" -S
+lectic -f "$PROMPT" --format raw
 ```
 
 Usage: `lectic commit gitmoji`
@@ -160,7 +160,7 @@ interlocutor:
 
 :cmd[git diff --cached -- "$file"]
 EOF
-  lectic -f /tmp/commit-single.lec -S
+  lectic -f /tmp/commit-single.lec --format raw
   echo
 done
 ```

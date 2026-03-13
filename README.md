@@ -12,7 +12,7 @@ lectic -if chat.lec
 echo "Summarize this: $(cat notes.md)" | lectic -f template.lec
 
 # Use it in scripts
-git diff --staged | lectic -f commit-msg.lec -S >> commits.log
+git diff --staged | lectic -f commit-msg.lec --format raw >> commits.log
 ```
 
 ## Why Lectic?
@@ -163,12 +163,8 @@ The opening line is clichéd. Consider a more striking image.
 
 ```yaml
 hooks:
-  - on: assistant_message
-    do: |
-      #!/bin/bash
-      if [[ "$TOOL_USE_DONE" == "1" ]]; then
-        notify-send "Lectic" "Done"
-      fi
+  - on: assistant_final
+    do: notify-send "Lectic" "Done"
 ```
 
 ### Extend with custom subcommands
@@ -178,7 +174,7 @@ PATH:
 
 ```bash
 #!/bin/bash
-git diff --staged | lectic -f ~/.config/lectic/review-prompt.lec -S
+git diff --staged | lectic -f ~/.config/lectic/review-prompt.lec --format raw
 ```
 
 Then run `lectic review`.

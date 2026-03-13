@@ -68,7 +68,7 @@ accidentally becoming heroes.
 Run it:
 
 ```bash
-lectic -f quests.lec -S > quests.json
+lectic -f quests.lec --format raw > quests.json
 ```
 
 Now your output is machine-friendly JSON, not free-form prose.

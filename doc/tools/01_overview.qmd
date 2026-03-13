@@ -150,7 +150,7 @@ Each tool type has its own detailed guide:
 - **[A2A](./06_a2a.qmd)**: Talk to remote agents using the
   Agent2Agent (A2A) protocol.
 
-- **[Other Tools](./07_other_tools.qmd)**: `native` for provider built-ins like
+- **[Native](./07_other_tools.qmd)**: `native` for provider built-ins like
   web search.
 
 ::: {.callout-note}

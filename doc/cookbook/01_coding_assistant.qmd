@@ -27,7 +27,7 @@ interlocutor:
     3. Run tsc and eslint after edits to catch errors
     4. Explain your reasoning
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   tools:
     - exec: cat
       name: read_file

@@ -9,14 +9,18 @@ available in your environment.
 If you do not set `provider`, Lectic checks for keys in this order and uses
 the first one it finds:
 
-Anthropic → Gemini → OpenAI → OpenRouter.
+Anthropic → Gemini → OpenAI (Chat Completions) → OpenRouter.
+
+When `OPENAI_API_KEY` is detected, the auto-selected provider is `openai/chat`
+(the legacy Chat Completions API), **not** `openai` (the Responses API). If you
+want the Responses API, set `provider: openai` explicitly.
 
 Set one of these environment variables before you run Lectic:
 
-- ANTHROPIC_API_KEY
-- GEMINI_API_KEY
-- OPENAI_API_KEY
-- OPENROUTER_API_KEY
+- `ANTHROPIC_API_KEY`
+- `GEMINI_API_KEY`
+- `OPENAI_API_KEY`
+- `OPENROUTER_API_KEY`
 
 AWS credentials for Bedrock are not used for auto-selection. If you want
 Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly and make

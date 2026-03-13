@@ -80,6 +80,8 @@ variables. No positional arguments are passed. Some events also receive stdin.
 - `user_message`
   - Environment:
     - `USER_MESSAGE`: The text of the most recent user message.
+    - `LECTIC_INTERLOCUTOR`: Active interlocutor name.
+    - `LECTIC_MODEL`: Active model name.
     - `MESSAGES_LENGTH`: Message count including the current user message.
     - Standard Lectic variables (`LECTIC_FILE`, `LECTIC_CONFIG`,
       `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`, `LECTIC_TEMP`).

@@ -105,8 +105,8 @@ Keep it concise but complete. Return summary text only.
 
 1. Hook runs after each assistant pass.
 2. If token usage is below `LIMIT`, nothing happens.
-3. If over `LIMIT`, stdin conversation is piped to a separate `lectic -S`
-   summarizer call.
+3. If over `LIMIT`, stdin conversation is piped to a separate
+   `lectic --format clean` summarizer call.
 4. Hook outputs `LECTIC:reset` to drop prior context and `LECTIC:final` to
    stop an extra follow-up pass.
 5. Next turn starts from the compacted summary.

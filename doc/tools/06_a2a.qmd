@@ -8,6 +8,25 @@ This is useful for:
 - Testing the built-in `lectic a2a` server
 - Delegating work to an external agent process
 
+## Configuring interlocutors as A2A agents
+
+When using `lectic a2a`, each interlocutor is exposed as an A2A agent.
+You can customize the agent ID and description with the `a2a` field on
+the interlocutor:
+
+```yaml
+interlocutor:
+  name: Research Assistant
+  prompt: You are a research assistant.
+  a2a:
+    id: researcher
+    description: Finds and summarizes academic papers.
+```
+
+If `a2a.id` is not set, the interlocutor's `name` is used as the agent
+ID. The `description` is exposed in the agent card returned by the A2A
+server.
+
 ## Configuration
 
 You configure an A2A tool by providing the base URL for the agent.
@@ -30,11 +49,11 @@ tools:
 
 Optional settings:
 
-- `stream`: prefer streaming (`message/sendStream`). Defaults to `true`.
-- `maxWaitSeconds`: when streaming, max seconds to wait for the call to
+- `stream`: Prefer streaming (`message/sendStream`). Defaults to `true`.
+- `maxWaitSeconds`: When streaming, max seconds to wait for the call to
   reach a final event before returning early with `taskId` so you can
   poll using `getTask`. Defaults to `5`.
-- `headers`: extra HTTP headers to attach to every A2A request.
+- `headers`: Extra HTTP headers to attach to every A2A request.
   - Header values support `file:` and `exec:` sources (same as MCP).
   - Avoid hardcoding secrets directly in YAML.
 

@@ -17,7 +17,7 @@ interlocutors:
       - Note uncertainties and limitations
       - Suggest follow-up questions
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-6
     tools:
       - native: search
 
@@ -29,7 +29,7 @@ interlocutors:
       - Steelman opposing viewpoints
       Be constructive but rigorous.
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-6
 
   - name: Synthesizer
     prompt: |
@@ -38,7 +38,7 @@ interlocutors:
       - Open questions that remain
       - Actionable conclusions
     provider: anthropic
-    model: claude-haiku-4-20250514
+    model: claude-haiku-4-5
 ---
 ```
 
@@ -137,7 +137,7 @@ interlocutors:
     model: claude-opus-4-6  # For complex analysis
     
   - name: Quick
-    model: claude-haiku-4-20250514  # For quick sanity checks
+    model: claude-haiku-4-5  # For quick sanity checks
 ```
 
 ## Tips

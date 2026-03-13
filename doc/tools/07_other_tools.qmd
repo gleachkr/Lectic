@@ -1,4 +1,4 @@
-# Other Tools: `native`
+# Tools: Native
 
 This document covers provider-native tools like web search or code execution.
 

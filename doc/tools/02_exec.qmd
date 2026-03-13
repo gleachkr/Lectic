@@ -166,11 +166,20 @@ If the LLM provides `{ NAME: "Ada", DAY: "Friday" }` Lectic will fill in the res
 
 ## Execution environment
 
-When Lectic runs your command or script, it sets a few helpful environment
-variables. In particular, `LECTIC_INTERLOCUTOR` is set to the name of the
-interlocutor who invoked the tool. This makes it easy to maintain
-per‑interlocutor state (for example, separate scratch directories or
-memory stores) in your scripts or sandbox wrappers.
+When Lectic runs your command or script, it sets the following environment
+variables in addition to any you configure via the `env` field:
+
+- `LECTIC_INTERLOCUTOR`: Name of the interlocutor who invoked the tool.
+  Useful for maintaining per-interlocutor state (e.g., separate scratch
+  directories or memory stores).
+- `LECTIC_FILE`: Path to the active `.lec` file (if using `-f`).
+- `LECTIC_CONFIG`: Lectic configuration directory.
+- `LECTIC_DATA`: Lectic data directory.
+- `LECTIC_CACHE`: Lectic cache directory.
+- `LECTIC_STATE`: Lectic state directory.
+- `LECTIC_TEMP`: Lectic temporary directory.
+
+Tool `env` values override these defaults when keys overlap.
 
 ## Safety and trust
 

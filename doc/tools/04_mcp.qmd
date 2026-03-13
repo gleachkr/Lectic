@@ -28,7 +28,8 @@ an interlocutor with a valid prompt and model configuration. See
 example.
 
 You can connect to an MCP server in three ways: by running a local server as
-a command, or by connecting to a remote server over WebSockets or SSE.
+a command, or by connecting to a remote server over WebSockets or Streamable
+HTTP.
 
 ### Local MCP Server (`mcp_command`)
 

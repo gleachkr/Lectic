@@ -8,20 +8,20 @@ simple tool in action.
 
 Choose the method that fits your system.
 
-#### Homebrew
+### Homebrew
 
 ```bash
 brew install gleachkr/lectic/lectic
 ```
 
-#### Arch Linux (AUR)
+### Arch Linux (AUR)
 
 ```bash
 yay -S lectic-bin
 # or: paru -S lectic-bin
 ```
 
-#### Linux / macOS quick install (GitHub Releases)
+### Linux / macOS quick install (GitHub Releases)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
@@ -30,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
 
 To update later, rerun the same installer command.
 
-#### Linux / macOS manual install (release tarballs)
+### Linux / macOS manual install (release tarballs)
 
 Download the matching release tarball from the
 [GitHub Releases page](https://github.com/gleachkr/Lectic/releases),
@@ -44,7 +44,7 @@ install -m 755 ./lectic ~/.local/bin/lectic
 
 Linux AppImages are also published in the release assets.
 
-#### Nix
+### Nix
 
 If you use Nix, install directly from the repository:
 
@@ -70,7 +70,8 @@ export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
 Lectic chooses a default provider by checking for keys in this order:
-Anthropic → Gemini → OpenAI → OpenRouter. You only need one.
+Anthropic → Gemini → OpenAI (Chat Completions) → OpenRouter. You only
+need one.
 
 ::: {.callout-note}
 You can also use your ChatGPT subscription with `provider: codex`.
