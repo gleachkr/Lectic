@@ -16,8 +16,8 @@ macros:
     env:
       TODO_PLUGIN_ROOT: local:./
       TODO_MAX_RESULTS: "200"
-      TODO_CONTEXT: "2"
-      TODO_COMPLETION_CONTEXT: "1"
+      TODO_CONTEXT: "3"
+      TODO_COMPLETION_CONTEXT: "2"
       TODO_RG_TIMEOUT_SECONDS: "2"
     completion_trigger: manual
     completions: exec:bash "$TODO_PLUGIN_ROOT/scripts/complete.sh"

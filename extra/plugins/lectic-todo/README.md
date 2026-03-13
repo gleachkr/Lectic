@@ -12,6 +12,8 @@ It provides one macro:
 - uses `rg` in the current working directory to find TODOs
 - respects `.gitignore`
 - skips a few common heavyweight directories even if they are not ignored
+- inserts a short `path:line` completion value instead of the full TODO line
+- shows the matched line inline in the completion menu
 - includes a little surrounding context in completion detail/documentation
 - adds a 2 second timeout around the `rg` scan
 - offers TODO matches as macro argument completions
@@ -52,7 +54,9 @@ Invoke completion inside the macro argument position:
 In the LSP this is usually a manual completion invocation, because the
 completion source runs `rg` and is intentionally marked `manual`.
 
-Selecting a completion expands later to something like:
+Selecting a completion inserts a short `path:line` reference while still
+showing the matched TODO line in the completion menu. Expansion later looks
+like:
 
 ````markdown
 TODO from `src/app.ts` lines 2-4 (TODO at line 3):
@@ -70,8 +74,8 @@ The macro definition sets these defaults, and you can override them with macro
 attributes if you want:
 
 - `TODO_MAX_RESULTS` - default `200`
-- `TODO_CONTEXT` - default `2`
-- `TODO_COMPLETION_CONTEXT` - default `1`
+- `TODO_CONTEXT` - default `3`
+- `TODO_COMPLETION_CONTEXT` - default `2`
 - `TODO_RG_TIMEOUT_SECONDS` - default `2`
 - `TODO_PATTERN` - default `\bTODO\b`
 

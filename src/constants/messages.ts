@@ -65,6 +65,8 @@ export const Messages = {
       `The "detail" field of a macro completion item must be a string.`,
     completionItemDocumentationType: () =>
       `The "documentation" field of a macro completion item must be a string.`,
+    completionItemLabelDescriptionType: () =>
+      `The "label_description" field of a macro completion item must be a string.`,
     completionTriggerType: () =>
       `The "completion_trigger" field of a macro must be "auto" or "manual".`,
     completionSourceType: () =>

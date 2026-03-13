@@ -77,8 +77,10 @@ describe("lectic TODO plugin scripts", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(result.stdout).toContain("TODO: wire this up");
-      expect(result.stdout).toContain("src/app.ts:2");
+      expect(result.stdout).toContain("completion: 'src/app.ts:2'");
+      expect(result.stdout).toContain(
+        "label_description: '// TODO: wire this up'",
+      );
       expect(result.stdout).toContain("detail: 'src/app.ts lines 1-3");
       expect(result.stdout).toContain("documentation: |");
       expect(result.stdout).toContain("```ts");
@@ -111,7 +113,7 @@ describe("lectic TODO plugin scripts", () => {
       const result = await runScript(expandScriptPath, {
         cwd: root,
         env: {
-          ARG: "// TODO: validate the middle value — src/app.ts:3",
+          ARG: "src/app.ts:3",
           TODO_CONTEXT: "1",
         },
       });

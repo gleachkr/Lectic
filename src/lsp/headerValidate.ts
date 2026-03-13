@@ -479,6 +479,24 @@ export function validateHeaderShape(spec: unknown): Issue[] {
                 })
               }
 
+              if (
+                "label_description" in entry
+                && typeof entry["label_description"] !== "string"
+              ) {
+                issues.push({
+                  code: "macro.completions.item.label_description",
+                  message: Messages.macro.completionItemLabelDescriptionType(),
+                  path: [
+                    "macros",
+                    i,
+                    "completions",
+                    j,
+                    "label_description",
+                  ],
+                  severity: "error",
+                })
+              }
+
             })
           } else {
             issues.push({

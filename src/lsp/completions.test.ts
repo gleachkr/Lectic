@@ -585,7 +585,7 @@ describe("completions (unit)", () => {
     expect(prod.documentation).toBeUndefined()
   })
 
-  test("macro argument completion supports detail and documentation", async () => {
+  test("macro argument completion supports detail and label metadata", async () => {
     const text = [
       "---",
       "macros:",
@@ -595,6 +595,7 @@ describe("completions (unit)", () => {
       "      - completion: prod",
       "        detail: Deploy to production",
       "        documentation: Full docs",
+      "        label_description: TODO from src/app.ts:12",
       "---",
       ":deploy[p]",
     ].join("\n")
@@ -615,6 +616,8 @@ describe("completions (unit)", () => {
     const prod = arr.find((x: any) => x.label === "prod")
     expect(String(prod.detail)).toBe("Deploy to production")
     expect(String(prod.documentation)).toBe("Full docs")
+    expect(String(prod.labelDetails.description))
+      .toBe("TODO from src/app.ts:12")
   })
 
   test("macro argument completions filter by prefix and replace bracket range", async () => {

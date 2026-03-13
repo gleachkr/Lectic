@@ -8,7 +8,7 @@ fi
 
 limit="${TODO_MAX_RESULTS:-200}"
 pattern="${TODO_PATTERN:-\\bTODO\\b}"
-completion_context="${TODO_COMPLETION_CONTEXT:-1}"
+completion_context="${TODO_COMPLETION_CONTEXT:-2}"
 timeout_seconds="${TODO_RG_TIMEOUT_SECONDS:-2}"
 rg_out="$(mktemp)"
 rg_err="$(mktemp)"
@@ -186,9 +186,8 @@ while IFS= read -r -d '' file && IFS= read -r rest; do
     text="${text:0:137}..."
   fi
 
-  completion="$text — $location"
-
-  printf -- "- completion: %s\n" "$(yaml_quote "$completion")"
+  printf -- "- completion: %s\n" "$(yaml_quote "$location")"
+  printf -- "  label_description: %s\n" "$(yaml_quote "$text")"
   print_documentation "$file" "$line" "$completion_context"
 
   printed_any=1

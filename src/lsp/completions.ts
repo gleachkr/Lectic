@@ -720,6 +720,9 @@ export async function computeCompletions(
     for (const entry of resolved.entries) {
       items.push({
         label: entry.completion,
+        labelDetails: entry.label_description
+          ? { description: entry.label_description }
+          : undefined,
         kind: CompletionItemKind.Value,
         detail: entry.detail,
         documentation: entry.documentation,

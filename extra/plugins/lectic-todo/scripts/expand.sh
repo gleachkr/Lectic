@@ -2,7 +2,7 @@
 set -euo pipefail
 
 arg="${ARG:-}"
-context="${TODO_CONTEXT:-2}"
+context="${TODO_CONTEXT:-3}"
 
 if [[ -z "$arg" ]]; then
   echo ":todo[] requires a completion item or path:line argument" >&2
@@ -14,13 +14,8 @@ if [[ ! "$context" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-location="$arg"
-if [[ "$location" == *" — "* ]]; then
-  location="${location##* — }"
-fi
-
-path="${location%:*}"
-line="${location##*:}"
+path="${arg%:*}"
+line="${arg##*:}"
 
 if [[ -z "$path" || -z "$line" || ! "$line" =~ ^[0-9]+$ ]]; then
   echo "Could not parse TODO location from: $arg" >&2

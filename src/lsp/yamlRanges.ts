@@ -252,6 +252,11 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
           'documentation',
           ['macros', i, 'completions', j, 'documentation']
         )
+        pushIf(
+          entry,
+          'label_description',
+          ['macros', i, 'completions', j, 'label_description']
+        )
       })
     }
   })

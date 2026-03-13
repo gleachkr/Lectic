@@ -51,6 +51,7 @@ function normalizeCompletionEntries(raw: unknown): MacroCompletionItem[] {
 
     const detailRaw = item["detail"]
     const documentationRaw = item["documentation"]
+    const labelDescriptionRaw = item["label_description"]
 
     const detail =
       typeof detailRaw === "string"
@@ -62,8 +63,13 @@ function normalizeCompletionEntries(raw: unknown): MacroCompletionItem[] {
         ? documentationRaw
         : undefined
 
+    const label_description =
+      typeof labelDescriptionRaw === "string"
+        ? labelDescriptionRaw
+        : undefined
+
     seen.add(completion)
-    out.push({ completion, detail, documentation })
+    out.push({ completion, detail, documentation, label_description })
   }
 
   return out

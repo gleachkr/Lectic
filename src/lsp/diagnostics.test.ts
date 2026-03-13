@@ -108,6 +108,7 @@ describe("diagnostics", () => {
         "    completions:",
         "      - completion: prod",
         "        detail: Deploy to production",
+        "        label_description: Deploy production TODO",
         "      - completion: staging",
         "    completion_trigger: manual",
         "---",
@@ -136,6 +137,7 @@ describe("diagnostics", () => {
         "      - completion: prod",
         "        detail: 42",
         "        documentation: true",
+        "        label_description: false",
         "    completion_trigger: sometimes",
         "---",
         "Body",
@@ -159,6 +161,12 @@ describe("diagnostics", () => {
         hasMessage(
           diags,
           "\"documentation\" field of a macro completion item must be",
+        )
+      ).toBeTrue()
+      expect(
+        hasMessage(
+          diags,
+          "\"label_description\" field of a macro completion item must be",
         )
       ).toBeTrue()
       expect(

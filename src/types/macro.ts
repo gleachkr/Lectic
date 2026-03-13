@@ -8,6 +8,7 @@ export type MacroCompletionItem = {
     completion: string
     detail?: string
     documentation?: string
+    label_description?: string
 }
 
 export type MacroCompletionsSpec = MacroCompletionItem[] | string
@@ -42,6 +43,13 @@ function isMacroCompletionItem(raw: unknown): raw is MacroCompletionItem {
         && typeof entry["documentation"] !== "string"
     ) {
         throw Error(Messages.macro.completionItemDocumentationType())
+    }
+
+    if (
+        "label_description" in entry
+        && typeof entry["label_description"] !== "string"
+    ) {
+        throw Error(Messages.macro.completionItemLabelDescriptionType())
     }
 
     return true
