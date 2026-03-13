@@ -1,5 +1,5 @@
 import { getBody } from "../parsing/parse"
-import { directivesFromAst, referencesFromAst, nodeRaw, parseBlocks } from "../parsing/markdown"
+import { directivesFromAst, referencesFromAst, nodeRaw } from "../parsing/markdown"
 import { findUrlRangeInNodeRaw } from "./linkTargets"
 import { isSerializedCall } from "../types/tool"
 import { isSerializedInlineAttachment } from "../types/inlineAttachment"
@@ -67,31 +67,35 @@ export function buildBundleFromAst(
   type Asst = { name: string, s: number, e: number }
   const assistants: Asst[] = []
 
-  for (const node of parseBlocks(body)) {
-    if (node.type === 'containerDirective' && typeof node.name === 'string') {
-      const s = node.position?.start?.offset
-      const e = node.position?.end?.offset
-      if (typeof s === 'number' && typeof e === 'number') {
-        const absS = headerOffset + s
-        const absE = headerOffset + e
-        assistants.push({ name: String(node.name), s: absS, e: absE })
-        if (Array.isArray(node.children)) {
-          for (const b of node.children) {
-            if (b?.type !== 'html') continue
-            const pos = b.position
-            if (!pos?.start?.offset || !pos?.end?.offset) continue
-            const raw = nodeRaw(b, body)
-            const htmlAbsStart = headerOffset + pos.start.offset
-            const htmlAbsEnd = headerOffset + pos.end.offset
-            if (isSerializedCall(raw)) {
-              toolCallBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
-            } else if (isSerializedInlineAttachment(raw)) {
-              inlineAttachmentBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
-            } else if (isSerializedThoughtBlock(raw)) {
-              thoughtBlockBlocks.push({ absStart: htmlAbsStart, absEnd: htmlAbsEnd })
-            }
-          }
-        }
+  for (const node of ast.children ?? []) {
+    if (node.type !== "containerDirective") continue
+    if (typeof node.name !== "string") continue
+
+    const s = node.position?.start?.offset
+    const e = node.position?.end?.offset
+    if (typeof s !== "number" || typeof e !== "number") continue
+    if (s < headerOffset) continue
+
+    assistants.push({ name: node.name, s, e })
+
+    if (!Array.isArray(node.children)) continue
+
+    for (const child of node.children) {
+      if (child.type !== "html") continue
+
+      const childStart = child.position?.start?.offset
+      const childEnd = child.position?.end?.offset
+      if (typeof childStart !== "number" || typeof childEnd !== "number") {
+        continue
+      }
+
+      const raw = nodeRaw(child, docText)
+      if (isSerializedCall(raw)) {
+        toolCallBlocks.push({ absStart: childStart, absEnd: childEnd })
+      } else if (isSerializedInlineAttachment(raw)) {
+        inlineAttachmentBlocks.push({ absStart: childStart, absEnd: childEnd })
+      } else if (isSerializedThoughtBlock(raw)) {
+        thoughtBlockBlocks.push({ absStart: childStart, absEnd: childEnd })
       }
     }
   }
