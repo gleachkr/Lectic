@@ -460,12 +460,16 @@ export abstract class Backend<TMessage, TFinal> {
     let loopCount = 0
     let finalPassCount = 0
 
-    // Preface inline attachments at the top of the assistant block.
+    // Each segment (XML block, text run, tool call) is eagerly followed
+    // by \n\n as soon as it completes. `trailingSep` prevents doubling
+    // when consecutive blocks each try to emit a separator.
+    // Starts false because the header already ends with \n\n.
+    let trailingSep = false
+
     if (opt.inlinePreface.length > 0) {
-      const preface =
-        opt.inlinePreface.map(serializeInlineAttachment).join("\n\n") +
-        "\n\n"
-      yield preface
+      yield opt.inlinePreface.map(serializeInlineAttachment).join("\n\n")
+      yield "\n\n"
+      trailingSep = true
     }
 
     let pendingHookRes: InlineAttachment[] = []
@@ -474,19 +478,23 @@ export abstract class Backend<TMessage, TFinal> {
       const { chunks, final } = await this.createCompletion({ messages, lectic })
 
       let assistant = ""
-      let hadThought = false
       for await (const chunk of chunks) {
         if (chunk.kind === "text") {
-          if (hadThought) yield "\n\n"
+          trailingSep = false
           yield chunk.text
           assistant += chunk.text
           await opt.onAssistantTextDelta?.(chunk.text)
-          hadThought = false
         } else {
-          yield "\n\n"
+          if (!trailingSep && assistant.length > 0) yield "\n\n"
           yield serializeThoughtBlock(chunk.block)
-          hadThought = true
+          yield "\n\n"
+          trailingSep = true
         }
+      }
+
+      if (assistant.length > 0 && !trailingSep) {
+        yield "\n\n"
+        trailingSep = true
       }
 
       const reply = await final
@@ -510,9 +518,10 @@ export abstract class Backend<TMessage, TFinal> {
 
       if (pendingHookRes.length > 0) {
         if (!hasToolCalls) finalPassCount++
-        yield "\n\n"
+        if (!trailingSep) yield "\n\n"
         yield pendingHookRes.map(serializeInlineAttachment).join("\n\n")
         yield "\n\n"
+        trailingSep = true
       }
 
       const needsFollowUp =
@@ -520,11 +529,11 @@ export abstract class Backend<TMessage, TFinal> {
 
       if (!needsFollowUp) return
 
-      yield "\n\n"
       loopCount++
 
       if (loopCount > maxToolUse + 2) {
-        yield "<error>Runaway tool use!</error>"
+        if (!trailingSep) yield "\n\n"
+        yield "<error>Runaway tool use!</error>\n\n"
         return
       }
 
@@ -545,8 +554,10 @@ export abstract class Backend<TMessage, TFinal> {
 
       for (const call of realized) {
         const theTool = call.name in registry ? registry[call.name] : null
+        if (!trailingSep) yield "\n\n"
         yield serializeCall(theTool, call)
         yield "\n\n"
+        trailingSep = true
       }
 
       await this.appendToolResults({

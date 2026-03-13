@@ -170,7 +170,7 @@ export async function generate() {
 
     const backend = getBackend(lectic.header.interlocutor)
     const header = `:::${lectic.header.interlocutor.name}\n\n`
-    const footer = `\n\n:::`
+    const footer = `:::`
 
     lectic.body.raw = `${lectic.body.raw.trim()}\n\n${header}`
 
