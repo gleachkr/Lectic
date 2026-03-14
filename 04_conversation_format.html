@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -453,7 +453,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a helpful assistant.</span></span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> anthropic</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-sonnet-4-20250514</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-sonnet-4-6</span></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The frontmatter can be closed with either three dashes (<code>---</code>) or three periods (<code>...</code>). For a complete guide to all available options, see <a href="./05_configuration.html">Configuration</a>.</p>
 </section>
@@ -464,6 +464,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>So is this. You can include any markdown you like, such as **bold text** or</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="in">`inline code`</span>.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Markdown HTML comments such as <code>&lt;!-- note to self --&gt;</code> are preserved in the <code>.lec</code> file, but they are not sent to the provider as user-visible text.</p>
 </section>
 <section id="assistant-responses" class="level2">
 <h2 class="anchored" data-anchor-id="assistant-responses">Assistant Responses</h2>
@@ -475,6 +476,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>:::</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Markdown code fences inside assistant blocks can also use three backticks.</p>
+<p>Assistant blocks can contain both prose and structured records. Lectic may serialize tool activity, provider reasoning, and generated attachments inside assistant blocks using XML-shaped records such as:</p>
+<ul>
+<li><code>&lt;tool-call&gt;</code></li>
+<li><code>&lt;thought-block&gt;</code></li>
+<li><code>&lt;inline-attachment&gt;</code></li>
+</ul>
+<p>These records are part of the transcript. When Lectic continues a conversation with the same interlocutor, it reconstructs them as structured history. When a different interlocutor needs to see an earlier assistant turn, Lectic forwards only the prose parts of the block and wraps them in a speaker tag.</p>
 <section id="inline-attachments" class="level3">
 <h3 class="anchored" data-anchor-id="inline-attachments">Inline Attachments</h3>
 <p>Lectic records some generated content directly into the transcript as <strong>inline attachments</strong>. These are created by:</p>

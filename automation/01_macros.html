@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -463,10 +463,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Macros are defined under the <code>macros</code> key. Each macro must have a <code>name</code> and an <code>expansion</code>. You can optionally provide an <code>env</code> map to set default environment variables for the expansion. You can also provide an optional <code>description</code>, which is shown in LSP hover info for the macro.</p>
 <p>You can also optionally provide <code>completions</code> for macro argument autocomplete inside <code>:name[...]</code>:</p>
 <ul>
-<li>Inline list of <code>{ completion, detail?, documentation? }</code></li>
+<li>Inline list of <code>{ completion, detail?, documentation?, label_description? }</code></li>
 <li>External source string (<code>file:...</code>, <code>file:local:...</code>, or <code>exec:...</code>)</li>
 </ul>
 <p>For source strings, the content/output must be a single YAML document that is a sequence of completion items. JSON arrays also work.</p>
+<p><code>label_description</code> is shown inline in LSP completion UIs beside the inserted <code>completion</code> text. This is useful when you want a short inserted value but a more descriptive visible label.</p>
 <p>For <code>exec:</code> sources, the default trigger policy is <code>manual</code> (only on explicit completion invocation). You can override with <code>completion_trigger: auto | manual</code>.</p>
 <p><code>exec:</code> completion sources inherit the macro’s <code>env</code>, and also receive:</p>
 <ul>

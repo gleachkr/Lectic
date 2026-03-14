@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -440,13 +440,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="picking-a-default-provider" class="level2">
 <h2 class="anchored" data-anchor-id="picking-a-default-provider">Picking a default provider</h2>
 <p>If you do not set <code>provider</code>, Lectic checks for keys in this order and uses the first one it finds:</p>
-<p>Anthropic → Gemini → OpenAI → OpenRouter.</p>
+<p>Anthropic → Gemini → OpenAI (Chat Completions) → OpenRouter.</p>
+<p>When <code>OPENAI_API_KEY</code> is detected, the auto-selected provider is <code>openai/chat</code> (the legacy Chat Completions API), <strong>not</strong> <code>openai</code> (the Responses API). If you want the Responses API, set <code>provider: openai</code> explicitly.</p>
 <p>Set one of these environment variables before you run Lectic:</p>
 <ul>
-<li>ANTHROPIC_API_KEY</li>
-<li>GEMINI_API_KEY</li>
-<li>OPENAI_API_KEY</li>
-<li>OPENROUTER_API_KEY</li>
+<li><code>ANTHROPIC_API_KEY</code></li>
+<li><code>GEMINI_API_KEY</code></li>
+<li><code>OPENAI_API_KEY</code></li>
+<li><code>OPENROUTER_API_KEY</code></li>
 </ul>
 <p>AWS credentials for Bedrock are not used for auto-selection. If you want Anthropic via Bedrock, set <code>provider: anthropic/bedrock</code> explicitly and make sure your AWS environment is configured.</p>
 </section>

@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -428,6 +428,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#the-macro-object" id="toc-the-macro-object" class="nav-link" data-scroll-target="#the-macro-object">The <code>macro</code> Object</a></li>
   <li><a href="#the-hook-object" id="toc-the-hook-object" class="nav-link" data-scroll-target="#the-hook-object">The <code>hook</code> Object</a></li>
+  <li><a href="#reusable-definitions-with-use" id="toc-reusable-definitions-with-use" class="nav-link" data-scroll-target="#reusable-definitions-with-use">Reusable Definitions with <code>use</code></a>
+  <ul class="collapse">
+  <li><a href="#hook_defs" id="toc-hook_defs" class="nav-link" data-scroll-target="#hook_defs"><code>hook_defs</code></a></li>
+  <li><a href="#env_defs" id="toc-env_defs" class="nav-link" data-scroll-target="#env_defs"><code>env_defs</code></a></li>
+  <li><a href="#sandbox_defs" id="toc-sandbox_defs" class="nav-link" data-scroll-target="#sandbox_defs"><code>sandbox_defs</code></a></li>
+  <li><a href="#resolution" id="toc-resolution" class="nav-link" data-scroll-target="#resolution">Resolution</a></li>
+  </ul></li>
   </ul></li>
   </ul>
 </nav>
@@ -444,13 +451,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="top-level-keys" class="level2">
 <h2 class="anchored" data-anchor-id="top-level-keys">Top-Level Keys</h2>
 <ul>
-<li><code>imports</code>: Optional list of config imports. Each entry is either a string path, or an object with <code>path</code> and optional <code>optional: true</code>. If the path is a directory, Lectic loads <code>&lt;path&gt;/lectic.yaml</code>.</li>
+<li><code>imports</code>: Optional list of config imports. Each entry is either a string path, an object with <code>path</code> and optional <code>optional: true</code>, or an object with <code>plugin</code> and optional <code>optional: true</code>. If a <code>path</code> is a directory, Lectic loads <code>&lt;path&gt;/lectic.yaml</code>.</li>
 <li><code>interlocutor</code>: A single object defining the primary LLM speaker.</li>
 <li><code>interlocutors</code>: A list of interlocutor objects for multiparty conversations.</li>
 <li><code>kits</code>: A list of named tool kits you can reference from interlocutors.</li>
 <li><code>macros</code>: A list of macro definitions. See <a href="../automation/01_macros.html">Macros</a>.</li>
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>.</li>
 <li><code>sandbox</code>: A default sandbox command string applied to all <code>exec</code> tools and local <code>mcp_command</code> tools, unless overridden by <code>interlocutor.sandbox</code> or a tool’s own <code>sandbox</code> setting.</li>
+<li><code>hook_defs</code>: A list of reusable named hook definitions. See <a href="#reusable-definitions-with-use">Reusable Definitions</a> below.</li>
+<li><code>env_defs</code>: A list of reusable named environment variable maps. See <a href="#reusable-definitions-with-use">Reusable Definitions</a> below.</li>
+<li><code>sandbox_defs</code>: A list of reusable named sandbox command strings. See <a href="#reusable-definitions-with-use">Reusable Definitions</a> below.</li>
 </ul>
 <hr>
 </section>
@@ -461,16 +471,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">imports</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> ./plugins/sales/module.yaml</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">path</span><span class="kw">:</span><span class="at"> ./plugins/finance</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">optional</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">optional</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">plugin</span><span class="kw">:</span><span class="at"> lectic-task</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
 <li>String form: required import path.</li>
-<li>Object form:
+<li>Object forms:
 <ul>
-<li><code>path</code>: (Required) import path.</li>
-<li><code>optional</code>: (Optional, boolean) skip missing files without error.</li>
+<li><code>path</code>: filesystem import path.</li>
+<li><code>plugin</code>: plugin name to search for recursively under, in order:
+<ol type="1">
+<li><code>LECTIC_RUNTIME</code> entries,</li>
+<li><code>LECTIC_CONFIG</code>, then</li>
+<li><code>LECTIC_DATA</code>.</li>
+</ol></li>
+<li><code>optional</code>: (Optional, boolean) skip missing imports without error.</li>
 </ul></li>
 </ul>
-<p>Imports are recursive, and cycles are reported as errors.</p>
+<p>Notes:</p>
+<ul>
+<li>Relative <code>path</code> imports are resolved relative to the file that declares them.</li>
+<li>If a <code>path</code> import points to a directory, Lectic loads <code>&lt;path&gt;/lectic.yaml</code>.</li>
+<li>A <code>plugin</code> import matches a directory named after the plugin and loads its <code>lectic.yaml</code>.</li>
+<li>Each import object must specify exactly one of <code>path</code> or <code>plugin</code>.</li>
+<li>Imports are recursive, and cycles are reported as errors.</li>
+</ul>
 <hr>
 </section>
 <section id="the-kit-object" class="level2">
@@ -492,6 +516,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>. These hooks fire only when this interlocutor is active.</li>
 <li><code>sandbox</code>: A command string (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>) to wrap execution for all <code>exec</code> tools and local <code>mcp_command</code> tools used by this interlocutor, unless overridden by the tool’s own <code>sandbox</code> setting. This overrides any top-level <code>sandbox</code> setting.</li>
 <li><code>output_schema</code>: Optional JSON Schema that constrains the assistant’s output to valid JSON. You can define it inline, or load it from <code>file:</code> or <code>exec:</code> (including <code>file:local:...</code>). Loaded text is parsed as YAML and then validated as a JSON Schema. This is forwarded to backends that support structured outputs. See <a href="../reference/04_structured_outputs.html">Structured Outputs</a> for the supported schema subset and provider notes.</li>
+<li><code>a2a</code>: Optional object for configuring this interlocutor as an A2A agent when using <code>lectic a2a</code>. Fields:
+<ul>
+<li><code>id</code>: Custom agent ID (defaults to the interlocutor name).</li>
+<li><code>description</code>: Agent description exposed in the A2A agent card.</li>
+</ul></li>
 </ul>
 <section id="model-configuration" class="level3">
 <h3 class="anchored" data-anchor-id="model-configuration">Model Configuration</h3>
@@ -503,16 +532,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>max_tool_use</code>: The maximum number of tool calls the LLM is allowed to make in a single turn.</li>
 <li><code>thinking_effort</code>: Optional hint (used by the <code>openai</code> Responses provider, and by <code>gemini-3-pro</code>) about how much effort to spend reasoning. One of <code>none</code>, <code>low</code>, <code>medium</code>, or <code>high</code>.</li>
 <li><code>thinking_budget</code>: Optional integer token budget for providers that support structured thinking phases (Anthropic, Anthropic/Bedrock, Gemini). Ignored by the <code>openai</code> and <code>openai/chat</code> providers.</li>
+<li><code>nocache</code>: Optional boolean. If <code>true</code>, disables prompt caching on the Anthropic provider. Defaults to <code>false</code>.</li>
 </ul>
 <section id="providers-and-defaults" class="level4">
 <h4 class="anchored" data-anchor-id="providers-and-defaults">Providers and defaults</h4>
 <p>If you don’t specify <code>provider</code>, Lectic picks a default based on your environment. It checks for known API keys in this order and uses the first one it finds:</p>
 <ol type="1">
-<li>ANTHROPIC_API_KEY</li>
-<li>GEMINI_API_KEY</li>
-<li>OPENAI_API_KEY</li>
-<li>OPENROUTER_API_KEY</li>
+<li>ANTHROPIC_API_KEY → <code>anthropic</code></li>
+<li>GEMINI_API_KEY → <code>gemini</code></li>
+<li>OPENAI_API_KEY → <code>openai/chat</code></li>
+<li>OPENROUTER_API_KEY → <code>openrouter</code></li>
 </ol>
+<p>Note that <code>OPENAI_API_KEY</code> auto-selects <code>openai/chat</code> (the legacy Chat Completions API), <strong>not</strong> <code>openai</code> (the Responses API). If you want the Responses API, set <code>provider: openai</code> explicitly.</p>
 <p>AWS credentials for Bedrock are not considered for auto‑selection. If you want Anthropic via Bedrock, set <code>provider: anthropic/bedrock</code> explicitly and ensure your AWS environment is configured.</p>
 <p>OpenAI has two provider options:</p>
 <ul>
@@ -598,16 +629,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="the-macro-object">The <code>macro</code> Object</h2>
 <ul>
 <li><p><code>name</code>: (Required) The name of the macro, used when invoking it with <code>:name[]</code> or <code>:name[args]</code>.</p></li>
+<li><p><code>description</code>: (Optional) Short documentation for the macro. Shown in LSP hover info and autocomplete.</p></li>
 <li><p><code>expansion</code>: (Optional) The content to be expanded. Can be a string, or loaded via <code>file:</code> or <code>exec:</code>. Equivalent to <code>post</code> if provided. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details about <code>file:</code> and <code>exec:</code>.</p></li>
 <li><p><code>pre</code>: (Optional) Expansion content for the pre-order phase.</p></li>
 <li><p><code>post</code>: (Optional) Expansion content for the post-order phase.</p></li>
 <li><p><code>env</code>: (Optional) A dictionary of environment variables to be set during the macro’s execution. These are merged with any arguments provided at the call site.</p></li>
 <li><p><code>completions</code>: (Optional) Argument completion source for <code>:name[...]</code> in the LSP. Either:</p>
 <ul>
-<li>an inline list of items (<code>{ completion, detail?, documentation? }</code>), or</li>
+<li>an inline list of items (<code>{ completion, detail?, documentation?, label_description? }</code>), or</li>
 <li>a source string: <code>file:...</code>, <code>file:local:...</code>, or <code>exec:...</code>.</li>
 </ul>
-<p>For <code>file:</code> and <code>exec:</code>, the source output must be a single YAML document containing a sequence of completion objects. JSON arrays are also accepted.</p></li>
+<p>For <code>file:</code> and <code>exec:</code>, the source output must be a single YAML document containing a sequence of completion objects. JSON arrays are also accepted. <code>label_description</code> is shown inline in the completion menu while <code>completion</code> remains the inserted text.</p></li>
 <li><p><code>completion_trigger</code>: (Optional) One of <code>auto</code> or <code>manual</code>.</p>
 <ul>
 <li>Default is <code>auto</code> for inline and <code>file:</code> sources.</li>
@@ -634,8 +666,57 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>env</code>: (Optional) A dictionary of environment variables to be set when the hook runs.</li>
 <li><code>allow_failure</code>: (Optional) Boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
 </ul>
+<hr>
+</section>
+<section id="reusable-definitions-with-use" class="level2">
+<h2 class="anchored" data-anchor-id="reusable-definitions-with-use">Reusable Definitions with <code>use</code></h2>
+<p>To avoid repeating the same hooks, environment maps, or sandbox commands across multiple interlocutors or tools, you can define them once at the top level and reference them by name with <code>{use: "&lt;name&gt;"}</code>.</p>
+<section id="hook_defs" class="level3">
+<h3 class="anchored" data-anchor-id="hook_defs"><code>hook_defs</code></h3>
+<p>A list of named hook definitions. Each entry is a normal hook object (with <code>on</code>, <code>do</code>, etc.) plus a required <code>name</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hook_defs</span><span class="kw">:</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> confirm</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">on</span><span class="kw">:</span><span class="at"> tool_use_pre</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> zenity --question --text="Allow $TOOL_NAME?"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You can then reference this hook anywhere a hook list is expected:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutor</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Assistant</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are helpful.</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">hooks</span><span class="kw">:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">use</span><span class="kw">:</span><span class="at"> confirm </span><span class="kw">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="env_defs" class="level3">
+<h3 class="anchored" data-anchor-id="env_defs"><code>env_defs</code></h3>
+<p>A list of named environment variable maps. Each entry has a <code>name</code> and an <code>env</code> object.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">env_defs</span><span class="kw">:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> project_paths</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">env</span><span class="kw">:</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">PROJECT_ROOT</span><span class="kw">:</span><span class="at"> /home/user/project</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">BUILD_DIR</span><span class="kw">:</span><span class="at"> /home/user/project/dist</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Reference with <code>{use: "&lt;name&gt;"}</code> anywhere an <code>env</code> field is expected:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> ./build.sh</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> build</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">env</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">use</span><span class="kw">:</span><span class="at"> project_paths </span><span class="kw">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="sandbox_defs" class="level3">
+<h3 class="anchored" data-anchor-id="sandbox_defs"><code>sandbox_defs</code></h3>
+<p>A list of named sandbox command strings. Each entry has a <code>name</code> and a <code>sandbox</code> string.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sandbox_defs</span><span class="kw">:</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> bwrap</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">sandbox</span><span class="kw">:</span><span class="at"> /usr/local/bin/bwrap-sandbox.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Reference with <code>{use: "&lt;name&gt;"}</code> anywhere a <code>sandbox</code> field is expected:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">exec</span><span class="kw">:</span><span class="at"> bash</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">name</span><span class="kw">:</span><span class="at"> shell</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">sandbox</span><span class="kw">:</span><span class="at"> </span><span class="kw">{</span><span class="at"> </span><span class="fu">use</span><span class="kw">:</span><span class="at"> bwrap </span><span class="kw">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="resolution" class="level3">
+<h3 class="anchored" data-anchor-id="resolution">Resolution</h3>
+<p><code>use</code> references are resolved early, before the rest of the configuration is processed. They work anywhere <code>hooks</code>, <code>env</code>, or <code>sandbox</code> fields appear — on interlocutors, tools, or at the top level. If a referenced name is not found in the corresponding <code>*_defs</code> list, Lectic reports an error.</p>
 
 
+</section>
 </section>
 </section>
 

@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -530,7 +530,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ol type="1">
 <li>Hook runs after each assistant pass.</li>
 <li>If token usage is below <code>LIMIT</code>, nothing happens.</li>
-<li>If over <code>LIMIT</code>, stdin conversation is piped to a separate <code>lectic -S</code> summarizer call.</li>
+<li>If over <code>LIMIT</code>, stdin conversation is piped to a separate <code>lectic --format clean</code> summarizer call.</li>
 <li>Hook outputs <code>LECTIC:reset</code> to drop prior context and <code>LECTIC:final</code> to stop an extra follow-up pass.</li>
 <li>Next turn starts from the compacted summary.</li>
 </ol>

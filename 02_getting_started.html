@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -418,7 +418,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#getting-started-with-lectic" id="toc-getting-started-with-lectic" class="nav-link active" data-scroll-target="#getting-started-with-lectic">Getting Started with Lectic</a>
   <ul class="collapse">
-  <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a></li>
+  <li><a href="#installation" id="toc-installation" class="nav-link" data-scroll-target="#installation">Installation</a>
+  <ul class="collapse">
+  <li><a href="#homebrew" id="toc-homebrew" class="nav-link" data-scroll-target="#homebrew">Homebrew</a></li>
+  <li><a href="#arch-linux-aur" id="toc-arch-linux-aur" class="nav-link" data-scroll-target="#arch-linux-aur">Arch Linux (AUR)</a></li>
+  <li><a href="#linux-macos-quick-install-github-releases" id="toc-linux-macos-quick-install-github-releases" class="nav-link" data-scroll-target="#linux-macos-quick-install-github-releases">Linux / macOS quick install (GitHub Releases)</a></li>
+  <li><a href="#linux-macos-manual-install-release-tarballs" id="toc-linux-macos-manual-install-release-tarballs" class="nav-link" data-scroll-target="#linux-macos-manual-install-release-tarballs">Linux / macOS manual install (release tarballs)</a></li>
+  <li><a href="#nix" id="toc-nix" class="nav-link" data-scroll-target="#nix">Nix</a></li>
+  </ul></li>
   <li><a href="#verify-the-install" id="toc-verify-the-install" class="nav-link" data-scroll-target="#verify-the-install">Verify the install</a></li>
   <li><a href="#set-up-an-api-key" id="toc-set-up-an-api-key" class="nav-link" data-scroll-target="#set-up-an-api-key">Set up an API key</a></li>
   <li><a href="#your-first-conversation" id="toc-your-first-conversation" class="nav-link" data-scroll-target="#your-first-conversation">Your first conversation</a>
@@ -452,31 +459,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="installation" class="level2">
 <h2 class="anchored" data-anchor-id="installation">Installation</h2>
 <p>Choose the method that fits your system.</p>
-<section id="homebrew" class="level4">
-<h4 class="anchored" data-anchor-id="homebrew">Homebrew</h4>
+<section id="homebrew" class="level3">
+<h3 class="anchored" data-anchor-id="homebrew">Homebrew</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">brew</span> install gleachkr/lectic/lectic</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="arch-linux-aur" class="level4">
-<h4 class="anchored" data-anchor-id="arch-linux-aur">Arch Linux (AUR)</h4>
+<section id="arch-linux-aur" class="level3">
+<h3 class="anchored" data-anchor-id="arch-linux-aur">Arch Linux (AUR)</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">yay</span> <span class="at">-S</span> lectic-bin</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or: paru -S lectic-bin</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-<section id="linux-macos-quick-install-github-releases" class="level4">
-<h4 class="anchored" data-anchor-id="linux-macos-quick-install-github-releases">Linux / macOS quick install (GitHub Releases)</h4>
+<section id="linux-macos-quick-install-github-releases" class="level3">
+<h3 class="anchored" data-anchor-id="linux-macos-quick-install-github-releases">Linux / macOS quick install (GitHub Releases)</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-fsSL</span> https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh <span class="dt">\</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>To update later, rerun the same installer command.</p>
 </section>
-<section id="linux-macos-manual-install-release-tarballs" class="level4">
-<h4 class="anchored" data-anchor-id="linux-macos-manual-install-release-tarballs">Linux / macOS manual install (release tarballs)</h4>
+<section id="linux-macos-manual-install-release-tarballs" class="level3">
+<h3 class="anchored" data-anchor-id="linux-macos-manual-install-release-tarballs">Linux / macOS manual install (release tarballs)</h3>
 <p>Download the matching release tarball from the <a href="https://github.com/gleachkr/Lectic/releases">GitHub Releases page</a>, extract it, and put <code>lectic</code> on your PATH.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tar</span> <span class="at">-xzf</span> lectic-vX.Y.Z-<span class="op">&lt;</span>platform<span class="op">&gt;</span>-<span class="op">&lt;</span>arch<span class="op">&gt;</span>.tar.gz</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> ~/.local/bin</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">install</span> <span class="at">-m</span> 755 ./lectic ~/.local/bin/lectic</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Linux AppImages are also published in the release assets.</p>
 </section>
-<section id="nix" class="level4">
-<h4 class="anchored" data-anchor-id="nix">Nix</h4>
+<section id="nix" class="level3">
+<h3 class="anchored" data-anchor-id="nix">Nix</h3>
 <p>If you use Nix, install directly from the repository:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nix</span> profile install github:gleachkr/lectic</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
@@ -490,7 +497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="set-up-an-api-key">Set up an API key</h2>
 <p>Lectic talks to LLM providers. Put at least one provider key in your environment:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">ANTHROPIC_API_KEY</span><span class="op">=</span><span class="st">"your-api-key-here"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Lectic chooses a default provider by checking for keys in this order: Anthropic → Gemini → OpenAI → OpenRouter. You only need one.</p>
+<p>Lectic chooses a default provider by checking for keys in this order: Anthropic → Gemini → OpenAI (Chat Completions) → OpenRouter. You only need one.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">

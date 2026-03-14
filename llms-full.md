@@ -122,7 +122,7 @@ appears—Lectic appends it when you run the command.
 
 A more interesting setup with tools:
 
-``` yaml
+``` markdown
 ---
 interlocutor:
   name: Assistant
@@ -133,9 +133,7 @@ interlocutor:
     - exec: rg --json
       name: search
 ---
-```
 
-``` markdown
 Review the error handling in src/main.ts. Are there any uncaught
 exceptions?
 
@@ -187,20 +185,20 @@ simple tool in action.
 
 Choose the method that fits your system.
 
-#### Homebrew
+### Homebrew
 
 ``` bash
 brew install gleachkr/lectic/lectic
 ```
 
-#### Arch Linux (AUR)
+### Arch Linux (AUR)
 
 ``` bash
 yay -S lectic-bin
 # or: paru -S lectic-bin
 ```
 
-#### Linux / macOS quick install (GitHub Releases)
+### Linux / macOS quick install (GitHub Releases)
 
 ``` bash
 curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
@@ -209,7 +207,7 @@ curl -fsSL https://raw.githubusercontent.com/gleachkr/lectic/main/install.sh \
 
 To update later, rerun the same installer command.
 
-#### Linux / macOS manual install (release tarballs)
+### Linux / macOS manual install (release tarballs)
 
 Download the matching release tarball from the [GitHub Releases
 page](https://github.com/gleachkr/Lectic/releases), extract it, and put
@@ -223,7 +221,7 @@ install -m 755 ./lectic ~/.local/bin/lectic
 
 Linux AppImages are also published in the release assets.
 
-#### Nix
+### Nix
 
 If you use Nix, install directly from the repository:
 
@@ -249,7 +247,8 @@ export ANTHROPIC_API_KEY="your-api-key-here"
 ```
 
 Lectic chooses a default provider by checking for keys in this order:
-Anthropic → Gemini → OpenAI → OpenRouter. You only need one.
+Anthropic → Gemini → OpenAI (Chat Completions) → OpenRouter. You only
+need one.
 
 > [!NOTE]
 >
@@ -738,7 +737,7 @@ interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
 ---
 ```
 
@@ -760,6 +759,10 @@ So is this. You can include any markdown you like, such as **bold text** or
 `inline code`.
 ```
 
+Markdown HTML comments such as `<!-- note to self -->` are preserved in
+the `.lec` file, but they are not sent to the provider as user-visible
+text.
+
 ## Assistant Responses
 
 Lectic uses “container directives” to represent messages from the LLM.
@@ -778,6 +781,20 @@ Some content.
 
 Markdown code fences inside assistant blocks can also use three
 backticks.
+
+Assistant blocks can contain both prose and structured records. Lectic
+may serialize tool activity, provider reasoning, and generated
+attachments inside assistant blocks using XML-shaped records such as:
+
+- `<tool-call>`
+- `<thought-block>`
+- `<inline-attachment>`
+
+These records are part of the transcript. When Lectic continues a
+conversation with the same interlocutor, it reconstructs them as
+structured history. When a different interlocutor needs to see an
+earlier assistant turn, Lectic forwards only the prose parts of the
+block and wraps them in a speaker tag.
 
 ### Inline Attachments
 
@@ -913,25 +930,37 @@ header always having the final say.
 ## Imports (Modular Configuration)
 
 You can split configuration across multiple files with top-level
-`imports`. Each import can be either a string path or an object with
-`path` and optional `optional: true`.
+`imports`. Each import can be one of:
+
+- a string path,
+- an object with `path` and optional `optional: true`, or
+- an object with `plugin` and optional `optional: true`.
 
 ``` yaml
 imports:
   - ./.lectic/plugins/sales/module.yaml
   - path: ./.lectic/plugins/finance
     optional: true
+  - plugin: lectic-task
 ```
 
 Important details:
 
 - Relative import paths are resolved from the file that declares them.
 - If an import path is a directory, Lectic loads `<dir>/lectic.yaml`.
+- `plugin: NAME` searches recursively, in order, through:
+  1.  `LECTIC_RUNTIME` entries,
+  2.  `LECTIC_CONFIG`, then
+  3.  `LECTIC_DATA`.
+- Plugin imports match a directory named `NAME` containing
+  `lectic.yaml`.
 - Imports are recursive, so imported files can have their own `imports`.
 - Import cycles are detected and reported as errors.
 
-This is useful for plugin bundles, shared team defaults, and separating
-large configs into smaller modules.
+Use `plugin:` when a plugin has already been installed into one of
+Lectic’s runtime/config/data roots and you want its bundled config. Use
+`path:` or a string path for in-repo modules and other explicit
+filesystem imports.
 
 ## Overriding Default Directories
 
@@ -1001,8 +1030,8 @@ interlocutor:
 
 If you place this project config at `./lectic.yaml` in your working
 directory, Lectic will merge it with your system defaults and the
-document header using the precedence above. The `haiku` interlocutor
-will be configured with the `claude-haiku-4` model, and it will have
+document header using the precedence above. The `sonnet` interlocutor
+will be configured with the `claude-sonnet-4-6` model, and it will have
 access to a `bash` tool and an `agent` tool that can call `opus`. You
 can switch to `opus` within the conversation if needed, using an
 [`:ask[]` directive](./context_management/02_conversation_control.qmd).
@@ -1020,14 +1049,19 @@ credentials are available in your environment.
 If you do not set `provider`, Lectic checks for keys in this order and
 uses the first one it finds:
 
-Anthropic → Gemini → OpenAI → OpenRouter.
+Anthropic → Gemini → OpenAI (Chat Completions) → OpenRouter.
+
+When `OPENAI_API_KEY` is detected, the auto-selected provider is
+`openai/chat` (the legacy Chat Completions API), **not** `openai` (the
+Responses API). If you want the Responses API, set `provider: openai`
+explicitly.
 
 Set one of these environment variables before you run Lectic:
 
-- ANTHROPIC_API_KEY
-- GEMINI_API_KEY
-- OPENAI_API_KEY
-- OPENROUTER_API_KEY
+- `ANTHROPIC_API_KEY`
+- `GEMINI_API_KEY`
+- `OPENAI_API_KEY`
+- `OPENROUTER_API_KEY`
 
 AWS credentials for Bedrock are not used for auto-selection. If you want
 Anthropic via Bedrock, set `provider: anthropic/bedrock` explicitly and
@@ -1210,11 +1244,16 @@ optional `description`, which is shown in LSP hover info for the macro.
 You can also optionally provide `completions` for macro argument
 autocomplete inside `:name[...]`:
 
-- Inline list of `{ completion, detail?, documentation? }`
+- Inline list of
+  `{ completion, detail?, documentation?, label_description? }`
 - External source string (`file:...`, `file:local:...`, or `exec:...`)
 
 For source strings, the content/output must be a single YAML document
 that is a sequence of completion items. JSON arrays also work.
+
+`label_description` is shown inline in LSP completion UIs beside the
+inserted `completion` text. This is useful when you want a short
+inserted value but a more descriptive visible label.
 
 For `exec:` sources, the default trigger policy is `manual` (only on
 explicit completion invocation). You can override with
@@ -1672,6 +1711,8 @@ stdin.
 - `user_message`
   - Environment:
     - `USER_MESSAGE`: The text of the most recent user message.
+    - `LECTIC_INTERLOCUTOR`: Active interlocutor name.
+    - `LECTIC_MODEL`: Active model name.
     - `MESSAGES_LENGTH`: Message count including the current user
       message.
     - Standard Lectic variables (`LECTIC_FILE`, `LECTIC_CONFIG`,
@@ -2466,6 +2507,12 @@ for the *next* user message.
 This is useful for quick interjections or for getting a second opinion
 without derailing the main flow of the conversation.
 
+When one interlocutor is shown an earlier turn from another
+interlocutor, Lectic forwards the prose from that assistant block with
+the original speaker name attached. Structured transcript records such
+as `<tool-call>`, `<thought-block>`, and `<inline-attachment>` are
+omitted from this cross-interlocutor view.
+
 ## Context Management with `:reset`
 
 As a conversation grows longer, the context sent to the LLM on each turn
@@ -2728,7 +2775,7 @@ interlocutor:
     3. Run tsc and eslint after edits to catch errors
     4. Explain your reasoning
   provider: anthropic
-  model: claude-sonnet-4-20250514
+  model: claude-sonnet-4-6
   tools:
     - exec: cat
       name: read_file
@@ -2896,7 +2943,7 @@ if git diff --cached --quiet; then
   exit 1
 fi
 
-lectic -f ~/.config/lectic/commit-prompt.lec -S
+lectic -f ~/.config/lectic/commit-prompt.lec --format raw
 ```
 
 Make it executable:
@@ -3011,7 +3058,7 @@ if git diff --cached --quiet; then
   exit 1
 fi
 
-lectic -f "$PROMPT" -S
+lectic -f "$PROMPT" --format raw
 ```
 
 Usage: `lectic commit gitmoji`
@@ -3036,7 +3083,7 @@ interlocutor:
 
 :cmd[git diff --cached -- "$file"]
 EOF
-  lectic -f /tmp/commit-single.lec -S
+  lectic -f /tmp/commit-single.lec --format raw
   echo
 done
 ```
@@ -3062,7 +3109,7 @@ interlocutors:
       - Note uncertainties and limitations
       - Suggest follow-up questions
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-6
     tools:
       - native: search
 
@@ -3074,7 +3121,7 @@ interlocutors:
       - Steelman opposing viewpoints
       Be constructive but rigorous.
     provider: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-6
 
   - name: Synthesizer
     prompt: |
@@ -3083,7 +3130,7 @@ interlocutors:
       - Open questions that remain
       - Actionable conclusions
     provider: anthropic
-    model: claude-haiku-4-20250514
+    model: claude-haiku-4-5
 ---
 ```
 
@@ -3182,7 +3229,7 @@ interlocutors:
     model: claude-opus-4-6  # For complex analysis
     
   - name: Quick
-    model: claude-haiku-4-20250514  # For quick sanity checks
+    model: claude-haiku-4-5  # For quick sanity checks
 ```
 
 ## Tips
@@ -3509,7 +3556,7 @@ Keep it concise but complete. Return summary text only.
 1.  Hook runs after each assistant pass.
 2.  If token usage is below `LIMIT`, nothing happens.
 3.  If over `LIMIT`, stdin conversation is piped to a separate
-    `lectic -S` summarizer call.
+    `lectic --format clean` summarizer call.
 4.  Hook outputs `LECTIC:reset` to drop prior context and `LECTIC:final`
     to stop an extra follow-up pass.
 5.  Next turn starts from the compacted summary.
@@ -3773,7 +3820,7 @@ tools:
 
 
 
-# Control Flow with Macros
+# Recipe: Control Flow with Macros
 
 > [!NOTE]
 >
@@ -4269,7 +4316,7 @@ accidentally becoming heroes.
 Run it:
 
 ``` bash
-lectic -f quests.lec -S > quests.json
+lectic -f quests.lec --format raw > quests.json
 ```
 
 Now your output is machine-friendly JSON, not free-form prose.
@@ -4445,6 +4492,8 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 
   Flags:
 
+  - `-f`, `--file <PATH>`: Path to the `.lec` file to parse. If omitted,
+    reads from standard input.
   - `--yaml`: Emit YAML instead of JSON.
   - `--reverse`: Ingest JSON (or YAML) output and reconstruct the
     original lectic file.
@@ -4573,7 +4622,9 @@ guide for details.
   - `block`: print only the new `:::Speaker ... :::` block
   - `raw`: print only the new assistant message content
   - `clean`: stream only assistant text, stripping tool calls, thought
-    blocks, and inline attachments
+    blocks, and inline attachments. This is similar to the prose-only
+    view used when replaying one interlocutor’s prior assistant turn to
+    another.
   - `none`: print nothing
 
 - `-s`, `--short` (deprecated) Alias for `--format block`.
@@ -4659,8 +4710,9 @@ and any included configuration files.
 ## Top-Level Keys
 
 - `imports`: Optional list of config imports. Each entry is either a
-  string path, or an object with `path` and optional `optional: true`.
-  If the path is a directory, Lectic loads `<path>/lectic.yaml`.
+  string path, an object with `path` and optional `optional: true`, or
+  an object with `plugin` and optional `optional: true`. If a `path` is
+  a directory, Lectic loads `<path>/lectic.yaml`.
 - `interlocutor`: A single object defining the primary LLM speaker.
 - `interlocutors`: A list of interlocutor objects for multiparty
   conversations.
@@ -4673,6 +4725,12 @@ and any included configuration files.
 - `sandbox`: A default sandbox command string applied to all `exec`
   tools and local `mcp_command` tools, unless overridden by
   `interlocutor.sandbox` or a tool’s own `sandbox` setting.
+- `hook_defs`: A list of reusable named hook definitions. See [Reusable
+  Definitions](#reusable-definitions-with-use) below.
+- `env_defs`: A list of reusable named environment variable maps. See
+  [Reusable Definitions](#reusable-definitions-with-use) below.
+- `sandbox_defs`: A list of reusable named sandbox command strings. See
+  [Reusable Definitions](#reusable-definitions-with-use) below.
 
 ------------------------------------------------------------------------
 
@@ -4687,14 +4745,28 @@ imports:
   - ./plugins/sales/module.yaml
   - path: ./plugins/finance
     optional: true
+  - plugin: lectic-task
 ```
 
 - String form: required import path.
-- Object form:
-  - `path`: (Required) import path.
-  - `optional`: (Optional, boolean) skip missing files without error.
+- Object forms:
+  - `path`: filesystem import path.
+  - `plugin`: plugin name to search for recursively under, in order:
+    1.  `LECTIC_RUNTIME` entries,
+    2.  `LECTIC_CONFIG`, then
+    3.  `LECTIC_DATA`.
+  - `optional`: (Optional, boolean) skip missing imports without error.
 
-Imports are recursive, and cycles are reported as errors.
+Notes:
+
+- Relative `path` imports are resolved relative to the file that
+  declares them.
+- If a `path` import points to a directory, Lectic loads
+  `<path>/lectic.yaml`.
+- A `plugin` import matches a directory named after the plugin and loads
+  its `lectic.yaml`.
+- Each import object must specify exactly one of `path` or `plugin`.
+- Imports are recursive, and cycles are reported as errors.
 
 ------------------------------------------------------------------------
 
@@ -4738,6 +4810,10 @@ configuration.
   backends that support structured outputs. See [Structured
   Outputs](./04_structured_outputs.qmd) for the supported schema subset
   and provider notes.
+- `a2a`: Optional object for configuring this interlocutor as an A2A
+  agent when using `lectic a2a`. Fields:
+  - `id`: Custom agent ID (defaults to the interlocutor name).
+  - `description`: Agent description exposed in the A2A agent card.
 
 ### Model Configuration
 
@@ -4757,6 +4833,8 @@ configuration.
 - `thinking_budget`: Optional integer token budget for providers that
   support structured thinking phases (Anthropic, Anthropic/Bedrock,
   Gemini). Ignored by the `openai` and `openai/chat` providers.
+- `nocache`: Optional boolean. If `true`, disables prompt caching on the
+  Anthropic provider. Defaults to `false`.
 
 #### Providers and defaults
 
@@ -4764,10 +4842,14 @@ If you don’t specify `provider`, Lectic picks a default based on your
 environment. It checks for known API keys in this order and uses the
 first one it finds:
 
-1.  ANTHROPIC_API_KEY
-2.  GEMINI_API_KEY
-3.  OPENAI_API_KEY
-4.  OPENROUTER_API_KEY
+1.  ANTHROPIC_API_KEY → `anthropic`
+2.  GEMINI_API_KEY → `gemini`
+3.  OPENAI_API_KEY → `openai/chat`
+4.  OPENROUTER_API_KEY → `openrouter`
+
+Note that `OPENAI_API_KEY` auto-selects `openai/chat` (the legacy Chat
+Completions API), **not** `openai` (the Responses API). If you want the
+Responses API, set `provider: openai` explicitly.
 
 AWS credentials for Bedrock are not considered for auto‑selection. If
 you want Anthropic via Bedrock, set `provider: anthropic/bedrock`
@@ -4873,6 +4955,9 @@ in a key name.
 - `name`: (Required) The name of the macro, used when invoking it with
   `:name[]` or `:name[args]`.
 
+- `description`: (Optional) Short documentation for the macro. Shown in
+  LSP hover info and autocomplete.
+
 - `expansion`: (Optional) The content to be expanded. Can be a string,
   or loaded via `file:` or `exec:`. Equivalent to `post` if provided.
   See [External Prompts](../context_management/03_external_prompts.qmd)
@@ -4889,13 +4974,14 @@ in a key name.
 - `completions`: (Optional) Argument completion source for `:name[...]`
   in the LSP. Either:
 
-  - an inline list of items (`{ completion, detail?, documentation? }`),
-    or
+  - an inline list of items
+    (`{ completion, detail?, documentation?, label_description? }`), or
   - a source string: `file:...`, `file:local:...`, or `exec:...`.
 
   For `file:` and `exec:`, the source output must be a single YAML
   document containing a sequence of completion objects. JSON arrays are
-  also accepted.
+  also accepted. `label_description` is shown inline in the completion
+  menu while `completion` remains the inserted text.
 
 - `completion_trigger`: (Optional) One of `auto` or `manual`.
 
@@ -4938,6 +5024,86 @@ in a key name.
   the hook runs.
 - `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
+
+------------------------------------------------------------------------
+
+## Reusable Definitions with `use`
+
+To avoid repeating the same hooks, environment maps, or sandbox commands
+across multiple interlocutors or tools, you can define them once at the
+top level and reference them by name with `{use: "<name>"}`.
+
+### `hook_defs`
+
+A list of named hook definitions. Each entry is a normal hook object
+(with `on`, `do`, etc.) plus a required `name`.
+
+``` yaml
+hook_defs:
+  - name: confirm
+    on: tool_use_pre
+    do: zenity --question --text="Allow $TOOL_NAME?"
+```
+
+You can then reference this hook anywhere a hook list is expected:
+
+``` yaml
+interlocutor:
+  name: Assistant
+  prompt: You are helpful.
+  hooks:
+    - { use: confirm }
+```
+
+### `env_defs`
+
+A list of named environment variable maps. Each entry has a `name` and
+an `env` object.
+
+``` yaml
+env_defs:
+  - name: project_paths
+    env:
+      PROJECT_ROOT: /home/user/project
+      BUILD_DIR: /home/user/project/dist
+```
+
+Reference with `{use: "<name>"}` anywhere an `env` field is expected:
+
+``` yaml
+tools:
+  - exec: ./build.sh
+    name: build
+    env: { use: project_paths }
+```
+
+### `sandbox_defs`
+
+A list of named sandbox command strings. Each entry has a `name` and a
+`sandbox` string.
+
+``` yaml
+sandbox_defs:
+  - name: bwrap
+    sandbox: /usr/local/bin/bwrap-sandbox.sh
+```
+
+Reference with `{use: "<name>"}` anywhere a `sandbox` field is expected:
+
+``` yaml
+tools:
+  - exec: bash
+    name: shell
+    sandbox: { use: bwrap }
+```
+
+### Resolution
+
+`use` references are resolved early, before the rest of the
+configuration is processed. They work anywhere `hooks`, `env`, or
+`sandbox` fields appear — on interlocutors, tools, or at the top level.
+If a referenced name is not found in the corresponding `*_defs` list,
+Lectic reports an error.
 
 # LSP Server Reference
 
@@ -5445,8 +5611,8 @@ Each tool type has its own detailed guide:
 - **[A2A](./06_a2a.qmd)**: Talk to remote agents using the Agent2Agent
   (A2A) protocol.
 
-- **[Other Tools](./07_other_tools.qmd)**: `native` for provider
-  built-ins like web search.
+- **[Native](./07_other_tools.qmd)**: `native` for provider built-ins
+  like web search.
 
 > [!NOTE]
 >
@@ -5621,11 +5787,21 @@ the results:
 
 ## Execution environment
 
-When Lectic runs your command or script, it sets a few helpful
-environment variables. In particular, `LECTIC_INTERLOCUTOR` is set to
-the name of the interlocutor who invoked the tool. This makes it easy to
-maintain per‑interlocutor state (for example, separate scratch
-directories or memory stores) in your scripts or sandbox wrappers.
+When Lectic runs your command or script, it sets the following
+environment variables in addition to any you configure via the `env`
+field:
+
+- `LECTIC_INTERLOCUTOR`: Name of the interlocutor who invoked the tool.
+  Useful for maintaining per-interlocutor state (e.g., separate scratch
+  directories or memory stores).
+- `LECTIC_FILE`: Path to the active `.lec` file (if using `-f`).
+- `LECTIC_CONFIG`: Lectic configuration directory.
+- `LECTIC_DATA`: Lectic data directory.
+- `LECTIC_CACHE`: Lectic cache directory.
+- `LECTIC_STATE`: Lectic state directory.
+- `LECTIC_TEMP`: Lectic temporary directory.
+
+Tool `env` values override these defaults when keys overlap.
 
 ## Safety and trust
 
@@ -5868,7 +6044,7 @@ have an interlocutor with a valid prompt and model configuration. See
 
 You can connect to an MCP server in three ways: by running a local
 server as a command, or by connecting to a remote server over WebSockets
-or SSE.
+or Streamable HTTP.
 
 ### Local MCP Server (`mcp_command`)
 
@@ -6132,6 +6308,25 @@ This is useful for:
 - Testing the built-in `lectic a2a` server
 - Delegating work to an external agent process
 
+## Configuring interlocutors as A2A agents
+
+When using `lectic a2a`, each interlocutor is exposed as an A2A agent.
+You can customize the agent ID and description with the `a2a` field on
+the interlocutor:
+
+``` yaml
+interlocutor:
+  name: Research Assistant
+  prompt: You are a research assistant.
+  a2a:
+    id: researcher
+    description: Finds and summarizes academic papers.
+```
+
+If `a2a.id` is not set, the interlocutor’s `name` is used as the agent
+ID. The `description` is exposed in the agent card returned by the A2A
+server.
+
 ## Configuration
 
 You configure an A2A tool by providing the base URL for the agent.
@@ -6154,11 +6349,11 @@ tools:
 
 Optional settings:
 
-- `stream`: prefer streaming (`message/sendStream`). Defaults to `true`.
-- `maxWaitSeconds`: when streaming, max seconds to wait for the call to
+- `stream`: Prefer streaming (`message/sendStream`). Defaults to `true`.
+- `maxWaitSeconds`: When streaming, max seconds to wait for the call to
   reach a final event before returning early with `taskId` so you can
   poll using `getTask`. Defaults to `5`.
-- `headers`: extra HTTP headers to attach to every A2A request.
+- `headers`: Extra HTTP headers to attach to every A2A request.
   - Header values support `file:` and `exec:` sources (same as MCP).
   - Avoid hardcoding secrets directly in YAML.
 
@@ -6267,7 +6462,7 @@ The metadata includes:
 
 
 
-# Other Tools: `native`
+# Tools: Native
 
 This document covers provider-native tools like web search or code
 execution.

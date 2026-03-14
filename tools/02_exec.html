@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -558,7 +558,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="execution-environment" class="level2">
 <h2 class="anchored" data-anchor-id="execution-environment">Execution environment</h2>
-<p>When Lectic runs your command or script, it sets a few helpful environment variables. In particular, <code>LECTIC_INTERLOCUTOR</code> is set to the name of the interlocutor who invoked the tool. This makes it easy to maintain per‑interlocutor state (for example, separate scratch directories or memory stores) in your scripts or sandbox wrappers.</p>
+<p>When Lectic runs your command or script, it sets the following environment variables in addition to any you configure via the <code>env</code> field:</p>
+<ul>
+<li><code>LECTIC_INTERLOCUTOR</code>: Name of the interlocutor who invoked the tool. Useful for maintaining per-interlocutor state (e.g., separate scratch directories or memory stores).</li>
+<li><code>LECTIC_FILE</code>: Path to the active <code>.lec</code> file (if using <code>-f</code>).</li>
+<li><code>LECTIC_CONFIG</code>: Lectic configuration directory.</li>
+<li><code>LECTIC_DATA</code>: Lectic data directory.</li>
+<li><code>LECTIC_CACHE</code>: Lectic cache directory.</li>
+<li><code>LECTIC_STATE</code>: Lectic state directory.</li>
+<li><code>LECTIC_TEMP</code>: Lectic temporary directory.</li>
+</ul>
+<p>Tool <code>env</code> values override these defaults when keys overlap.</p>
 </section>
 <section id="safety-and-trust" class="level2">
 <h2 class="anchored" data-anchor-id="safety-and-trust">Safety and trust</h2>

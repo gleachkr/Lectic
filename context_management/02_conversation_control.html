@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -478,6 +478,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="asidename---switch-for-a-single-turn"><code>:aside[Name]</code> - Switch for a Single Turn</h3>
 <p>The <code>:aside[InterlocutorName]</code> directive is for a one-off question or comment. It directs the current message to the specified interlocutor, but the conversation then reverts back to the previously active speaker for the <em>next</em> user message.</p>
 <p>This is useful for quick interjections or for getting a second opinion without derailing the main flow of the conversation.</p>
+<p>When one interlocutor is shown an earlier turn from another interlocutor, Lectic forwards the prose from that assistant block with the original speaker name attached. Structured transcript records such as <code>&lt;tool-call&gt;</code>, <code>&lt;thought-block&gt;</code>, and <code>&lt;inline-attachment&gt;</code> are omitted from this cross-interlocutor view.</p>
 </section>
 </section>
 <section id="context-management-with-reset" class="level2">

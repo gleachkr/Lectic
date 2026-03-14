@@ -266,7 +266,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Other Tools</span></a>
+ <span class="menu-text">Native</span></a>
   </div>
 </li>
       </ul>
@@ -449,6 +449,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><code>lectic parse</code> Parse a lectic file into a JSON representation of the parsed file structure. Useful for programmatic analysis and modification.</p>
 <p>Flags:</p>
 <ul>
+<li><code>-f</code>, <code>--file &lt;PATH&gt;</code>: Path to the <code>.lec</code> file to parse. If omitted, reads from standard input.</li>
 <li><code>--yaml</code>: Emit YAML instead of JSON.</li>
 <li><code>--reverse</code>: Ingest JSON (or YAML) output and reconstruct the original lectic file.</li>
 </ul></li>
@@ -542,7 +543,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>full</code>: print full updated conversation (default)</li>
 <li><code>block</code>: print only the new <code>:::Speaker ... :::</code> block</li>
 <li><code>raw</code>: print only the new assistant message content</li>
-<li><code>clean</code>: stream only assistant text, stripping tool calls, thought blocks, and inline attachments</li>
+<li><code>clean</code>: stream only assistant text, stripping tool calls, thought blocks, and inline attachments. This is similar to the prose-only view used when replaying one interlocutor’s prior assistant turn to another.</li>
 <li><code>none</code>: print nothing</li>
 </ul></li>
 <li><p><code>-s</code>, <code>--short</code> (deprecated) Alias for <code>--format block</code>.</p></li>
