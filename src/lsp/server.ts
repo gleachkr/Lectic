@@ -57,15 +57,19 @@ function isBundleResult(m: unknown): m is BundleResult {
 }
 
 // Coordinator per document. It owns a worker and the last results.
+// Uses coalescing: if a new request arrives while one is inflight,
+// store it as pending and dispatch after the current one completes.
+// The worker uses chunked parsing with cooperative cancellation, so
+// stale parses bail quickly without needing terminate-and-respawn.
 class DocumentAnalyzer {
   private worker: Worker | null = null
   private inflight: Promise<void> | null = null
   private resolver: (() => void) | null = null
   private rejecter: ((e: unknown) => void) | null = null
+  private pending: AnalyzeRequest | null = null
   private cachedFolding: FoldResult | null = null
   private cachedBundle: BundleResult | null = null
   private currentVersion = 0
-  private pending: AnalyzeRequest | null = null
   private foldingWaiters: FoldWaiter[] = []
   private bundleWaiters: BundleWaiter[] = []
 
@@ -76,7 +80,7 @@ class DocumentAnalyzer {
     if (this.worker) return
     // Resolve worker URL relative to this module; check if we're in production
     // to work around inconsistency with bun worker path resolution
-    const workerUrl = process.env.NODE_ENV === "production" 
+    const workerUrl = process.env.NODE_ENV === "production"
         ? "./lsp/parserWorker.ts"
         : new URL('./parserWorker.ts', import.meta.url).href
     this.worker = new Worker(workerUrl)
@@ -85,39 +89,32 @@ class DocumentAnalyzer {
       const m = ev.data
       if (!m || m.uri !== this.uri) return
 
-      // Bundle arrives early; cache only when stable
+      // Bundle arrives early
       if (isBundleResult(m)) {
-        if (m.version === this.currentVersion) {
-          if (!this.pending) {
-            this.cachedBundle = m
-            const b = this.cachedBundle.bundle
-            const waiters = this.bundleWaiters
-            this.bundleWaiters = []
-            for (const w of waiters) w(b)
-          }
+        if (!this.pending && m.version === this.currentVersion) {
+          this.cachedBundle = m
+          const b = this.cachedBundle.bundle
+          const waiters = this.bundleWaiters
+          this.bundleWaiters = []
+          for (const w of waiters) w(b)
         }
         return
       }
 
       // Folding result arrives first
       if (isFoldResult(m)) {
-        if (m.version === this.currentVersion) {
-          // Cache only when stable (no pending next analysis)
-          if (!this.pending) {
-            this.cachedFolding = m
-            // Satisfy any waiters
-            const fs = this.cachedFolding.folding
-            const waiters = this.foldingWaiters
-            this.foldingWaiters = []
-            for (const w of waiters) w(fs)
-          }
+        if (!this.pending && m.version === this.currentVersion) {
+          this.cachedFolding = m
+          const waiters = this.foldingWaiters
+          this.foldingWaiters = []
+          for (const w of waiters) w(m.folding)
         }
         return
       }
 
-      // Diagnostics arrive second
+      // Diagnostics arrive last — marks analysis unit complete
       if (isDiagnosticsResult(m)) {
-        if (m.version === this.currentVersion) {
+        if (!this.pending && m.version === this.currentVersion) {
           // First, forward base diagnostics immediately.
           baseDiagnostics.set(this.uri, m.diagnostics)
           this.connection.sendDiagnostics({ uri: this.uri, diagnostics: m.diagnostics })
@@ -137,8 +134,7 @@ class DocumentAnalyzer {
             }).catch(() => { /* ignore */ })
           }
         }
-        // Resolve the inflight task after diagnostics to allow request
-        // chaining (fold then diagnostics constitutes one analysis unit).
+        // Resolve the inflight task — this analysis unit is complete.
         if (this.resolver) {
           const resolve = this.resolver
           this.resolver = null
@@ -146,16 +142,8 @@ class DocumentAnalyzer {
           this.inflight = null
           resolve()
         }
-        // Dispatch pending after completing this analysis unit
-        if (this.pending) {
-          const next = this.pending
-          this.pending = null
-          this.inflight = new Promise<void>((resolve, reject) => {
-            this.resolver = resolve
-            this.rejecter = reject
-          })
-          this.worker!.postMessage(next)
-        }
+        // Dispatch pending request if one was coalesced
+        this.dispatchPending()
       }
     })
 
@@ -167,36 +155,22 @@ class DocumentAnalyzer {
         this.inflight = null
         rej(new Error(`worker error: ${e.message}`))
       }
-      // Keep the worker; avoid terminate loops that can trigger segfaults.
-      // A fresh request will continue to use the same worker instance.
+      this.dispatchPending()
     })
   }
 
-  private disposeWorker() {
-    if (this.worker) {
-      try { this.worker.terminate() } catch { /* ignore */ }
-    }
-    this.worker = null
+  private dispatchPending() {
+    const req = this.pending
+    if (!req) return
+    this.pending = null
+    this.sendRequest(req)
   }
 
-  async requestAnalyze(text: string, version: number, docDir?: string) {
-    this.currentVersion = version
-    this.ensureWorker()
-    const req: AnalyzeRequest = {
-      type: 'analyze',
-      uri: this.uri,
-      version,
-      text,
-      docDir,
-    }
-    // Clear cached folding on any new edit
+  private sendRequest(req: AnalyzeRequest) {
+    this.currentVersion = req.version
     this.cachedFolding = null
     this.cachedBundle = null
-    if (this.inflight) {
-      // Latest-only: remember only the most recent pending request
-      this.pending = req
-      return
-    }
+    this.ensureWorker()
     this.inflight = new Promise<void>((resolve, reject) => {
       this.resolver = resolve
       this.rejecter = reject
@@ -204,9 +178,27 @@ class DocumentAnalyzer {
     this.worker!.postMessage(req)
   }
 
+  requestAnalyze(text: string, version: number, docDir?: string) {
+    const req: AnalyzeRequest = {
+      type: 'analyze',
+      uri: this.uri,
+      version,
+      text,
+      docDir,
+    }
+    if (this.inflight) {
+      // A parse is already running. Store as pending — the worker's
+      // cooperative cancellation will bail on the stale version, and
+      // we'll dispatch this request when the current one completes.
+      this.pending = req
+      return
+    }
+    this.sendRequest(req)
+  }
+
   async getFolding(): Promise<FoldingRange[]> {
     // Serve cached stable folding if available and current
-    if (this.cachedFolding && this.cachedFolding.version === this.currentVersion) {
+    if (this.cachedFolding && !this.pending && this.cachedFolding.version === this.currentVersion) {
       return this.cachedFolding.folding
     }
     // Otherwise, wait until a cached version is available
@@ -216,7 +208,7 @@ class DocumentAnalyzer {
   }
 
   async getBundle(): Promise<AnalysisBundle> {
-    if (this.cachedBundle && this.cachedBundle.version === this.currentVersion) {
+    if (this.cachedBundle && !this.pending && this.cachedBundle.version === this.currentVersion) {
       return this.cachedBundle.bundle
     }
     return new Promise((resolve) => {
@@ -225,7 +217,10 @@ class DocumentAnalyzer {
   }
 
   dispose() {
-    this.disposeWorker()
+    if (this.worker) {
+      try { this.worker.terminate() } catch { /* ignore */ }
+    }
+    this.worker = null
     this.inflight = null
     this.resolver = null
     this.rejecter = null

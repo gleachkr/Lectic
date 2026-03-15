@@ -3,8 +3,9 @@ import type {
   SemanticTokensLegend,
   Range,
 } from "vscode-languageserver"
-import type { AnalysisBundle, BlockSpan, DirectiveSpan } from "./analysisTypes"
+import type { AnalysisBundle, DirectiveSpan } from "./analysisTypes"
 import { offsetToPosition } from "./positions"
+import { FENCE_OPEN_RE, FENCE_CLOSE_RE } from "./chunking"
 
 // Legend shared with server initialize
 export const semanticTokenLegend: SemanticTokensLegend = {
@@ -46,44 +47,25 @@ function highlightDirective(
   }
 }
 
-function isColon(ch: number) { return ch === 58 /* : */ }
-function isSpace(ch: number) { return ch === 32 || ch === 9 }
+// ── Text-based fence highlighting ───────────────────────────────────
+// Scans the raw text for :::Name (opening) and ::: (closing) fences,
+// bypassing AST-derived block positions. This is robust regardless of
+// how the AST was constructed (full or chunked parse).
 
-function headerLineRange(text: string, b: BlockSpan): [number, number] | null {
-  const s = b.absStart
-  let e = text.indexOf("\n", s)
-  if (e < 0 || e > b.absEnd) e = b.absEnd
-  return [s, e]
-}
+function addFenceTokens(tok: Tok[], text: string) {
+  const lines = text.split("\n")
+  let inDirective = false
 
-function footerLineRange(text: string, b: BlockSpan): [number, number] | null {
-  // Find last non-EOL char within the block
-  let i = Math.min(b.absEnd - 1, text.length - 1)
-  while (i >= b.absStart && (text.charCodeAt(i) === 10 || text.charCodeAt(i) === 13)) i--
-  if (i < b.absStart) return null
-  const e = i + 1
-  const s = text.lastIndexOf("\n", i)
-  const start = s < 0 ? b.absStart : Math.max(b.absStart, s + 1)
-  return [start, e]
-}
-
-function highlightFenceAndName(tok: Tok[], text: string, lineStart: number, lineEnd: number) {
-  // Skip leading spaces
-  let i = lineStart
-  while (i < lineEnd && isSpace(text.charCodeAt(i))) i++
-  // Count leading ':'
-  let j = i
-  while (j < lineEnd && isColon(text.charCodeAt(j))) j++
-  const runLen = j - i
-  if (runLen >= 3) {
-    const p = offsetToPosition(text, i)
-    add(tok, p.line, p.character, runLen) // fence as keyword
-    // Name that follows until end or whitespace-only remainder
-    let k = j
-    while (k < lineEnd && isSpace(text.charCodeAt(k))) k++
-    if (k < lineEnd) {
-      const nameStart = offsetToPosition(text, k)
-      add(tok, nameStart.line, nameStart.character, lineEnd - k) // name as keyword
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (!inDirective && FENCE_OPEN_RE.test(line)) {
+      inDirective = true
+      add(tok, i, 0, 3)                                     // :::
+      const name = line.slice(3).trimEnd()
+      if (name.length > 0) add(tok, i, 3, name.length)      // Name
+    } else if (inDirective && FENCE_CLOSE_RE.test(line)) {
+      inDirective = false
+      add(tok, i, 0, 3)                                     // :::
     }
   }
 }
@@ -100,14 +82,8 @@ export function buildSemanticTokens(
     highlightDirective(tokens, text, d)
   }
 
-  // Assistant block headers and footers
-  for (const b of bundle.blocks) {
-    if (b.kind !== 'assistant') continue
-    const hdr = headerLineRange(text, b)
-    if (hdr) highlightFenceAndName(tokens, text, hdr[0], hdr[1])
-    const ftr = footerLineRange(text, b)
-    if (ftr) highlightFenceAndName(tokens, text, ftr[0], ftr[1])
-  }
+  // Assistant block fences — scanned directly from text
+  addFenceTokens(tokens, text)
 
   // Sort and optionally filter by range
   tokens.sort((a, b) => a.line - b.line || a.char - b.char)
