@@ -1,9 +1,10 @@
 local M = {}
 
 local spinner = require('lectic.spinner')
+local highlight = require('lectic.highlight')
 local process
 
-local ns_id = vim.api.nvim_create_namespace('lectic_highlight')
+local ns_id = highlight.ns_id
 
 function M.cancel_submit()
     if process and not process:is_closing() then
@@ -78,12 +79,18 @@ function M.submit_lectic()
                 end
             end
 
+            local prev_id = extmark_id
             extmark_id = vim.api.nvim_buf_set_extmark(buf, ns_id, total_lines, 0, {
                 end_row = vim.api.nvim_buf_line_count(buf) - 1,
                 line_hl_group = 'LecticBlock',
                 id = extmark_id,
                 strict = false
             })
+
+            -- Register the streaming extmark on first chunk
+            if not prev_id then
+                highlight.track_extmark(buf, extmark_id)
+            end
 
             the_spinner:goto(vim.api.nvim_buf_line_count(buf) - 1)
             vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
