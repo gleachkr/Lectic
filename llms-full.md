@@ -5670,6 +5670,11 @@ tools:
 
 - `exec`: (Required) The command or inline script to execute.
 - `name`: An optional name for the tool.
+- `boilerplate`: whether to include a basic boilerplate description of
+  how the exec tool works before the `usage` string. If false, then
+  `usage` needs to be a complete description of how to use the tool. If
+  true, standard CLI tools can be supplied without any usage
+  instructions. Default: `true`.
 - `usage`: A string with instructions for the LLM. It also accepts
   `file:` and `exec:` sources. See [External
   Prompts](../context_management/03_external_prompts.qmd) for semantics.
