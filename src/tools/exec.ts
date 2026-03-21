@@ -9,6 +9,7 @@ import { isHookSpecList, type HookSpec } from "../types/hook.ts";
 
 export type ExecToolSpec = {
     exec: string
+    boilerplate?: boolean,
     usage?: string
     name?: string
     icon?: string
@@ -26,6 +27,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         "exec" in raw &&
         typeof raw.exec === "string" &&
         ("usage" in raw ? typeof raw.usage === "string" : true) &&
+        ("boilerplate" in raw ? typeof raw.boilerplate === "boolean" : true) &&
         ("name" in raw ? typeof raw.name === "string" : true) &&
         ("icon" in raw ? typeof raw.icon === "string" : true) &&
         ("timeoutSeconds" in raw ? typeof raw.timeoutSeconds === "number" : true) &&
@@ -158,24 +160,28 @@ export class ExecTool extends Tool {
             this.required = Object.keys(this.parameters)
         } 
 
-        this.description = (this.isScript 
-            ? `This tool executes the following script: \n \`\`\`\n${this.exec}\n\`\`\`\n` +
-              (spec.schema 
-                  ? `The parameters to the tool call are supplied as environment variables, so for example if you supply ` +
-                    `an argument named FOO, assigning it the string "BAR", then in the script, $FOO will have the value "BAR". `
-                  : `The script is applied to the array of arguments that you supply, in the order that they are supplied. ` +
-                    `So for example if you supply ARG_ONE and ARG_TWO, what is run is \`the_script "ARG_ONE" "ARG_TWO"\`. `)
-            : `This tool executes the command \`${this.exec}\`` +
-               (spec.schema ? `The parameters to the tool call are supplied as environment variables, so for example if you supply ` +
-                 `an argument named FOO, assigning it the string "BAR", then in the environment in which the command is executed, `  +
-                 `$FOO will will have the value "BAR"`
-               : `The command is applied to the array of arguments that you supply, in the order that they are supplied. ` + 
-                 `So for example if you supply ARG_ONE and ARG_TWO, what is run is literally \`"${this.exec} "ARG_ONE" "ARG_TWO"\`. ` +
-                 `If the command requires command line flags, those should be included in the list of arguments. `)) +
-            `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features. ` +
-            `Tool output is truncated to at most ${this.limit} characters to avoid overwhelming context windows. ` +
-            `The user cannot see the tool call result. You must explicitly report any requested information to the user. ` +
-            (spec.usage ?? "")
+        if (spec.boilerplate && spec.usage) {
+            this.description = spec.usage
+        } else {
+            this.description = (this.isScript 
+                ? `This tool executes the following script: \n \`\`\`\n${this.exec}\n\`\`\`\n` +
+                  (spec.schema 
+                      ? `The parameters to the tool call are supplied as environment variables, so for example if you supply ` +
+                        `an argument named FOO, assigning it the string "BAR", then in the script, $FOO will have the value "BAR". `
+                      : `The script is applied to the array of arguments that you supply, in the order that they are supplied. ` +
+                        `So for example if you supply ARG_ONE and ARG_TWO, what is run is \`the_script "ARG_ONE" "ARG_TWO"\`. `)
+                : `This tool executes the command \`${this.exec}\`` +
+                   (spec.schema ? `The parameters to the tool call are supplied as environment variables, so for example if you supply ` +
+                     `an argument named FOO, assigning it the string "BAR", then in the environment in which the command is executed, `  +
+                     `$FOO will will have the value "BAR"`
+                   : `The command is applied to the array of arguments that you supply, in the order that they are supplied. ` + 
+                     `So for example if you supply ARG_ONE and ARG_TWO, what is run is literally \`"${this.exec} "ARG_ONE" "ARG_TWO"\`. ` +
+                     `If the command requires command line flags, those should be included in the list of arguments. `)) +
+                `The execution does not take place in a shell, so arguments must not use command substitution or otherwise rely on shell features. ` +
+                `Tool output is truncated to at most ${this.limit} characters to avoid overwhelming context windows. ` +
+                `The user cannot see the tool call result. You must explicitly report any requested information to the user. ` +
+                (spec.usage ?? "")
+        }
         ExecTool.count++
     }
 
