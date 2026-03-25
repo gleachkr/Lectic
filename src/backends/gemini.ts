@@ -339,7 +339,7 @@ async function partToContent(part: MessageAttachmentPart): Promise<Part | null> 
 
 export class GeminiBackend extends Backend<Content, GeminiFinal> {
   provider = LLMProvider.Gemini
-  defaultModel = "gemini-2.5-flash"
+  defaultModel = "gemini-flash-latest"
   client: GoogleGenAI
 
   constructor() {

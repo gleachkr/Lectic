@@ -220,7 +220,7 @@ export class AnthropicBackend extends Backend<
   Anthropic.Messages.Message
 > {
   provider = LLMProvider.Anthropic
-  defaultModel = "claude-sonnet-4-20250514"
+  defaultModel = "claude-sonnet-4-6"
   client: Anthropic | AnthropicBedrock
 
   constructor() {
