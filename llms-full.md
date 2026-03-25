@@ -5686,8 +5686,8 @@ tools:
   and stderr. Output beyond this is truncated. Default: `100000`.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description. When present, the
-  tool takes named string parameters (exposed as env vars). When absent,
-  the tool instead takes a required `arguments` array of strings.
+  tool takes named parameters (exposed as env vars). When absent, the
+  tool instead takes a required `arguments` array of strings.
 
 ## Execution details
 
@@ -5733,9 +5733,12 @@ that includes any partial stdout and stderr collected so far.
 You might want to control what arguments your LLM can pass to a command
 or script, or offer a template for correct usage. If your configuration
 includes a `schema`, the LLM will be guided to provide specific
-parameters when calling the script or command. Each parameter is a
-string and Lectic exposes it to the subprocess via an environment
-variable with the same name.
+parameters when calling the script or command.
+
+Each parameter can be either a string describing the parameter, or a
+complete JSON schema specifying it more precisely. Lectic exposes it to
+the subprocess via an environment variable with the same name.
+Non-string values returned by the model are stringified as JSON.
 
 This applies to both commands and scripts:
 

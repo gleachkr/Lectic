@@ -487,7 +487,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>timeoutSeconds</code>: Seconds to wait before aborting a long‑running call.</li>
 <li><code>limit</code>: Maximum number of output characters returned across stdout and stderr. Output beyond this is truncated. Default: <code>100000</code>.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
-<li><code>schema</code>: A map of parameter name → description. When present, the tool takes named string parameters (exposed as env vars). When absent, the tool instead takes a required <code>arguments</code> array of strings.</li>
+<li><code>schema</code>: A map of parameter name → description. When present, the tool takes named parameters (exposed as env vars). When absent, the tool instead takes a required <code>arguments</code> array of strings.</li>
 </ul>
 </section>
 </section>
@@ -516,7 +516,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="named-parameters-with-schema" class="level3">
 <h3 class="anchored" data-anchor-id="named-parameters-with-schema">Named parameters with <code>schema</code></h3>
-<p>You might want to control what arguments your LLM can pass to a command or script, or offer a template for correct usage. If your configuration includes a <code>schema</code>, the LLM will be guided to provide specific parameters when calling the script or command. Each parameter is a string and Lectic exposes it to the subprocess via an environment variable with the same name.</p>
+<p>You might want to control what arguments your LLM can pass to a command or script, or offer a template for correct usage. If your configuration includes a <code>schema</code>, the LLM will be guided to provide specific parameters when calling the script or command.</p>
+<p>Each parameter can be either a string describing the parameter, or a complete JSON schema specifying it more precisely. Lectic exposes it to the subprocess via an environment variable with the same name. Non-string values returned by the model are stringified as JSON.</p>
 <p>This applies to both commands and scripts:</p>
 <ul>
 <li>For scripts, parameters are available as <code>$PARAM_NAME</code> inside the script.</li>
