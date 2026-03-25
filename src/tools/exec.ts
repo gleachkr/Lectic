@@ -260,7 +260,7 @@ export class ExecTool extends Tool {
             if (collected.truncated) {
                 results.push(`<truncated>output exceeded ${this.limit} characters and was truncated</truncated>`)
             }
-            if (code !== 0) results.push(`<exitCode>${code}</exitCode>`)
+            results.push(`<exitCode>${code}</exitCode>`)
             return ToolCallResults(results, "application/xml")
         } catch (e) {
             if (e instanceof TimeoutError) {
