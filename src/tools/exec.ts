@@ -4,7 +4,7 @@ import { withTimeout, TimeoutError } from "../utils/timeout";
 import { readStream } from "../utils/stream";
 import { expandEnv } from "../utils/replace";
 import { parseCommandToArgv, writeTempShebangScriptAsync } from "../utils/execHelpers";
-import type { JSONSchema } from "../types/schema.ts"
+import { isJSONSchema, type JSONSchema } from "../types/schema.ts"
 import { isHookSpecList, type HookSpec } from "../types/hook.ts";
 
 export type ExecToolSpec = {
@@ -15,7 +15,7 @@ export type ExecToolSpec = {
     icon?: string
     sandbox?: string
     env?: Record<string, string>
-    schema?: Record<string, string>
+    schema?: Record<string, string | JSONSchema>
     timeoutSeconds?: number
     limit?: number
     hooks? : HookSpec[]
@@ -39,7 +39,7 @@ export function isExecToolSpec(raw : unknown) : raw is ExecToolSpec {
         ) &&
         ("schema" in raw ? 
                 typeof raw.schema=== "object" && raw.schema !== null && 
-                Object.values(raw.schema).every(v => typeof v === "string")
+                Object.values(raw.schema).every(v => typeof v === "string" || isJSONSchema(v))
             : true
         ) &&
         ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
@@ -155,7 +155,11 @@ export class ExecTool extends Tool {
         if (spec.schema) {
             this.parameters = {}
             for (const [key,value] of Object.entries(spec.schema)) {
-                this.parameters[key] = { type: "string", description: value }
+                if (typeof value === "string") {
+                    this.parameters[key] = { type: "string", description: value }
+                } else {
+                    this.parameters[key] = value
+                }
             }
             this.required = Object.keys(this.parameters)
         } 
@@ -198,11 +202,15 @@ export class ExecTool extends Tool {
 
     required = ["argv"]
 
-    async call(params: { argv : string[] } | Record<string,string> ) : Promise<ToolCallResult[]> {
+    async call(params: { argv : string[] } | Record<string,unknown> ) : Promise<ToolCallResult[]> {
         this.validateArguments(params);
 
         const args = Array.isArray(params.argv) ? params.argv : []
-        const env = Array.isArray(params.argv) ? this.env : {...params, ...this.env} as Record<string,string>
+        const env = Array.isArray(params.argv) 
+            ? this.env 
+            : Object.fromEntries(
+                Object.entries({...params, ...this.env})
+                .map(([k,v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]))
 
         let proc = null
         let cleanup = () => {}
