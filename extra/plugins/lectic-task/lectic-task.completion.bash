@@ -7,7 +7,7 @@ _lectic_complete_task() {
 
   if [[ $COMP_CWORD -eq 2 ]]; then
     COMPREPLY=( $(compgen -W \
-      "create list show transition note attach next archive render-todo doctor complete" \
+      "create edit list show transition note attach next archive render-todo doctor complete" \
       -- "$cur") )
     return
   fi

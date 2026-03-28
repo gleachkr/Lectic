@@ -21,6 +21,8 @@ import {
 import { mkdirSync, watch } from "node:fs"
 import { basename, dirname, resolve } from "node:path"
 
+import { createTaskWithEditor, editTaskWithEditor } from "./taskEditor.ts"
+
 type Status =
   | "not_started"
   | "researching"
@@ -33,6 +35,14 @@ type Status =
   | "blocked"
   | "abandoned"
 
+type Language =
+  | "general"
+  | "neovim"
+  | "latex"
+  | "typst"
+  | "meta"
+  | "markdown"
+
 type Priority = "low" | "medium" | "high" | "critical"
 
 type TaskRow = {
@@ -40,16 +50,31 @@ type TaskRow = {
   title: string
   description: string
   status: Status
-  language: string
+  language: Language
   priority: Priority
   effort_hours: number | null
+  parent_id: number | null
+  created_at: string
   updated_at: string
+  started_at: string | null
+  completed_at: string | null
+  archived_at: string | null
 }
 
 type InputMode = "normal" | "filter"
 
-const HELP_HINTS =
-  "q quit • / filter • x clear query • Ctrl-D archive done • esc reset"
+type TaskboardExitAction =
+  | { kind: "quit" }
+  | { kind: "create" }
+  | { kind: "edit"; taskId: number }
+
+const HELP_HINTS = [
+  "q quit",
+  "/ filter",
+  "c create",
+  "x clear query",
+  "esc reset",
+].join(" • ")
 const FILTER_HINTS = "filter mode: type • enter apply • esc reset"
 
 type TransitionHotkey = {
@@ -172,7 +197,8 @@ function loadTasks(db: Database): TaskRow[] {
   return db
     .query(
       `SELECT id, title, description, status, language, priority,
-              effort_hours, updated_at
+              effort_hours, parent_id, created_at, updated_at,
+              started_at, completed_at, archived_at
        FROM tasks
        WHERE archived_at IS NULL
        ORDER BY
@@ -343,14 +369,19 @@ function archiveTask(db: Database, task: TaskRow): { ok: boolean; message: strin
   }
 }
 
-function TaskboardApp(props: { db: Database; dbPath: string }) {
+function TaskboardApp(props: {
+  db: Database
+  dbPath: string
+  initialStatusMessage: string
+  onExitAction: (action: TaskboardExitAction) => void
+}) {
   const { exit } = useApp()
   const [tasks, setTasks] = useState<TaskRow[]>(() => loadTasks(props.db))
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
   const [inputMode, setInputMode] = useState<InputMode>("normal")
-  const [statusMessage, setStatusMessage] = useState("")
+  const [statusMessage, setStatusMessage] = useState(props.initialStatusMessage)
 
   const reload = useCallback((note?: string) => {
     try {
@@ -498,6 +529,7 @@ function TaskboardApp(props: { db: Database; dbPath: string }) {
 
   useInput((input, key) => {
     if (key.ctrl && input === "c") {
+      props.onExitAction({ kind: "quit" })
       exit()
       return
     }
@@ -530,6 +562,7 @@ function TaskboardApp(props: { db: Database; dbPath: string }) {
     }
 
     if (input === "q") {
+      props.onExitAction({ kind: "quit" })
       exit()
       return
     }
@@ -537,6 +570,18 @@ function TaskboardApp(props: { db: Database; dbPath: string }) {
     if (input === "x") {
       setQuery("")
       setStatusMessage("")
+      return
+    }
+
+    if (input === "c") {
+      props.onExitAction({ kind: "create" })
+      exit()
+      return
+    }
+
+    if (input === "e" && selected) {
+      props.onExitAction({ kind: "edit", taskId: selected.id })
+      exit()
       return
     }
 
@@ -612,10 +657,9 @@ function TaskboardApp(props: { db: Database; dbPath: string }) {
               <Text wrap="wrap">{selected.description || "(no description)"}</Text>
               <Box marginTop={1} flexDirection="column">
                 <Text color="gray">Actions:</Text>
+                <Text color="gray">e edit</Text>
                 <Text color="gray">{transitionHints}</Text>
-                <Text color="gray">
-                  Ctrl-D archive (completed/abandoned only)
-                </Text>
+                <Text color="gray">Ctrl-D archive</Text>
               </Box>
             </>
           )}
@@ -634,12 +678,61 @@ async function main(): Promise<void> {
     const { dbPath } = parseArgs(process.argv.slice(2))
     db = await initDb(dbPath)
 
-    const { waitUntilExit } = render(
-      <TaskboardApp db={db} dbPath={dbPath} />,
-      { exitOnCtrlC: false },
-    )
+    let statusMessage = ""
 
-    await waitUntilExit()
+    while (true) {
+      let exitAction: TaskboardExitAction = { kind: "quit" }
+
+      const { waitUntilExit } = render(
+        <TaskboardApp
+          db={db}
+          dbPath={dbPath}
+          initialStatusMessage={statusMessage}
+          onExitAction={(action) => {
+            exitAction = action
+          }}
+        />,
+        { exitOnCtrlC: false },
+      )
+
+      await waitUntilExit()
+      statusMessage = ""
+
+      if (exitAction.kind === "quit") {
+        break
+      }
+
+      try {
+        if (exitAction.kind === "create") {
+          const result = await createTaskWithEditor(db, {
+            actor: defaultActor(),
+            session: defaultSession(),
+            source: "taskboard",
+          })
+          statusMessage = result.message
+          continue
+        }
+
+        const task = db
+          .query("SELECT * FROM tasks WHERE id = ?")
+          .get(exitAction.taskId) as TaskRow | null
+
+        if (!task) {
+          statusMessage = `Task #${exitAction.taskId} no longer exists.`
+          continue
+        }
+
+        const result = await editTaskWithEditor(db, task, {
+          actor: defaultActor(),
+          session: defaultSession(),
+          source: "taskboard",
+        })
+        statusMessage = result.message
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        statusMessage = `Editor action failed: ${message}`
+      }
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error(`taskboard error: ${message}`)

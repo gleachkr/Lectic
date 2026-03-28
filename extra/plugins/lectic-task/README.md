@@ -53,6 +53,8 @@ imports:
 ```bash
 # create/list/show
 lectic task create --title "Implement fuzzy finder" --lang meta --priority high
+lectic task create --editor
+lectic task edit 1
 lectic task list
 lectic task show 1
 
@@ -87,6 +89,8 @@ lectic taskboard
 Keys:
 
 - `j/k` or arrows: move selection
+- `c`: create a task in `$EDITOR`
+- `e`: edit the selected task in `$EDITOR`
 - `x`: clear query
 - `q`: quit
 - type to fuzzy-filter
@@ -99,6 +103,10 @@ Keys:
 - `Ctrl-D`: archive selected task (completed/abandoned only)
 
 it refreshes automatically when the DB changes
+
+The editor file uses header fields for title, status, language, priority,
+effort, and parent id. Everything after the first blank line is treated as
+the task description.
 
 ## Database location
 

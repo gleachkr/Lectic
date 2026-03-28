@@ -6,6 +6,8 @@ import { Database } from "bun:sqlite"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 
+import { createTaskWithEditor, editTaskWithEditor } from "./taskEditor.ts"
+
 type Status =
   | "not_started"
   | "researching"
@@ -187,6 +189,7 @@ function usage(): string {
     "",
     "Commands:",
     "  create        Create a task",
+    "  edit          Edit a task in $EDITOR",
     "  list          List tasks",
     "  show          Show task details",
     "  transition    Transition task status",
@@ -208,6 +211,7 @@ function commandUsage(command: string): string {
       return [
         "Usage:",
         "  lectic task create --title TEXT [options]",
+        "  lectic task create --editor [options]",
         "",
         "Options:",
         "  --desc TEXT",
@@ -215,6 +219,16 @@ function commandUsage(command: string): string {
         "  --priority low|medium|high|critical",
         "  --effort HOURS",
         "  --parent ID",
+        "  --editor",
+        "  --actor TEXT",
+        "  --session TEXT",
+      ].join("\n")
+    case "edit":
+      return [
+        "Usage:",
+        "  lectic task edit <id> [options]",
+        "",
+        "Options:",
         "  --actor TEXT",
         "  --session TEXT",
       ].join("\n")
@@ -696,19 +710,14 @@ function toEventRows(rows: unknown[]): TaskEventRow[] {
   return rows as TaskEventRow[]
 }
 
-function executeCreate(db: Database, args: string[]): CommandResponse {
+async function executeCreate(db: Database, args: string[]): Promise<CommandResponse> {
   const parsed = parseFlags(args)
   if (parsed.booleans.has("help")) {
     throw new CliError("SHOW_HELP", commandUsage("create"))
   }
 
   const title = flagValue(parsed, "title")
-  if (!title || title.trim().length === 0) {
-    throw new CliError("INVALID_ARGUMENT", "--title is required")
-  }
-
   const desc = flagValue(parsed, "desc") ?? ""
-
   const langRaw = flagValue(parsed, "lang") ?? "general"
   const priorityRaw = flagValue(parsed, "priority") ?? "medium"
 
@@ -722,9 +731,39 @@ function executeCreate(db: Database, args: string[]): CommandResponse {
   const effort = parseNumber(flagValue(parsed, "effort"), "effort")
   const parentRaw = flagValue(parsed, "parent")
   const parentId = parentRaw ? parseId(parentRaw) : undefined
-
   const actor = flagValue(parsed, "actor") ?? defaultActor()
   const session = flagValue(parsed, "session") ?? defaultSession()
+
+  if (parsed.booleans.has("editor")) {
+    try {
+      const result = await createTaskWithEditor(db, {
+        actor,
+        session: session ?? null,
+        source: "task-cli",
+        initial: {
+          title: title?.trim() ?? "",
+          description: desc,
+          language: langRaw,
+          priority: priorityRaw,
+          effort_hours: effort ?? null,
+          parent_id: parentId ?? null,
+        },
+      })
+
+      return toResponse("create", {
+        task: result.task,
+        cancelled: result.cancelled,
+        message: result.message,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new CliError("INVALID_ARGUMENT", message)
+    }
+  }
+
+  if (!title || title.trim().length === 0) {
+    throw new CliError("INVALID_ARGUMENT", "--title is required")
+  }
 
   const createdAt = nowIso()
   let createdTask: TaskRow | null = null
@@ -786,7 +825,42 @@ function executeCreate(db: Database, args: string[]): CommandResponse {
     throw new CliError("DB_ERROR", "failed to create task")
   }
 
-  return toResponse("create", { task: createdTask })
+  return toResponse("create", { task: createdTask, cancelled: false })
+}
+
+async function executeEdit(db: Database, args: string[]): Promise<CommandResponse> {
+  const parsed = parseFlags(args)
+  if (parsed.booleans.has("help")) {
+    throw new CliError("SHOW_HELP", commandUsage("edit"))
+  }
+
+  const idRaw = parsed.positional[0]
+  if (!idRaw) {
+    throw new CliError("INVALID_ARGUMENT", "edit requires <id>")
+  }
+
+  const taskId = parseId(idRaw)
+  const actor = flagValue(parsed, "actor") ?? defaultActor()
+  const session = flagValue(parsed, "session") ?? defaultSession()
+  const task = ensureTaskExists(db, taskId)
+
+  try {
+    const result = await editTaskWithEditor(db, task, {
+      actor,
+      session: session ?? null,
+      source: "task-cli",
+    })
+
+    return toResponse("edit", {
+      task: result.task,
+      cancelled: result.cancelled,
+      updated: result.changed,
+      message: result.message,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new CliError("INVALID_ARGUMENT", message)
+  }
 }
 
 function executeList(db: Database, args: string[]): CommandResponse {
@@ -1485,8 +1559,26 @@ function printHuman(command: string, response: CommandResponse): void {
 
   switch (command) {
     case "create": {
-      const task = data.task as TaskRow
+      const task = data.task as TaskRow | null
+      if (!task) {
+        console.log(String(data.message ?? "Task creation cancelled."))
+        return
+      }
       console.log(`Created task #${task.id}: ${task.title}`)
+      console.log(`Status: ${task.status}`)
+      console.log(`Language: ${task.language}`)
+      console.log(`Priority: ${task.priority}`)
+      return
+    }
+
+    case "edit": {
+      const task = data.task as TaskRow | null
+      const updated = data.updated as boolean | undefined
+      if (updated === false || !task) {
+        console.log(String(data.message ?? "Task unchanged."))
+        return
+      }
+      console.log(`Updated task #${task.id}: ${task.title}`)
       console.log(`Status: ${task.status}`)
       console.log(`Language: ${task.language}`)
       console.log(`Priority: ${task.priority}`)
@@ -1586,10 +1678,16 @@ function printHuman(command: string, response: CommandResponse): void {
   }
 }
 
-function dispatch(db: Database, command: string, args: string[]): CommandResponse {
+async function dispatch(
+  db: Database,
+  command: string,
+  args: string[],
+): Promise<CommandResponse> {
   switch (command) {
     case "create":
       return executeCreate(db, args)
+    case "edit":
+      return executeEdit(db, args)
     case "list":
       return executeList(db, args)
     case "show":
@@ -1633,7 +1731,7 @@ async function main(): Promise<void> {
 
   try {
     const db = await createDb(parsedGlobal.dbPath)
-    const response = dispatch(db, command, rest)
+    const response = await dispatch(db, command, rest)
 
     if (parsedGlobal.json) {
       console.log(JSON.stringify(response, null, 2))
