@@ -1165,7 +1165,7 @@ interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: codex
-  model: gpt-5.1-codex
+  model: gpt-5.4
 ```
 
 **Gemini**:
@@ -4893,9 +4893,12 @@ Run commands and scripts.
 
 - `exec`: (Required) The command or inline script to execute. Multi-line
   values must start with a shebang.
-- `schema`: A map of parameter name → description. When present, the
-  tool takes named string parameters (exposed as env vars). When absent,
-  the tool takes a required `arguments` array of strings.
+- `boilerplate`: Boolean. If `true` (default), Lectic prepends the
+  standard exec-tool description before `usage`. If `false`, `usage`
+  must be a complete standalone description.
+- `schema`: A map of parameter name → description or JSON Schema. When
+  present, the tool takes named parameters (exposed as env vars). When
+  absent, the tool takes a required `argv` array of strings.
 - `sandbox`: Command string to wrap execution. Arguments supported.
 - `timeoutSeconds`: Seconds to wait before aborting.
 - `limit`: Maximum output characters returned across stdout and stderr.
@@ -5303,7 +5306,7 @@ If you are new to JSON Schema, start here:
 interlocutor:
   name: Assistant
   provider: openai
-  model: gpt-5.2
+  model: gpt-5.4
   prompt: Return JSON only.
   output_schema:
     type: object
@@ -5670,11 +5673,10 @@ tools:
 
 - `exec`: (Required) The command or inline script to execute.
 - `name`: An optional name for the tool.
-- `boilerplate`: whether to include a basic boilerplate description of
-  how the exec tool works before the `usage` string. If false, then
-  `usage` needs to be a complete description of how to use the tool. If
-  true, standard CLI tools can be supplied without any usage
-  instructions. Default: `true`.
+- `boilerplate`: Whether to include the standard exec-tool description
+  before the `usage` string. If `false`, then `usage` must be a complete
+  standalone description. If `true` (the default), Lectic prepends the
+  standard exec guidance and then appends `usage`.
 - `usage`: A string with instructions for the LLM. It also accepts
   `file:` and `exec:` sources. See [External
   Prompts](../context_management/03_external_prompts.qmd) for semantics.
@@ -5685,9 +5687,9 @@ tools:
 - `limit`: Maximum number of output characters returned across stdout
   and stderr. Output beyond this is truncated. Default: `100000`.
 - `env`: Environment variables to set for the subprocess.
-- `schema`: A map of parameter name → description. When present, the
-  tool takes named parameters (exposed as env vars). When absent, the
-  tool instead takes a required `arguments` array of strings.
+- `schema`: A map of parameter name → description or JSON Schema. When
+  present, the tool takes named parameters (exposed as env vars). When
+  absent, the tool instead takes a required `argv` array of strings.
 
 ## Execution details
 
@@ -5717,9 +5719,8 @@ directory.
 ### Stdout, stderr, and exit codes
 
 Lectic captures stdout and stderr separately and returns both to the
-model. It also includes the numeric exit code when it is non‑zero. You
-will see these serialized inside the tool call results as XML tags like
-, , and .
+model. It also always includes the numeric exit code. You will see these
+serialized inside the tool call results as XML tags like , , and .
 
 To avoid flooding context, exec output is capped by `limit` (default
 `100000` characters). When truncation happens, results include a
