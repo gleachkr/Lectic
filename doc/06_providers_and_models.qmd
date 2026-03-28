@@ -124,7 +124,7 @@ interlocutor:
   name: Assistant
   prompt: You are a helpful assistant.
   provider: codex
-  model: gpt-5.1-codex
+  model: gpt-5.4
 ```
 
 **Gemini**:

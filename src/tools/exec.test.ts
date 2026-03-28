@@ -7,6 +7,50 @@ function texts(results: ToolCallResult[]) {
 }
 
 describe("ExecTool (async)", () => {
+  it("includes boilerplate in descriptions by default", () => {
+    const tool = new ExecTool(
+      { exec: "/bin/echo", name: "echo", usage: "Say something." },
+      "Interlocutor_Name",
+    );
+    expect(tool.description).toContain("This tool executes the command");
+    expect(tool.description).toContain("Say something.");
+  });
+
+  it("omits boilerplate when boilerplate is false", () => {
+    const tool = new ExecTool(
+      {
+        exec: "/bin/echo",
+        name: "echo",
+        usage: "Say something.",
+        boilerplate: false,
+      },
+      "Interlocutor_Name",
+    );
+    expect(tool.description).toBe("Say something.");
+  });
+
+  it("still includes boilerplate when boilerplate is true", () => {
+    const tool = new ExecTool(
+      {
+        exec: "/bin/echo",
+        name: "echo",
+        usage: "Say something.",
+        boilerplate: true,
+      },
+      "Interlocutor_Name",
+    );
+    expect(tool.description).toContain("This tool executes the command");
+    expect(tool.description).toContain("Say something.");
+  });
+
+  it("uses boilerplate when usage is omitted", () => {
+    const tool = new ExecTool(
+      { exec: "/bin/echo", name: "echo" },
+      "Interlocutor_Name",
+    );
+    expect(tool.description).toContain("This tool executes the command");
+  });
+
   it("captures stdout for a simple command", async () => {
     const tool = new ExecTool(
       { exec: "/bin/echo", name: "echo" },
@@ -15,6 +59,7 @@ describe("ExecTool (async)", () => {
     const res = await tool.call({ argv: ["hello"] });
     const out = texts(res).join("\n");
     expect(out).toContain("<stdout>hello\n</stdout>");
+    expect(out).toContain("<exitCode>0</exitCode>");
   });
 
   it("captures both stdout and stderr for a script", async () => {
@@ -69,6 +114,37 @@ describe("ExecTool (async)", () => {
     const res = await tool.call({ FOO: "BAR" });
     const out = texts(res).join("\n");
     expect(out).toMatch(/<stdout>[\s\S]*^FOO=BAR$/m);
+  });
+
+  it("stringifies non-string schema values for env vars", async () => {
+    const script =
+      `#!/bin/bash\n` +
+      `printf '%s\\n' "$COUNT|$FLAGS|$CFG"\n`;
+    const tool = new ExecTool(
+      {
+        exec: script,
+        name: "typed-env-script",
+        schema: {
+          COUNT: { type: "integer" },
+          FLAGS: { type: "array", items: { type: "string" } },
+          CFG: {
+            type: "object",
+            properties: { enabled: { type: "boolean" } },
+            required: ["enabled"],
+          },
+        },
+      },
+      "Interlocutor_Name",
+    );
+    const res = await tool.call({
+      COUNT: 3,
+      FLAGS: ["a", "b"],
+      CFG: { enabled: true },
+    });
+    const out = texts(res).join("\n");
+    expect(out).toContain(
+      '<stdout>3|["a","b"]|{"enabled":true}\n</stdout>',
+    );
   });
 
   it("rejects unknown keys when schema is present", async () => {

@@ -164,7 +164,7 @@ export class ExecTool extends Tool {
             this.required = Object.keys(this.parameters)
         } 
 
-        if (spec.boilerplate && spec.usage) {
+        if (spec.boilerplate === false && spec.usage) {
             this.description = spec.usage
         } else {
             this.description = (this.isScript 
