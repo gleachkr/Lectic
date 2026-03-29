@@ -6043,7 +6043,7 @@ You can find lists of available servers here:
 
 - [Official MCP Server
   List](https://github.com/modelcontextprotocol/servers)
-- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
+- [Awesome MCP Servers](https://mcpservers.org/)
 
 ## Configuration
 
