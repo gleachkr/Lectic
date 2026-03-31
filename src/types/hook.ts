@@ -5,6 +5,7 @@ import { Messages } from "../constants/messages"
 
 export type HookEvents = {
     user_message : [Record<string,string>]
+    user_first : [Record<string,string>]
     assistant_message : [Record<string,string>]
     assistant_final : [Record<string,string>]
     assistant_intermediate : [Record<string,string>]
@@ -17,6 +18,7 @@ export type HookEvents = {
 
 export const HOOK_EVENT_TYPES: (keyof HookEvents)[] = [
     "user_message",
+    "user_first",
     "assistant_message",
     "assistant_final",
     "assistant_intermediate",
@@ -89,6 +91,14 @@ function resolveHookDispatchOrder(
             return ["assistant_message", "assistant_final"]
         }
         return ["assistant_message", "assistant_intermediate"]
+    }
+
+    if (event === "user_message") {
+        const firstMessage = env["MESSAGES_LENGTH"] === "1"
+        if (firstMessage) {
+            return ["user_message", "user_first"]
+        }
+        return ["user_message"]
     }
 
     if (event === "run_end" && env["RUN_STATUS"] === "error") {
