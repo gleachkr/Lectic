@@ -27,6 +27,12 @@ for a tag and publish them on the corresponding GitHub Release.
 - Support for `icon` and `name` attributes on `:attach` and `:hook`
   directives to control UI presentation.
 - Autocomplete and diagnostics for `use:` references in the YAML header.
+- `user_first` hook alias for running hooks before the first user message.
+- `prompt` override field for `exec` tools.
+- Support for loading `output_schema` from external files via `file:` paths.
+- Edit/create via editor functionality in the task plugin.
+- Plugin loading from `LECTIC_RUNTIME` directories.
+- Configurable labels for autocomplete entries.
 
 ### Changed
 
@@ -39,6 +45,13 @@ for a tag and publish them on the corresponding GitHub Release.
 - Improved tool-calling stability and signature handling for Gemini models.
 - Refined timeout error messages to be less redundant.
 - `extra/tab_complete` now handles subcommand discovery more robustly.
+- Exec tools now always return the exit code.
+- More flexible schemas for exec tool parameters.
+- Bumped default models.
+- Performance improvements for Neovim syntax highlighting.
+- Performance improvements for LSP on long lectics.
+- Improved spacing in streamed output.
+- Better sanitization of user and assistant messages.
 
 ### Fixed
 
@@ -47,6 +60,8 @@ for a tag and publish them on the corresponding GitHub Release.
 - Restored `-i`/`--inplace` as a boolean flag so `lectic -if <file>` and
   `lectic -i -f <file>` work correctly.
 - LSP folding and symbols for large configuration headers.
+- Cursor positioning in `lectic.nvim`.
+- Reversed boilerplate flag.
 
 ### Removed
 
