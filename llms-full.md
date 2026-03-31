@@ -1733,6 +1733,16 @@ stdin.
     - Standard Lectic variables as above.
   - When: Immediately after assistant streaming finishes for a pass.
 
+### User aliases
+
+These are derived aliases of `user_message`:
+
+- `user_first`
+  - Fires only on the first user message (`MESSAGES_LENGTH=1`).
+
+If both base and alias hooks are configured, Lectic executes base
+`user_message` hooks first, then the alias hooks.
+
 ### Assistant aliases
 
 These are derived aliases of `assistant_message`:
@@ -1743,7 +1753,7 @@ These are derived aliases of `assistant_message`:
   - Fires only when `TOOL_USE_DONE!=1`.
 
 Alias resolution happens internally in Lectic. You do not need
-shell-side conditionals for `TOOL_USE_DONE`.
+shell-side conditionals for `TOOL_USE_DONE` or `MESSAGES_LENGTH`.
 
 If both base and alias hooks are configured for a pass, Lectic executes
 base `assistant_message` hooks first, then the alias hooks.

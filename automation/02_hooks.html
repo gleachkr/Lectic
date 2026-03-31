@@ -424,6 +424,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#available-events-and-environment" id="toc-available-events-and-environment" class="nav-link" data-scroll-target="#available-events-and-environment">Available events and environment</a>
   <ul class="collapse">
   <li><a href="#message-events" id="toc-message-events" class="nav-link" data-scroll-target="#message-events">Message events</a></li>
+  <li><a href="#user-aliases" id="toc-user-aliases" class="nav-link" data-scroll-target="#user-aliases">User aliases</a></li>
   <li><a href="#assistant-aliases" id="toc-assistant-aliases" class="nav-link" data-scroll-target="#assistant-aliases">Assistant aliases</a></li>
   <li><a href="#tool-events" id="toc-tool-events" class="nav-link" data-scroll-target="#tool-events">Tool events</a></li>
   <li><a href="#run-events" id="toc-run-events" class="nav-link" data-scroll-target="#run-events">Run events</a></li>
@@ -516,6 +517,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul></li>
 </ul>
 </section>
+<section id="user-aliases" class="level3">
+<h3 class="anchored" data-anchor-id="user-aliases">User aliases</h3>
+<p>These are derived aliases of <code>user_message</code>:</p>
+<ul>
+<li><code>user_first</code>
+<ul>
+<li>Fires only on the first user message (<code>MESSAGES_LENGTH=1</code>).</li>
+</ul></li>
+</ul>
+<p>If both base and alias hooks are configured, Lectic executes base <code>user_message</code> hooks first, then the alias hooks.</p>
+</section>
 <section id="assistant-aliases" class="level3">
 <h3 class="anchored" data-anchor-id="assistant-aliases">Assistant aliases</h3>
 <p>These are derived aliases of <code>assistant_message</code>:</p>
@@ -529,7 +541,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Fires only when <code>TOOL_USE_DONE!=1</code>.</li>
 </ul></li>
 </ul>
-<p>Alias resolution happens internally in Lectic. You do not need shell-side conditionals for <code>TOOL_USE_DONE</code>.</p>
+<p>Alias resolution happens internally in Lectic. You do not need shell-side conditionals for <code>TOOL_USE_DONE</code> or <code>MESSAGES_LENGTH</code>.</p>
 <p>If both base and alias hooks are configured for a pass, Lectic executes base <code>assistant_message</code> hooks first, then the alias hooks.</p>
 </section>
 <section id="tool-events" class="level3">
