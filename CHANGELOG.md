@@ -5,7 +5,7 @@ All notable changes to Lectic are documented in this file.
 The format is intentionally simple so GitHub Actions can extract the notes
 for a tag and publish them on the corresponding GitHub Release.
 
-## v0.0.3 [Unreleased]
+## v0.0.3 - 2026-03-31
 
 ### Added
 
