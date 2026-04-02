@@ -91,7 +91,7 @@ function shiftPosition(pos: Position, offset: number, lineOffset: number): void 
 
 export function shiftPositions(root: Root, offset: number, lineOffset: number): Root {
   if (offset === 0 && lineOffset === 0) return root
-  const cloned = structuredClone(root) as Root
+  const cloned = structuredClone(root)
   visit(cloned, (node: Node) => {
     if (node.position) {
       shiftPosition(node.position.start, offset, lineOffset)

@@ -259,7 +259,7 @@ async function analyzeNow(
     analyzer = new DocumentAnalyzer(uri, connection)
     analyzers.set(uri, analyzer)
   }
-  await analyzer.requestAnalyze(text, version, docDirOf(uri))
+  analyzer.requestAnalyze(text, version, docDirOf(uri))
 }
 
 export function registerLspHandlers(connection: ReturnType<typeof createConnection>) {
