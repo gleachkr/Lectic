@@ -11,30 +11,33 @@ export function getBackend(interlocutor: Interlocutor): Backend<unknown, unknown
     switch (interlocutor.provider || getDefaultProvider()) {
         case LLMProvider.OpenAI:  return new OpenAIBackend({
             defaultModel: 'gpt-5.4',
-            apiKey: 'OPENAI_API_KEY',
+            apiKeyEnv: 'OPENAI_API_KEY',
+            apiKeyValue: interlocutor.account,
             provider: LLMProvider.OpenAI,
         })
         case LLMProvider.OpenRouter:  return new OpenAIBackend({
             defaultModel: 'google/gemini-flash-latest',
-            apiKey: 'OPENROUTER_API_KEY',
+            apiKeyEnv: 'OPENROUTER_API_KEY',
+            apiKeyValue: interlocutor.account,
             provider: LLMProvider.OpenRouter,
             url: 'https://openrouter.ai/api/v1'
         })
         case LLMProvider.OpenAIResponses: return new OpenAIResponsesBackend({
             defaultModel: 'gpt-5.4',
-            apiKey: 'OPENAI_API_KEY',
+            apiKeyEnv: 'OPENAI_API_KEY',
+            apiKeyValue: interlocutor.account,
             provider: LLMProvider.OpenAIResponses,
         })
         case LLMProvider.Ollama: return new OpenAIBackend({
             defaultModel: 'llama3.2',
-            apiKey: 'NO_API_KEY',
+            apiKeyEnv: 'NO_API_KEY',
             provider: LLMProvider.Ollama,
             url: 'http://localhost:11434/v1' 
             //XXX Make configurable
         })
-        case LLMProvider.Anthropic: return new AnthropicBackend()
+        case LLMProvider.Anthropic: return new AnthropicBackend(interlocutor.account)
         case LLMProvider.AnthropicBedrock: return new AnthropicBedrockBackend()
-        case LLMProvider.Gemini: return new GeminiBackend()
-        case LLMProvider.Codex: return new CodexBackend()
+        case LLMProvider.Gemini: return new GeminiBackend(interlocutor.account)
+        case LLMProvider.Codex: return new CodexBackend(interlocutor.account)
     }
 }

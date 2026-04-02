@@ -67,7 +67,7 @@ class ModelRegistry {
     // OpenAI Responses
     if (process.env["OPENAI_API_KEY"]) {
       const oai = new OpenAIResponsesBackend({
-        apiKey: 'OPENAI_API_KEY',
+        apiKeyEnv: 'OPENAI_API_KEY',
         provider: LLMProvider.OpenAIResponses,
         defaultModel: 'gpt-5',
       })
@@ -77,7 +77,7 @@ class ModelRegistry {
 
       // The chat-completions compatible list often mirrors Responses.
       const oaiChat = new OpenAIBackend({
-        apiKey: 'OPENAI_API_KEY',
+        apiKeyEnv: 'OPENAI_API_KEY',
         provider: LLMProvider.OpenAI,
         defaultModel: 'gpt-4o-mini',
       })
@@ -89,7 +89,7 @@ class ModelRegistry {
     // OpenRouter
     if (process.env["OPENROUTER_API_KEY"]) {
       const or = new OpenAIBackend({
-        apiKey: 'OPENROUTER_API_KEY',
+        apiKeyEnv: 'OPENROUTER_API_KEY',
         provider: LLMProvider.OpenRouter,
         defaultModel: 'google/gemini-2.5-flash',
         url: 'https://openrouter.ai/api/v1',

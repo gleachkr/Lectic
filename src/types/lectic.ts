@@ -3,6 +3,7 @@ import * as YAML from "yaml"
 import { type Tool } from "./tool"
 import {
     validateInterlocutor,
+    loadInterlocutorAccount,
     validateAndLoadOutputSchema,
     type Interlocutor,
     type InterlocutorSpec,
@@ -174,6 +175,9 @@ export class LecticHeader {
         if (this.interlocutor.registry) return
 
         this.interlocutor.prompt = await loadFrom(this.interlocutor.prompt)
+        this.interlocutor.account = await loadInterlocutorAccount(
+            this.interlocutor as InterlocutorSpec,
+        )
         this.interlocutor.output_schema = await validateAndLoadOutputSchema(
             this.interlocutor as InterlocutorSpec,
         )

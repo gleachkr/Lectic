@@ -3,6 +3,7 @@ export const INTERLOCUTOR_KEYS = [
   "prompt",
   "provider",
   "model",
+  "account",
   "temperature",
   "max_tokens",
   "max_tool_use",

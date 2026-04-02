@@ -27,6 +27,8 @@ export const Messages = {
       `The thinking budget for ${name} wasn't well-formed, it needs to be a whole number.`,
     thinkingEffortType: (name: string) =>
       `The thinking effort for ${name} wasn't well-formed, it needs to be one of 'none', 'low', 'medium' or 'high'.`,
+    accountType: (name: string) =>
+      `The account for ${name} wasn't well-formed, it needs to be a string.`,
     sandboxType: (name: string) =>
       `The sandbox for ${name} wasn't well-formed, it needs to be a string.`,
     outputSchemaInvalid: (name: string, msg: string) =>

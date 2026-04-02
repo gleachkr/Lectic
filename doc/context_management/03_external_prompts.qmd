@@ -13,6 +13,7 @@ What supports external sources:
 - tools[].details (for tools that provide extra details)
 - tools[].init_sql (for sqlite tool initialization SQL)
 - interlocutor.output_schema
+- interlocutor.account
 
 Each of these accepts either a plain string, or a string beginning with one
 of the prefixes below.

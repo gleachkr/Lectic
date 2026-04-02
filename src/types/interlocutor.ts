@@ -19,6 +19,7 @@ export type Interlocutor = {
     tools? : object[]
     registry?: Record<string, Tool>
     model? : string
+    account? : string
     temperature? : number
     max_tokens? : number
     max_tool_use? : number
@@ -79,6 +80,9 @@ export function validateInterlocutor(raw : unknown) : raw is InterlocutorSpec {
         (raw.thinking_effort !== "high")) {
         throw Error(Messages.interlocutor.thinkingEffortType(raw.name))
     } 
+    if (("account" in raw) && typeof raw.account !== "string") {
+        throw Error(Messages.interlocutor.accountType(raw.name))
+    }
     if (("sandbox" in raw) && typeof raw.sandbox !== "string") {
         throw Error(Messages.interlocutor.sandboxType(raw.name))
     }
@@ -121,6 +125,19 @@ export function validateInterlocutor(raw : unknown) : raw is InterlocutorSpec {
         }
     }
     return true
+}
+
+export async function loadInterlocutorAccount(
+    raw: InterlocutorSpec,
+): Promise<string | undefined> {
+    if (raw.account === undefined) return undefined
+
+    const loaded = await loadFrom(raw.account)
+    if (typeof loaded !== "string") {
+        throw Error(Messages.interlocutor.accountType(raw.name))
+    }
+
+    return isLoadableSource(raw.account) ? loaded.trim() : loaded
 }
 
 export async function validateAndLoadOutputSchema(

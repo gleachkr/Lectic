@@ -68,6 +68,19 @@ describe("header field diagnostics", () => {
     expect(d!.range.start.line).toBe(idx)
   })
 
+
+  test("account invalid points to its value", async () => {
+    const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  account: 123\n---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, "account for A wasn't well-formed")
+    expect(d).toBeDefined()
+    const ls = lines(text)
+    const idx = ls.findIndex(l => l.includes("account: 123"))
+    expect(idx).toBeGreaterThan(0)
+    expect(d!.range.start.line).toBe(idx)
+  })
+
   test("output_schema accepts file: and exec: source strings", async () => {
     const text = [
       "---",

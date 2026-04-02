@@ -21,7 +21,7 @@ export async function listModels() {
   // OpenAI (Responses)
   if (process.env['OPENAI_API_KEY']) {
     const openai = new OpenAIResponsesBackend({
-      apiKey: 'OPENAI_API_KEY',
+      apiKeyEnv: 'OPENAI_API_KEY',
       provider: LLMProvider.OpenAIResponses,
       defaultModel: 'gpt-5',
     })
@@ -31,7 +31,7 @@ export async function listModels() {
   // OpenRouter
   if (process.env['OPENROUTER_API_KEY']) {
     const openrouter = new OpenAIBackend({
-      apiKey: 'OPENROUTER_API_KEY',
+      apiKeyEnv: 'OPENROUTER_API_KEY',
       provider: LLMProvider.OpenRouter,
       defaultModel: 'google/gemini-2.5-flash',
       url: 'https://openrouter.ai/api/v1',

@@ -234,6 +234,16 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       }
     }
 
+    // account
+    if ("account" in raw && typeof raw["account"] !== "string") {
+      issues.push({
+        code: "interlocutor.account.type",
+        message: Messages.interlocutor.accountType(nameVal),
+        path: [...pathBase, "account"],
+        severity: "error",
+      })
+    }
+
     // tools
     if ("tools" in raw) {
       const tools = raw["tools"]

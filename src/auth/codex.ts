@@ -1,10 +1,21 @@
 import { createHash, randomBytes } from "crypto"
 import open from "open"
-import { join } from "path"
+import { dirname, join } from "path"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
 import { lecticStateDir } from "../utils/xdg"
 import { Logger } from "../logging/logger"
 import { isObjectRecord } from "../types/guards"
+
+function codexAuthTokenPath(account?: string): string {
+  const stateDir = lecticStateDir()
+  if (account === undefined) return join(stateDir, "codex_auth.json")
+
+  return join(
+    stateDir,
+    "codex_auth",
+    `${encodeURIComponent(account)}.json`,
+  )
+}
 
 // OAuth details for the official Codex / ChatGPT subscription flow.
 //
@@ -71,12 +82,12 @@ function sha256(buffer: Buffer): Buffer {
 export class CodexAuth {
   private tokenPath: string;
 
-  constructor() {
-    const stateDir = lecticStateDir()
-    if (!existsSync(stateDir)) {
-      mkdirSync(stateDir, { recursive: true })
+  constructor(account?: string) {
+    this.tokenPath = codexAuthTokenPath(account)
+    const tokenDir = dirname(this.tokenPath)
+    if (!existsSync(tokenDir)) {
+      mkdirSync(tokenDir, { recursive: true })
     }
-    this.tokenPath = join(stateDir, "codex_auth.json")
   }
 
   isAuthenticated(): boolean {

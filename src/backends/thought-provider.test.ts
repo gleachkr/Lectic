@@ -62,7 +62,7 @@ describe("Thought provider matching", () => {
 
   it("OpenAIResponsesBackend should skip non-openai thought blocks", async () => {
     const backend = new OpenAIResponsesBackend({
-      apiKey: "OPENAI_API_KEY",
+      apiKeyEnv: "OPENAI_API_KEY",
       provider: LLMProvider.OpenAIResponses,
       defaultModel: "gpt-4",
     });
@@ -82,7 +82,7 @@ describe("Thought provider matching", () => {
 
   it("OpenAIResponsesBackend should strip comments from user messages", async () => {
     const backend = new OpenAIResponsesBackend({
-      apiKey: "OPENAI_API_KEY",
+      apiKeyEnv: "OPENAI_API_KEY",
       provider: LLMProvider.OpenAIResponses,
       defaultModel: "gpt-4",
     });
@@ -101,7 +101,7 @@ describe("Thought provider matching", () => {
 
   it("OpenAIResponsesBackend should include openai thought blocks", async () => {
     const backend = new OpenAIResponsesBackend({
-      apiKey: "OPENAI_API_KEY",
+      apiKeyEnv: "OPENAI_API_KEY",
       provider: LLMProvider.OpenAIResponses,
       defaultModel: "gpt-4",
     });

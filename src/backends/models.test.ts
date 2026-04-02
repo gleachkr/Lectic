@@ -58,7 +58,7 @@ describe("backend model listing", () => {
 
   test("OpenAI Chat backend uses async iterable page", async () => {
     const backend = new OpenAIBackend({
-      apiKey: "OPENAI_API_KEY",
+      apiKeyEnv: "OPENAI_API_KEY",
       provider: LLMProvider.OpenAI,
       defaultModel: "gpt-4o-mini"
     })
@@ -79,7 +79,7 @@ describe("backend model listing", () => {
 
   test("OpenAI Responses backend uses async iterable page", async () => {
     const backend = new OpenAIResponsesBackend({
-      apiKey: "OPENAI_API_KEY",
+      apiKeyEnv: "OPENAI_API_KEY",
       provider: LLMProvider.OpenAIResponses,
       defaultModel: "gpt-4o-mini"
     })

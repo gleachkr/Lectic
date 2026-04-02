@@ -37,18 +37,20 @@ function getCodexAccountId(accessToken: string): string | null {
 }
 
 export class CodexBackend extends OpenAIResponsesBackend {
+  account?: string
   private auth: CodexAuth
   private _client?: OpenAI
 
-  constructor() {
+  constructor(account?: string) {
     super({
-      apiKey: "CODEX_ACCESS_TOKEN",
+      apiKeyEnv: "CODEX_ACCESS_TOKEN",
       provider: LLMProvider.Codex,
       // This is a reasonable default for subscription auth. Users can still
       // override it in their lectic header.
       defaultModel: "gpt-5.4",
     })
-    this.auth = new CodexAuth()
+    this.account = account
+    this.auth = new CodexAuth(account)
     this.cache_retention = false
   }
 

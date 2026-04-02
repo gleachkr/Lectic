@@ -222,11 +222,13 @@ export class AnthropicBackend extends Backend<
   provider = LLMProvider.Anthropic
   defaultModel = "claude-sonnet-4-6"
   client: Anthropic | AnthropicBedrock
+  apiKeyValue?: string
 
-  constructor() {
+  constructor(apiKeyValue?: string) {
     super()
+    this.apiKeyValue = apiKeyValue
     this.client = new Anthropic({
-      apiKey: process.env["ANTHROPIC_API_KEY"],
+      apiKey: apiKeyValue ?? process.env["ANTHROPIC_API_KEY"],
       maxRetries: 5,
     })
   }

@@ -341,10 +341,14 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
   provider = LLMProvider.Gemini
   defaultModel = "gemini-flash-latest"
   client: GoogleGenAI
+  apiKeyValue?: string
 
-  constructor() {
+  constructor(apiKeyValue?: string) {
     super()
-    this.client = new GoogleGenAI({ apiKey: process.env["GEMINI_API_KEY"] || "" })
+    this.apiKeyValue = apiKeyValue
+    this.client = new GoogleGenAI({
+      apiKey: apiKeyValue ?? (process.env["GEMINI_API_KEY"] || ""),
+    })
   }
 
   async listModels(): Promise<string[]> {

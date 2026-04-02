@@ -195,6 +195,61 @@ describe('LecticHeader', () => {
       });
     });
 
+
+    it('loads account from file: sources and trims trailing whitespace', async () => {
+      const dir = mkdtempSync(join(tmpdir(), 'lectic-account-file-'));
+
+      try {
+        const accountPath = join(dir, 'account.txt');
+        writeFileSync(accountPath, 'sk-test-account\n');
+
+        const spec = {
+          interlocutor: {
+            name: 'Tester',
+            prompt: 'Test prompt',
+            account: `file:${accountPath}`,
+          }
+        };
+
+        const header = new LecticHeader(spec as any);
+        await header.initialize();
+
+        expect(header.interlocutor.account).toBe('sk-test-account');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('loads account from exec: sources and trims trailing whitespace', async () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          account: 'exec:printf "sk-exec-account\\n"',
+        }
+      };
+
+      const header = new LecticHeader(spec as any);
+      await header.initialize();
+
+      expect(header.interlocutor.account).toBe('sk-exec-account');
+    });
+
+    it('validates the account field type', () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          account: 42,
+        }
+      };
+
+      const test = () => validateLecticHeaderSpec(spec as any);
+      expect(test).toThrow(
+        "The account for Tester wasn't well-formed, it needs to be a string."
+      );
+    });
+
     it('should correctly initialize an AgentTool', async () => {
         const spec = {
           interlocutors: [

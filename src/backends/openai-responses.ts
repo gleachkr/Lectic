@@ -150,19 +150,22 @@ export class OpenAIResponsesBackend extends Backend<
 > {
   provider: LLMProvider
   defaultModel: string
-  apiKey: string
+  apiKeyEnv: string
+  apiKeyValue?: string
   url?: string
   cache_retention: boolean = true
 
   constructor(opt: {
-    apiKey: string
+    apiKeyEnv: string
+    apiKeyValue?: string
     provider: LLMProvider
     url?: string
     defaultModel: string
   }) {
     super()
     this.provider = opt.provider
-    this.apiKey = opt.apiKey
+    this.apiKeyEnv = opt.apiKeyEnv
+    this.apiKeyValue = opt.apiKeyValue
     this.defaultModel = opt.defaultModel
     this.url = opt.url
   }
@@ -502,7 +505,7 @@ export class OpenAIResponsesBackend extends Backend<
 
   get client() {
     return new OpenAI({
-      apiKey: process.env[this.apiKey] || "",
+      apiKey: this.apiKeyValue ?? (process.env[this.apiKeyEnv] || ""),
       baseURL: this.url,
     })
   }
