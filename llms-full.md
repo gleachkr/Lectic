@@ -1083,6 +1083,12 @@ Notes:
 - Login starts a local callback server on port 1455. If that port is in
   use, stop the other process and try again.
 - If you want to “log out”, delete that file.
+- Set `interlocutor.account` to keep separate Codex logins. Named Codex
+  accounts are stored under `$LECTIC_STATE/codex_auth/`.
+
+For API-key providers, `interlocutor.account` overrides the default key
+for that interlocutor. The value may be a literal string or a `file:` /
+`exec:` source.
 
 ## Discover models
 
@@ -2612,6 +2618,7 @@ What supports external sources:
 - tools\[\].details (for tools that provide extra details)
 - tools\[\].init_sql (for sqlite tool initialization SQL)
 - interlocutor.output_schema
+- interlocutor.account
 
 Each of these accepts either a plain string, or a string beginning with
 one of the prefixes below.
@@ -4832,6 +4839,10 @@ configuration.
   `openai/chat` (legacy Chat Completions), `gemini`, `ollama`, and
   `openrouter`.
 - `model`: The specific model to use, e.g., `claude-sonnet-4-6`.
+- `account`: Optional credential selector. For API-key based providers,
+  this is the API key to use and it may also be loaded from `file:` or
+  `exec:`. For `provider: codex`, this selects a named Codex login so
+  you can keep separate credentials per account.
 - `temperature`: A number between 0 and 1 controlling the randomness of
   the output.
 - `max_tokens`: The maximum number of tokens to generate in a response.

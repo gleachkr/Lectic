@@ -529,6 +529,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><code>provider</code>: The LLM provider to use. Supported values include <code>anthropic</code>, <code>anthropic/bedrock</code>, <code>openai</code> (Responses API), <code>openai/chat</code> (legacy Chat Completions), <code>gemini</code>, <code>ollama</code>, and <code>openrouter</code>.</li>
 <li><code>model</code>: The specific model to use, e.g., <code>claude-sonnet-4-6</code>.</li>
+<li><code>account</code>: Optional credential selector. For API-key based providers, this is the API key to use and it may also be loaded from <code>file:</code> or <code>exec:</code>. For <code>provider: codex</code>, this selects a named Codex login so you can keep separate credentials per account.</li>
 <li><code>temperature</code>: A number between 0 and 1 controlling the randomness of the output.</li>
 <li><code>max_tokens</code>: The maximum number of tokens to generate in a response.</li>
 <li><code>max_tool_use</code>: The maximum number of tool calls the LLM is allowed to make in a single turn.</li>

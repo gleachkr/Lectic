@@ -462,7 +462,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>On first use, Lectic opens a browser window for login and stores tokens at <code>$LECTIC_STATE/codex_auth.json</code> (for example, <code>~/.local/state/lectic/codex_auth.json</code> on Linux).</li>
 <li>Login starts a local callback server on port 1455. If that port is in use, stop the other process and try again.</li>
 <li>If you want to “log out”, delete that file.</li>
+<li>Set <code>interlocutor.account</code> to keep separate Codex logins. Named Codex accounts are stored under <code>$LECTIC_STATE/codex_auth/</code>.</li>
 </ul>
+<p>For API-key providers, <code>interlocutor.account</code> overrides the default key for that interlocutor. The value may be a literal string or a <code>file:</code> / <code>exec:</code> source.</p>
 </section>
 <section id="discover-models" class="level2">
 <h2 class="anchored" data-anchor-id="discover-models">Discover models</h2>
