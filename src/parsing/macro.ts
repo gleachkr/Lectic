@@ -9,6 +9,7 @@ import type { InlineAttachment } from "../types/inlineAttachment"
 import { parseReferences, nodeContentRaw } from "./markdown"
 import { MessageAttachment } from "../types/attachment"
 import { escapeXmlAttribute } from "./xml"
+import { detectMimetype } from "./mimetype"
 
 const processor = remark().use(remarkDirective)
 
@@ -381,11 +382,14 @@ export async function expandMacrosWithAttachments(
               attributes[k] = typeof v === "string" ? v : ""
             }
 
+            const mimetype =
+              attributes["mimetype"] || detectMimetype(childrenExpanded)
+
             inlineAttachments.push({
               kind: "attach",
               command: "",
               content: childrenExpanded,
-              mimetype: "text/plain",
+              mimetype,
               icon: attributes["icon"],
               attributes:
                 Object.keys(attributes).length > 0 ? attributes : undefined,

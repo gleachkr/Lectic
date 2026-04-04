@@ -12,6 +12,7 @@ import {
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
   isAttachmentMime,
+  inlineAttachmentToPart,
   destrictifyToolResults,
 } from "./common.ts"
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
@@ -172,13 +173,18 @@ export class OpenAIBackend extends Backend<
         }
 
         if (interaction.attachments.length > 0) {
-          results.push({
-            role: "user",
-            content: interaction.attachments.map((a) => ({
-              type: "text" as const,
-              text: a.content,
-            })),
-          })
+          const attContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = []
+          for (const a of interaction.attachments) {
+            if (isAttachmentMime(a.mimetype)) {
+              const block = await partToContent(inlineAttachmentToPart(a))
+              if (block) attContent.push(block)
+            } else {
+              attContent.push({ type: "text" as const, text: a.content })
+            }
+          }
+          if (attContent.length > 0) {
+            results.push({ role: "user", content: attContent })
+          }
         }
 
         const modelParts: OpenAI.Chat.Completions.ChatCompletionContentPartText[] = []
@@ -256,7 +262,12 @@ export class OpenAIBackend extends Backend<
 
     if (opt?.inlineAttachments !== undefined) {
       for (const t of opt.inlineAttachments) {
-        content.push({ type: "text", text: t.content })
+        if (isAttachmentMime(t.mimetype)) {
+          const block = await partToContent(inlineAttachmentToPart(t))
+          if (block) content.push(block)
+        } else {
+          content.push({ type: "text", text: t.content })
+        }
       }
     }
 
@@ -387,7 +398,12 @@ export class OpenAIBackend extends Backend<
     const parts = await collectAttachmentPartsFromCalls(realized, partToContent)
 
     for (const h of hookAttachments) {
-      parts.push({ type: "text", text: h.content })
+      if (isAttachmentMime(h.mimetype)) {
+        const block = await partToContent(inlineAttachmentToPart(h))
+        if (block) parts.push(block)
+      } else {
+        parts.push({ type: "text", text: h.content })
+      }
     }
 
     if (parts.length > 0) {

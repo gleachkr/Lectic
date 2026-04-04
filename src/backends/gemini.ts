@@ -21,6 +21,7 @@ import {
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
   isAttachmentMime,
+  inlineAttachmentToPart,
 } from "./common.ts"
 import { inlineReset, type InlineAttachment, } from "../types/inlineAttachment"
 import type { ToolCall } from "../types/tool"
@@ -383,10 +384,18 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
         }
 
         if (interaction.attachments.length > 0) {
-          results.push({
-            role: "user",
-            parts: interaction.attachments.map((a) => ({ text: a.content })),
-          })
+          const attParts: Part[] = []
+          for (const a of interaction.attachments) {
+            if (isAttachmentMime(a.mimetype)) {
+              const block = await partToContent(inlineAttachmentToPart(a))
+              if (block) attParts.push(block)
+            } else {
+              attParts.push({ text: a.content })
+            }
+          }
+          if (attParts.length > 0) {
+            results.push({ role: "user", parts: attParts })
+          }
         }
 
         const modelParts: Part[] = []
@@ -476,7 +485,12 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
 
     if (opt?.inlineAttachments !== undefined) {
       for (const t of opt.inlineAttachments) {
-        content.push({ text: t.content })
+        if (isAttachmentMime(t.mimetype)) {
+          const block = await partToContent(inlineAttachmentToPart(t))
+          if (block) content.push(block)
+        } else {
+          content.push({ text: t.content })
+        }
       }
     }
 
@@ -606,7 +620,12 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
     ]
 
     for (const h of hookAttachments) {
-      userParts.push({ text: h.content })
+      if (isAttachmentMime(h.mimetype)) {
+        const block = await partToContent(inlineAttachmentToPart(h))
+        if (block) userParts.push(block)
+      } else {
+        userParts.push({ text: h.content })
+      }
     }
 
     messages.push({ role: "user", parts: userParts })

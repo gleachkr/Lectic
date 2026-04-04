@@ -43,6 +43,83 @@ describe("UserMessage inlineAttachments", () => {
       icon: "🧪",
     })
   })
+
+  it("auto-detects JSON mimetype from content", async () => {
+    const msg = new UserMessage({
+      content: ':attach[{"key": "value"}]',
+    })
+
+    await msg.expandMacros([], {
+      MESSAGE_TEXT: msg.content,
+      MESSAGE_INDEX: 1,
+      MESSAGES_LENGTH: 1,
+    })
+
+    expect(msg.inlineAttachments).toHaveLength(1)
+    expect(msg.inlineAttachments[0].mimetype).toBe("application/json")
+  })
+
+  it("auto-detects HTML mimetype from content", async () => {
+    const msg = new UserMessage({
+      content: ":attach[<!DOCTYPE html><html></html>]",
+    })
+
+    await msg.expandMacros([], {
+      MESSAGE_TEXT: msg.content,
+      MESSAGE_INDEX: 1,
+      MESSAGES_LENGTH: 1,
+    })
+
+    expect(msg.inlineAttachments).toHaveLength(1)
+    expect(msg.inlineAttachments[0].mimetype).toBe("text/html")
+  })
+
+  it("allows manual mimetype override via attribute", async () => {
+    const msg = new UserMessage({
+      content: ':attach[some content]{mimetype="application/xml"}',
+    })
+
+    await msg.expandMacros([], {
+      MESSAGE_TEXT: msg.content,
+      MESSAGE_INDEX: 1,
+      MESSAGES_LENGTH: 1,
+    })
+
+    expect(msg.inlineAttachments).toHaveLength(1)
+    expect(msg.inlineAttachments[0].mimetype).toBe("application/xml")
+  })
+
+  it("manual mimetype override takes precedence over detection", async () => {
+    const msg = new UserMessage({
+      content: ':attach[{"key": "value"}]{mimetype="text/plain"}',
+    })
+
+    await msg.expandMacros([], {
+      MESSAGE_TEXT: msg.content,
+      MESSAGE_INDEX: 1,
+      MESSAGES_LENGTH: 1,
+    })
+
+    expect(msg.inlineAttachments).toHaveLength(1)
+    expect(msg.inlineAttachments[0].mimetype).toBe("text/plain")
+  })
+
+  it("auto-detects base64-encoded PNG as image/png", async () => {
+    const pngBytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ])
+    const b64 = Buffer.from(pngBytes).toString("base64")
+    const msg = new UserMessage({ content: `:attach[${b64}]` })
+
+    await msg.expandMacros([], {
+      MESSAGE_TEXT: msg.content,
+      MESSAGE_INDEX: 1,
+      MESSAGES_LENGTH: 1,
+    })
+
+    expect(msg.inlineAttachments).toHaveLength(1)
+    expect(msg.inlineAttachments[0].mimetype).toBe("image/png")
+  })
 })
 
 describe("emitInlineAttachments", () => {

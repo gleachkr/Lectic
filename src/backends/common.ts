@@ -3,7 +3,8 @@ import type { Lectic } from "../types/lectic"
 import type { Tool, ToolCall } from "../types/tool"
 import type { AssistantMessage, UserMessage } from "../types/message"
 import type { MessageLink } from "../types/link"
-import { MessageAttachment, type MessageAttachmentPart } from "../types/attachment"
+import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
+import type { InlineAttachment } from "../types/inlineAttachment"
 import { destrictify, type JSONSchema } from "../types/schema.ts"
 
 export function wrapForeignAssistantMessage(
@@ -93,6 +94,18 @@ export function isAttachmentMime(mt: string | null | undefined): boolean {
     if (mt.startsWith("video/")) return true
     if (mt === "application/pdf") return true
     return false
+}
+
+// Convert an InlineAttachment with a binary mimetype to a
+// MessageAttachmentPart by decoding the base64 content.
+export function inlineAttachmentToPart(a: InlineAttachment): MessageAttachmentPart {
+  return new MessageAttachmentPart({
+    bytes: Buffer.from(a.content, "base64"),
+    mimetype: a.mimetype ?? null,
+    fragmentParams: undefined,
+    title: a.attributes?.["name"] ?? "attachment",
+    URI: "",
+  })
 }
 
 // Build MessageLink objects (title + URI) for non-text results.

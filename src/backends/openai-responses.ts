@@ -13,6 +13,7 @@ import {
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
   isAttachmentMime,
+  inlineAttachmentToPart,
   destrictifyToolResults,
 } from "./common.ts"
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
@@ -198,13 +199,18 @@ export class OpenAIResponsesBackend extends Backend<
         }
 
         if (interaction.attachments.length > 0) {
-          results.push({
-            role: "user",
-            content: interaction.attachments.map((a) => ({
-              type: "input_text" as const,
-              text: a.content,
-            })),
-          })
+          const attContent: OpenAI.Responses.ResponseInputContent[] = []
+          for (const a of interaction.attachments) {
+            if (isAttachmentMime(a.mimetype)) {
+              const block = await partToContent(inlineAttachmentToPart(a))
+              if (block) attContent.push(block)
+            } else {
+              attContent.push({ type: "input_text" as const, text: a.content })
+            }
+          }
+          if (attContent.length > 0) {
+            results.push({ role: "user", content: attContent })
+          }
         }
 
         const thoughts = [...interaction.thoughts].sort(
@@ -293,7 +299,12 @@ export class OpenAIResponsesBackend extends Backend<
 
     if (opt?.inlineAttachments !== undefined) {
       for (const t of opt.inlineAttachments) {
-        content.push({ type: "input_text", text: t.content })
+        if (isAttachmentMime(t.mimetype)) {
+          const block = await partToContent(inlineAttachmentToPart(t))
+          if (block) content.push(block)
+        } else {
+          content.push({ type: "input_text", text: t.content })
+        }
       }
     }
     const messages : OpenAI.Responses.ResponseInput = [{ role: msg.role, content }]
@@ -487,7 +498,12 @@ export class OpenAIResponsesBackend extends Backend<
     const attachParts = await collectAttachmentPartsFromCalls(realized, partToContent)
 
     for (const h of hookAttachments) {
-      attachParts.push({ type: "input_text", text: h.content })
+      if (isAttachmentMime(h.mimetype)) {
+        const block = await partToContent(inlineAttachmentToPart(h))
+        if (block) attachParts.push(block)
+      } else {
+        attachParts.push({ type: "input_text", text: h.content })
+      }
     }
 
     if (attachParts.length > 0) {

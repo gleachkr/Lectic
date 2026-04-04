@@ -4,6 +4,7 @@ import type { BunFile } from "bun"
 import { Glob } from "bun"
 import { MCPTool } from "../tools/mcp.ts"
 import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js"
+import { detectMimetypeFromBytes } from "../parsing/mimetype"
 
 type MessagePartOpts = {
     bytes : Uint8Array
@@ -118,16 +119,11 @@ export class MessageAttachment {
             }
         }
         if (this.file) {
-            let mimetype = this.file.type.replace(/^text\/.+$/,"text/plain")
             const bytes = await this.file.bytes()
-            if (mimetype === "application/octet-stream" &&
-                bytes.find(x => x === 0x0) === undefined)  {
-                // if there are no null bytes, it's probably not a binary. Guess text/plain
-                mimetype = "text/plain"
-            }
+            const mimetype = detectMimetypeFromBytes(bytes, this.file.name)
             return [new MessageAttachmentPart({
-                bytes, mimetype, 
-                URI : this.URI, 
+                bytes, mimetype,
+                URI : this.URI,
                 title : this.title,
                 fragmentParams: this.fragmentParams
             })]

@@ -15,6 +15,7 @@ import {
   collectAttachmentPartsFromCalls,
   gatherMessageAttachmentParts,
   isAttachmentMime,
+  inlineAttachmentToPart,
 } from "./common.ts"
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { MessageStream } from "@anthropic-ai/sdk/lib/MessageStream.mjs"
@@ -264,13 +265,18 @@ export class AnthropicBackend extends Backend<
         }
 
         if (interaction.attachments.length > 0) {
-          results.push({
-            role: "user",
-            content: interaction.attachments.map((a) => ({
-              type: "text",
-              text: a.content,
-            })),
-          })
+          const attContent: Anthropic.Messages.ContentBlockParam[] = []
+          for (const a of interaction.attachments) {
+            if (isAttachmentMime(a.mimetype)) {
+              const block = await partToContent(inlineAttachmentToPart(a))
+              if (block) attContent.push(block)
+            } else {
+              attContent.push({ type: "text", text: a.content })
+            }
+          }
+          if (attContent.length > 0) {
+            results.push({ role: "user", content: attContent })
+          }
         }
 
         const modelParts: Anthropic.Messages.ContentBlockParam[] = []
@@ -361,7 +367,12 @@ export class AnthropicBackend extends Backend<
 
     if (opt?.inlineAttachments !== undefined) {
       for (const t of opt.inlineAttachments) {
-        content.push({ type: "text", text: t.content })
+        if (isAttachmentMime(t.mimetype)) {
+          const block = await partToContent(inlineAttachmentToPart(t))
+          if (block) content.push(block)
+        } else {
+          content.push({ type: "text", text: t.content })
+        }
       }
     }
 
@@ -500,7 +511,12 @@ export class AnthropicBackend extends Backend<
     content.push(...await collectAttachmentPartsFromCalls(realized, partToContent))
 
     for (const h of hookAttachments) {
-      content.push({ type: "text", text: h.content })
+      if (isAttachmentMime(h.mimetype)) {
+        const block = await partToContent(inlineAttachmentToPart(h))
+        if (block) content.push(block)
+      } else {
+        content.push({ type: "text", text: h.content })
+      }
     }
 
     if (content.length > 0) messages.push({ role: "user", content })
