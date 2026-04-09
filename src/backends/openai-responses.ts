@@ -351,12 +351,16 @@ export class OpenAIResponsesBackend extends Backend<
       store: false,
     })
 
-    async function* chunks(): AsyncGenerator<StreamChunk> {
+    async function* chunks(accumulator): AsyncGenerator<StreamChunk> {
       let thoughtOrder = 0
 
       for await (const event of stream) {
         if (event.type === "response.output_text.delta") {
           yield { kind: "text", text: event.delta || "" }
+        }
+
+        if (event.type === "response.output_item.done") {
+            accumulator[event.output_index] = event.item
         }
 
         if (
@@ -418,9 +422,42 @@ export class OpenAIResponsesBackend extends Backend<
       }
     }
 
+    const accumulator : OpenAI.Responses.ResponseOutputItem[] = []
+
     return {
-      chunks: chunks(),
-      final: stream.finalResponse(),
+      chunks: chunks(accumulator),
+      final: stream.finalResponse()
+        .then(rsp => {
+            // the Openai SDK lets an empty final output clobber the
+            // accumulated items, and also occasionally emits an empty final
+            // output. This is an ugly but (for now) necessary workaround.
+            if (rsp.output.length === 0 && accumulator.length > 0) {
+                const replacement: typeof rsp.output = accumulator.map((item) => {
+                  if (item.type === "function_call") {
+                    return {
+                      ...item,
+                      parsed_arguments: null,
+                    } as typeof rsp.output[number]
+                  }
+
+                  if (item.type === "message") {
+                    return {
+                      ...item,
+                      content: item.content.map((content) =>
+                        content.type === "output_text"
+                          ? { ...content, parsed: null }
+                          : content
+                      ),
+                    } as typeof rsp.output[number]
+                  }
+
+                  return item as typeof rsp.output[number]
+                })
+
+                rsp.output = replacement
+              }
+            return rsp
+        }),
     }
   }
 

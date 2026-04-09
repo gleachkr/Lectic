@@ -11,6 +11,7 @@ import {
 } from "./inlineAttachment"
 import { isObjectRecord } from "./guards"
 import { serializeThoughtBlock, type ThoughtBlock } from "./thought"
+import { Logger } from "../logging/logger"
 
 export type BackendUsage = {
   input: number
@@ -498,6 +499,8 @@ export abstract class Backend<TMessage, TFinal> {
       }
 
       const reply = await final
+
+      Logger.debug("model reply", reply)
 
       const hasToolCalls = this.finalHasToolCalls(reply)
       const usage = this.finalUsage(reply)
