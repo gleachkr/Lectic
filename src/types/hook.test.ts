@@ -20,6 +20,11 @@ describe("Hook", () => {
             do: "echo 'best effort'",
             allow_failure: true,
         })).not.toThrow()
+        expect(() => new Hook({
+            on: "assistant_message",
+            do: "echo 'comment'",
+            inline_as: "comment",
+        })).not.toThrow()
     })
 
     test("rejects non-string icons", () => {
@@ -28,6 +33,17 @@ describe("Hook", () => {
             do: "echo 'icon'",
             icon: 1,
         })).toThrow('The "icon" field of a hook must be a string.')
+    })
+
+    test("rejects invalid inline_as", () => {
+        expect(() => validateHookSpec({
+            on: "assistant_message",
+            do: "echo 'x'",
+            inline_as: "xml",
+        })).toThrow(
+            'The "inline_as" field of a hook must be "attachment" ' +
+            'or "comment".'
+        )
     })
 
     test("rejects non-boolean allow_failure", () => {

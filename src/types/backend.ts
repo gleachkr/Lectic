@@ -4,10 +4,12 @@ import { getActiveHooks, type Hook, type HookEvents } from "./hook"
 import { serializeCall, ToolCallResults, type Tool, type ToolCall} from "./tool"
 import { type LLMProvider } from "./provider"
 import {
-  inlineNotFinal,
+  getProviderInlineAttachment,
+  inlineRecordNotFinal,
   inlineReset,
-  serializeInlineAttachment,
+  serializeInlineRecord,
   type InlineAttachment,
+  type InlineRecord,
 } from "./inlineAttachment"
 import { isObjectRecord } from "./guards"
 import { serializeThoughtBlock, type ThoughtBlock } from "./thought"
@@ -58,8 +60,8 @@ function runHooksInternal(
   event: keyof HookEvents,
   env: Record<string, string>,
   opt?: RunHookOptions
-): InlineAttachment[] {
-  const inline: InlineAttachment[] = []
+): InlineRecord[] {
+  const inline: InlineRecord[] = []
   const active = getActiveHooks(hooks, event, env)
 
   for (const hook of active) {
@@ -87,16 +89,26 @@ function runHooksInternal(
         mergedAttributes["name"] = hook.name
       }
 
-      inline.push({
-        kind: "hook",
-        command: hook.do,
-        content,
-        mimetype: "text/plain",
-        icon: hook.icon,
-        attributes: Object.keys(mergedAttributes).length > 0
-          ? mergedAttributes
-          : undefined,
-      })
+      if (hook.inline_as === "comment") {
+        inline.push({
+          kind: "comment",
+          content,
+        })
+      } else {
+        inline.push({
+          kind: "attachment",
+          attachment: {
+            kind: "hook",
+            command: hook.do,
+            content,
+            mimetype: "text/plain",
+            icon: hook.icon,
+            attributes: Object.keys(mergedAttributes).length > 0
+              ? mergedAttributes
+              : undefined,
+          },
+        })
+      }
     }
   }
 
@@ -108,7 +120,7 @@ export function runHooks(
   event: keyof HookEvents,
   env: Record<string, string>,
   stdin?: string
-): InlineAttachment[] {
+): InlineRecord[] {
   return runHooksInternal(hooks, event, env, { stdin, collectInline: true })
 }
 
@@ -136,7 +148,7 @@ export function emitAssistantMessageEvent(
     loopCount?: number
     finalPassCount?: number
   }
-): InlineAttachment[] {
+): InlineRecord[] {
   const baseEnv: Record<string, string> = {
     LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name,
     LECTIC_MODEL: lectic.header.interlocutor.model ?? "default",
@@ -170,7 +182,7 @@ export function emitAssistantMessageEvent(
 export function emitUserMessageEvent(
   text: string | undefined | null,
   lectic: Lectic
-): InlineAttachment[] {
+): InlineRecord[] {
   const baseEnv: Record<string, string> = {
     LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name,
     LECTIC_MODEL: lectic.header.interlocutor.model ?? "default",
@@ -408,21 +420,33 @@ export abstract class Backend<TMessage, TFinal> {
       lastIdx >= 0 && lectic.body.messages[lastIdx].role === "user"
 
     let inlinePreface: InlineAttachment[] = []
+    let transcriptPreface: InlineRecord[] = []
 
     for (let i = 0; i < lectic.body.messages.length; i++) {
       const m = lectic.body.messages[i]
 
       if (m.role === "user" && lastIsUser && i === lastIdx) {
-        const hookAttachments = emitUserMessageEvent(m.content, lectic)
+        const hookOutputs = emitUserMessageEvent(m.content, lectic)
         // these are attachments generated during macro expansion and
         // directive handling
         const directiveAttachments = m.inlineAttachments
+
+        const hookAttachments = hookOutputs
+          .map(getProviderInlineAttachment)
+          .filter((a): a is InlineAttachment => a !== null)
 
         // XXX: Make sure to keep transcript order aligned with the
         // provider-visible order. This prevents the initial request from
         // seeing a different ordering than subsequent runs that replay cached
         // inline attachments.
         inlinePreface = [...hookAttachments, ...directiveAttachments]
+        transcriptPreface = [
+          ...hookOutputs,
+          ...directiveAttachments.map((attachment) => ({
+            kind: "attachment" as const,
+            attachment,
+          })),
+        ]
 
         const { messages: newMsgs } = await this.handleMessage(m, lectic, {
           inlineAttachments: inlinePreface,
@@ -440,7 +464,7 @@ export abstract class Backend<TMessage, TFinal> {
     yield* this.runConversationLoop({
       messages,
       lectic: lectic as Lectic & HasModel,
-      inlinePreface,
+      transcriptPreface,
       onAssistantPassText: opt?.onAssistantPassText,
       onAssistantTextDelta: opt?.onAssistantTextDelta,
     })
@@ -449,7 +473,7 @@ export abstract class Backend<TMessage, TFinal> {
   protected async *runConversationLoop(opt: {
     messages: TMessage[]
     lectic: Lectic & HasModel
-    inlinePreface: InlineAttachment[]
+    transcriptPreface: InlineRecord[]
     onAssistantPassText?: (text: string, info: AssistantPassInfo) => void
     onAssistantTextDelta?: (text: string) => void | Promise<void>
   }): AsyncGenerator<string> {
@@ -467,13 +491,13 @@ export abstract class Backend<TMessage, TFinal> {
     // Starts false because the header already ends with \n\n.
     let trailingSep = false
 
-    if (opt.inlinePreface.length > 0) {
-      yield opt.inlinePreface.map(serializeInlineAttachment).join("\n\n")
+    if (opt.transcriptPreface.length > 0) {
+      yield opt.transcriptPreface.map(serializeInlineRecord).join("\n\n")
       yield "\n\n"
       trailingSep = true
     }
 
-    let pendingHookRes: InlineAttachment[] = []
+    let pendingHookRes: InlineRecord[] = []
 
     for (;;) {
       const { chunks, final } = await this.createCompletion({ messages, lectic })
@@ -520,15 +544,17 @@ export abstract class Backend<TMessage, TFinal> {
       })
 
       if (pendingHookRes.length > 0) {
-        if (!hasToolCalls) finalPassCount++
+        if (!hasToolCalls && pendingHookRes.some(inlineRecordNotFinal)) {
+          finalPassCount++
+        }
         if (!trailingSep) yield "\n\n"
-        yield pendingHookRes.map(serializeInlineAttachment).join("\n\n")
+        yield pendingHookRes.map(serializeInlineRecord).join("\n\n")
         yield "\n\n"
         trailingSep = true
       }
 
       const needsFollowUp =
-        hasToolCalls || pendingHookRes.some((a) => inlineNotFinal(a))
+        hasToolCalls || pendingHookRes.some((a) => inlineRecordNotFinal(a))
 
       if (!needsFollowUp) return
 
@@ -540,7 +566,11 @@ export abstract class Backend<TMessage, TFinal> {
         return
       }
 
-      const resetAttachments = pendingHookRes.filter(inlineReset)
+      const hookAttachments = pendingHookRes
+        .map(getProviderInlineAttachment)
+        .filter((a): a is InlineAttachment => a !== null)
+
+      const resetAttachments = hookAttachments.filter(inlineReset)
       if (resetAttachments.length > 0) {
         this.applyReset(messages, resetAttachments)
       }
@@ -567,7 +597,7 @@ export abstract class Backend<TMessage, TFinal> {
         messages,
         final: reply,
         realized,
-        hookAttachments: pendingHookRes.filter((a) => !inlineReset(a)),
+        hookAttachments: hookAttachments.filter((a) => !inlineReset(a)),
         lectic,
       })
     }

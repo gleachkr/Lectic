@@ -15,6 +15,10 @@ export type InlineAttachment = {
   attributes?: Record<string, string>
 }
 
+export type InlineRecord =
+  | { kind: "attachment"; attachment: InlineAttachment }
+  | { kind: "comment"; content: string }
+
 const INLINE_ATTACHMENT_DEFAULT_ICON: Record<InlineAttachment["kind"], string> = {
   hook: "󱐋",
   attach: "",
@@ -23,7 +27,7 @@ const INLINE_ATTACHMENT_DEFAULT_ICON: Record<InlineAttachment["kind"], string> =
 export function defaultInlineAttachmentIcon(
   kind: string
 ): string {
-  return (kind === "hook" || kind === "attach") 
+  return (kind === "hook" || kind === "attach")
       ? INLINE_ATTACHMENT_DEFAULT_ICON[kind]
       : "?"
 }
@@ -48,6 +52,32 @@ export function serializeInlineAttachment(a: InlineAttachment): string {
 
   return `<inline-attachment ${attrStr}>\n${cmdXml}\n${contentXml}\n` +
     `</inline-attachment>`
+}
+
+function sanitizeInlineComment(content: string): string {
+  return content.replaceAll("-->", "-- >")
+}
+
+export function serializeInlineComment(content: string): string {
+  return `<!--\n${sanitizeInlineComment(content)}\n-->`
+}
+
+export function serializeInlineRecord(record: InlineRecord): string {
+  return record.kind === "attachment"
+    ? serializeInlineAttachment(record.attachment)
+    : serializeInlineComment(record.content)
+}
+
+export function getProviderInlineAttachment(
+  record: InlineRecord
+): InlineAttachment | null {
+  return record.kind === "attachment" ? record.attachment : null
+}
+
+export function inlineRecordNotFinal(record: InlineRecord): boolean {
+  return record.kind === "attachment"
+    ? inlineNotFinal(record.attachment)
+    : false
 }
 
 export function deserializeInlineAttachment(xml: string): InlineAttachment {

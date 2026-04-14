@@ -87,6 +87,19 @@ function validateHookObject(
   }
 
   if (
+    "inline_as" in hook
+    && hook["inline_as"] !== "attachment"
+    && hook["inline_as"] !== "comment"
+  ) {
+    issues.push({
+      code: "hook.inline_as.type",
+      message: Messages.hook.inlineAsType(),
+      path: [...pathBase, "inline_as"],
+      severity: "error",
+    })
+  }
+
+  if (
     "allow_failure" in hook
     && typeof hook["allow_failure"] !== "boolean"
   ) {

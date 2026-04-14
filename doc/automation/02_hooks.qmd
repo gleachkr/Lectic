@@ -11,7 +11,7 @@ of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has seven possible fields:
+A hook has eight possible fields:
 
 - `on`: (Required) A single event name or a list of event names to listen for.
 - `do`: (Required) The command or inline script to run when the event fires.
@@ -19,12 +19,17 @@ A hook has seven possible fields:
   is captured and injected into the conversation. Defaults to `false`. Inline
   injection is only meaningful for `user_message`, `assistant_message`, and
   the `assistant_*` aliases.
+- `inline_as`: (Optional) Controls how inline hook output is recorded.
+  One of `attachment` or `comment`. Defaults to `attachment`.
+  `attachment` stores the output as hook XML and also makes it visible to
+  the provider. `comment` stores the output as an HTML comment in the
+  transcript and does not send it to the provider.
 - `name`: (Optional) A string name for the hook. If multiple hooks have the
   same name (e.g., one in your global config and one in a project config),
   the one defined later (or with higher precedence) overrides the earlier
   one. This allows you to replace default hooks with custom behavior.
-  For inline hooks, this name is serialized into the attachment XML and
-  shown by LSP folding.
+  For inline hooks recorded as attachments, this name is serialized into
+  the attachment XML and shown by LSP folding.
 - `icon`: (Optional) Icon string for inline hook attachments.
 - `env`: (Optional) A map of environment variables to inject into the hook's
   execution environment.
@@ -54,19 +59,24 @@ current run.
 (permission denied). If you set `allow_failure: true` on that hook,
 the non-zero exit is ignored and the tool call continues.
 
-If you set `inline: true`, standard output is captured and added to the
-conversation.
+If you set `inline: true`, standard output is captured.
 
-- For `user_message` events, the output is injected as context for the LLM
-  before it generates a response. It also appears at the top of the
-  assistant's response block.
-- For `assistant_message` events, the output is appended to the end of the
-  assistant's response block. This will trigger another reply from the
-  assistant, so be careful to only fire an inline hook when you want the
-  assistant to generate more content.
+- With the default `inline_as: attachment`, the output is added to the
+  conversation.
+  - For `user_message` events, the output is injected as context for the
+    LLM before it generates a response. It also appears at the top of the
+    assistant's response block.
+  - For `assistant_message` events, the output is appended to the end of
+    the assistant's response block. This will trigger another reply from
+    the assistant, so be careful to only fire an inline hook when you want
+    the assistant to generate more content.
+- With `inline_as: comment`, the output is recorded in the transcript as an
+  HTML comment. It is not sent to the provider, and it does not keep the
+  assistant loop alive. This is useful for unobtrusive logging.
 
-In the `.lec` file, inline hook output is stored as an XML
-`<inline-attachment kind="hook">` block. See
+In the `.lec` file, inline hook output is stored either as an XML
+`<inline-attachment kind="hook">` block or, with `inline_as: comment`,
+as an HTML comment. See
 [Inline Attachments](../04_conversation_format.qmd#inline-attachments)
 for details on the storage format.
 
@@ -206,7 +216,25 @@ This would be recorded roughly like this:
 </inline-attachment>
 ```
 
-Two headers affect control flow:
+If you instead set `inline_as: comment`, the visible transcript record is a
+plain HTML comment:
+
+```yaml
+hooks:
+  - on: assistant_message
+    inline: true
+    inline_as: comment
+    do: echo "background log entry"
+```
+
+```html
+<!--
+background log entry
+-->
+```
+
+Two headers affect control flow.
+These are meaningful for attachment-mode inline hooks:
 
 - `final`: When an inline hook generates output, Lectic normally continues the
   tool calling loop so that the assistant can see and respond to the new

@@ -29,10 +29,13 @@ export const HOOK_EVENT_TYPES: (keyof HookEvents)[] = [
     "run_end",
 ]
 
+export type HookInlineMode = "attachment" | "comment"
+
 export type HookSpec = {
     on: keyof HookEvents | (keyof HookEvents)[]
     do: string
     inline?: boolean
+    inline_as?: HookInlineMode
     name?: string
     icon?: string
     allow_failure?: boolean
@@ -65,6 +68,13 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     }
     if ("icon" in raw && typeof raw.icon !== "string") {
         throw Error(Messages.hook.iconType())
+    }
+    if (
+        "inline_as" in raw &&
+        raw.inline_as !== "attachment" &&
+        raw.inline_as !== "comment"
+    ) {
+        throw Error(Messages.hook.inlineAsType())
     }
     if ("env" in raw && (typeof raw.env !== "object" || raw.env === null)) {
         throw Error(Messages.hook.envType())
@@ -139,6 +149,7 @@ export class Hook {
     inline : boolean
     name? : string
     icon? : string
+    inline_as : HookInlineMode
     allow_failure : boolean
     env : Record<string, string>
 
@@ -147,6 +158,7 @@ export class Hook {
         this.on = typeof spec.on === "string" ? [spec.on] : spec.on
         this.do = spec.do
         this.inline = spec.inline ?? false
+        this.inline_as = spec.inline_as ?? "attachment"
         this.name = spec.name
         this.icon = spec.icon
         this.allow_failure = spec.allow_failure ?? false

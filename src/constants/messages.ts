@@ -89,6 +89,9 @@ export const Messages = {
     envType: () => `The "env" field of a hook must be an object.`,
     nameType: () => `The "name" field of a hook must be a string.`,
     iconType: () => `The "icon" field of a hook must be a string.`,
+    inlineAsType: () =>
+      `The "inline_as" field of a hook must be "attachment" or ` +
+      `"comment".`,
     allowFailureType: () =>
       `The "allow_failure" field of a hook must be a boolean.`,
     baseNeedsOnDo: (raw: unknown) =>

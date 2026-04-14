@@ -50,6 +50,21 @@ describe("header field diagnostics for hooks", () => {
     expect(d).toBeDefined()
   })
 
+  test("hook inline_as must be attachment or comment", async () => {
+    const text =
+      `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n` +
+      `    - on: user_message\n      do: echo\n      inline_as: xml\n` +
+      `---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(
+      diags,
+      'The "inline_as" field of a hook must be "attachment" or ' +
+        '"comment"'
+    )
+    expect(d).toBeDefined()
+  })
+
   test("hook allow_failure must be a boolean", async () => {
     const text =
       `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n` +

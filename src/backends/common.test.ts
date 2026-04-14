@@ -2,17 +2,36 @@ import { describe, it, expect } from "bun:test"
 import { unlinkSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
-import { emitAssistantMessageEvent, resolveToolCalls, runHooks } from "../types/backend"
+import {
+    Backend,
+    emitAssistantMessageEvent,
+    resolveToolCalls,
+    runHooks,
+} from "../types/backend"
 import { Hook } from "../types/hook"
 import {
     serializeCall,
     Tool,
     ToolCallResults,
 } from "../types/tool"
-import { AssistantMessage } from "../types/message"
-import { serializeInlineAttachment } from "../types/inlineAttachment"
+import { AssistantMessage, UserMessage } from "../types/message"
+import {
+    getProviderInlineAttachment,
+    serializeInlineAttachment,
+    serializeInlineRecord,
+    type InlineAttachment,
+    type InlineRecord,
+} from "../types/inlineAttachment"
 import { serializeThoughtBlock } from "../types/thought"
 import { wrapForeignAssistantMessage } from "./common"
+import { LLMProvider } from "../types/provider"
+
+function expectAttachment(record: InlineRecord): InlineAttachment {
+    expect(record.kind).toBe("attachment")
+    const attachment = getProviderInlineAttachment(record)
+    expect(attachment).not.toBeNull()
+    return attachment as InlineAttachment
+}
 
 describe("wrapForeignAssistantMessage", () => {
     it("keeps only assistant prose for wrapped foreign messages", () => {
@@ -79,8 +98,9 @@ describe("runHooks", () => {
         
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].content.trim()).toBe("hello world")
-        expect(results[0].attributes).toBeUndefined()
+        const attachment = expectAttachment(results[0])
+        expect(attachment.content.trim()).toBe("hello world")
+        expect(attachment.attributes).toBeUndefined()
     })
 
     it("parses LECTIC headers into attributes", () => {
@@ -96,11 +116,12 @@ echo "actual content"`,
         
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].attributes).toEqual({
+        const attachment = expectAttachment(results[0])
+        expect(attachment.attributes).toEqual({
             ctx: "reset",
             foo: "bar"
         })
-        expect(results[0].content.trim()).toBe("actual content")
+        expect(attachment.content.trim()).toBe("actual content")
     })
 
     it("parses headers without values", () => {
@@ -114,10 +135,11 @@ echo "content"`,
         
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].attributes).toEqual({
+        const attachment = expectAttachment(results[0])
+        expect(attachment.attributes).toEqual({
             final: "true"
         })
-        expect(results[0].content.trim()).toBe("content")
+        expect(attachment.content.trim()).toBe("content")
     })
 
     it("parses headers case-insensitively for keys but preserves values", () => {
@@ -131,10 +153,11 @@ echo "content"`,
         
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].attributes).toEqual({
+        const attachment = expectAttachment(results[0])
+        expect(attachment.attributes).toEqual({
             mixed: "VaLuE"
         })
-        expect(results[0].content.trim()).toBe("content")
+        expect(attachment.content.trim()).toBe("content")
     })
 
     it("stops parsing headers at first non-header non-blank line", () => {
@@ -149,11 +172,12 @@ echo "LECTIC:B:2"`,
         
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].attributes).toEqual({
+        const attachment = expectAttachment(results[0])
+        expect(attachment.attributes).toEqual({
             a: "1"
         })
         // The rest should be content
-        expect(results[0].content.trim()).toBe("not a header\nLECTIC:B:2")
+        expect(attachment.content.trim()).toBe("not a header\nLECTIC:B:2")
     })
 
     it("handles output that is only headers", () => {
@@ -166,10 +190,11 @@ echo "LECTIC:ONLY:headers"`,
         
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].attributes).toEqual({
+        const attachment = expectAttachment(results[0])
+        expect(attachment.attributes).toEqual({
             only: "headers"
         })
-        expect(results[0].content.trim()).toBe("")
+        expect(attachment.content.trim()).toBe("")
     })
 
     it("adds hook name and icon metadata to inline attachments", () => {
@@ -183,10 +208,45 @@ echo "LECTIC:ONLY:headers"`,
 
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].icon).toBe("🔎")
-        expect(results[0].attributes).toEqual({
+        const attachment = expectAttachment(results[0])
+        expect(attachment.icon).toBe("🔎")
+        expect(attachment.attributes).toEqual({
             name: "audit",
         })
+    })
+
+    it("can record inline hook output as a markdown comment", () => {
+        const hook = new Hook({
+            on: "user_message",
+            do: "echo 'hidden log -- detail'",
+            inline: true,
+            inline_as: "comment",
+        })
+
+        const results = runHooks([hook], "user_message", {})
+        expect(results).toHaveLength(1)
+        expect(results[0]).toEqual({
+            kind: "comment",
+            content: "hidden log -- detail\n",
+        })
+        expect(serializeInlineRecord(results[0])).toBe(
+            "<!--\nhidden log -- detail\n\n-->"
+        )
+    })
+
+    it("escapes literal comment close markers in comment mode", () => {
+        const hook = new Hook({
+            on: "user_message",
+            do: "echo 'hidden --> detail'",
+            inline: true,
+            inline_as: "comment",
+        })
+
+        const results = runHooks([hook], "user_message", {})
+        expect(results).toHaveLength(1)
+        expect(serializeInlineRecord(results[0])).toBe(
+            "<!--\nhidden -- > detail\n\n-->"
+        )
     })
 
     it("runs assistant_final when TOOL_USE_DONE is set", () => {
@@ -201,7 +261,7 @@ echo "LECTIC:ONLY:headers"`,
         })
 
         expect(results).toHaveLength(1)
-        expect(results[0].content.trim()).toBe("done")
+        expect(expectAttachment(results[0]).content.trim()).toBe("done")
     })
 
     it("runs assistant_intermediate when TOOL_USE_DONE is not set", () => {
@@ -214,7 +274,7 @@ echo "LECTIC:ONLY:headers"`,
         const results = runHooks([hook], "assistant_message", {})
 
         expect(results).toHaveLength(1)
-        expect(results[0].content.trim()).toBe("working")
+        expect(expectAttachment(results[0]).content.trim()).toBe("working")
     })
 
     it("runs base assistant hook before assistant_final alias hooks", () => {
@@ -234,8 +294,8 @@ echo "LECTIC:ONLY:headers"`,
         })
 
         expect(results).toHaveLength(2)
-        expect(results[0].content.trim()).toBe("base")
-        expect(results[1].content.trim()).toBe("alias")
+        expect(expectAttachment(results[0]).content.trim()).toBe("base")
+        expect(expectAttachment(results[1]).content.trim()).toBe("alias")
     })
 
     it("runs error hooks as aliases of run_end when status is error", () => {
@@ -256,8 +316,8 @@ echo "LECTIC:ONLY:headers"`,
         })
 
         expect(results).toHaveLength(2)
-        expect(results[0].content.trim()).toBe("base")
-        expect(results[1].content.trim()).toBe("boom")
+        expect(expectAttachment(results[0]).content.trim()).toBe("base")
+        expect(expectAttachment(results[1]).content.trim()).toBe("boom")
     })
 
     it("does not run error aliases when run_end status is success", () => {
@@ -286,8 +346,9 @@ echo "LECTIC:LATE:header"`,
         
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(1)
-        expect(results[0].attributes).toBeUndefined()
-        expect(results[0].content).toContain("LECTIC:LATE:header")
+        const attachment = expectAttachment(results[0])
+        expect(attachment.attributes).toBeUndefined()
+        expect(attachment.content).toContain("LECTIC:LATE:header")
     })
 
     it("throws when a hook exits non-zero", () => {
@@ -339,7 +400,150 @@ echo "USAGE:\${TOKEN_USAGE_INPUT}:\${TOKEN_USAGE_CACHED}:\${TOKEN_USAGE_OUTPUT}:
         })
 
         expect(results).toHaveLength(1)
-        expect(results[0].content.trim()).toBe("USAGE:10:15:20:30")
+        expect(expectAttachment(results[0]).content.trim()).toBe(
+            "USAGE:10:15:20:30"
+        )
+    })
+})
+
+describe("comment-mode inline hooks during evaluate", () => {
+    class MockLoopBackend extends Backend<
+        { role: string, text: string, inlineAttachments?: InlineAttachment[] },
+        { text: string }
+    > {
+        provider = LLMProvider.Anthropic
+        defaultModel = "mock-model"
+        seenInlinePreface: InlineAttachment[][] = []
+        createCalls = 0
+
+        constructor(private readonly replyText: string) {
+            super()
+        }
+
+        async listModels(): Promise<string[]> {
+            return []
+        }
+
+        protected async handleMessage(msg: any, _lectic: any, opt?: {
+            inlineAttachments?: InlineAttachment[]
+        }) {
+            if (msg.role === "user") {
+                this.seenInlinePreface.push(opt?.inlineAttachments ?? [])
+            }
+
+            return {
+                messages: [{
+                    role: msg.role,
+                    text: msg.content,
+                    inlineAttachments: opt?.inlineAttachments,
+                }],
+                reset: false,
+            }
+        }
+
+        protected async createCompletion() {
+            this.createCalls++
+            const text = this.replyText
+            return {
+                chunks: (async function* () {
+                    yield { kind: "text" as const, text }
+                })(),
+                final: Promise.resolve({ text }),
+            }
+        }
+
+        protected finalHasToolCalls(): boolean {
+            return false
+        }
+
+        protected finalUsage() {
+            return undefined
+        }
+
+        protected applyReset(): void {
+            throw new Error("unexpected reset")
+        }
+
+        protected appendAssistantMessage(messages: any[], final: { text: string }) {
+            messages.push({ role: "assistant", text: final.text })
+        }
+
+        protected getToolCallEntries() {
+            return []
+        }
+
+        protected async appendToolResults(): Promise<void> {
+            throw new Error("unexpected tool results")
+        }
+    }
+
+    it("does not pass user-message comment hooks to the provider", async () => {
+        const hook = new Hook({
+            on: "user_message",
+            do: "echo 'log entry'",
+            inline: true,
+            inline_as: "comment",
+        })
+        const backend = new MockLoopBackend("hello")
+        const lectic = {
+            header: {
+                hooks: [hook],
+                interlocutor: {
+                    name: "TestBot",
+                    prompt: "",
+                    model: "mock-model",
+                    registry: {},
+                },
+            },
+            body: {
+                messages: [new UserMessage({ content: "hi" })],
+                snapshot: () => "snapshot",
+            },
+        } as any
+
+        let output = ""
+        for await (const chunk of backend.evaluate(lectic)) {
+            output += chunk
+        }
+
+        expect(backend.seenInlinePreface).toEqual([[]])
+        expect(output).toContain("<!--\nlog entry\n\n-->")
+        expect(output.indexOf("<!--")).toBeLessThan(output.indexOf("hello"))
+    })
+
+    it("does not trigger an extra assistant pass for comment hooks", async () => {
+        const hook = new Hook({
+            on: "assistant_message",
+            do: "echo 'log entry'",
+            inline: true,
+            inline_as: "comment",
+        })
+        const backend = new MockLoopBackend("hello")
+        const lectic = {
+            header: {
+                hooks: [hook],
+                interlocutor: {
+                    name: "TestBot",
+                    prompt: "",
+                    model: "mock-model",
+                    registry: {},
+                },
+            },
+            body: {
+                messages: [new UserMessage({ content: "hi" })],
+                snapshot: () => "snapshot",
+            },
+        } as any
+
+        let output = ""
+        for await (const chunk of backend.evaluate(lectic)) {
+            output += chunk
+        }
+
+        expect(backend.createCalls).toBe(1)
+        expect(output).toContain("hello")
+        expect(output).toContain("<!--\nlog entry\n\n-->")
+        expect(output.indexOf("hello")).toBeLessThan(output.indexOf("<!--"))
     })
 })
 

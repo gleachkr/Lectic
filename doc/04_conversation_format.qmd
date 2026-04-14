@@ -101,6 +101,11 @@ They include a `<command>` field (the hook's `do` value, or empty for
 `:attach`) and a `<content>` field. They may also include attributes like
 `icon` and `name` used by editor folding UIs.
 
+Inline hooks also have a comment mode. If a hook sets `inline: true` and
+`inline_as: comment`, Lectic records the hook output as an HTML comment
+instead of an `<inline-attachment>` block. That comment remains in the
+transcript, but it is not sent to the provider.
+
 Example (`:attach[...]`):
 
 ```xml
@@ -147,9 +152,12 @@ Inline attachments serve two purposes:
    caches stable and avoids token recomputation.
 
 You'll see inline attachments when using `:attach` (often with `:cmd` inside)
-or inline hooks. They're part of the conversation record and should generally
-be left alone. Editor plugins typically fold them by default to reduce visual
-clutter.
+or attachment-mode inline hooks. They're part of the conversation record and
+should generally be left alone. Editor plugins typically fold them by default
+to reduce visual clutter.
+
+Comment-mode inline hooks are a separate case: they appear as plain HTML
+comments and are useful for hidden transcript logging.
 
 ::: {.callout-tip}
 Inline attachments are managed by Lectic. Don't edit them by hand — if you
