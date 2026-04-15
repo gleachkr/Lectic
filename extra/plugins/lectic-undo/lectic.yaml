@@ -1,0 +1,19 @@
+# Lectic undo plugin config
+#
+# Import this file to enable automatic undo snapshots for git repos.
+#
+# Snapshot policy:
+# - capture on each user message
+# - if the assistant leaves the repo changed by the end of the run,
+#   record a transcript comment with the restore command
+
+hooks:
+  - name: undo_capture
+    on: user_message
+    do: lectic undo capture
+
+  - name: undo_note
+    on: assistant_final
+    inline: true
+    inline_as: comment
+    do: lectic undo note
