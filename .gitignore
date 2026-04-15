@@ -26,3 +26,8 @@ doc/_site/
 # macOS
 .DS_Store
 
+.worktrees/
+
+*.lec
+*.lectic
+CLAUDE.md
