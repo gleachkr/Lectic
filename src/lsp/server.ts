@@ -32,6 +32,7 @@ import type { FoldingRange, HoverParams } from "vscode-languageserver"
 import { extractWorkspaceRoots } from "./utils/server"
 import { buildSemanticTokens, semanticTokenLegend } from "./semanticTokens"
 import { initModelRegistry, onModelRegistryUpdate, computeModelDiagnostics } from "./models"
+import { EditorBridgeManager } from "./editorBridge"
 
 // Minimal document record (track text and client-provided version)
 type Doc = { uri: string, text: string, version: number }
@@ -262,10 +263,30 @@ async function analyzeNow(
   analyzer.requestAnalyze(text, version, docDirOf(uri))
 }
 
-export function registerLspHandlers(connection: ReturnType<typeof createConnection>) {
-  connection.onInitialize((params: InitializeParams)
-    : InitializeResult => {
+type LspServerOptions = {
+  enableEditorBridge?: boolean
+  editorBridgeStateDir?: string
+}
+
+export function registerLspHandlers(
+  connection: ReturnType<typeof createConnection>,
+  opt: LspServerOptions = {}
+) {
+  let clientSupportsWorkDoneProgress = false
+  const editorBridge = new EditorBridgeManager(connection, {
+    enabled: opt.enableEditorBridge ?? true,
+    stateDir: opt.editorBridgeStateDir,
+    supportsWorkDoneProgress: () => clientSupportsWorkDoneProgress,
+  })
+
+  connection.onInitialize(async (params: InitializeParams)
+    : Promise<InitializeResult> => {
     workspaceRoots = extractWorkspaceRoots(params)
+    clientSupportsWorkDoneProgress =
+      params.capabilities.window?.workDoneProgress === true
+    for (const root of workspaceRoots) {
+      await editorBridge.ensureRoot(root)
+    }
     return {
       capabilities: {
         textDocumentSync: TextDocumentSyncKind.Full,
@@ -296,6 +317,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
     const rec: Doc = { uri, text, version }
     docs.set(uri, rec)
 
+    await editorBridge.noteDocumentUri(uri)
     await analyzeNow(uri, text, version, connection)
   })
 
@@ -435,7 +457,7 @@ export function registerLspHandlers(connection: ReturnType<typeof createConnecti
   })
 }
 
-export async function startLsp() {
+export async function startLsp(opt: LspServerOptions = {}) {
   const connection = createConnection(
     new StreamMessageReader(process.stdin),
     new StreamMessageWriter(process.stdout),
@@ -457,13 +479,23 @@ export async function startLsp() {
     }
   })
 
-  registerLspHandlers(connection)
+  registerLspHandlers(connection, {
+    enableEditorBridge: opt.enableEditorBridge ?? true,
+    editorBridgeStateDir: opt.editorBridgeStateDir,
+  })
   connection.listen()
 }
 
-export function startLspWithStreams(reader: MessageReader, writer: MessageWriter) {
+export function startLspWithStreams(
+  reader: MessageReader,
+  writer: MessageWriter,
+  opt: LspServerOptions = {}
+) {
   const connection = createConnection(reader, writer, ProposedFeatures.all)
-  registerLspHandlers(connection)
+  registerLspHandlers(connection, {
+    enableEditorBridge: opt.enableEditorBridge ?? false,
+    editorBridgeStateDir: opt.editorBridgeStateDir,
+  })
   connection.listen()
   return connection
 }

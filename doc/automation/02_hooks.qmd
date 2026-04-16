@@ -284,6 +284,24 @@ hooks:
       exit $?
 ```
 
+If you are running inside an editor with the Lectic LSP, you can also route
+confirmation through the editor bridge instead of a desktop-specific dialog.
+Install the optional `lectic editor` subcommand plugin from
+`extra/plugins/editor/` and use:
+
+```yaml
+hooks:
+  - on: tool_use_pre
+    do: |
+      #!/usr/bin/env bash
+      lectic editor approve \
+        --title "Allow tool use?" \
+        --message "Tool: $TOOL_NAME\n\nArgs:\n$TOOL_ARGS"
+```
+
+This exits 0 when the user allows the action and non-zero otherwise, so it
+fits the `tool_use_pre` hook directly.
+
 ## Example: Persisting messages to SQLite
 
 This example persists every user and assistant message to an SQLite
@@ -374,6 +392,17 @@ hooks:
 
 This is especially useful for long-running agentic tasks where you want
 to step away and be alerted when the assistant is done.
+
+If you want progress inside the editor instead, pair a hook or helper script
+with the optional `lectic editor` plugin and send progress updates through the
+LSP bridge:
+
+```bash
+TOKEN="${RUN_ID:-lectic-run}"
+lectic editor progress begin \
+  --token "$TOKEN" \
+  --title "Running assistant task"
+```
 
 ## Example: Neovim notification from hooks
 

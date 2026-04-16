@@ -40,6 +40,11 @@ lectic lsp
 
 The server uses stdio transport and works with any LSP-capable editor.
 
+The LSP also exposes a local editor bridge for progress notifications and
+editor-side prompts. An optional git-style subcommand plugin,
+`extra/plugins/editor/lectic-editor.ts`, can send those requests from hooks,
+CLI helpers, or scripts.
+
 ## Neovim
 
 The repository includes a full-featured plugin at `extra/lectic.nvim`.

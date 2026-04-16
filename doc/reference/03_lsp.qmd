@@ -18,6 +18,26 @@ lectic lsp
 The server uses stdio transport and works with any LSP-capable editor. See
 [Editor Integration](../03_editor_integration.qmd) for setup instructions.
 
+## Local editor bridge
+
+In addition to stdio LSP traffic, the server also exposes a local-only bridge
+for editor-facing interactions such as progress updates and approval prompts.
+This bridge is intended for hooks, CLI tools, and custom subcommands.
+
+Lectic does not ship a built-in `lectic editor` core command. Instead, the
+repository includes an optional git-style subcommand plugin at
+`extra/plugins/editor/lectic-editor.ts`.
+
+That plugin can:
+
+- send work-done progress updates to the editor
+- ask for allow/deny approval
+- ask the editor to pick from a list of options
+
+The bridge is discovered by a deterministic socket path derived from the
+workspace root (or, for single-file sessions, the opened file directory), so
+it does not require a separate metadata file.
+
 ## Features
 
 ### Completions
