@@ -1,4 +1,9 @@
-import { execScriptFull, execCmdFull } from "../utils/exec";
+import {
+    execScriptFull,
+    execCmdFull,
+    execScriptDetached,
+    execCmdDetached,
+} from "../utils/exec";
 import { expandEnv } from "../utils/replace";
 import EventEmitter from 'events'
 import { Messages } from "../constants/messages"
@@ -39,6 +44,7 @@ export type HookSpec = {
     name?: string
     icon?: string
     allow_failure?: boolean
+    async?: boolean
     env?: Record<string, string>
 }
 
@@ -54,6 +60,7 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     if (raw === null) {
         throw Error(Messages.hook.baseNull())
     }
+    const hook = raw as Record<string, unknown>
     if (!("on" in raw)) {
         throw Error(Messages.hook.onMissing())
     }
@@ -82,11 +89,17 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     if ("allow_failure" in raw && typeof raw.allow_failure !== "boolean") {
         throw Error(Messages.hook.allowFailureType())
     }
+    if ("async" in raw && typeof raw.async !== "boolean") {
+        throw Error(Messages.hook.asyncType())
+    }
     const validOn = typeof raw.on === "string"
         ? isHookEventName(raw.on)
         : raw.on.every(isHookEventName)
     if (!validOn) {
         throw Error(Messages.hook.onValue(HOOK_EVENT_TYPES))
+    }
+    if (hook["async"] === true && hook["inline"] === true) {
+        throw Error(Messages.hook.asyncInline())
     }
     return true
 }
@@ -151,6 +164,7 @@ export class Hook {
     icon? : string
     inline_as : HookInlineMode
     allow_failure : boolean
+    async : boolean
     env : Record<string, string>
 
     constructor(spec : HookSpec) {
@@ -162,6 +176,7 @@ export class Hook {
         this.name = spec.name
         this.icon = spec.icon
         this.allow_failure = spec.allow_failure ?? false
+        this.async = spec.async ?? false
         this.env = spec.env || {}
     }
 
@@ -191,6 +206,26 @@ export class Hook {
                 exitCode: result.exitCode,
             }
         }
+    }
+
+    executeDetached(
+        env : Record<string, string | undefined> = {},
+        stdin? : string
+    ) : Promise<number> {
+        const mergedEnv = { ...this.env, ...env }
+        if (this.do.split("\n").length > 1) {
+            return execScriptDetached(
+                this.do,
+                mergedEnv,
+                stdin ? new Blob([stdin]) : undefined
+            )
+        }
+
+        return execCmdDetached(
+            expandEnv(this.do, mergedEnv),
+            mergedEnv,
+            stdin ? new Blob([stdin]) : undefined
+        )
     }
 
     static events = new EventEmitter<HookEvents>

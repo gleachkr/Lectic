@@ -1,6 +1,7 @@
 # Editor bridge plugin (`lectic editor`)
 
-This plugin provides the `lectic editor` subcommand.
+This plugin provides the `lectic editor` subcommand and an optional
+`lectic.yaml` with reusable hook definitions.
 
 It talks to the Lectic LSP's local editor bridge, which lets hooks,
 CLI tools, and scripts send a small set of editor-facing requests through
@@ -13,6 +14,14 @@ Supported commands:
 - `lectic editor progress end`
 - `lectic editor approve`
 - `lectic editor pick`
+
+Bundled hook definitions in `lectic.yaml`:
+
+- `editor_tool_progress_start`
+- `editor_tool_progress_end`
+- `editor_run_progress_start`
+- `editor_run_progress_end`
+- `editor_approve_tools`
 
 ## Install
 
@@ -32,6 +41,30 @@ chmod +x "$LECTIC_DATA/plugins/editor/lectic-editor.ts"
 ```
 
 ## Examples
+
+Import the bundled hook definitions:
+
+```yaml
+imports:
+  - plugin: editor
+```
+
+Then opt in to the hooks you want:
+
+```yaml
+hooks:
+  - { use: editor_run_progress_start }
+  - { use: editor_run_progress_end }
+  - { use: editor_tool_progress_start }
+  - { use: editor_tool_progress_end }
+```
+
+Or require editor approval for tool use:
+
+```yaml
+hooks:
+  - { use: editor_approve_tools }
+```
 
 Progress:
 
@@ -74,7 +107,9 @@ choice=$(lectic editor pick \
   --option production)
 ```
 
-## Discovery
+The bundled progress hooks use `TOOL_CALL_ID` so parallel tool calls get
+separate progress tokens. They also set `async: true`, so editor progress
+updates do not block the main run.
 
 If you do not pass `--socket`, the subcommand searches upward from:
 

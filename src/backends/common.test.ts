@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test"
-import { unlinkSync } from "fs"
+import { existsSync, unlinkSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
 import {
@@ -31,6 +31,17 @@ function expectAttachment(record: InlineRecord): InlineAttachment {
     const attachment = getProviderInlineAttachment(record)
     expect(attachment).not.toBeNull()
     return attachment as InlineAttachment
+}
+
+async function waitForFile(path: string, timeoutMs = 1000): Promise<string> {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < timeoutMs) {
+        if (existsSync(path)) {
+            return Bun.file(path).text()
+        }
+        await Bun.sleep(25)
+    }
+    throw new Error(`Timed out waiting for ${path}`)
 }
 
 describe("wrapForeignAssistantMessage", () => {
@@ -374,6 +385,31 @@ echo "LECTIC:LATE:header"`,
         const results = runHooks([hook], "user_message", {})
         expect(results).toHaveLength(0)
     })
+
+    it("starts async hooks without waiting for completion", async () => {
+        const out = join(
+            tmpdir(),
+            `lectic-async-hook-${Date.now()}-${Math.random()}.txt`
+        )
+        const hook = new Hook({
+            on: "run_end",
+            async: true,
+            env: { OUT: out },
+            do: "#!/bin/bash\nsleep 0.3\nprintf 'done' > \"$OUT\"",
+        })
+
+        const startedAt = Date.now()
+        const results = runHooks([hook], "run_end", { RUN_STATUS: "success" })
+        const elapsedMs = Date.now() - startedAt
+
+        expect(results).toHaveLength(0)
+        expect(elapsedMs).toBeLessThan(250)
+        expect(existsSync(out)).toBe(false)
+
+        const written = await waitForFile(out)
+        try { unlinkSync(out) } catch { /* ignore */ }
+        expect(written).toBe("done")
+    })
 })
 
 describe("emitAssistantMessageEvent", () => {
@@ -588,17 +624,22 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         expect(results[0].results[0].content).toBe("Tool use permission denied")
     })
 
-    it("passes tool name and args to hook", async () => {
+    it("passes tool name, id, and args to pre hooks", async () => {
         const hook = new Hook({
             on: "tool_use_pre",
             do: `#!/bin/bash
+            if [ "$TOOL_CALL_ID" != "call-123" ]; then exit 1; fi
             if [ "$TOOL_NAME" != "mock_tool" ]; then exit 1; fi
             if [ "$TOOL_ARGS" != '{"foo":"bar"}' ]; then exit 1; fi
             exit 0
             `
         })
         const lectic = { header : { hooks: [hook], interlocutor: {} } }
-        const entries = [{ name: "mock_tool", args: { foo: "bar" } }]
+        const entries = [{
+            id: "call-123",
+            name: "mock_tool",
+            args: { foo: "bar" },
+        }]
         const results = await resolveToolCalls(entries, registry, { lectic : lectic as any })
         
         expect(results[0].isError).toBe(false)
@@ -620,7 +661,38 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         expect(results[0].results[0].content).toBe("mock result")
     })
 
-    it("emits tool_use_post with TOOL_CALL_RESULTS on success", async () => {
+    it("does not wait for async tool_use_pre hooks", async () => {
+        const out = join(
+            tmpdir(),
+            `lectic-tool-pre-async-${Date.now()}-${Math.random()}.txt`
+        )
+        const hook = new Hook({
+            on: "tool_use_pre",
+            async: true,
+            allow_failure: true,
+            env: { OUT: out },
+            do: "#!/bin/bash\nsleep 0.3\nprintf '%s' \"$TOOL_NAME\" > \"$OUT\"",
+        })
+        const lectic = { header : { hooks: [hook], interlocutor: {} } }
+        const entries = [{ name: "mock_tool", args: {} }]
+
+        const startedAt = Date.now()
+        const results = await resolveToolCalls(entries, registry, {
+            lectic: lectic as any,
+        })
+        const elapsedMs = Date.now() - startedAt
+
+        expect(results[0].isError).toBe(false)
+        expect(results[0].results[0].content).toBe("mock result")
+        expect(elapsedMs).toBeLessThan(250)
+        expect(existsSync(out)).toBe(false)
+
+        const written = await waitForFile(out)
+        try { unlinkSync(out) } catch { /* ignore */ }
+        expect(written).toBe("mock_tool")
+    })
+
+    it("emits tool_use_post with TOOL_CALL_ID and results on success", async () => {
         const out = join(
             tmpdir(),
             `lectic-tool-post-success-${Date.now()}-${Math.random()}.txt`
@@ -628,7 +700,7 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
 
         const postHook = new Hook({
             on: "tool_use_post",
-            do: "#!/bin/bash\nprintf '%s' \"$TOOL_CALL_RESULTS\" > \"$OUT\"",
+            do: "#!/bin/bash\nprintf '%s\n%s' \"$TOOL_CALL_ID\" \"$TOOL_CALL_RESULTS\" > \"$OUT\"",
             env: { OUT: out },
         })
 
@@ -639,7 +711,11 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
             },
         }
 
-        const entries = [{ name: "mock_tool", args: { foo: "bar" } }]
+        const entries = [{
+            id: "call-xyz",
+            name: "mock_tool",
+            args: { foo: "bar" },
+        }]
         const results = await resolveToolCalls(entries, registry, {
             lectic: lectic as any,
         })
@@ -648,6 +724,7 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         try { unlinkSync(out) } catch { /* ignore */ }
 
         expect(results[0].isError).toBe(false)
+        expect(written).toContain('call-xyz')
         expect(written).toContain('"mimetype":"text/plain"')
         expect(written).toContain('"content":"mock result"')
     })

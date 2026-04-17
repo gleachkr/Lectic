@@ -78,4 +78,26 @@ describe("header field diagnostics for hooks", () => {
     )
     expect(d).toBeDefined()
   })
+
+  test("hook async must be a boolean", async () => {
+    const text =
+      `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n` +
+      `    - on: run_end\n      do: echo\n      async: nope\n` +
+      `---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, 'The "async" field of a hook must be a boolean')
+    expect(d).toBeDefined()
+  })
+
+  test("async hooks cannot be inline", async () => {
+    const text =
+      `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n` +
+      `    - on: run_end\n      do: echo\n      async: true\n      inline: true\n` +
+      `---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, 'Async hooks can\'t set "inline: true"')
+    expect(d).toBeDefined()
+  })
 })

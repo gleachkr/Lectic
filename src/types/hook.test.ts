@@ -21,6 +21,11 @@ describe("Hook", () => {
             allow_failure: true,
         })).not.toThrow()
         expect(() => new Hook({
+            on: "tool_use_post",
+            do: "echo 'background'",
+            async: true,
+        })).not.toThrow()
+        expect(() => new Hook({
             on: "assistant_message",
             do: "echo 'comment'",
             inline_as: "comment",
@@ -52,6 +57,23 @@ describe("Hook", () => {
             do: "echo 'x'",
             allow_failure: "yes",
         })).toThrow('The "allow_failure" field of a hook must be a boolean.')
+    })
+
+    test("rejects non-boolean async", () => {
+        expect(() => validateHookSpec({
+            on: "assistant_message",
+            do: "echo 'x'",
+            async: "yes",
+        })).toThrow('The "async" field of a hook must be a boolean.')
+    })
+
+    test("rejects async inline hooks", () => {
+        expect(() => validateHookSpec({
+            on: "assistant_message",
+            do: "echo 'x'",
+            inline: true,
+            async: true,
+        })).toThrow('Async hooks can\'t set "inline: true".')
     })
 
     test("execute single line", () => {

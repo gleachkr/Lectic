@@ -111,6 +111,24 @@ function validateHookObject(
     })
   }
 
+  if ("async" in hook && typeof hook["async"] !== "boolean") {
+    issues.push({
+      code: "hook.async.type",
+      message: Messages.hook.asyncType(),
+      path: [...pathBase, "async"],
+      severity: "error",
+    })
+  }
+
+  if (hook["async"] === true && hook["inline"] === true) {
+    issues.push({
+      code: "hook.async.inline",
+      message: Messages.hook.asyncInline(),
+      path: [...pathBase, "async"],
+      severity: "error",
+    })
+  }
+
   if (
     "env" in hook
     && (typeof hook["env"] !== "object" || hook["env"] === null)

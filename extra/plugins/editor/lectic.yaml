@@ -1,0 +1,62 @@
+hook_defs:
+  - name: editor_tool_progress_start
+    on: tool_use_pre
+    allow_failure: true
+    async: true
+    do: |
+      #!/usr/bin/env bash
+      lectic editor progress begin \
+        --token "$TOOL_CALL_ID" \
+        --title "Running $TOOL_NAME" \
+        --message "$TOOL_ARGS"
+
+  - name: editor_tool_progress_end
+    on: tool_use_post
+    allow_failure: true
+    async: true
+    do: |
+      #!/usr/bin/env bash
+      if [[ -n "${TOOL_CALL_ERROR:-}" ]]; then
+        MESSAGE="Failed: $TOOL_NAME"
+      else
+        MESSAGE="Done: $TOOL_NAME"
+      fi
+
+      lectic editor progress end \
+        --token "$TOOL_CALL_ID" \
+        --message "$MESSAGE"
+
+  - name: editor_run_progress_start
+    on: run_start
+    allow_failure: true
+    async: true
+    do: |
+      #!/usr/bin/env bash
+      lectic editor progress begin \
+        --token "$RUN_ID" \
+        --title "Lectic run" \
+        --message "$RUN_CWD"
+
+  - name: editor_run_progress_end
+    on: run_end
+    allow_failure: true
+    async: true
+    do: |
+      #!/usr/bin/env bash
+      if [[ "${RUN_STATUS:-success}" == "success" ]]; then
+        MESSAGE="Run complete"
+      else
+        MESSAGE="Run failed: ${RUN_ERROR_MESSAGE:-unknown error}"
+      fi
+
+      lectic editor progress end \
+        --token "$RUN_ID" \
+        --message "$MESSAGE"
+
+  - name: editor_approve_tools
+    on: tool_use_pre
+    do: |
+      #!/usr/bin/env bash
+      lectic editor approve \
+        --title "Allow tool use?" \
+        --message "Tool: $TOOL_NAME\n\nArgs:\n$TOOL_ARGS"

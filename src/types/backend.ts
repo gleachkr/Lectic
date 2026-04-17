@@ -55,6 +55,50 @@ type RunHookOptions = {
   collectInline?: boolean
 }
 
+function getHookLabel(hook: Hook): string {
+  return hook.name
+    ? `"${hook.name}"`
+    : `"${hook.do.split("\n")[0]}"`
+}
+
+function launchAsyncHook(
+  hook: Hook,
+  event: keyof HookEvents,
+  env: Record<string, string>,
+  stdin?: string
+): void {
+  try {
+    const exited = hook.executeDetached(env, stdin)
+    void exited.then((exitCode) => {
+      if (exitCode === 0) return
+      Logger.debug("async_hook_failure", {
+        event,
+        hook: getHookLabel(hook),
+        exitCode,
+      })
+    }).catch((error) => {
+      Logger.debug("async_hook_failure", {
+        event,
+        hook: getHookLabel(hook),
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (!hook.allow_failure) {
+      throw new Error(
+        `Hook ${getHookLabel(hook)} failed to start for ${event}: ${message}`
+      )
+    }
+    Logger.debug("async_hook_failure", {
+      event,
+      hook: getHookLabel(hook),
+      error: message,
+      launch: true,
+    })
+  }
+}
+
 function runHooksInternal(
   hooks: Hook[],
   event: keyof HookEvents,
@@ -65,12 +109,15 @@ function runHooksInternal(
   const active = getActiveHooks(hooks, event, env)
 
   for (const hook of active) {
+    if (hook.async) {
+      launchAsyncHook(hook, event, env, opt?.stdin)
+      continue
+    }
+
     const { output, stderr, exitCode } = hook.execute(env, opt?.stdin)
 
     if (exitCode !== 0 && !hook.allow_failure) {
-      const label = hook.name
-        ? `"${hook.name}"`
-        : `"${hook.do.split("\n")[0]}"`
+      const label = getHookLabel(hook)
       const stderrLine = stderr.trim()
       const suffix = stderrLine.length > 0
         ? `\nstderr: ${stderrLine}`
@@ -263,6 +310,7 @@ export async function resolveToolCalls(
 
   const results: ToolCall[] = await Promise.all(entries.map(async (entry) => {
     const id = entry.id
+    const callId = id ?? Bun.randomUUIDv7()
     const name = entry.name
     const rawArgs = entry.args
     const tool = registry[name]
@@ -290,12 +338,18 @@ export async function resolveToolCalls(
       }
 
       const preEnv = withUsageEnv({
+        TOOL_CALL_ID: callId,
         TOOL_NAME: name,
         TOOL_ARGS: argsJSON,
       }, opt?.usage)
 
       const preHooks = getActiveHooks(hooks, "tool_use_pre", preEnv)
       for (const hook of preHooks) {
+        if (hook.async) {
+          launchAsyncHook(hook, "tool_use_pre", preEnv)
+          continue
+        }
+
         const { exitCode } = hook.execute(preEnv)
         if (exitCode !== 0 && !hook.allow_failure) {
           throw new ToolCallError("blocked", "Tool use permission denied")
@@ -314,6 +368,7 @@ export async function resolveToolCalls(
       isError = true
     } finally {
       const postEnv = withUsageEnv({
+        TOOL_CALL_ID: callId,
         TOOL_NAME: name,
         TOOL_ARGS: argsJSON,
         TOOL_DURATION_MS: String(Date.now() - startedAt),

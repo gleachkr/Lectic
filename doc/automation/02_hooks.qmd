@@ -11,7 +11,7 @@ of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has eight possible fields:
+A hook has nine possible fields:
 
 - `on`: (Required) A single event name or a list of event names to listen for.
 - `do`: (Required) The command or inline script to run when the event fires.
@@ -35,6 +35,10 @@ A hook has eight possible fields:
   execution environment.
 - `allow_failure`: (Optional) A boolean. If `true`, non-zero exit status from
   this hook is ignored. Defaults to `false`.
+- `async`: (Optional) A boolean. If `true`, Lectic starts the hook in the
+  background and does not wait for it to finish. Defaults to `false`.
+  Async hooks are best-effort. They cannot inject inline output, and their
+  eventual exit status cannot affect the current run.
 
 ```yaml
 hooks:
@@ -50,7 +54,12 @@ with a shebang (e.g., `#!/bin/bash`). If it is a single line, it is treated
 as a command. Commands are executed directly (not through a shell), so
 shell features like command substitution will not work.
 
-Hook commands run synchronously.
+Hook commands run synchronously by default.
+
+If you set `async: true`, Lectic only waits long enough to start the hook
+process. The hook then continues in the background. This is useful for
+editor notifications, progress updates, and similar non-blocking side
+effects.
 
 For most events, a non-zero exit status is treated as an error and aborts the
 current run.
@@ -60,6 +69,8 @@ current run.
 the non-zero exit is ignored and the tool call continues.
 
 If you set `inline: true`, standard output is captured.
+
+Async hooks cannot set `inline: true`.
 
 - With the default `inline_as: attachment`, the output is added to the
   conversation.
@@ -140,6 +151,7 @@ If both base and alias hooks are configured for a pass, Lectic executes base
 
 - `tool_use_pre`
   - Environment:
+    - `TOOL_CALL_ID`: Stable id for this specific tool call.
     - `TOOL_NAME`: Tool name.
     - `TOOL_ARGS`: JSON string of tool arguments.
     - Token usage variables (if available).
@@ -150,6 +162,7 @@ If both base and alias hooks are configured for a pass, Lectic executes base
 
 - `tool_use_post`
   - Environment:
+    - `TOOL_CALL_ID`: Stable id for this specific tool call.
     - `TOOL_NAME`: Tool name.
     - `TOOL_ARGS`: JSON string of tool arguments.
     - `TOOL_CALL_RESULTS`: JSON string on success.

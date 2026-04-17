@@ -94,6 +94,10 @@ export const Messages = {
       `"comment".`,
     allowFailureType: () =>
       `The "allow_failure" field of a hook must be a boolean.`,
+    asyncType: () =>
+      `The "async" field of a hook must be a boolean.`,
+    asyncInline: () =>
+      `Async hooks can't set "inline: true".`,
     baseNeedsOnDo: (raw: unknown) =>
       `Hook needs to be given with at least "on" and "do" fields. Got ${raw} instead.`,
     baseNull: () => `Something went wrong, got null for hook`,

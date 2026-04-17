@@ -316,6 +316,13 @@ in a key name.
   the hook runs.
 - `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
+- `async`: (Optional) Boolean. If `true`, Lectic starts the hook in the
+  background and does not wait for it to finish. Defaults to `false`.
+  Async hooks are best-effort, and they cannot be combined with
+  `inline: true`.
+
+Hook event environments for `tool_use_pre` and `tool_use_post` also include
+`TOOL_CALL_ID`, a stable id for the specific tool call.
 
 ---
 
