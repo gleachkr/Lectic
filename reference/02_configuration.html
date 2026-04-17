@@ -670,7 +670,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>icon</code>: (Optional) Icon string for inline hook attachments. If provided, it is serialized as the <code>icon</code> attribute and used by LSP folding when <code>NERD_FONT=1</code>.</li>
 <li><code>env</code>: (Optional) A dictionary of environment variables to be set when the hook runs.</li>
 <li><code>allow_failure</code>: (Optional) Boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
+<li><code>async</code>: (Optional) Boolean. If <code>true</code>, Lectic starts the hook in the background and does not wait for it to finish. Defaults to <code>false</code>. Async hooks are best-effort, and they cannot be combined with <code>inline: true</code>.</li>
 </ul>
+<p>Hook event environments for <code>tool_use_pre</code> and <code>tool_use_post</code> also include <code>TOOL_CALL_ID</code>, a stable id for the specific tool call.</p>
 <hr>
 </section>
 <section id="reusable-definitions-with-use" class="level2">

@@ -1658,7 +1658,7 @@ in the `hooks` key of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has eight possible fields:
+A hook has nine possible fields:
 
 - `on`: (Required) A single event name or a list of event names to
   listen for.
@@ -1684,6 +1684,10 @@ A hook has eight possible fields:
   hook’s execution environment.
 - `allow_failure`: (Optional) A boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
+- `async`: (Optional) A boolean. If `true`, Lectic starts the hook in
+  the background and does not wait for it to finish. Defaults to
+  `false`. Async hooks are best-effort. They cannot inject inline
+  output, and their eventual exit status cannot affect the current run.
 
 ``` yaml
 hooks:
@@ -1699,7 +1703,12 @@ begin with a shebang (e.g., `#!/bin/bash`). If it is a single line, it
 is treated as a command. Commands are executed directly (not through a
 shell), so shell features like command substitution will not work.
 
-Hook commands run synchronously.
+Hook commands run synchronously by default.
+
+If you set `async: true`, Lectic only waits long enough to start the
+hook process. The hook then continues in the background. This is useful
+for editor notifications, progress updates, and similar non-blocking
+side effects.
 
 For most events, a non-zero exit status is treated as an error and
 aborts the current run.
@@ -1709,6 +1718,8 @@ aborts the current run.
 non-zero exit is ignored and the tool call continues.
 
 If you set `inline: true`, standard output is captured.
+
+Async hooks cannot set `inline: true`.
 
 - With the default `inline_as: attachment`, the output is added to the
   conversation.
@@ -1791,6 +1802,7 @@ base `assistant_message` hooks first, then the alias hooks.
 
 - `tool_use_pre`
   - Environment:
+    - `TOOL_CALL_ID`: Stable id for this specific tool call.
     - `TOOL_NAME`: Tool name.
     - `TOOL_ARGS`: JSON string of tool arguments.
     - Token usage variables (if available).
@@ -1800,6 +1812,7 @@ base `assistant_message` hooks first, then the alias hooks.
     `allow_failure: true` is set on that hook.
 - `tool_use_post`
   - Environment:
+    - `TOOL_CALL_ID`: Stable id for this specific tool call.
     - `TOOL_NAME`: Tool name.
     - `TOOL_ARGS`: JSON string of tool arguments.
     - `TOOL_CALL_RESULTS`: JSON string on success.
@@ -5124,6 +5137,13 @@ in a key name.
   the hook runs.
 - `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
+- `async`: (Optional) Boolean. If `true`, Lectic starts the hook in the
+  background and does not wait for it to finish. Defaults to `false`.
+  Async hooks are best-effort, and they cannot be combined with
+  `inline: true`.
+
+Hook event environments for `tool_use_pre` and `tool_use_post` also
+include `TOOL_CALL_ID`, a stable id for the specific tool call.
 
 ------------------------------------------------------------------------
 

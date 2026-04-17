@@ -454,7 +454,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Hooks are defined in your YAML configuration under the <code>hooks</code> key, per-tool in the <code>hooks</code> key of a tool specification, or per-interlocutor in the <code>hooks</code> key of an interlocutor specification.</p>
 <section id="hook-configuration" class="level2">
 <h2 class="anchored" data-anchor-id="hook-configuration">Hook configuration</h2>
-<p>A hook has eight possible fields:</p>
+<p>A hook has nine possible fields:</p>
 <ul>
 <li><code>on</code>: (Required) A single event name or a list of event names to listen for.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event fires.</li>
@@ -464,6 +464,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>icon</code>: (Optional) Icon string for inline hook attachments.</li>
 <li><code>env</code>: (Optional) A map of environment variables to inject into the hook’s execution environment.</li>
 <li><code>allow_failure</code>: (Optional) A boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
+<li><code>async</code>: (Optional) A boolean. If <code>true</code>, Lectic starts the hook in the background and does not wait for it to finish. Defaults to <code>false</code>. Async hooks are best-effort. They cannot inject inline output, and their eventual exit status cannot affect the current run.</li>
 </ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> logger</span></span>
@@ -472,10 +473,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">LOG_FILE</span><span class="kw">:</span><span class="at"> /tmp/lectic.log</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> ./log-activity.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If <code>do</code> contains multiple lines, it is treated as a script and must begin with a shebang (e.g., <code>#!/bin/bash</code>). If it is a single line, it is treated as a command. Commands are executed directly (not through a shell), so shell features like command substitution will not work.</p>
-<p>Hook commands run synchronously.</p>
+<p>Hook commands run synchronously by default.</p>
+<p>If you set <code>async: true</code>, Lectic only waits long enough to start the hook process. The hook then continues in the background. This is useful for editor notifications, progress updates, and similar non-blocking side effects.</p>
 <p>For most events, a non-zero exit status is treated as an error and aborts the current run.</p>
 <p><code>tool_use_pre</code> is special: a non-zero exit blocks the tool call (permission denied). If you set <code>allow_failure: true</code> on that hook, the non-zero exit is ignored and the tool call continues.</p>
 <p>If you set <code>inline: true</code>, standard output is captured.</p>
+<p>Async hooks cannot set <code>inline: true</code>.</p>
 <ul>
 <li>With the default <code>inline_as: attachment</code>, the output is added to the conversation.
 <ul>
@@ -556,6 +559,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>Environment:
 <ul>
+<li><code>TOOL_CALL_ID</code>: Stable id for this specific tool call.</li>
 <li><code>TOOL_NAME</code>: Tool name.</li>
 <li><code>TOOL_ARGS</code>: JSON string of tool arguments.</li>
 <li>Token usage variables (if available).</li>
@@ -568,6 +572,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li>Environment:
 <ul>
+<li><code>TOOL_CALL_ID</code>: Stable id for this specific tool call.</li>
 <li><code>TOOL_NAME</code>: Tool name.</li>
 <li><code>TOOL_ARGS</code>: JSON string of tool arguments.</li>
 <li><code>TOOL_CALL_RESULTS</code>: JSON string on success.</li>
