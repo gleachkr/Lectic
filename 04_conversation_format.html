@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.36">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="site_libs/bootstrap/bootstrap-bfc81c90a4e668f7cc6782dca231ae32.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -493,6 +493,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Inline hooks (<code>kind="hook"</code>)</li>
 </ul>
 <p>Inline attachments appear inside the assistant’s response block as XML. They include a <code>&lt;command&gt;</code> field (the hook’s <code>do</code> value, or empty for <code>:attach</code>) and a <code>&lt;content&gt;</code> field. They may also include attributes like <code>icon</code> and <code>name</code> used by editor folding UIs.</p>
+<p>Inline hooks also have a comment mode. If a hook sets <code>inline: true</code> and <code>inline_as: comment</code>, Lectic records the hook output as an HTML comment instead of an <code>&lt;inline-attachment&gt;</code> block. That comment remains in the transcript, but it is not sent to the provider.</p>
 <p>Example (<code>:attach[...]</code>):</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode xml code-with-copy"><code class="sourceCode xml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">inline-attachment</span> <span class="ot">kind=</span><span class="st">"attach"</span>&gt;</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>&lt;<span class="kw">command</span>&gt;&lt;/<span class="kw">command</span>&gt;</span>
@@ -521,7 +522,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><p><strong>Caching</strong>: The results are stored in the file, so re-running Lectic doesn’t re-process old directives. Only <code>:attach</code> directives in the most recent user message are processed.</p></li>
 <li><p><strong>Context positioning</strong>: When sending the conversation to the provider, attachments are treated as if they were a user message. This keeps provider caches stable and avoids token recomputation.</p></li>
 </ol>
-<p>You’ll see inline attachments when using <code>:attach</code> (often with <code>:cmd</code> inside) or inline hooks. They’re part of the conversation record and should generally be left alone. Editor plugins typically fold them by default to reduce visual clutter.</p>
+<p>You’ll see inline attachments when using <code>:attach</code> (often with <code>:cmd</code> inside) or attachment-mode inline hooks. They’re part of the conversation record and should generally be left alone. Editor plugins typically fold them by default to reduce visual clutter.</p>
+<p>Comment-mode inline hooks are a separate case: they appear as plain HTML comments and are useful for hidden transcript logging.</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">

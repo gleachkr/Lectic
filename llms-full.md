@@ -507,6 +507,11 @@ lectic lsp
 
 The server uses stdio transport and works with any LSP-capable editor.
 
+The LSP also exposes a local editor bridge for progress notifications
+and editor-side prompts. An optional git-style subcommand plugin,
+`extra/plugins/editor/lectic-editor.ts`, can send those requests from
+hooks, CLI helpers, or scripts.
+
 ## Neovim
 
 The repository includes a full-featured plugin at `extra/lectic.nvim`.
@@ -809,6 +814,11 @@ They include a `<command>` field (the hook’s `do` value, or empty for
 `:attach`) and a `<content>` field. They may also include attributes
 like `icon` and `name` used by editor folding UIs.
 
+Inline hooks also have a comment mode. If a hook sets `inline: true` and
+`inline_as: comment`, Lectic records the hook output as an HTML comment
+instead of an `<inline-attachment>` block. That comment remains in the
+transcript, but it is not sent to the provider.
+
 Example (`:attach[...]`):
 
 ``` xml
@@ -855,9 +865,12 @@ Inline attachments serve two purposes:
     This keeps provider caches stable and avoids token recomputation.
 
 You’ll see inline attachments when using `:attach` (often with `:cmd`
-inside) or inline hooks. They’re part of the conversation record and
-should generally be left alone. Editor plugins typically fold them by
-default to reduce visual clutter.
+inside) or attachment-mode inline hooks. They’re part of the
+conversation record and should generally be left alone. Editor plugins
+typically fold them by default to reduce visual clutter.
+
+Comment-mode inline hooks are a separate case: they appear as plain HTML
+comments and are useful for hidden transcript logging.
 
 > [!TIP]
 >
@@ -1645,7 +1658,7 @@ in the `hooks` key of an interlocutor specification.
 
 ## Hook configuration
 
-A hook has seven possible fields:
+A hook has eight possible fields:
 
 - `on`: (Required) A single event name or a list of event names to
   listen for.
@@ -1655,12 +1668,17 @@ A hook has seven possible fields:
   command is captured and injected into the conversation. Defaults to
   `false`. Inline injection is only meaningful for `user_message`,
   `assistant_message`, and the `assistant_*` aliases.
+- `inline_as`: (Optional) Controls how inline hook output is recorded.
+  One of `attachment` or `comment`. Defaults to `attachment`.
+  `attachment` stores the output as hook XML and also makes it visible
+  to the provider. `comment` stores the output as an HTML comment in the
+  transcript and does not send it to the provider.
 - `name`: (Optional) A string name for the hook. If multiple hooks have
   the same name (e.g., one in your global config and one in a project
   config), the one defined later (or with higher precedence) overrides
   the earlier one. This allows you to replace default hooks with custom
-  behavior. For inline hooks, this name is serialized into the
-  attachment XML and shown by LSP folding.
+  behavior. For inline hooks recorded as attachments, this name is
+  serialized into the attachment XML and shown by LSP folding.
 - `icon`: (Optional) Icon string for inline hook attachments.
 - `env`: (Optional) A map of environment variables to inject into the
   hook’s execution environment.
@@ -1690,19 +1708,24 @@ aborts the current run.
 (permission denied). If you set `allow_failure: true` on that hook, the
 non-zero exit is ignored and the tool call continues.
 
-If you set `inline: true`, standard output is captured and added to the
-conversation.
+If you set `inline: true`, standard output is captured.
 
-- For `user_message` events, the output is injected as context for the
-  LLM before it generates a response. It also appears at the top of the
-  assistant’s response block.
-- For `assistant_message` events, the output is appended to the end of
-  the assistant’s response block. This will trigger another reply from
-  the assistant, so be careful to only fire an inline hook when you want
-  the assistant to generate more content.
+- With the default `inline_as: attachment`, the output is added to the
+  conversation.
+  - For `user_message` events, the output is injected as context for the
+    LLM before it generates a response. It also appears at the top of
+    the assistant’s response block.
+  - For `assistant_message` events, the output is appended to the end of
+    the assistant’s response block. This will trigger another reply from
+    the assistant, so be careful to only fire an inline hook when you
+    want the assistant to generate more content.
+- With `inline_as: comment`, the output is recorded in the transcript as
+  an HTML comment. It is not sent to the provider, and it does not keep
+  the assistant loop alive. This is useful for unobtrusive logging.
 
-In the `.lec` file, inline hook output is stored as an XML
-`<inline-attachment kind="hook">` block. See [Inline
+In the `.lec` file, inline hook output is stored either as an XML
+`<inline-attachment kind="hook">` block or, with `inline_as: comment`,
+as an HTML comment. See [Inline
 Attachments](../04_conversation_format.qmd#inline-attachments) for
 details on the storage format.
 
@@ -1843,7 +1866,25 @@ This would be recorded roughly like this:
 </inline-attachment>
 ```
 
-Two headers affect control flow:
+If you instead set `inline_as: comment`, the visible transcript record
+is a plain HTML comment:
+
+``` yaml
+hooks:
+  - on: assistant_message
+    inline: true
+    inline_as: comment
+    do: echo "background log entry"
+```
+
+``` html
+<!--
+background log entry
+-->
+```
+
+Two headers affect control flow. These are meaningful for
+attachment-mode inline hooks:
 
 - `final`: When an inline hook generates output, Lectic normally
   continues the tool calling loop so that the assistant can see and
@@ -1893,6 +1934,24 @@ hooks:
       # Zenity exits with 0 for Yes/OK and 1 for No/Cancel
       exit $?
 ```
+
+If you are running inside an editor with the Lectic LSP, you can also
+route confirmation through the editor bridge instead of a
+desktop-specific dialog. Install the optional `lectic editor` subcommand
+plugin from `extra/plugins/editor/` and use:
+
+``` yaml
+hooks:
+  - on: tool_use_pre
+    do: |
+      #!/usr/bin/env bash
+      lectic editor approve \
+        --title "Allow tool use?" \
+        --message "Tool: $TOOL_NAME\n\nArgs:\n$TOOL_ARGS"
+```
+
+This exits 0 when the user allows the action and non-zero otherwise, so
+it fits the `tool_use_pre` hook directly.
 
 ## Example: Persisting messages to SQLite
 
@@ -1985,6 +2044,17 @@ hooks:
 
 This is especially useful for long-running agentic tasks where you want
 to step away and be alerted when the assistant is done.
+
+If you want progress inside the editor instead, pair a hook or helper
+script with the optional `lectic editor` plugin and send progress
+updates through the LSP bridge:
+
+``` bash
+TOKEN="${RUN_ID:-lectic-run}"
+lectic editor progress begin \
+  --token "$TOKEN" \
+  --title "Running assistant task"
+```
 
 ## Example: Neovim notification from hooks
 
@@ -5036,11 +5106,17 @@ in a key name.
   `#!/bin/bash`). Event context is provided as environment variables.
   See the Hooks guide for details.
 - `inline`: (Optional) Boolean. If `true`, the output of the hook is
-  captured and injected into the conversation. Defaults to `false`.
+  captured. Defaults to `false`.
+- `inline_as`: (Optional) One of `attachment` or `comment`. Defaults to
+  `attachment`. When set to `attachment`, inline hook output is stored
+  as `<inline-attachment kind="hook">` XML and is visible to the
+  provider. When set to `comment`, the output is stored as an HTML
+  comment in the transcript and is not sent to the provider.
 - `name`: (Optional) A name for the hook. Used for merging and
   overriding hooks from different configuration sources. For inline
-  hooks, this is also serialized as a `name` attribute on
-  `<inline-attachment kind="hook">` blocks and shown in LSP fold text.
+  hooks recorded as attachments, this is also serialized as a `name`
+  attribute on `<inline-attachment kind="hook">` blocks and shown in LSP
+  fold text.
 - `icon`: (Optional) Icon string for inline hook attachments. If
   provided, it is serialized as the `icon` attribute and used by LSP
   folding when `NERD_FONT=1`.
@@ -5148,6 +5224,27 @@ lectic lsp
 The server uses stdio transport and works with any LSP-capable editor.
 See [Editor Integration](../03_editor_integration.qmd) for setup
 instructions.
+
+## Local editor bridge
+
+In addition to stdio LSP traffic, the server also exposes a local-only
+bridge for editor-facing interactions such as progress updates and
+approval prompts. This bridge is intended for hooks, CLI tools, and
+custom subcommands.
+
+Lectic does not ship a built-in `lectic editor` core command. Instead,
+the repository includes an optional git-style subcommand plugin at
+`extra/plugins/editor/lectic-editor.ts`.
+
+That plugin can:
+
+- send work-done progress updates to the editor
+- ask for allow/deny approval
+- ask the editor to pick from a list of options
+
+The bridge is discovered by a deterministic socket path derived from the
+workspace root (or, for single-file sessions, the opened file
+directory), so it does not require a separate metadata file.
 
 ## Features
 

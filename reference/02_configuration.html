@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.36">
+<meta name="generator" content="quarto-1.9.37">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -74,7 +74,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../site_libs/bootstrap/bootstrap-bfc81c90a4e668f7cc6782dca231ae32.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -664,8 +664,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, <code>assistant_final</code>, <code>assistant_intermediate</code>, <code>tool_use_pre</code>, <code>tool_use_post</code>, <code>run_start</code>, <code>run_end</code>, and <code>error</code>. <code>error</code> is a derived alias of <code>run_end</code> and fires only when <code>RUN_STATUS=error</code>.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event occurs. If multi‑line, it must start with a shebang (e.g., <code>#!/bin/bash</code>). Event context is provided as environment variables. See the Hooks guide for details.</li>
-<li><code>inline</code>: (Optional) Boolean. If <code>true</code>, the output of the hook is captured and injected into the conversation. Defaults to <code>false</code>.</li>
-<li><code>name</code>: (Optional) A name for the hook. Used for merging and overriding hooks from different configuration sources. For inline hooks, this is also serialized as a <code>name</code> attribute on <code>&lt;inline-attachment kind="hook"&gt;</code> blocks and shown in LSP fold text.</li>
+<li><code>inline</code>: (Optional) Boolean. If <code>true</code>, the output of the hook is captured. Defaults to <code>false</code>.</li>
+<li><code>inline_as</code>: (Optional) One of <code>attachment</code> or <code>comment</code>. Defaults to <code>attachment</code>. When set to <code>attachment</code>, inline hook output is stored as <code>&lt;inline-attachment kind="hook"&gt;</code> XML and is visible to the provider. When set to <code>comment</code>, the output is stored as an HTML comment in the transcript and is not sent to the provider.</li>
+<li><code>name</code>: (Optional) A name for the hook. Used for merging and overriding hooks from different configuration sources. For inline hooks recorded as attachments, this is also serialized as a <code>name</code> attribute on <code>&lt;inline-attachment kind="hook"&gt;</code> blocks and shown in LSP fold text.</li>
 <li><code>icon</code>: (Optional) Icon string for inline hook attachments. If provided, it is serialized as the <code>icon</code> attribute and used by LSP folding when <code>NERD_FONT=1</code>.</li>
 <li><code>env</code>: (Optional) A dictionary of environment variables to be set when the hook runs.</li>
 <li><code>allow_failure</code>: (Optional) Boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
