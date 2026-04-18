@@ -5,6 +5,32 @@ All notable changes to Lectic are documented in this file.
 The format is intentionally simple so GitHub Actions can extract the notes
 for a tag and publish them on the corresponding GitHub Release.
 
+## v0.0.4 [Unreleased]
+
+### Added
+
+- `interlocutor.account` for per-interlocutor credential selection,
+  including named Codex logins and external `file:` / `exec:` sources.
+- A local editor bridge in the LSP plus an optional `lectic editor`
+  plugin for progress updates, approval prompts, pick dialogs, and reusable
+  hook definitions.
+- `inline_as: comment` for hooks, letting inline hook output be recorded in
+  the transcript without being sent back to the model.
+- A new `lectic-undo` plugin that snapshots git state and records restore
+  commands when an assistant run leaves repository changes behind.
+
+### Changed
+
+- Hook execution now distinguishes `background` and `detached` modes, so
+  best-effort detached hooks no longer block shutdown.
+- Mimetype detection for `:attach` output and content links is now
+  centralized and more consistent.
+- Editor-facing tool progress messages are formatted more readably.
+
+### Fixed
+
+- Flaky Codex API handling.
+
 ## v0.0.3 - 2026-03-31
 
 ### Added
