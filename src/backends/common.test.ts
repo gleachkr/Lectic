@@ -5,6 +5,7 @@ import { tmpdir } from "os"
 import {
     Backend,
     emitAssistantMessageEvent,
+    HookExecutionTracker,
     resolveToolCalls,
     runHooks,
 } from "../types/backend"
@@ -386,20 +387,58 @@ echo "LECTIC:LATE:header"`,
         expect(results).toHaveLength(0)
     })
 
-    it("starts async hooks without waiting for completion", async () => {
+    it("starts background hooks without waiting for completion", async () => {
         const out = join(
             tmpdir(),
-            `lectic-async-hook-${Date.now()}-${Math.random()}.txt`
+            `lectic-background-hook-${Date.now()}-${Math.random()}.txt`
         )
         const hook = new Hook({
             on: "run_end",
-            async: true,
+            mode: "background",
             env: { OUT: out },
             do: "#!/bin/bash\nsleep 0.3\nprintf 'done' > \"$OUT\"",
         })
 
         const startedAt = Date.now()
         const results = runHooks([hook], "run_end", { RUN_STATUS: "success" })
+        const elapsedMs = Date.now() - startedAt
+
+        expect(results).toHaveLength(0)
+        expect(elapsedMs).toBeLessThan(250)
+        expect(existsSync(out)).toBe(false)
+
+        const written = await waitForFile(out)
+        try { unlinkSync(out) } catch { /* ignore */ }
+        expect(written).toBe("done")
+    })
+
+    it("does not wait for detached hooks when draining", async () => {
+        const out = join(
+            tmpdir(),
+            `lectic-detached-hook-${Date.now()}-${Math.random()}.txt`
+        )
+        const hook = new Hook({
+            on: "run_end",
+            mode: "detached",
+            env: { OUT: out },
+            do: [
+                "#!/bin/bash",
+                "sleep 0.3",
+                "printf 'done' > \"$OUT\"",
+                "rm -- \"$0\"",
+            ].join("\n"),
+        })
+        const runner = new HookExecutionTracker()
+
+        const startedAt = Date.now()
+        const results = runHooks(
+            [hook],
+            "run_end",
+            { RUN_STATUS: "success" },
+            undefined,
+            runner,
+        )
+        await runner.drain()
         const elapsedMs = Date.now() - startedAt
 
         expect(results).toHaveLength(0)
@@ -581,6 +620,48 @@ describe("comment-mode inline hooks during evaluate", () => {
         expect(output).toContain("<!--\nlog entry\n\n-->")
         expect(output.indexOf("hello")).toBeLessThan(output.indexOf("<!--"))
     })
+
+    it("tracks background assistant hooks with the shared hook runner", async () => {
+        const out = join(
+            tmpdir(),
+            `lectic-assistant-background-${Date.now()}-${Math.random()}.txt`
+        )
+        const hook = new Hook({
+            on: "assistant_message",
+            mode: "background",
+            env: { OUT: out },
+            do: "#!/bin/bash\nsleep 0.3\nprintf '%s' \"$ASSISTANT_MESSAGE\" > \"$OUT\"",
+        })
+        const backend = new MockLoopBackend("hello")
+        const lectic = {
+            header: {
+                hooks: [hook],
+                interlocutor: {
+                    name: "TestBot",
+                    prompt: "",
+                    model: "mock-model",
+                    registry: {},
+                },
+            },
+            body: {
+                messages: [new UserMessage({ content: "hi" })],
+                snapshot: () => "snapshot",
+            },
+        } as any
+        const runner = new HookExecutionTracker()
+
+        for await (const _chunk of backend.evaluate(lectic, { hookRunner: runner })) {
+            // drain the iterator
+        }
+
+        expect(existsSync(out)).toBe(false)
+
+        await runner.drain()
+
+        const written = await waitForFile(out)
+        try { unlinkSync(out) } catch { /* ignore */ }
+        expect(written).toBe("hello")
+    })
 })
 
 describe("resolveToolCalls with tool_use_pre hook", () => {
@@ -661,14 +742,14 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         expect(results[0].results[0].content).toBe("mock result")
     })
 
-    it("does not wait for async tool_use_pre hooks", async () => {
+    it("does not wait for background tool_use_pre hooks", async () => {
         const out = join(
             tmpdir(),
-            `lectic-tool-pre-async-${Date.now()}-${Math.random()}.txt`
+            `lectic-tool-pre-background-${Date.now()}-${Math.random()}.txt`
         )
         const hook = new Hook({
             on: "tool_use_pre",
-            async: true,
+            mode: "background",
             allow_failure: true,
             env: { OUT: out },
             do: "#!/bin/bash\nsleep 0.3\nprintf '%s' \"$TOOL_NAME\" > \"$OUT\"",

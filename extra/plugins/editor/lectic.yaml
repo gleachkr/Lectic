@@ -2,7 +2,7 @@ hook_defs:
   - name: editor_tool_progress_start
     on: tool_use_pre
     allow_failure: true
-    async: true
+    mode: background
     do: |
       #!/usr/bin/env bash
       lectic editor progress begin \
@@ -13,9 +13,12 @@ hook_defs:
   - name: editor_tool_progress_end
     on: tool_use_post
     allow_failure: true
-    async: true
+    mode: background
     do: |
       #!/usr/bin/env bash
+
+      sleep 0.5 # avoid race when tool use is fast
+
       if [[ -n "${TOOL_CALL_ERROR:-}" ]]; then
         MESSAGE="Failed: $TOOL_NAME"
       else
@@ -29,7 +32,7 @@ hook_defs:
   - name: editor_run_progress_start
     on: run_start
     allow_failure: true
-    async: true
+    mode: background
     do: |
       #!/usr/bin/env bash
       lectic editor progress begin \
@@ -40,7 +43,7 @@ hook_defs:
   - name: editor_run_progress_end
     on: run_end
     allow_failure: true
-    async: true
+    mode: background
     do: |
       #!/usr/bin/env bash
       if [[ "${RUN_STATUS:-success}" == "success" ]]; then

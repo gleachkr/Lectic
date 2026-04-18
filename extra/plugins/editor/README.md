@@ -108,8 +108,8 @@ choice=$(lectic editor pick \
 ```
 
 The bundled progress hooks use `TOOL_CALL_ID` so parallel tool calls get
-separate progress tokens. They also set `async: true`, so editor progress
-updates do not block the main run.
+separate progress tokens. They use `mode: background`, so editor progress
+updates do not block the main run but still finish before Lectic exits.
 
 If you do not pass `--socket`, the subcommand searches upward from:
 

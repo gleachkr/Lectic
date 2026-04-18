@@ -53,6 +53,7 @@ function parseHookOutput(text: string): {
 type RunHookOptions = {
   stdin?: string
   collectInline?: boolean
+  runner?: HookExecutionTracker
 }
 
 function getHookLabel(hook: Hook): string {
@@ -61,41 +62,135 @@ function getHookLabel(hook: Hook): string {
     : `"${hook.do.split("\n")[0]}"`
 }
 
-function launchAsyncHook(
+function hookExitError(
   hook: Hook,
   event: keyof HookEvents,
-  env: Record<string, string>,
-  stdin?: string
-): void {
-  try {
-    const exited = hook.executeDetached(env, stdin)
-    void exited.then((exitCode) => {
-      if (exitCode === 0) return
-      Logger.debug("async_hook_failure", {
-        event,
-        hook: getHookLabel(hook),
-        exitCode,
-      })
-    }).catch((error) => {
-      Logger.debug("async_hook_failure", {
-        event,
-        hook: getHookLabel(hook),
-        error: error instanceof Error ? error.message : String(error),
-      })
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    if (!hook.allow_failure) {
-      throw new Error(
-        `Hook ${getHookLabel(hook)} failed to start for ${event}: ${message}`
-      )
-    }
-    Logger.debug("async_hook_failure", {
+  exitCode: number
+): Error {
+  return new Error(
+    `Hook ${getHookLabel(hook)} failed for ${event} ` +
+    `with exit code ${exitCode}`
+  )
+}
+
+function hookStartError(
+  hook: Hook,
+  event: keyof HookEvents,
+  error: unknown
+): Error {
+  const message = error instanceof Error ? error.message : String(error)
+  return new Error(
+    `Hook ${getHookLabel(hook)} failed to start for ${event}: ${message}`
+  )
+}
+
+export class HookExecutionTracker {
+  private pending = new Set<Promise<void>>()
+  private failures: Error[] = []
+
+  private debugFailure(
+    kind: "background" | "detached",
+    hook: Hook,
+    event: keyof HookEvents,
+    extra: Record<string, unknown>
+  ) {
+    Logger.debug(`${kind}_hook_failure`, {
       event,
       hook: getHookLabel(hook),
-      error: message,
-      launch: true,
+      ...extra,
     })
+  }
+
+  launch(
+    hook: Hook,
+    event: keyof HookEvents,
+    env: Record<string, string>,
+    stdin?: string
+  ): void {
+    if (hook.mode === "background") {
+      this.launchBackground(hook, event, env, stdin)
+      return
+    }
+    if (hook.mode === "detached") {
+      this.launchDetached(hook, event, env, stdin)
+    }
+  }
+
+  private launchBackground(
+    hook: Hook,
+    event: keyof HookEvents,
+    env: Record<string, string>,
+    stdin?: string
+  ): void {
+    try {
+      const exited = hook.executeBackground(env, stdin)
+      const pending = exited.then((exitCode) => {
+        if (exitCode === 0) return
+        if (hook.allow_failure) {
+          this.debugFailure("background", hook, event, { exitCode })
+          return
+        }
+        this.failures.push(hookExitError(hook, event, exitCode))
+      }).catch((error) => {
+        if (hook.allow_failure) {
+          this.debugFailure("background", hook, event, {
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return
+        }
+        this.failures.push(hookStartError(hook, event, error))
+      }).finally(() => {
+        this.pending.delete(pending)
+      })
+      this.pending.add(pending)
+    } catch (error) {
+      if (!hook.allow_failure) {
+        throw hookStartError(hook, event, error)
+      }
+      this.debugFailure("background", hook, event, {
+        error: error instanceof Error ? error.message : String(error),
+        launch: true,
+      })
+    }
+  }
+
+  private launchDetached(
+    hook: Hook,
+    event: keyof HookEvents,
+    env: Record<string, string>,
+    stdin?: string
+  ): void {
+    try {
+      const exited = hook.executeDetached(env, stdin)
+      void exited.then((exitCode) => {
+        if (exitCode === 0) return
+        this.debugFailure("detached", hook, event, { exitCode })
+      }).catch((error) => {
+        this.debugFailure("detached", hook, event, {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+    } catch (error) {
+      if (!hook.allow_failure) {
+        throw hookStartError(hook, event, error)
+      }
+      this.debugFailure("detached", hook, event, {
+        error: error instanceof Error ? error.message : String(error),
+        launch: true,
+      })
+    }
+  }
+
+  async drain(): Promise<void> {
+    while (this.pending.size > 0) {
+      await Promise.allSettled([...this.pending])
+    }
+
+    if (this.failures.length === 0) return
+
+    const messages = this.failures.map((error) => error.message)
+    this.failures = []
+    throw new Error(messages.join("\n"))
   }
 }
 
@@ -107,10 +202,11 @@ function runHooksInternal(
 ): InlineRecord[] {
   const inline: InlineRecord[] = []
   const active = getActiveHooks(hooks, event, env)
+  const runner = opt?.runner ?? new HookExecutionTracker()
 
   for (const hook of active) {
-    if (hook.async) {
-      launchAsyncHook(hook, event, env, opt?.stdin)
+    if (hook.mode !== "sync") {
+      runner.launch(hook, event, env, opt?.stdin)
       continue
     }
 
@@ -166,18 +262,28 @@ export function runHooks(
   hooks: Hook[],
   event: keyof HookEvents,
   env: Record<string, string>,
-  stdin?: string
+  stdin?: string,
+  runner?: HookExecutionTracker
 ): InlineRecord[] {
-  return runHooksInternal(hooks, event, env, { stdin, collectInline: true })
+  return runHooksInternal(hooks, event, env, {
+    stdin,
+    collectInline: true,
+    runner,
+  })
 }
 
 export function runHooksNoInline(
   hooks: Hook[],
   event: keyof HookEvents,
   env: Record<string, string>,
-  stdin?: string
+  stdin?: string,
+  runner?: HookExecutionTracker
 ): void {
-  runHooksInternal(hooks, event, env, { stdin, collectInline: false })
+  runHooksInternal(hooks, event, env, {
+    stdin,
+    collectInline: false,
+    runner,
+  })
 }
 
 export function getScopedHooks(lectic: Lectic): Hook[] {
@@ -194,6 +300,7 @@ export function emitAssistantMessageEvent(
     usage?: BackendUsage
     loopCount?: number
     finalPassCount?: number
+    runner?: HookExecutionTracker
   }
 ): InlineRecord[] {
   const baseEnv: Record<string, string> = {
@@ -222,13 +329,15 @@ export function emitAssistantMessageEvent(
     allHooks,
     "assistant_message",
     baseEnv,
-    lectic.body.snapshot({ closeBlock: true })
+    lectic.body.snapshot({ closeBlock: true }),
+    opt?.runner,
   )
 }
 
 export function emitUserMessageEvent(
   text: string | undefined | null,
-  lectic: Lectic
+  lectic: Lectic,
+  runner?: HookExecutionTracker
 ): InlineRecord[] {
   const baseEnv: Record<string, string> = {
     LECTIC_INTERLOCUTOR: lectic.header.interlocutor.name,
@@ -240,7 +349,7 @@ export function emitUserMessageEvent(
 
   const allHooks = getScopedHooks(lectic)
 
-  return runHooks(allHooks, "user_message", baseEnv)
+  return runHooks(allHooks, "user_message", baseEnv, undefined, runner)
 }
 
 export type ToolRegistry = Record<string, Tool>
@@ -297,6 +406,7 @@ export async function resolveToolCalls(
     limitExceeded?: boolean
     lectic?: Lectic
     usage?: BackendUsage
+    runner?: HookExecutionTracker
   }
 ): Promise<ToolCall[]> {
   const limitMsg =
@@ -345,8 +455,9 @@ export async function resolveToolCalls(
 
       const preHooks = getActiveHooks(hooks, "tool_use_pre", preEnv)
       for (const hook of preHooks) {
-        if (hook.async) {
-          launchAsyncHook(hook, "tool_use_pre", preEnv)
+        if (hook.mode === "background" || hook.mode === "detached") {
+          const runner = opt?.runner ?? new HookExecutionTracker()
+          runner.launch(hook, "tool_use_pre", preEnv)
           continue
         }
 
@@ -380,7 +491,7 @@ export async function resolveToolCalls(
         postEnv["TOOL_CALL_RESULTS"] = safeJSONStringify(callResults)
       }
 
-      runHooksNoInline(hooks, "tool_use_post", postEnv)
+      runHooksNoInline(hooks, "tool_use_post", postEnv, undefined, opt?.runner)
     }
 
     const opaque = entry.opaque
@@ -412,6 +523,7 @@ export type AssistantPassInfo = {
 export type BackendEvaluateOptions = {
   onAssistantPassText?: (text: string, info: AssistantPassInfo) => void
   onAssistantTextDelta?: (text: string) => void | Promise<void>
+  hookRunner?: HookExecutionTracker
 }
 
 export abstract class Backend<TMessage, TFinal> {
@@ -481,7 +593,11 @@ export abstract class Backend<TMessage, TFinal> {
       const m = lectic.body.messages[i]
 
       if (m.role === "user" && lastIsUser && i === lastIdx) {
-        const hookOutputs = emitUserMessageEvent(m.content, lectic)
+        const hookOutputs = emitUserMessageEvent(
+          m.content,
+          lectic,
+          opt?.hookRunner,
+        )
         // these are attachments generated during macro expansion and
         // directive handling
         const directiveAttachments = m.inlineAttachments
@@ -522,6 +638,7 @@ export abstract class Backend<TMessage, TFinal> {
       transcriptPreface,
       onAssistantPassText: opt?.onAssistantPassText,
       onAssistantTextDelta: opt?.onAssistantTextDelta,
+      hookRunner: opt?.hookRunner,
     })
   }
 
@@ -531,6 +648,7 @@ export abstract class Backend<TMessage, TFinal> {
     transcriptPreface: InlineRecord[]
     onAssistantPassText?: (text: string, info: AssistantPassInfo) => void
     onAssistantTextDelta?: (text: string) => void | Promise<void>
+    hookRunner?: HookExecutionTracker
   }): AsyncGenerator<string> {
     const { messages, lectic } = opt
 
@@ -596,6 +714,7 @@ export abstract class Backend<TMessage, TFinal> {
         usage,
         loopCount,
         finalPassCount,
+        runner: opt.hookRunner,
       })
 
       if (pendingHookRes.length > 0) {
@@ -638,6 +757,7 @@ export abstract class Backend<TMessage, TFinal> {
         limitExceeded: loopCount > maxToolUse,
         lectic,
         usage,
+        runner: opt.hookRunner,
       })
 
       for (const call of realized) {

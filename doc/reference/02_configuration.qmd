@@ -289,9 +289,9 @@ in a key name.
 ## The `hook` Object
 
 - `on`: (Required) A single event name or a list of event names to trigger
-  the hook. Supported events are `user_message`, `assistant_message`,
-  `assistant_final`, `assistant_intermediate`, `tool_use_pre`,
-  `tool_use_post`, `run_start`, `run_end`, and `error`.
+  the hook. Supported events are `user_message`, `user_first`,
+  `assistant_message`, `assistant_final`, `assistant_intermediate`,
+  `tool_use_pre`, `tool_use_post`, `run_start`, `run_end`, and `error`.
   `error` is a derived alias of `run_end` and fires only when
   `RUN_STATUS=error`.
 - `do`: (Required) The command or inline script to run when the event
@@ -316,10 +316,15 @@ in a key name.
   the hook runs.
 - `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
-- `async`: (Optional) Boolean. If `true`, Lectic starts the hook in the
-  background and does not wait for it to finish. Defaults to `false`.
-  Async hooks are best-effort, and they cannot be combined with
-  `inline: true`.
+- `mode`: (Optional) One of `sync`, `background`, or `detached`.
+  Defaults to `sync`.
+  - `sync`: run immediately and wait for completion.
+  - `background`: start immediately, do not block the current hook site,
+    but wait for completion before Lectic exits.
+  - `detached`: start immediately and do not wait for completion.
+    Detached hooks are best-effort after launch and cannot be combined with
+    `inline: true`. For generated multi-line scripts, Lectic does not make
+    any parent-side cleanup effort.
 
 Hook event environments for `tool_use_pre` and `tool_use_post` also include
 `TOOL_CALL_ID`, a stable id for the specific tool call.

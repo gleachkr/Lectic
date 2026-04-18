@@ -28,12 +28,12 @@ describe("editor plugin hook defs", () => {
       "editor_tool_progress_end",
       "editor_approve_tools",
     ])
-    expect(resolved.hooks?.map((hook) => hook["async"] ?? false)).toEqual([
-      true,
-      true,
-      true,
-      true,
-      false,
+    expect(resolved.hooks?.map((hook) => hook["mode"] ?? "sync")).toEqual([
+      "background",
+      "background",
+      "background",
+      "background",
+      "sync",
     ])
   })
 })

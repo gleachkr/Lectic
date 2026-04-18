@@ -27,7 +27,36 @@ function shebangArgs(script: string): string[] {
   return script.slice(2).split('\n')[0].trim().split(' ')
 }
 
-export function writeTempShebangScriptSync(script: string) {
+type TempScriptOptions = {
+  registerExitCleanup?: boolean
+}
+
+function buildCleanup(
+  tmpName: string,
+  opt: TempScriptOptions = {}
+): () => void {
+  let cleaned = false
+  let onExit: (() => void) | undefined
+
+  const cleanup = () => {
+    if (cleaned) return
+    cleaned = true
+    if (onExit) process.off('exit', onExit)
+    if (fs.existsSync(tmpName)) fs.unlinkSync(tmpName)
+  }
+
+  if (opt.registerExitCleanup !== false) {
+    onExit = () => cleanup()
+    process.on('exit', onExit)
+  }
+
+  return cleanup
+}
+
+export function writeTempShebangScriptSync(
+  script: string,
+  opt: TempScriptOptions = {}
+) {
   ensureShebang(script)
 
   // Sandboxes may change the working directory before executing argv.
@@ -37,20 +66,21 @@ export function writeTempShebangScriptSync(script: string) {
   // Use an absolute path so argv is stable even when PWD changes.
   const tmpName = `${fs.realpathSync(".")}/.lectic_script-${Bun.randomUUIDv7()}`
 
-  const cleanup = () => fs.existsSync(tmpName) && fs.unlinkSync(tmpName)
-  process.on('exit', cleanup)
+  const cleanup = buildCleanup(tmpName, opt)
   fs.writeFileSync(tmpName, script)
   return { path: tmpName, shebangArgs: shebangArgs(script), cleanup }
 }
 
-export async function writeTempShebangScriptAsync(script: string) {
+export async function writeTempShebangScriptAsync(
+  script: string,
+  opt: TempScriptOptions = {}
+) {
   ensureShebang(script)
 
   // See writeTempShebangScriptSync for why this must be absolute.
   const tmpName = `${fs.realpathSync(".")}/.lectic_script-${Bun.randomUUIDv7()}`
 
-  const cleanup = () => fs.existsSync(tmpName) && fs.unlinkSync(tmpName)
-  process.on('exit', cleanup)
+  const cleanup = buildCleanup(tmpName, opt)
   await Bun.write(tmpName, script)
   return { path: tmpName, shebangArgs: shebangArgs(script), cleanup }
 }

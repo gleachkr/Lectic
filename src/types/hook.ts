@@ -1,6 +1,8 @@
 import {
     execScriptFull,
     execCmdFull,
+    execScriptBackground,
+    execCmdBackground,
     execScriptDetached,
     execCmdDetached,
 } from "../utils/exec";
@@ -35,6 +37,7 @@ export const HOOK_EVENT_TYPES: (keyof HookEvents)[] = [
 ]
 
 export type HookInlineMode = "attachment" | "comment"
+export type HookMode = "sync" | "background" | "detached"
 
 export type HookSpec = {
     on: keyof HookEvents | (keyof HookEvents)[]
@@ -44,13 +47,17 @@ export type HookSpec = {
     name?: string
     icon?: string
     allow_failure?: boolean
-    async?: boolean
+    mode?: HookMode
     env?: Record<string, string>
 }
 
 function isHookEventName(v: unknown): v is keyof HookEvents {
     return typeof v === "string"
         && HOOK_EVENT_TYPES.includes(v as keyof HookEvents)
+}
+
+function isHookMode(v: unknown): v is HookMode {
+    return v === "sync" || v === "background" || v === "detached"
 }
 
 export function validateHookSpec (raw : unknown) : raw is HookSpec {
@@ -89,8 +96,8 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     if ("allow_failure" in raw && typeof raw.allow_failure !== "boolean") {
         throw Error(Messages.hook.allowFailureType())
     }
-    if ("async" in raw && typeof raw.async !== "boolean") {
-        throw Error(Messages.hook.asyncType())
+    if ("mode" in raw && !isHookMode(raw.mode)) {
+        throw Error(Messages.hook.modeType())
     }
     const validOn = typeof raw.on === "string"
         ? isHookEventName(raw.on)
@@ -98,8 +105,8 @@ export function validateHookSpec (raw : unknown) : raw is HookSpec {
     if (!validOn) {
         throw Error(Messages.hook.onValue(HOOK_EVENT_TYPES))
     }
-    if (hook["async"] === true && hook["inline"] === true) {
-        throw Error(Messages.hook.asyncInline())
+    if ((hook["mode"] ?? "sync") !== "sync" && hook["inline"] === true) {
+        throw Error(Messages.hook.modeInline())
     }
     return true
 }
@@ -164,7 +171,7 @@ export class Hook {
     icon? : string
     inline_as : HookInlineMode
     allow_failure : boolean
-    async : boolean
+    mode : HookMode
     env : Record<string, string>
 
     constructor(spec : HookSpec) {
@@ -176,11 +183,11 @@ export class Hook {
         this.name = spec.name
         this.icon = spec.icon
         this.allow_failure = spec.allow_failure ?? false
-        this.async = spec.async ?? false
+        this.mode = spec.mode ?? "sync"
         this.env = spec.env || {}
     }
 
-    execute(env : Record<string, string | undefined> = {}, stdin? : string) 
+    execute(env : Record<string, string | undefined> = {}, stdin? : string)
         : { output: string | undefined, stderr: string, exitCode: number } {
         const mergedEnv = { ...this.env, ...env }
         if (this.do.split("\n").length > 1) {
@@ -206,6 +213,26 @@ export class Hook {
                 exitCode: result.exitCode,
             }
         }
+    }
+
+    executeBackground(
+        env : Record<string, string | undefined> = {},
+        stdin? : string
+    ) : Promise<number> {
+        const mergedEnv = { ...this.env, ...env }
+        if (this.do.split("\n").length > 1) {
+            return execScriptBackground(
+                this.do,
+                mergedEnv,
+                stdin ? new Blob([stdin]) : undefined
+            )
+        }
+
+        return execCmdBackground(
+            expandEnv(this.do, mergedEnv),
+            mergedEnv,
+            stdin ? new Blob([stdin]) : undefined
+        )
     }
 
     executeDetached(

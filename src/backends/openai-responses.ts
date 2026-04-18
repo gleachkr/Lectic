@@ -351,7 +351,9 @@ export class OpenAIResponsesBackend extends Backend<
       store: false,
     })
 
-    async function* chunks(accumulator): AsyncGenerator<StreamChunk> {
+    async function* chunks(
+      accumulator: OpenAI.Responses.ResponseOutputItem[]
+    ): AsyncGenerator<StreamChunk> {
       let thoughtOrder = 0
 
       for await (const event of stream) {

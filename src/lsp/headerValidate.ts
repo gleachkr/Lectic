@@ -111,20 +111,25 @@ function validateHookObject(
     })
   }
 
-  if ("async" in hook && typeof hook["async"] !== "boolean") {
+  if (
+    "mode" in hook
+    && hook["mode"] !== "sync"
+    && hook["mode"] !== "background"
+    && hook["mode"] !== "detached"
+  ) {
     issues.push({
-      code: "hook.async.type",
-      message: Messages.hook.asyncType(),
-      path: [...pathBase, "async"],
+      code: "hook.mode.type",
+      message: Messages.hook.modeType(),
+      path: [...pathBase, "mode"],
       severity: "error",
     })
   }
 
-  if (hook["async"] === true && hook["inline"] === true) {
+  if ((hook["mode"] ?? "sync") !== "sync" && hook["inline"] === true) {
     issues.push({
-      code: "hook.async.inline",
-      message: Messages.hook.asyncInline(),
-      path: [...pathBase, "async"],
+      code: "hook.mode.inline",
+      message: Messages.hook.modeInline(),
+      path: [...pathBase, "mode"],
       severity: "error",
     })
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from 'bun:test'
-import { mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 
@@ -11,12 +11,19 @@ type CliResult = {
     stderr: string
 }
 
-async function runMain(argv: string[]): Promise<CliResult> {
+async function runMain(
+    argv: string[],
+    env: Record<string, string> = {}
+): Promise<CliResult> {
     const mainPath = resolve(import.meta.dir, 'main.ts')
     const proc = Bun.spawn({
         cmd: [process.execPath, mainPath, ...argv],
         cwd: process.cwd(),
-        env: { ...process.env, LECTIC_CONFIG : "not-a-directory" },
+        env: {
+            ...process.env,
+            LECTIC_CONFIG: "not-a-directory",
+            ...env,
+        },
         stdout: 'pipe',
         stderr: 'pipe',
     })
@@ -26,6 +33,17 @@ async function runMain(argv: string[]): Promise<CliResult> {
     const exitCode = await proc.exited
 
     return { exitCode, stdout, stderr }
+}
+
+async function waitForExists(path: string, timeoutMs = 1000): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs
+
+    while (Date.now() < deadline) {
+        if (existsSync(path)) return true
+        await Bun.sleep(25)
+    }
+
+    return existsSync(path)
 }
 
 describe('main parse command CLI', () => {
@@ -96,5 +114,52 @@ describe('main generate CLI flags', () => {
         expect(result.stdout).toContain(
             "You can't use --inplace without --file"
         )
+    })
+
+    it('waits for background run_end hooks before exit', async () => {
+        const hookOut = join(dir, 'run-end-hook.txt')
+        const file = join(dir, 'run-end.lec')
+        const cacheDir = join(dir, 'cache')
+        const stateDir = join(dir, 'state')
+
+        writeFileSync(
+            file,
+            [
+                '---',
+                'hooks:',
+                '  - on: run_end',
+                '    mode: background',
+                '    allow_failure: true',
+                '    env:',
+                `      OUT: ${hookOut}`,
+                '    do: |',
+                '      #!/usr/bin/env bash',
+                '      sleep 0.1',
+                '      printf end > "$OUT"',
+                'interlocutor:',
+                '  name: Assistant',
+                '  prompt: hi',
+                '  provider: ollama',
+                '  model: llama3.2',
+                '---',
+                '',
+                'hello',
+                '',
+            ].join('\n')
+        )
+
+        const result = await runMain([
+            '--format',
+            'none',
+            '-f',
+            file,
+        ], {
+            LECTIC_CACHE: cacheDir,
+            LECTIC_STATE: stateDir,
+        })
+
+        expect(result.exitCode).toBe(1)
+        expect(await waitForExists(hookOut)).toBe(true)
+        expect(await Bun.file(hookOut).text()).toBe('end')
     })
 })

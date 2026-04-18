@@ -5,7 +5,11 @@ function mergedEnv(env: Record<string, string | undefined>) {
     return { ...process.env, ...lecticEnv, ...env }
 }
 
-export function execScriptFull(script : string, env: Record<string, string | undefined> = {}, stdin? : Blob) {
+export function execScriptFull(
+    script : string,
+    env: Record<string, string | undefined> = {},
+    stdin? : Blob
+) {
     const { path, shebangArgs, cleanup } = writeTempShebangScriptSync(script)
     const proc = Bun.spawnSync([
         ...shebangArgs,
@@ -22,7 +26,11 @@ export function execScriptFull(script : string, env: Record<string, string | und
     }
 }
 
-export function execCmdFull(cmd: string, env: Record<string, string | undefined> = {}, stdin? : Blob) {
+export function execCmdFull(
+    cmd: string,
+    env: Record<string, string | undefined> = {},
+    stdin? : Blob
+) {
     const args = parseCommandToArgv(cmd)
     const proc = Bun.spawnSync(args, {
         stdin,
@@ -35,20 +43,30 @@ export function execCmdFull(cmd: string, env: Record<string, string | undefined>
     }
 }
 
-export function execScript(script : string, env: Record<string, string | undefined> = {}, stdin? : Blob) {
+export function execScript(
+    script : string,
+    env: Record<string, string | undefined> = {},
+    stdin? : Blob
+) {
     return execScriptFull(script, env, stdin).stdout
 }
 
-export function execCmd(cmd: string, env: Record<string, string | undefined> = {}, stdin? : Blob) {
+export function execCmd(
+    cmd: string,
+    env: Record<string, string | undefined> = {},
+    stdin? : Blob
+) {
     return execCmdFull(cmd, env, stdin).stdout
 }
 
-export function execScriptDetached(
+export function execScriptBackground(
     script: string,
     env: Record<string, string | undefined> = {},
     stdin?: Blob
 ): Promise<number> {
-    const { path, shebangArgs, cleanup } = writeTempShebangScriptSync(script)
+    const { path, shebangArgs, cleanup } = writeTempShebangScriptSync(script, {
+        registerExitCleanup: false,
+    })
 
     try {
         const proc = Bun.spawn([
@@ -58,7 +76,6 @@ export function execScriptDetached(
             stdin,
             stdout: "ignore",
             stderr: "ignore",
-            detached: true,
             env: mergedEnv(env),
         })
         return proc.exited.finally(cleanup)
@@ -66,6 +83,44 @@ export function execScriptDetached(
         cleanup()
         throw error
     }
+}
+
+export function execCmdBackground(
+    cmd: string,
+    env: Record<string, string | undefined> = {},
+    stdin?: Blob
+): Promise<number> {
+    const args = parseCommandToArgv(cmd)
+    const proc = Bun.spawn(args, {
+        stdin,
+        stdout: "ignore",
+        stderr: "ignore",
+        env: mergedEnv(env),
+    })
+    return proc.exited
+}
+
+export function execScriptDetached(
+    script: string,
+    env: Record<string, string | undefined> = {},
+    stdin?: Blob
+): Promise<number> {
+    const { path, shebangArgs } = writeTempShebangScriptSync(script, {
+        registerExitCleanup: false,
+    })
+
+    const proc = Bun.spawn([
+        ...shebangArgs,
+        path,
+    ], {
+        stdin,
+        stdout: "ignore",
+        stderr: "ignore",
+        detached: true,
+        env: mergedEnv(env),
+    })
+    proc.unref()
+    return proc.exited
 }
 
 export function execCmdDetached(
@@ -81,5 +136,6 @@ export function execCmdDetached(
         detached: true,
         env: mergedEnv(env),
     })
+    proc.unref()
     return proc.exited
 }

@@ -11,6 +11,7 @@ import { type Lectic } from "./types/lectic"
 import { AssistantMessage } from "./types/message"
 import {
   getScopedHooks,
+  HookExecutionTracker,
   runHooksNoInline,
   type BackendUsage,
 } from "./types/backend"
@@ -158,6 +159,7 @@ export async function generate() {
   const runStartedMs = Date.now()
   let runErrorMessage: string | undefined
   let tokenTotals: BackendUsage | undefined
+  const hookRunner = new HookExecutionTracker()
 
   try {
     lectic = await parseAndInitializeLectic(lecticString)
@@ -166,7 +168,7 @@ export async function generate() {
       RUN_ID: runId,
       RUN_STARTED_AT: new Date(runStartedMs).toISOString(),
       RUN_CWD: process.cwd(),
-    })
+    }, undefined, hookRunner)
 
     const backend = getBackend(lectic.header.interlocutor)
     const header = `:::${lectic.header.interlocutor.name}\n\n`
@@ -191,6 +193,7 @@ export async function generate() {
     let cleanNeedsSeparator = false
 
     for await (const chunk of backend.evaluate(lectic, {
+      hookRunner,
       onAssistantPassText: (text, info) => {
         tokenTotals = addUsage(tokenTotals, info.usage)
 
@@ -267,7 +270,14 @@ export async function generate() {
       }
 
       try {
-        runHooksNoInline(getScopedHooks(lectic), "run_end", runEndEnv)
+        runHooksNoInline(
+          getScopedHooks(lectic),
+          "run_end",
+          runEndEnv,
+          undefined,
+          hookRunner,
+        )
+        await hookRunner.drain()
       } catch (error) {
         exitCode = 1
         const message = errorMessage(error)

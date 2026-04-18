@@ -23,7 +23,12 @@ describe("Hook", () => {
         expect(() => new Hook({
             on: "tool_use_post",
             do: "echo 'background'",
-            async: true,
+            mode: "background",
+        })).not.toThrow()
+        expect(() => new Hook({
+            on: "run_end",
+            do: "echo 'detached'",
+            mode: "detached",
         })).not.toThrow()
         expect(() => new Hook({
             on: "assistant_message",
@@ -59,21 +64,26 @@ describe("Hook", () => {
         })).toThrow('The "allow_failure" field of a hook must be a boolean.')
     })
 
-    test("rejects non-boolean async", () => {
+    test("rejects invalid mode", () => {
         expect(() => validateHookSpec({
             on: "assistant_message",
             do: "echo 'x'",
-            async: "yes",
-        })).toThrow('The "async" field of a hook must be a boolean.')
+            mode: "later",
+        })).toThrow(
+            'The "mode" field of a hook must be "sync", ' +
+            '"background", or "detached".'
+        )
     })
 
-    test("rejects async inline hooks", () => {
+    test("rejects non-sync inline hooks", () => {
         expect(() => validateHookSpec({
             on: "assistant_message",
             do: "echo 'x'",
             inline: true,
-            async: true,
-        })).toThrow('Async hooks can\'t set "inline: true".')
+            mode: "background",
+        })).toThrow(
+            'Only hooks with "mode: sync" can set "inline: true".'
+        )
     })
 
     test("execute single line", () => {
