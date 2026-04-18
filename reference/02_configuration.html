@@ -662,7 +662,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="the-hook-object" class="level2">
 <h2 class="anchored" data-anchor-id="the-hook-object">The <code>hook</code> Object</h2>
 <ul>
-<li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>assistant_message</code>, <code>assistant_final</code>, <code>assistant_intermediate</code>, <code>tool_use_pre</code>, <code>tool_use_post</code>, <code>run_start</code>, <code>run_end</code>, and <code>error</code>. <code>error</code> is a derived alias of <code>run_end</code> and fires only when <code>RUN_STATUS=error</code>.</li>
+<li><code>on</code>: (Required) A single event name or a list of event names to trigger the hook. Supported events are <code>user_message</code>, <code>user_first</code>, <code>assistant_message</code>, <code>assistant_final</code>, <code>assistant_intermediate</code>, <code>tool_use_pre</code>, <code>tool_use_post</code>, <code>run_start</code>, <code>run_end</code>, and <code>error</code>. <code>error</code> is a derived alias of <code>run_end</code> and fires only when <code>RUN_STATUS=error</code>.</li>
 <li><code>do</code>: (Required) The command or inline script to run when the event occurs. If multi‑line, it must start with a shebang (e.g., <code>#!/bin/bash</code>). Event context is provided as environment variables. See the Hooks guide for details.</li>
 <li><code>inline</code>: (Optional) Boolean. If <code>true</code>, the output of the hook is captured. Defaults to <code>false</code>.</li>
 <li><code>inline_as</code>: (Optional) One of <code>attachment</code> or <code>comment</code>. Defaults to <code>attachment</code>. When set to <code>attachment</code>, inline hook output is stored as <code>&lt;inline-attachment kind="hook"&gt;</code> XML and is visible to the provider. When set to <code>comment</code>, the output is stored as an HTML comment in the transcript and is not sent to the provider.</li>
@@ -670,7 +670,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>icon</code>: (Optional) Icon string for inline hook attachments. If provided, it is serialized as the <code>icon</code> attribute and used by LSP folding when <code>NERD_FONT=1</code>.</li>
 <li><code>env</code>: (Optional) A dictionary of environment variables to be set when the hook runs.</li>
 <li><code>allow_failure</code>: (Optional) Boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
-<li><code>async</code>: (Optional) Boolean. If <code>true</code>, Lectic starts the hook in the background and does not wait for it to finish. Defaults to <code>false</code>. Async hooks are best-effort, and they cannot be combined with <code>inline: true</code>.</li>
+<li><code>mode</code>: (Optional) One of <code>sync</code>, <code>background</code>, or <code>detached</code>. Defaults to <code>sync</code>.
+<ul>
+<li><code>sync</code>: run immediately and wait for completion.</li>
+<li><code>background</code>: start immediately, do not block the current hook site, but wait for completion before Lectic exits.</li>
+<li><code>detached</code>: start immediately and do not wait for completion. Detached hooks are best-effort after launch and cannot be combined with <code>inline: true</code>. For generated multi-line scripts, Lectic does not make any parent-side cleanup effort.</li>
+</ul></li>
 </ul>
 <p>Hook event environments for <code>tool_use_pre</code> and <code>tool_use_post</code> also include <code>TOOL_CALL_ID</code>, a stable id for the specific tool call.</p>
 <hr>

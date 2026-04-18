@@ -464,7 +464,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>icon</code>: (Optional) Icon string for inline hook attachments.</li>
 <li><code>env</code>: (Optional) A map of environment variables to inject into the hook’s execution environment.</li>
 <li><code>allow_failure</code>: (Optional) A boolean. If <code>true</code>, non-zero exit status from this hook is ignored. Defaults to <code>false</code>.</li>
-<li><code>async</code>: (Optional) A boolean. If <code>true</code>, Lectic starts the hook in the background and does not wait for it to finish. Defaults to <code>false</code>. Async hooks are best-effort. They cannot inject inline output, and their eventual exit status cannot affect the current run.</li>
+<li><code>mode</code>: (Optional) How the hook runs. One of <code>sync</code>, <code>background</code>, or <code>detached</code>. Defaults to <code>sync</code>.
+<ul>
+<li><code>sync</code>: run immediately and wait for completion.</li>
+<li><code>background</code>: start immediately, do not block the current hook site, but wait for completion before Lectic exits. Background hook failures can still fail the run.</li>
+<li><code>detached</code>: start immediately and do not wait for completion. Detached hooks are best-effort after launch. Their eventual exit status does not affect the current run, and inline generated scripts are not cleaned up by Lectic.</li>
+</ul></li>
 </ul>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hooks</span><span class="kw">:</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> logger</span></span>
@@ -474,11 +479,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">do</span><span class="kw">:</span><span class="at"> ./log-activity.sh</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If <code>do</code> contains multiple lines, it is treated as a script and must begin with a shebang (e.g., <code>#!/bin/bash</code>). If it is a single line, it is treated as a command. Commands are executed directly (not through a shell), so shell features like command substitution will not work.</p>
 <p>Hook commands run synchronously by default.</p>
-<p>If you set <code>async: true</code>, Lectic only waits long enough to start the hook process. The hook then continues in the background. This is useful for editor notifications, progress updates, and similar non-blocking side effects.</p>
+<p>If you set <code>mode: background</code>, Lectic starts the hook immediately and lets main execution continue, but it still waits for the hook before exit. This is useful for progress updates and similar side effects that should finish reliably.</p>
+<p>If you set <code>mode: detached</code>, Lectic only waits long enough to start the hook process. The hook then continues independently. This is useful when the hook should outlive Lectic entirely. For generated multi-line scripts, Lectic makes no parent-side cleanup attempt, so the script should remove itself if needed.</p>
 <p>For most events, a non-zero exit status is treated as an error and aborts the current run.</p>
 <p><code>tool_use_pre</code> is special: a non-zero exit blocks the tool call (permission denied). If you set <code>allow_failure: true</code> on that hook, the non-zero exit is ignored and the tool call continues.</p>
 <p>If you set <code>inline: true</code>, standard output is captured.</p>
-<p>Async hooks cannot set <code>inline: true</code>.</p>
+<p>Only <code>mode: sync</code> hooks can set <code>inline: true</code>.</p>
 <ul>
 <li>With the default <code>inline_as: attachment</code>, the output is added to the conversation.
 <ul>

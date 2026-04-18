@@ -1684,10 +1684,16 @@ A hook has nine possible fields:
   hook’s execution environment.
 - `allow_failure`: (Optional) A boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
-- `async`: (Optional) A boolean. If `true`, Lectic starts the hook in
-  the background and does not wait for it to finish. Defaults to
-  `false`. Async hooks are best-effort. They cannot inject inline
-  output, and their eventual exit status cannot affect the current run.
+- `mode`: (Optional) How the hook runs. One of `sync`, `background`, or
+  `detached`. Defaults to `sync`.
+  - `sync`: run immediately and wait for completion.
+  - `background`: start immediately, do not block the current hook site,
+    but wait for completion before Lectic exits. Background hook
+    failures can still fail the run.
+  - `detached`: start immediately and do not wait for completion.
+    Detached hooks are best-effort after launch. Their eventual exit
+    status does not affect the current run, and inline generated scripts
+    are not cleaned up by Lectic.
 
 ``` yaml
 hooks:
@@ -1705,10 +1711,16 @@ shell), so shell features like command substitution will not work.
 
 Hook commands run synchronously by default.
 
-If you set `async: true`, Lectic only waits long enough to start the
-hook process. The hook then continues in the background. This is useful
-for editor notifications, progress updates, and similar non-blocking
-side effects.
+If you set `mode: background`, Lectic starts the hook immediately and
+lets main execution continue, but it still waits for the hook before
+exit. This is useful for progress updates and similar side effects that
+should finish reliably.
+
+If you set `mode: detached`, Lectic only waits long enough to start the
+hook process. The hook then continues independently. This is useful when
+the hook should outlive Lectic entirely. For generated multi-line
+scripts, Lectic makes no parent-side cleanup attempt, so the script
+should remove itself if needed.
 
 For most events, a non-zero exit status is treated as an error and
 aborts the current run.
@@ -1719,7 +1731,7 @@ non-zero exit is ignored and the tool call continues.
 
 If you set `inline: true`, standard output is captured.
 
-Async hooks cannot set `inline: true`.
+Only `mode: sync` hooks can set `inline: true`.
 
 - With the default `inline_as: attachment`, the output is added to the
   conversation.
@@ -5109,7 +5121,7 @@ in a key name.
 ## The `hook` Object
 
 - `on`: (Required) A single event name or a list of event names to
-  trigger the hook. Supported events are `user_message`,
+  trigger the hook. Supported events are `user_message`, `user_first`,
   `assistant_message`, `assistant_final`, `assistant_intermediate`,
   `tool_use_pre`, `tool_use_post`, `run_start`, `run_end`, and `error`.
   `error` is a derived alias of `run_end` and fires only when
@@ -5137,10 +5149,15 @@ in a key name.
   the hook runs.
 - `allow_failure`: (Optional) Boolean. If `true`, non-zero exit status
   from this hook is ignored. Defaults to `false`.
-- `async`: (Optional) Boolean. If `true`, Lectic starts the hook in the
-  background and does not wait for it to finish. Defaults to `false`.
-  Async hooks are best-effort, and they cannot be combined with
-  `inline: true`.
+- `mode`: (Optional) One of `sync`, `background`, or `detached`.
+  Defaults to `sync`.
+  - `sync`: run immediately and wait for completion.
+  - `background`: start immediately, do not block the current hook site,
+    but wait for completion before Lectic exits.
+  - `detached`: start immediately and do not wait for completion.
+    Detached hooks are best-effort after launch and cannot be combined
+    with `inline: true`. For generated multi-line scripts, Lectic does
+    not make any parent-side cleanup effort.
 
 Hook event environments for `tool_use_pre` and `tool_use_post` also
 include `TOOL_CALL_ID`, a stable id for the specific tool call.
