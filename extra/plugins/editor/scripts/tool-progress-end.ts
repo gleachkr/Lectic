@@ -3,6 +3,9 @@
 import { progressEnd } from "../lib"
 import { presentToolProgressEnd } from "../presentation"
 
+// give user time to read the message
+await Bun.sleep(1000)
+
 function requireEnv(name: string): string {
   const value = process.env[name]
   if (!value || value.trim() === "") {
