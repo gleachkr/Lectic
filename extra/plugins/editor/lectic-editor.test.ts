@@ -12,15 +12,19 @@ type BridgeRequest = {
   params?: Record<string, unknown>
 }
 
-const repoRoot = resolve(import.meta.dir, "..", "..", "..");
-const editorScriptPath = resolve(import.meta.dir, "lectic-editor.ts");
+const repoRoot = resolve(import.meta.dir, "..", "..", "..")
+const editorScriptPath = resolve(import.meta.dir, "./lectic-editor.ts")
+const toolProgressStartPath = resolve(
+  import.meta.dir,
+  "./scripts/tool-progress-start.ts"
+)
+const toolApprovePath = resolve(import.meta.dir, "./scripts/tool-approve.ts")
 
 async function withFakeBridge(
   socketPath: string,
   handler: (request: BridgeRequest) => unknown | Promise<unknown>,
   fn: () => Promise<void>
 ): Promise<void> {
-  const requests: BridgeRequest[] = []
   const server = createServer((socket) => {
     socket.setEncoding("utf8")
     let buffer = ""
@@ -32,7 +36,6 @@ async function withFakeBridge(
       const line = buffer.slice(0, newline)
       buffer = buffer.slice(newline + 1)
       const request = JSON.parse(line) as BridgeRequest
-      requests.push(request)
       const result = await handler(request)
       if (request.id !== undefined) {
         socket.write(JSON.stringify({
@@ -65,11 +68,10 @@ async function withFakeBridge(
       rmSync(socketPath, { force: true })
     }
   }
-
-  void requests
 }
 
-async function runEditor(
+async function runTsScript(
+  scriptPath: string,
   args: string[],
   options?: {
     cwd?: string
@@ -86,7 +88,7 @@ async function runEditor(
   }
 
   const proc = Bun.spawn({
-    cmd: [process.execPath, editorScriptPath, ...args],
+    cmd: [process.execPath, scriptPath, ...args],
     cwd: options?.cwd ?? repoRoot,
     env,
     stdout: "pipe",
@@ -115,7 +117,7 @@ describe("lectic editor plugin", () => {
         expect(request.params?.options).toEqual(["staging", "prod"])
         return { choice: "prod" }
       }, async () => {
-        const result = await runEditor([
+        const result = await runTsScript(editorScriptPath, [
           "pick",
           "--title",
           "Choose target",
@@ -140,6 +142,125 @@ describe("lectic editor plugin", () => {
     }
   })
 
+  test("truncates progress messages when requested", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-state-"))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-root-"))
+    const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+
+    try {
+      await withFakeBridge(socketPath, async (request) => {
+        expect(request.type).toBe("progress.begin")
+        expect(request.params).toEqual({
+          token: "tok-1",
+          title: "Running shell",
+          message: "123456789…",
+          percentage: undefined,
+        })
+        return undefined
+      }, async () => {
+        const result = await runTsScript(editorScriptPath, [
+          "progress",
+          "begin",
+          "--token",
+          "tok-1",
+          "--title",
+          "Running shell",
+          "--message",
+          "1234567890abcdef",
+          "--message-max-length",
+          "10",
+        ], {
+          cwd: workspaceRoot,
+          env: {
+            LECTIC_STATE: stateDir,
+          },
+        })
+
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout).toBe("")
+        expect(result.stderr).toBe("")
+      })
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+      rmSync(stateDir, { recursive: true, force: true })
+    }
+  })
+
+  test("tool progress hook script formats argv for progress", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-state-"))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-root-"))
+    const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+
+    try {
+      await withFakeBridge(socketPath, async (request) => {
+        expect(request.type).toBe("progress.begin")
+        expect(request.params).toEqual({
+          token: "call-1",
+          title: "Running shell",
+          message: "git diff --cached --stat",
+        })
+        return undefined
+      }, async () => {
+        const result = await runTsScript(toolProgressStartPath, [], {
+          cwd: workspaceRoot,
+          env: {
+            LECTIC_STATE: stateDir,
+            TOOL_CALL_ID: "call-1",
+            TOOL_NAME: "shell",
+            TOOL_ARGS: JSON.stringify({
+              argv: ["git", "diff", "--cached", "--stat"],
+            }),
+          },
+        })
+
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout).toBe("")
+        expect(result.stderr).toBe("")
+      })
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+      rmSync(stateDir, { recursive: true, force: true })
+    }
+  })
+
+  test("tool approval hook script sends a formatted approval prompt", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-state-"))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-root-"))
+    const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+
+    try {
+      await withFakeBridge(socketPath, async (request) => {
+        expect(request.type).toBe("query.confirm")
+        expect(request.params).toEqual({
+          title: "Allow shell?",
+          message: "Tool: shell\n\nArguments:\ngit diff --cached",
+          allow: "Allow",
+          deny: "Deny",
+          severity: "warning",
+        })
+        return { approved: false }
+      }, async () => {
+        const result = await runTsScript(toolApprovePath, [], {
+          cwd: workspaceRoot,
+          env: {
+            LECTIC_STATE: stateDir,
+            TOOL_NAME: "shell",
+            TOOL_ARGS: JSON.stringify({
+              argv: ["git", "diff", "--cached"],
+            }),
+          },
+        })
+
+        expect(result.exitCode).toBe(1)
+        expect(result.stdout).toBe("")
+        expect(result.stderr).toBe("")
+      })
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+      rmSync(stateDir, { recursive: true, force: true })
+    }
+  })
+
   test("approve exits non-zero when the editor denies the request", async () => {
     const stateDir = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-state-"))
     const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-root-"))
@@ -150,7 +271,7 @@ describe("lectic editor plugin", () => {
         expect(request.type).toBe("query.confirm")
         return { approved: false }
       }, async () => {
-        const result = await runEditor([
+        const result = await runTsScript(editorScriptPath, [
           "approve",
           "--title",
           "Allow tool use?",

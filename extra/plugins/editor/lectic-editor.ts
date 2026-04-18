@@ -1,25 +1,15 @@
 #!/usr/bin/env -S lectic script
 
-import { createHash } from "node:crypto"
-import { existsSync, realpathSync } from "node:fs"
-import { createConnection as createNetConnection } from "node:net"
-import { homedir } from "node:os"
-import { dirname, join, resolve } from "node:path"
-
-type Severity = "error" | "warning" | "info" | "log"
-
-type BridgeResponse = {
-  id?: string
-  ok?: boolean
-  result?: {
-    choice?: string | null
-    approved?: boolean
-  }
-  error?: {
-    code?: string
-    message?: string
-  }
-}
+import {
+  approve,
+  parsePositiveInteger,
+  pick,
+  progressBegin,
+  progressEnd,
+  progressReport,
+  truncateText,
+  type Severity,
+} from "./lib"
 
 type ParsedFlags = {
   positional: string[]
@@ -45,6 +35,8 @@ function usage(): string {
     "",
     "Common options:",
     "  --message TEXT   Extra body text to show in the prompt",
+    "  --message-max-length N",
+    "                   Truncate --message to at most N characters",
     "  --severity S     error|warning|info|log (for approve/pick)",
     "  --socket PATH    Connect to an explicit socket/pipe path",
     "",
@@ -62,80 +54,6 @@ function usage(): string {
     "  If --socket is omitted, the command searches upward from the",
     "  active Lectic file directory (or cwd) for an active LSP bridge.",
   ].join("\n")
-}
-
-function getBaseDir(type: "config" | "data" | "cache" | "state"): string {
-  const home = homedir()
-
-  if (process.platform === "win32") {
-    const local = process.env["LOCALAPPDATA"]
-      || join(home, "AppData", "Local")
-    const roaming = process.env["APPDATA"] || join(home, "AppData", "Roaming")
-    if (type === "config" || type === "data") {
-      return roaming
-    }
-    return local
-  }
-
-  if (process.platform === "darwin") {
-    const library = join(home, "Library")
-    if (type === "config") {
-      return join(library, "Preferences")
-    }
-    if (type === "cache") {
-      return join(library, "Caches")
-    }
-    return join(library, "Application Support")
-  }
-
-  const defaults = {
-    config: ["XDG_CONFIG_HOME", ".config"],
-    data: ["XDG_DATA_HOME", ".local/share"],
-    cache: ["XDG_CACHE_HOME", ".cache"],
-    state: ["XDG_STATE_HOME", ".local/state"],
-  } as const
-  const [envName, rel] = defaults[type]
-  return process.env[envName] || join(home, rel)
-}
-
-function lecticStateDir(): string {
-  return process.env["LECTIC_STATE"] || join(getBaseDir("state"), "lectic")
-}
-
-function normalizeRoot(root: string): string {
-  const resolved = resolve(root)
-  try {
-    return realpathSync.native(resolved)
-  } catch {
-    return resolved
-  }
-}
-
-function socketHash(root: string): string {
-  return createHash("sha256")
-    .update(normalizeRoot(root))
-    .digest("hex")
-    .slice(0, 24)
-}
-
-function socketPathForRoot(root: string): string {
-  const hash = socketHash(root)
-  if (process.platform === "win32") {
-    return `\\\\.\\pipe\\lectic-editor-${hash}`
-  }
-  return join(lecticStateDir(), "lsp", `editor-${hash}.sock`)
-}
-
-function candidateRoots(startDir: string): string[] {
-  const roots: string[] = []
-  let current = normalizeRoot(startDir)
-
-  for (;;) {
-    roots.push(current)
-    const parent = dirname(current)
-    if (parent === current) return roots
-    current = parent
-  }
 }
 
 function parseFlags(args: string[]): ParsedFlags {
@@ -219,103 +137,14 @@ function parsePercentage(value: string | undefined): number | undefined {
   return parsed
 }
 
-function commandStartDir(): string {
-  const lecticFile = process.env["LECTIC_FILE"]
-  if (lecticFile && lecticFile.trim() !== "") {
-    return dirname(lecticFile)
-  }
-  return process.cwd()
-}
-
-async function socketExists(path: string): Promise<boolean> {
-  if (process.platform === "win32") return true
-  return existsSync(path)
-}
-
-async function canConnect(path: string): Promise<boolean> {
-  return await new Promise((resolve) => {
-    const socket = createNetConnection(path)
-    let settled = false
-
-    const finish = (value: boolean) => {
-      if (settled) return
-      settled = true
-      socket.destroy()
-      resolve(value)
-    }
-
-    socket.once("connect", () => finish(true))
-    socket.once("error", () => finish(false))
-    socket.setTimeout(150, () => finish(false))
-  })
-}
-
-async function connectAndRequest(
-  socketPath: string,
-  request: Record<string, unknown>
-): Promise<BridgeResponse> {
-  return await new Promise((resolve, reject) => {
-    const socket = createNetConnection(socketPath)
-    let buffer = ""
-    let settled = false
-
-    const finish = (fn: () => void) => {
-      if (settled) return
-      settled = true
-      fn()
-      socket.end()
-    }
-
-    socket.setEncoding("utf8")
-    socket.once("connect", () => {
-      socket.write(JSON.stringify(request) + "\n")
-      if (request.id === undefined) {
-        finish(() => resolve({ ok: true }))
-      }
-    })
-    socket.on("data", (chunk: string) => {
-      buffer += chunk
-      const newline = buffer.indexOf("\n")
-      if (newline === -1) return
-      const line = buffer.slice(0, newline)
-      finish(() => resolve(JSON.parse(line) as BridgeResponse))
-    })
-    socket.once("error", (error) => finish(() => reject(error)))
-  })
-}
-
-async function findSocketPath(explicitPath?: string): Promise<string> {
-  if (explicitPath) return explicitPath
-
-  const override = process.env["LECTIC_EDITOR_SOCKET"]
-  if (override && override.trim() !== "") return override
-
-  const startDir = commandStartDir()
-  for (const root of candidateRoots(startDir)) {
-    const socketPath = socketPathForRoot(root)
-    if (!(await socketExists(socketPath))) continue
-    if (!(await canConnect(socketPath))) continue
-    return socketPath
-  }
-
-  throw new Error(
-    `could not find an active Lectic editor bridge above ${startDir}`
+function parsedMessage(parsed: ParsedFlags): string | undefined {
+  return truncateText(
+    flagValue(parsed, "message"),
+    parsePositiveInteger(
+      flagValue(parsed, "message-max-length"),
+      "--message-max-length"
+    )
   )
-}
-
-async function bridgeRequest(
-  request: Record<string, unknown>,
-  explicitSocket?: string
-): Promise<BridgeResponse> {
-  const socketPath = await findSocketPath(explicitSocket)
-  const response = await connectAndRequest(socketPath, request)
-
-  if (request.id !== undefined && response.ok !== true) {
-    const message = response.error?.message || "editor bridge request failed"
-    throw new Error(message)
-  }
-
-  return response
 }
 
 async function runProgress(parsed: ParsedFlags): Promise<void> {
@@ -325,88 +154,68 @@ async function runProgress(parsed: ParsedFlags): Promise<void> {
   }
 
   const token = nonEmpty(flagValue(parsed, "token"), "--token")
-  const message = flagValue(parsed, "message")
-  const explicitSocket = flagValue(parsed, "socket")
+  const message = parsedMessage(parsed)
+  const socket = flagValue(parsed, "socket")
 
   if (mode === "begin") {
-    const title = nonEmpty(flagValue(parsed, "title"), "--title")
-    const percentage = parsePercentage(flagValue(parsed, "percentage"))
-    await bridgeRequest(
+    await progressBegin(
       {
-        id: `progress-begin-${Date.now()}`,
-        type: "progress.begin",
-        params: { token, title, message, percentage },
+        token,
+        title: nonEmpty(flagValue(parsed, "title"), "--title"),
+        message,
+        percentage: parsePercentage(flagValue(parsed, "percentage")),
       },
-      explicitSocket
+      { socket }
     )
     return
   }
 
   if (mode === "report") {
-    const percentage = parsePercentage(flagValue(parsed, "percentage"))
-    await bridgeRequest(
+    await progressReport(
       {
-        id: `progress-report-${Date.now()}`,
-        type: "progress.report",
-        params: { token, message, percentage },
+        token,
+        message,
+        percentage: parsePercentage(flagValue(parsed, "percentage")),
       },
-      explicitSocket
+      { socket }
     )
     return
   }
 
-  await bridgeRequest(
-    {
-      id: `progress-end-${Date.now()}`,
-      type: "progress.end",
-      params: { token, message },
-    },
-    explicitSocket
-  )
+  await progressEnd({ token, message }, { socket })
 }
 
 async function runApprove(parsed: ParsedFlags): Promise<void> {
-  const title = nonEmpty(flagValue(parsed, "title"), "--title")
-  const message = flagValue(parsed, "message")
-  const allow = flagValue(parsed, "allow")
-  const deny = flagValue(parsed, "deny")
-  const severity = parseSeverity(flagValue(parsed, "severity"))
-  const explicitSocket = flagValue(parsed, "socket")
-
-  const response = await bridgeRequest(
+  const approved = await approve(
     {
-      id: `approve-${Date.now()}`,
-      type: "query.confirm",
-      params: { title, message, allow, deny, severity },
+      title: nonEmpty(flagValue(parsed, "title"), "--title"),
+      message: parsedMessage(parsed),
+      allow: flagValue(parsed, "allow"),
+      deny: flagValue(parsed, "deny"),
+      severity: parseSeverity(flagValue(parsed, "severity")),
     },
-    explicitSocket
+    { socket: flagValue(parsed, "socket") }
   )
 
-  const approved = response.result?.approved === true
   process.exit(approved ? 0 : 1)
 }
 
 async function runPick(parsed: ParsedFlags): Promise<void> {
-  const title = nonEmpty(flagValue(parsed, "title"), "--title")
-  const message = flagValue(parsed, "message")
   const options = flagValues(parsed, "option")
-  const severity = parseSeverity(flagValue(parsed, "severity"))
-  const explicitSocket = flagValue(parsed, "socket")
-
   if (options.length === 0) {
     throw new Error("pick requires at least one --option value")
   }
 
-  const response = await bridgeRequest(
+  const choice = await pick(
     {
-      id: `pick-${Date.now()}`,
-      type: "query.pick",
-      params: { title, message, options, severity },
+      title: nonEmpty(flagValue(parsed, "title"), "--title"),
+      message: parsedMessage(parsed),
+      options,
+      severity: parseSeverity(flagValue(parsed, "severity")),
     },
-    explicitSocket
+    { socket: flagValue(parsed, "socket") }
   )
 
-  const choice = response.result?.choice
   if (typeof choice === "string") {
     console.log(choice)
     process.exit(0)

@@ -1,12 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import * as YAML from "yaml"
 
+import { rewriteLocalInNode } from "../../../src/utils/localPath"
 import { resolveNamedUses } from "../../../src/utils/useResolver"
 
 describe("editor plugin hook defs", () => {
   test("resolves bundled editor hook definitions", async () => {
     const raw = await Bun.file(new URL("./lectic.yaml", import.meta.url)).text()
-    const parsed = YAML.parse(raw) as Record<string, unknown>
+    const parsed = rewriteLocalInNode(
+      YAML.parse(raw),
+      import.meta.dir
+    ) as Record<string, unknown>
 
     const resolved = resolveNamedUses({
       ...parsed,
@@ -34,6 +38,18 @@ describe("editor plugin hook defs", () => {
       "background",
       "background",
       "sync",
+    ])
+    expect(
+      resolved.hooks?.every((hook) => {
+        return hook["env"]?.["EDITOR_PLUGIN_ROOT"] === import.meta.dir
+      })
+    ).toBe(true)
+    expect(resolved.hooks?.map((hook) => hook["do"])).toEqual([
+      '"$EDITOR_PLUGIN_ROOT/scripts/run-progress-start.ts"',
+      '"$EDITOR_PLUGIN_ROOT/scripts/run-progress-end.ts"',
+      '"$EDITOR_PLUGIN_ROOT/scripts/tool-progress-start.ts"',
+      '"$EDITOR_PLUGIN_ROOT/scripts/tool-progress-end.ts"',
+      '"$EDITOR_PLUGIN_ROOT/scripts/tool-approve.ts"',
     ])
   })
 })

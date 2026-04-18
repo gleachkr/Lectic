@@ -1,7 +1,8 @@
 # Editor bridge plugin (`lectic editor`)
 
-This plugin provides the `lectic editor` subcommand and an optional
-`lectic.yaml` with reusable hook definitions.
+This plugin provides the `lectic editor` subcommand, reusable hook
+definitions, and specialized hook scripts built on the same shared bridge
+library.
 
 It talks to the Lectic LSP's local editor bridge, which lets hooks,
 CLI tools, and scripts send a small set of editor-facing requests through
@@ -25,19 +26,22 @@ Bundled hook definitions in `lectic.yaml`:
 
 ## Install
 
-Place this directory somewhere Lectic discovers subcommands, for example:
+Place this directory somewhere Lectic discovers plugins, for example:
 
 - under a directory listed in `LECTIC_RUNTIME`
 - under `$LECTIC_DATA`
 - somewhere on your `PATH`
 
+Copy the whole directory, not just `lectic-editor.ts`, because the hooks and
+shared library live alongside it.
+
 For example:
 
 ```bash
-mkdir -p "$LECTIC_DATA/plugins/editor"
-cp ./extra/plugins/editor/lectic-editor.ts \
-  "$LECTIC_DATA/plugins/editor/"
+mkdir -p "$LECTIC_DATA/plugins"
+cp -R ./extra/plugins/editor "$LECTIC_DATA/plugins/"
 chmod +x "$LECTIC_DATA/plugins/editor/lectic-editor.ts"
+chmod +x "$LECTIC_DATA/plugins/editor/scripts/"*.ts
 ```
 
 ## Examples
@@ -66,6 +70,13 @@ hooks:
   - { use: editor_approve_tools }
 ```
 
+The hook scripts render tool arguments into short editor-friendly summaries.
+For example, `{ "argv": ["git", "diff", "--cached"] }` becomes:
+
+```text
+git diff --cached
+```
+
 Progress:
 
 ```bash
@@ -90,7 +101,7 @@ Approval:
 ```bash
 if lectic editor approve \
   --title "Allow tool use?" \
-  --message "Tool: $TOOL_NAME\n\nArgs:\n$TOOL_ARGS";
+  --message "Tool: shell\n\nArguments:\ngit diff --cached";
 then
   exit 0
 else
@@ -108,8 +119,8 @@ choice=$(lectic editor pick \
 ```
 
 The bundled progress hooks use `TOOL_CALL_ID` so parallel tool calls get
-separate progress tokens. They use `mode: background`, so editor progress
-updates do not block the main run but still finish before Lectic exits.
+separate progress tokens. They also format tool arguments into compact,
+polished summaries instead of forwarding raw JSON blobs.
 
 If you do not pass `--socket`, the subcommand searches upward from:
 
