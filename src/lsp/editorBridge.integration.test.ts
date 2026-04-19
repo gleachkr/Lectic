@@ -135,6 +135,206 @@ describe("LSP editor bridge", () => {
     }
   })
 
+  test("queues progress end that arrives before begin", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "lectic-lsp-race-state-"))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-lsp-race-root-"))
+
+    try {
+      const c2s = new PassThrough()
+      const s2c = new PassThrough()
+
+      startLspWithStreams(
+        new StreamMessageReader(c2s),
+        new StreamMessageWriter(s2c),
+        {
+          enableEditorBridge: true,
+          editorBridgeStateDir: stateDir,
+        }
+      )
+
+      const client = createMessageConnection(
+        new StreamMessageReader(s2c),
+        new StreamMessageWriter(c2s)
+      )
+      const created: unknown[] = []
+      const progress: unknown[] = []
+
+      client.onRequest("window/workDoneProgress/create", (params) => {
+        created.push(params)
+        return null
+      })
+      client.onNotification("$/progress", (params) => {
+        progress.push(params)
+      })
+      client.listen()
+
+      await client.sendRequest("initialize", {
+        processId: null,
+        clientInfo: { name: "test" },
+        rootUri: `file://${workspaceRoot}`,
+        capabilities: {
+          window: {
+            workDoneProgress: true,
+          },
+        },
+      })
+
+      const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+      const endResponse = await requestBridge(socketPath, {
+        id: "progress-end-1",
+        type: "progress.end",
+        params: {
+          token: "tok-race",
+          message: "Done",
+        },
+      }) as { ok: boolean }
+
+      expect(endResponse.ok).toBe(true)
+      expect(created).toEqual([])
+      expect(progress).toEqual([])
+
+      const beginResponse = await requestBridge(socketPath, {
+        id: "progress-begin-1",
+        type: "progress.begin",
+        params: {
+          token: "tok-race",
+          title: "Running tests",
+          message: "eslint",
+        },
+      }) as { ok: boolean }
+
+      await waitFor(() => created.length === 1 && progress.length === 2)
+
+      expect(beginResponse.ok).toBe(true)
+      expect(created).toEqual([{ token: "tok-race" }])
+      expect(progress).toEqual([
+        {
+          token: "tok-race",
+          value: {
+            kind: "begin",
+            title: "Running tests",
+            message: "eslint",
+            percentage: undefined,
+            cancellable: undefined,
+          },
+        },
+        {
+          token: "tok-race",
+          value: {
+            kind: "end",
+            message: "Done",
+          },
+        },
+      ])
+
+      client.dispose()
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+      rmSync(stateDir, { recursive: true, force: true })
+    }
+  })
+
+  test("queues progress report that arrives before begin", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "lectic-lsp-race-state-"))
+    const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-lsp-race-root-"))
+
+    try {
+      const c2s = new PassThrough()
+      const s2c = new PassThrough()
+
+      startLspWithStreams(
+        new StreamMessageReader(c2s),
+        new StreamMessageWriter(s2c),
+        {
+          enableEditorBridge: true,
+          editorBridgeStateDir: stateDir,
+        }
+      )
+
+      const client = createMessageConnection(
+        new StreamMessageReader(s2c),
+        new StreamMessageWriter(c2s)
+      )
+      const created: unknown[] = []
+      const progress: unknown[] = []
+
+      client.onRequest("window/workDoneProgress/create", (params) => {
+        created.push(params)
+        return null
+      })
+      client.onNotification("$/progress", (params) => {
+        progress.push(params)
+      })
+      client.listen()
+
+      await client.sendRequest("initialize", {
+        processId: null,
+        clientInfo: { name: "test" },
+        rootUri: `file://${workspaceRoot}`,
+        capabilities: {
+          window: {
+            workDoneProgress: true,
+          },
+        },
+      })
+
+      const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+      const reportResponse = await requestBridge(socketPath, {
+        id: "progress-report-1",
+        type: "progress.report",
+        params: {
+          token: "tok-race",
+          message: "Almost done",
+          percentage: 80,
+        },
+      }) as { ok: boolean }
+
+      expect(reportResponse.ok).toBe(true)
+      expect(created).toEqual([])
+      expect(progress).toEqual([])
+
+      const beginResponse = await requestBridge(socketPath, {
+        id: "progress-begin-2",
+        type: "progress.begin",
+        params: {
+          token: "tok-race",
+          title: "Running tests",
+          message: "eslint",
+        },
+      }) as { ok: boolean }
+
+      await waitFor(() => created.length === 1 && progress.length === 2)
+
+      expect(beginResponse.ok).toBe(true)
+      expect(created).toEqual([{ token: "tok-race" }])
+      expect(progress).toEqual([
+        {
+          token: "tok-race",
+          value: {
+            kind: "begin",
+            title: "Running tests",
+            message: "eslint",
+            percentage: undefined,
+            cancellable: undefined,
+          },
+        },
+        {
+          token: "tok-race",
+          value: {
+            kind: "report",
+            message: "Almost done",
+            percentage: 80,
+          },
+        },
+      ])
+
+      client.dispose()
+    } finally {
+      rmSync(workspaceRoot, { recursive: true, force: true })
+      rmSync(stateDir, { recursive: true, force: true })
+    }
+  })
+
   test("returns choices from showMessageRequest prompts", async () => {
     const stateDir = mkdtempSync(join(tmpdir(), "lectic-lsp-pick-state-"))
     const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-lsp-pick-root-"))

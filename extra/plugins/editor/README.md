@@ -119,8 +119,13 @@ choice=$(lectic editor pick \
 ```
 
 The bundled progress hooks use `TOOL_CALL_ID` so parallel tool calls get
-separate progress tokens. They also format tool arguments into compact,
-polished summaries instead of forwarding raw JSON blobs.
+separate progress tokens. All progress hooks run in the background so they
+do not hold up the main run. The bridge tolerates an `end` that arrives
+before `begin`, which avoids stuck notifications when hook delivery is
+out of order.
+
+They also format tool arguments into compact, polished summaries instead of
+forwarding raw JSON blobs.
 
 If you do not pass `--socket`, the subcommand searches upward from:
 

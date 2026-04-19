@@ -250,8 +250,19 @@ function parseSeverity(value: unknown): EditorBridgeSeverity | undefined {
   throw new Error("severity must be one of: error, warning, info, log")
 }
 
+type PendingProgressState = {
+  report?: {
+    message?: string
+    percentage?: number
+  }
+  end?: {
+    message?: string
+  }
+}
+
 class EditorBridgeHandler {
   private progressTokens = new Set<string>()
+  private pendingProgress = new Map<string, PendingProgressState>()
 
   constructor(
     private connection: LspBridgeConnection,
@@ -374,6 +385,28 @@ class EditorBridgeHandler {
     }
   }
 
+  private pendingState(token: string): PendingProgressState {
+    let pending = this.pendingProgress.get(token)
+    if (!pending) {
+      pending = {}
+      this.pendingProgress.set(token, pending)
+    }
+    return pending
+  }
+
+  private async flushPendingProgress(token: string): Promise<void> {
+    const pending = this.pendingProgress.get(token)
+    if (!pending) return
+    this.pendingProgress.delete(token)
+
+    if (pending.report) {
+      await this.progressReport({ token, ...pending.report })
+    }
+    if (pending.end) {
+      await this.progressEnd({ token, ...pending.end })
+    }
+  }
+
   private async progressBegin(params: {
     token: string
     title: string
@@ -402,6 +435,8 @@ class EditorBridgeHandler {
         cancellable: params.cancellable,
       },
     })
+
+    await this.flushPendingProgress(params.token)
   }
 
   private async progressReport(params: {
@@ -410,7 +445,13 @@ class EditorBridgeHandler {
     percentage?: number
   }): Promise<void> {
     if (!this.progressTokens.has(params.token)) {
-      throw new Error(`unknown progress token: ${params.token}`)
+      if (this.pendingProgress.get(params.token)?.end) return
+      const pending = this.pendingState(params.token)
+      pending.report = {
+        message: params.message,
+        percentage: params.percentage,
+      }
+      return
     }
 
     await this.connection.sendNotification("$/progress", {
@@ -428,7 +469,9 @@ class EditorBridgeHandler {
     message?: string
   }): Promise<void> {
     if (!this.progressTokens.has(params.token)) {
-      throw new Error(`unknown progress token: ${params.token}`)
+      const pending = this.pendingState(params.token)
+      pending.end = { message: params.message }
+      return
     }
 
     await this.connection.sendNotification("$/progress", {
