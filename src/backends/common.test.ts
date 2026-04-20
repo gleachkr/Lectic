@@ -899,4 +899,53 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         expect(results[0].isError).toBe(false)
         expect(results[0].results[0].content).toBe("mock result")
     })
+
+    it("omits oversized TOOL_CALL_RESULTS and sets TOOL_CALL_WARNING", async () => {
+        class LargeTool extends Tool {
+            required: string[] = []
+            name = "large_tool"
+            description = "A large mock tool"
+            parameters = {}
+            kind = "mock"
+            async call() {
+                return ToolCallResults("x".repeat(100_000))
+            }
+        }
+
+        const out = join(
+            tmpdir(),
+            `lectic-tool-post-large-${Date.now()}-${Math.random()}.txt`
+        )
+        const postHook = new Hook({
+            on: "tool_use_post",
+            env: { OUT: out },
+            do: "#!/bin/bash\n" +
+                "if [ -n \"$TOOL_CALL_RESULTS\" ]; then\n" +
+                "  exit 9\n" +
+                "fi\n" +
+                "printf '%s' \"$TOOL_CALL_WARNING\" > \"$OUT\"",
+        })
+
+        const lectic = {
+            header: {
+                hooks: [postHook],
+                interlocutor: {},
+            },
+        }
+
+        const entries = [{ name: "large_tool", args: {} }]
+        const results = await resolveToolCalls(entries, {
+            large_tool: new LargeTool(),
+        }, {
+            lectic: lectic as any,
+        })
+
+        expect(results[0].isError).toBe(false)
+
+        const written = await Bun.file(out).text()
+        try { unlinkSync(out) } catch { /* ignore */ }
+
+        expect(written).toContain("tool call results too large")
+        expect(written).toContain("KiB")
+    })
 })

@@ -1,7 +1,13 @@
 import { type Lectic, type HasModel } from "./lectic"
 import { type Message } from "./message"
 import { getActiveHooks, type Hook, type HookEvents } from "./hook"
-import { serializeCall, ToolCallResults, type Tool, type ToolCall} from "./tool"
+import {
+  serializeCall,
+  ToolCallResults,
+  type Tool,
+  type ToolCall,
+  type ToolCallResult,
+} from "./tool"
 import { type LLMProvider } from "./provider"
 import {
   getProviderInlineAttachment,
@@ -399,6 +405,35 @@ function withUsageEnv(
   return env
 }
 
+const MAX_TOOL_CALL_RESULTS_ENV_BYTES = 64 * 1024
+
+function formatByteSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) {
+    const kib = bytes / 1024
+    return `${kib >= 10 ? kib.toFixed(0) : kib.toFixed(1)} KiB`
+  }
+
+  const mib = bytes / (1024 * 1024)
+  return `${mib >= 10 ? mib.toFixed(0) : mib.toFixed(1)} MiB`
+}
+
+function setToolCallResultsEnv(
+  env: Record<string, string>,
+  results: ToolCallResult[]
+): void {
+  const json = safeJSONStringify(results)
+  const size = new TextEncoder().encode(json).length
+
+  if (size > MAX_TOOL_CALL_RESULTS_ENV_BYTES) {
+    env["TOOL_CALL_WARNING"] =
+      `tool call results too large (${formatByteSize(size)})`
+    return
+  }
+
+  env["TOOL_CALL_RESULTS"] = json
+}
+
 export async function resolveToolCalls(
   entries: ToolCallEntry[],
   registry: ToolRegistry,
@@ -488,7 +523,7 @@ export async function resolveToolCalls(
       if (callError) {
         postEnv["TOOL_CALL_ERROR"] = safeJSONStringify(callError)
       } else {
-        postEnv["TOOL_CALL_RESULTS"] = safeJSONStringify(callResults)
+        setToolCallResultsEnv(postEnv, callResults)
       }
 
       runHooksNoInline(hooks, "tool_use_post", postEnv, undefined, opt?.runner)
