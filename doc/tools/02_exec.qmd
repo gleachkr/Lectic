@@ -72,11 +72,13 @@ tools:
 - No shell is involved when executing single line commands. The command is
   executed directly. Shell features like globbing or command substitution will
   not work unless you invoke a shell yourself.
-- Single‑line `exec` values have environment variables expanded before
-  execution using the tool's `env` plus standard Lectic variables.
-- Single‑line commands are split into argv using simple shell‑like rules:
+- Single-line commands are split into argv using simple shell-like rules:
   single '...' and double "..." quotes are supported; no globbing or
-  substitution. If you need shell features, invoke a shell explicitly, e.g.,
+  substitution.
+- After tokenization, environment variables are expanded within each token
+  using the tool's `env` plus standard Lectic variables. This preserves
+  quoted token boundaries even when an expanded variable contains spaces.
+- If you need shell features, invoke a shell explicitly, e.g.,
   `bash -lc '...'`.
 - Multi‑line `exec` values must start with a shebang. Lectic writes the script
   to a temporary file and executes it with that interpreter.
@@ -211,11 +213,15 @@ See [Hooks](../automation/02_hooks.qmd) for examples.
 ### Sandboxing (`sandbox`)
 
 When a `sandbox` is configured, a tool call will actually execute the
-`sandbox` command, which will receive the original command and the LLM provided
-parameters as arguments. The wrapper is responsible for creating a controlled
-environment to run the command.
+`sandbox` command, which will receive the original command and the LLM
+provided parameters as arguments. The wrapper is responsible for creating a
+controlled environment to run the command.
 
-You can include arguments in the sandbox string (e.g. `bwrap.sh --net`).
+The `sandbox` string is parsed the same way as a single-line `exec`
+command: Lectic tokenizes it first using simple shell-like quotes, then
+expands environment variables within each token. You can include arguments
+in the sandbox string (for example, `bwrap.sh --net`). If a sandbox path
+contains spaces, quote that path so it stays a single argv element.
 
 See the [Custom Sandboxing](../cookbook/06_custom_sandboxing.qmd) cookbook
 recipe for a detailed guide on writing your own sandbox scripts.

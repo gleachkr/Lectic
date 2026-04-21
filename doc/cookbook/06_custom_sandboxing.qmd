@@ -211,8 +211,10 @@ tools:
   [Exec Tool](../tools/02_exec.qmd#execution-environment) and
   [Configuration Reference](../05_configuration.qmd#overriding-default-directories).
 
-- **Quoting and arguments**: A sandbox is a command string. If you need complex
-  quoting or structured options, prefer writing a wrapper script.
+- **Quoting and arguments**: A sandbox is a command string. Single-line
+  sandbox strings use the same lightweight tokenization as single-line
+  `exec` commands. If a path contains spaces, quote that path. If you need
+  complex quoting or structured options, prefer writing a wrapper script.
 
 - **Performance matters**: Tools can be called in tight loops. Heavy sandboxes
   like `docker run` can add significant latency. Prefer `docker exec` into a

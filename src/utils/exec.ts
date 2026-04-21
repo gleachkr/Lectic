@@ -1,5 +1,8 @@
 import { lecticEnv } from "../utils/xdg";
-import { parseCommandToArgv, writeTempShebangScriptSync } from "./execHelpers";
+import {
+    parseAndExpandCommand,
+    writeTempShebangScriptSync,
+} from "./execHelpers";
 
 function mergedEnv(env: Record<string, string | undefined>) {
     return { ...process.env, ...lecticEnv, ...env }
@@ -31,7 +34,7 @@ export function execCmdFull(
     env: Record<string, string | undefined> = {},
     stdin? : Blob
 ) {
-    const args = parseCommandToArgv(cmd)
+    const args = parseAndExpandCommand(cmd, env)
     const proc = Bun.spawnSync(args, {
         stdin,
         env: mergedEnv(env)
@@ -90,7 +93,7 @@ export function execCmdBackground(
     env: Record<string, string | undefined> = {},
     stdin?: Blob
 ): Promise<number> {
-    const args = parseCommandToArgv(cmd)
+    const args = parseAndExpandCommand(cmd, env)
     const proc = Bun.spawn(args, {
         stdin,
         stdout: "ignore",
@@ -128,7 +131,7 @@ export function execCmdDetached(
     env: Record<string, string | undefined> = {},
     stdin?: Blob
 ): Promise<number> {
-    const args = parseCommandToArgv(cmd)
+    const args = parseAndExpandCommand(cmd, env)
     const proc = Bun.spawn(args, {
         stdin,
         stdout: "ignore",

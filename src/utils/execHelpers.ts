@@ -1,5 +1,7 @@
 import * as fs from "fs"
 
+import { expandEnv } from "./replace"
+
 /**
  * Parse a shell-like command string into argv pieces without using a shell.
  * - Supports simple quotes '...'
@@ -14,6 +16,13 @@ export function parseCommandToArgv(cmd: string): string[] {
       : arg
   const parts = cmd.match(/"[^"]*"|'[^']*'|\S+/g)?.map(unquote) ?? []
   return parts
+}
+
+export function parseAndExpandCommand(
+  cmd: string,
+  env: Record<string, string | undefined> = {}
+): string[] {
+  return parseCommandToArgv(cmd).map(part => expandEnv(part, env))
 }
 
 function ensureShebang(script: string) {

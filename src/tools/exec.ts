@@ -2,8 +2,10 @@ import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import { lecticEnv } from "../utils/xdg";
 import { withTimeout, TimeoutError } from "../utils/timeout";
 import { readStream } from "../utils/stream";
-import { expandEnv } from "../utils/replace";
-import { parseCommandToArgv, writeTempShebangScriptAsync } from "../utils/execHelpers";
+import {
+    parseAndExpandCommand,
+    writeTempShebangScriptAsync,
+} from "../utils/execHelpers";
 import { isJSONSchema, type JSONSchema } from "../types/schema.ts"
 import { isHookSpecList, type HookSpec } from "../types/hook.ts";
 
@@ -85,7 +87,7 @@ async function spawnScript(
     env: Record<string, string>
 ) {
     const { path, shebangArgs, cleanup } = await writeTempShebangScriptAsync(script)
-    const sandboxParts = sandbox ? parseCommandToArgv(sandbox) : []
+    const sandboxParts = sandbox ? parseAndExpandCommand(sandbox, env) : []
     const proc = Bun.spawn([
         ...sandboxParts,
         ...shebangArgs,
@@ -106,14 +108,13 @@ function spawnCommand(
     env: Record<string, string>
 ) {
 
-    // First split THEN expand, in case variables contain quotes
-    const parts = parseCommandToArgv(command).map(part => expandEnv(part, env))
+    const parts = parseAndExpandCommand(command, env)
 
     if (parts.length === 0) {
         throw Error(`Could not read command ${command}`)
     }
 
-    const sandboxParts = sandbox ? parseCommandToArgv(sandbox) : []
+    const sandboxParts = sandbox ? parseAndExpandCommand(sandbox, env) : []
     const proc = Bun.spawn([
         ...sandboxParts,
         ...parts,
@@ -148,7 +149,7 @@ export class ExecTool extends Tool {
         this.icon = spec.icon ?? ""
         this.isScript = this.exec.split('\n').length > 1
         this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
-        this.sandbox = spec.sandbox ? expandEnv(spec.sandbox, this.env) : spec.sandbox
+        this.sandbox = spec.sandbox
         this.timeoutSeconds = spec.timeoutSeconds
         this.limit = spec.limit ?? ExecTool.defaultLimit
 

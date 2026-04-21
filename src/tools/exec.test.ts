@@ -1,4 +1,8 @@
 import { describe, it, expect } from "bun:test";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+
 import { ExecTool } from "./exec";
 import { type ToolCallResult } from "../types/tool";
 
@@ -252,5 +256,35 @@ describe("ExecTool (async)", () => {
     // Output should be WRAPPED_SCRIPT /path/to/script
     expect(out).toContain("WRAPPED_SCRIPT ")
     expect(out).toContain("/.lectic_script-")
+  })
+
+  it("sandbox preserves token boundaries after env expansion", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-sandbox-env-"))
+
+    try {
+      const wrapperPath = join(root, "wrapper with spaces.sh")
+      writeFileSync(
+        wrapperPath,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\"\n",
+      )
+      chmodSync(wrapperPath, 0o755)
+
+      const tool = new ExecTool(
+        {
+          exec: "echo original",
+          name: "sandboxed-env",
+          sandbox: "$WRAPPER --flag",
+          env: { WRAPPER: wrapperPath },
+        },
+        "Interlocutor_Name",
+      )
+      const res = await tool.call({ argv: [] })
+      const out = texts(res).join("\n")
+      expect(out).toContain(
+        `<stdout>--flag\necho\noriginal\n</stdout>`,
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 });

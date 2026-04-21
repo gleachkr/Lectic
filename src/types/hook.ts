@@ -6,7 +6,6 @@ import {
     execScriptDetached,
     execCmdDetached,
 } from "../utils/exec";
-import { expandEnv } from "../utils/replace";
 import EventEmitter from 'events'
 import { Messages } from "../constants/messages"
 
@@ -203,7 +202,7 @@ export class Hook {
             }
         } else {
             const result = execCmdFull(
-                expandEnv(this.do, mergedEnv),
+                this.do,
                 mergedEnv,
                 stdin ? new Blob([stdin]) : undefined
             )
@@ -229,7 +228,7 @@ export class Hook {
         }
 
         return execCmdBackground(
-            expandEnv(this.do, mergedEnv),
+            this.do,
             mergedEnv,
             stdin ? new Blob([stdin]) : undefined
         )
@@ -249,7 +248,7 @@ export class Hook {
         }
 
         return execCmdDetached(
-            expandEnv(this.do, mergedEnv),
+            this.do,
             mergedEnv,
             stdin ? new Blob([stdin]) : undefined
         )

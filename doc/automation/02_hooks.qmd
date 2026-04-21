@@ -57,8 +57,16 @@ hooks:
 
 If `do` contains multiple lines, it is treated as a script and must begin
 with a shebang (e.g., `#!/bin/bash`). If it is a single line, it is treated
-as a command. Commands are executed directly (not through a shell), so
-shell features like command substitution will not work.
+as a command.
+
+Single-line hook commands are executed directly (not through a shell), so
+shell features like command substitution will not work. They use the same
+lightweight tokenization as single-line `exec` tools: Lectic first splits
+the command string into argv using simple shell-like quotes, then expands
+environment variables within each token.
+
+This means quoted tokens stay together after expansion. For example, if a
+path contains spaces, quote it in YAML so it remains one argv element.
 
 Hook commands run synchronously by default.
 

@@ -210,6 +210,23 @@ describe("Identity keys include roots and sandbox", () => {
       expect(config.command).toBe("wrapper")
       expect(config.args).toEqual(["--flag", "server-cmd", "server-arg"])
   })
+
+  it("sandbox preserves token boundaries after env expansion", async () => {
+      lastTransport = undefined
+      await MCPTool.fromSpec({
+          mcp_command: "server-cmd",
+          args: ["server-arg"],
+          name: "sandboxed-mcp-env",
+          sandbox: "$WRAPPER --flag",
+          env: { WRAPPER: "wrapper with spaces" },
+      } as any)
+
+      expect(lastTransport).toBeDefined()
+      const config = lastTransport._serverParams
+      expect(config).toBeDefined()
+      expect(config.command).toBe("wrapper with spaces")
+      expect(config.args).toEqual(["--flag", "server-cmd", "server-arg"])
+  })
 });
 
 

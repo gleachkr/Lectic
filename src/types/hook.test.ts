@@ -104,6 +104,16 @@ describe("Hook", () => {
         expect((output as string).trim()).toBe("bar")
     })
 
+    test("execute preserves token boundaries after env expansion", () => {
+        const h = new Hook({
+            on: "user_message",
+            do: "printf '%s\\n' $FOO",
+            inline: true,
+        })
+        const { output } = h.execute({ FOO: "a b" })
+        expect((output as string).trim()).toBe("a b")
+    })
+
     test("execute returns exit code", () => {
         const h = new Hook({ on: "tool_use_pre", do: "#!/bin/bash\nexit 1" })
         const { exitCode } = h.execute()

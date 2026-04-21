@@ -1,38 +1,28 @@
-env_defs:
-  - name: editor_paths
-    env:
-      EDITOR_PLUGIN_ROOT: local:./
-
 hook_defs:
   - name: editor_tool_progress_start
     on: tool_use_pre
     allow_failure: true
     mode: background
-    env: { use: editor_paths }
-    do: '"$EDITOR_PLUGIN_ROOT/scripts/tool-progress-start.ts"'
+    do: '"local:./scripts/tool-progress-start.ts"'
 
   - name: editor_tool_progress_end
     on: tool_use_post
     allow_failure: true
     mode: background
-    env: { use: editor_paths }
-    do: '"$EDITOR_PLUGIN_ROOT/scripts/tool-progress-end.ts"'
+    do: '"local:./scripts/tool-progress-end.ts"'
 
   - name: editor_run_progress_start
     on: run_start
     allow_failure: true
     mode: background
-    env: { use: editor_paths }
-    do: '"$EDITOR_PLUGIN_ROOT/scripts/run-progress-start.ts"'
+    do: '"local:./scripts/run-progress-start.ts"'
 
   - name: editor_run_progress_end
     on: run_end
     allow_failure: true
     mode: background
-    env: { use: editor_paths }
-    do: '"$EDITOR_PLUGIN_ROOT/scripts/run-progress-end.ts"'
+    do: '"local:./scripts/run-progress-end.ts"'
 
   - name: editor_approve_tools
     on: tool_use_pre
-    env: { use: editor_paths }
-    do: '"$EDITOR_PLUGIN_ROOT/scripts/tool-approve.ts"'
+    do: '"local:./scripts/tool-approve.ts"'

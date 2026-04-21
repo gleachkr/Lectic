@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { join } from "path"
 import * as YAML from "yaml"
 
 import { rewriteLocalInNode } from "../../../src/utils/localPath"
@@ -40,16 +41,14 @@ describe("editor plugin hook defs", () => {
       "sync",
     ])
     expect(
-      resolved.hooks?.every((hook) => {
-        return hook["env"]?.["EDITOR_PLUGIN_ROOT"] === import.meta.dir
-      })
+      resolved.hooks?.every((hook) => hook["env"] === undefined)
     ).toBe(true)
     expect(resolved.hooks?.map((hook) => hook["do"])).toEqual([
-      '"$EDITOR_PLUGIN_ROOT/scripts/run-progress-start.ts"',
-      '"$EDITOR_PLUGIN_ROOT/scripts/run-progress-end.ts"',
-      '"$EDITOR_PLUGIN_ROOT/scripts/tool-progress-start.ts"',
-      '"$EDITOR_PLUGIN_ROOT/scripts/tool-progress-end.ts"',
-      '"$EDITOR_PLUGIN_ROOT/scripts/tool-approve.ts"',
+      `"${join(import.meta.dir, "scripts", "run-progress-start.ts")}"`,
+      `"${join(import.meta.dir, "scripts", "run-progress-end.ts")}"`,
+      `"${join(import.meta.dir, "scripts", "tool-progress-start.ts")}"`,
+      `"${join(import.meta.dir, "scripts", "tool-progress-end.ts")}"`,
+      `"${join(import.meta.dir, "scripts", "tool-approve.ts")}"`,
     ])
   })
 })

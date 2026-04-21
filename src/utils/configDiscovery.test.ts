@@ -218,6 +218,48 @@ describe("config discovery", () => {
     }
   })
 
+  test("quoted local:./x rewrites and preserves quotes", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-config-local-quoted-"))
+
+    try {
+      writeFileSync(
+        join(root, "module.yaml"),
+        [
+          "hooks:",
+          "  - on: run_start",
+          "    do: '\"local:./script with spaces.ts\"'",
+          "",
+        ].join("\n")
+      )
+
+      const out = await resolveConfigChain({
+        includeSystem: false,
+        document: {
+          yaml: [
+            "imports:",
+            "  - ./module.yaml",
+            "interlocutor:",
+            "  name: Imported",
+            "  prompt: p",
+            "",
+          ].join("\n"),
+          dir: root,
+        },
+      })
+
+      expect(out.issues).toHaveLength(0)
+      const source = out.sources.find(s => s.path === join(root, "module.yaml"))
+      const command = (
+        source?.parsed as { hooks?: Array<{ do?: string }> } | undefined
+      )?.hooks?.[0]?.do
+
+      expect(command).toBe(`\"${join(root, "script with spaces.ts")}\"`)
+      expect(source?.text).toContain(join(root, "script with spaces.ts"))
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   test("file:local:./x rewrites to file:/abs/x", async () => {
     const root = mkdtempSync(join(tmpdir(), "lectic-config-file-local-"))
 

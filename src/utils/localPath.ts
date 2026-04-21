@@ -3,6 +3,20 @@ import { isAbsolute, normalize, resolve } from "path"
 const LOCAL_PREFIX = "local:"
 const FILE_LOCAL_PREFIX = "file:local:"
 
+function unwrapQuotedValue(
+  value: string
+): { quote: "\"" | "'", inner: string } | null {
+  const quote = value[0]
+  if ((quote !== "\"" && quote !== "'") || value.at(-1) !== quote) {
+    return null
+  }
+
+  return {
+    quote,
+    inner: value.slice(1, -1),
+  }
+}
+
 function isStrictRelativeLocalPath(path: string): boolean {
   return (
     path.startsWith("./") ||
@@ -29,6 +43,14 @@ function resolveStrictLocalPath(path: string, baseDir: string | undefined): stri
 }
 
 export function rewriteLocalValue(value: string, baseDir: string | undefined): string {
+  const quoted = unwrapQuotedValue(value)
+  if (quoted) {
+    const rewritten = rewriteLocalValue(quoted.inner, baseDir)
+    return rewritten === quoted.inner
+      ? value
+      : `${quoted.quote}${rewritten}${quoted.quote}`
+  }
+
   if (value.startsWith(FILE_LOCAL_PREFIX)) {
     const tail = value.slice(FILE_LOCAL_PREFIX.length)
     const absolutePath = resolveStrictLocalPath(tail, baseDir)

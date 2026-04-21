@@ -1,4 +1,4 @@
-import { parseCommandToArgv } from "../utils/execHelpers";
+import { parseAndExpandCommand } from "../utils/execHelpers";
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema, ObjectSchema } from "../types/schema"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -6,7 +6,6 @@ import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotoc
 import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
-import { expandEnv } from "../utils/replace";
 import { createFetchWithHeaderSources }
   from "../utils/fetchWithHeaders";
 import { isHookSpecList, type HookSpec } from "../types/hook";
@@ -352,7 +351,10 @@ export class MCPTool extends Tool {
             let transport
             if ("mcp_command" in spec) {
                  if (spec.sandbox) {
-                    const sandboxParts = parseCommandToArgv(expandEnv(spec.sandbox))
+                    const sandboxParts = parseAndExpandCommand(
+                        spec.sandbox,
+                        spec.env
+                    )
                     if (sandboxParts.length === 0) {
                         throw new Error("Sandbox command cannot be empty")
                     }
