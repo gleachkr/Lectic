@@ -495,8 +495,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="execution-details">Execution details</h2>
 <ul>
 <li>No shell is involved when executing single line commands. The command is executed directly. Shell features like globbing or command substitution will not work unless you invoke a shell yourself.</li>
-<li>Single‑line <code>exec</code> values have environment variables expanded before execution using the tool’s <code>env</code> plus standard Lectic variables.</li>
-<li>Single‑line commands are split into argv using simple shell‑like rules: single ‘…’ and double “…” quotes are supported; no globbing or substitution. If you need shell features, invoke a shell explicitly, e.g., <code>bash -lc '...'</code>.</li>
+<li>Single-line commands are split into argv using simple shell-like rules: single ‘…’ and double “…” quotes are supported; no globbing or substitution.</li>
+<li>After tokenization, environment variables are expanded within each token using the tool’s <code>env</code> plus standard Lectic variables. This preserves quoted token boundaries even when an expanded variable contains spaces.</li>
+<li>If you need shell features, invoke a shell explicitly, e.g., <code>bash -lc '...'</code>.</li>
 <li>Multi‑line <code>exec</code> values must start with a shebang. Lectic writes the script to a temporary file and executes it with that interpreter.</li>
 </ul>
 <section id="working-directory-and-files" class="level3">
@@ -597,7 +598,7 @@ Warning
 <section id="sandboxing-sandbox" class="level3">
 <h3 class="anchored" data-anchor-id="sandboxing-sandbox">Sandboxing (<code>sandbox</code>)</h3>
 <p>When a <code>sandbox</code> is configured, a tool call will actually execute the <code>sandbox</code> command, which will receive the original command and the LLM provided parameters as arguments. The wrapper is responsible for creating a controlled environment to run the command.</p>
-<p>You can include arguments in the sandbox string (e.g.&nbsp;<code>bwrap.sh --net</code>).</p>
+<p>The <code>sandbox</code> string is parsed the same way as a single-line <code>exec</code> command: Lectic tokenizes it first using simple shell-like quotes, then expands environment variables within each token. You can include arguments in the sandbox string (for example, <code>bwrap.sh --net</code>). If a sandbox path contains spaces, quote that path so it stays a single argv element.</p>
 <p>See the <a href="../cookbook/06_custom_sandboxing.html">Custom Sandboxing</a> cookbook recipe for a detailed guide on writing your own sandbox scripts.</p>
 <p>For example, <code>extra/sandbox/bwrap-sandbox.sh</code> uses Bubblewrap to create a minimal, isolated environment with a temporary home directory.</p>
 <p>You can also set a default sandbox at the top level (<code>sandbox</code>) or on the <code>interlocutor</code> object. If set, it applies to all <code>exec</code> tools that don’t specify their own. Tool-level <code>sandbox</code> wins over both defaults.</p>

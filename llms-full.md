@@ -1706,8 +1706,16 @@ hooks:
 
 If `do` contains multiple lines, it is treated as a script and must
 begin with a shebang (e.g., `#!/bin/bash`). If it is a single line, it
-is treated as a command. Commands are executed directly (not through a
-shell), so shell features like command substitution will not work.
+is treated as a command.
+
+Single-line hook commands are executed directly (not through a shell),
+so shell features like command substitution will not work. They use the
+same lightweight tokenization as single-line `exec` tools: Lectic first
+splits the command string into argv using simple shell-like quotes, then
+expands environment variables within each token.
+
+This means quoted tokens stay together after expansion. For example, if
+a path contains spaces, quote it in YAML so it remains one argv element.
 
 Hook commands run synchronously by default.
 
@@ -3918,8 +3926,10 @@ tools:
   [Configuration
   Reference](../05_configuration.qmd#overriding-default-directories).
 
-- **Quoting and arguments**: A sandbox is a command string. If you need
-  complex quoting or structured options, prefer writing a wrapper
+- **Quoting and arguments**: A sandbox is a command string. Single-line
+  sandbox strings use the same lightweight tokenization as single-line
+  `exec` commands. If a path contains spaces, quote that path. If you
+  need complex quoting or structured options, prefer writing a wrapper
   script.
 
 - **Performance matters**: Tools can be called in tight loops. Heavy
@@ -4914,7 +4924,8 @@ configuration.
   `wrapper.sh arg1`) to wrap execution for all `exec` tools and local
   `mcp_command` tools used by this interlocutor, unless overridden by
   the tool’s own `sandbox` setting. This overrides any top-level
-  `sandbox` setting.
+  `sandbox` setting. Single-line sandbox strings use the same
+  tokenization rules as single-line `exec` commands.
 - `output_schema`: Optional JSON Schema that constrains the assistant’s
   output to valid JSON. You can define it inline, or load it from
   `file:` or `exec:` (including `file:local:...`). Loaded text is parsed
@@ -5016,6 +5027,8 @@ Run commands and scripts.
   present, the tool takes named parameters (exposed as env vars). When
   absent, the tool takes a required `argv` array of strings.
 - `sandbox`: Command string to wrap execution. Arguments supported.
+  Single-line sandbox strings use the same tokenization rules as
+  single-line `exec` commands.
 - `timeoutSeconds`: Seconds to wait before aborting.
 - `limit`: Maximum output characters returned across stdout and stderr.
   Excess output is truncated. Default: `100000`.
@@ -5052,6 +5065,8 @@ Connect to Model Context Protocol servers.
 - `headers`: A map of custom headers for `mcp_shttp`. Values support
   `file:` and `exec:`.
 - `sandbox`: Optional wrapper command to isolate `mcp_command` servers.
+  Single-line sandbox strings use the same tokenization rules as
+  single-line `exec` commands.
 - `roots`: Optional list of root objects for file access (each with
   `uri` and optional `name`).
 - `exclude`: Optional list of server tool names to blacklist.
@@ -5127,9 +5142,10 @@ in a key name.
   `error` is a derived alias of `run_end` and fires only when
   `RUN_STATUS=error`.
 - `do`: (Required) The command or inline script to run when the event
-  occurs. If multi‑line, it must start with a shebang (e.g.,
-  `#!/bin/bash`). Event context is provided as environment variables.
-  See the Hooks guide for details.
+  occurs. If multi-line, it must start with a shebang (e.g.,
+  `#!/bin/bash`). Single-line commands use the same tokenization rules
+  as single-line `exec` commands. Event context is provided as
+  environment variables. See the Hooks guide for details.
 - `inline`: (Optional) Boolean. If `true`, the output of the hook is
   captured. Defaults to `false`.
 - `inline_as`: (Optional) One of `attachment` or `comment`. Defaults to
@@ -5851,12 +5867,15 @@ tools:
 - No shell is involved when executing single line commands. The command
   is executed directly. Shell features like globbing or command
   substitution will not work unless you invoke a shell yourself.
-- Single‑line `exec` values have environment variables expanded before
-  execution using the tool’s `env` plus standard Lectic variables.
-- Single‑line commands are split into argv using simple shell‑like
+- Single-line commands are split into argv using simple shell-like
   rules: single ‘…’ and double “…” quotes are supported; no globbing or
-  substitution. If you need shell features, invoke a shell explicitly,
-  e.g., `bash -lc '...'`.
+  substitution.
+- After tokenization, environment variables are expanded within each
+  token using the tool’s `env` plus standard Lectic variables. This
+  preserves quoted token boundaries even when an expanded variable
+  contains spaces.
+- If you need shell features, invoke a shell explicitly, e.g.,
+  `bash -lc '...'`.
 - Multi‑line `exec` values must start with a shebang. Lectic writes the
   script to a temporary file and executes it with that interpreter.
 
@@ -5992,7 +6011,12 @@ When a `sandbox` is configured, a tool call will actually execute the
 provided parameters as arguments. The wrapper is responsible for
 creating a controlled environment to run the command.
 
-You can include arguments in the sandbox string (e.g. `bwrap.sh --net`).
+The `sandbox` string is parsed the same way as a single-line `exec`
+command: Lectic tokenizes it first using simple shell-like quotes, then
+expands environment variables within each token. You can include
+arguments in the sandbox string (for example, `bwrap.sh --net`). If a
+sandbox path contains spaces, quote that path so it stays a single argv
+element.
 
 See the [Custom Sandboxing](../cookbook/06_custom_sandboxing.qmd)
 cookbook recipe for a detailed guide on writing your own sandbox
