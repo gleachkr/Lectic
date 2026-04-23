@@ -295,6 +295,46 @@ export async function progressEnd(
   )
 }
 
+const NVIM_CHECKTIME_EXPR =
+  "luaeval('vim.schedule(function() pcall(vim.cmd, [[checktime]]) end)')"
+
+export function parentNvimChecktimeCommand(
+  env: Record<string, string | undefined> = process.env
+): string[] | null {
+  const server = env["NVIM"]
+  if (!server || server.trim() === "") return null
+
+  return [
+    "nvim",
+    "--server",
+    server,
+    "--remote-expr",
+    NVIM_CHECKTIME_EXPR,
+  ]
+}
+
+async function runCommand(argv: string[]): Promise<void> {
+  const proc = Bun.spawn({
+    cmd: argv,
+    stdout: "ignore",
+    stderr: "ignore",
+  })
+  const exitCode = await proc.exited
+  if (exitCode !== 0) {
+    throw new Error(`command failed with exit code ${exitCode}`)
+  }
+}
+
+export async function maybeChecktimeParentNvim(
+  env: Record<string, string | undefined> = process.env,
+  run: (argv: string[]) => Promise<void> = runCommand
+): Promise<boolean> {
+  const argv = parentNvimChecktimeCommand(env)
+  if (!argv) return false
+  await run(argv)
+  return true
+}
+
 export async function approve(
   params: ApproveParams,
   opt: BridgeRequestOptions = {}

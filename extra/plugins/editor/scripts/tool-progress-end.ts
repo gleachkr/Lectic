@@ -1,10 +1,7 @@
 #!/usr/bin/env -S lectic script
 
-import { progressEnd } from "../lib"
+import { maybeChecktimeParentNvim, progressEnd } from "../lib"
 import { presentToolProgressEnd } from "../presentation"
-
-// give user time to read the message
-await Bun.sleep(3000)
 
 function requireEnv(name: string): string {
   const value = process.env[name]
@@ -21,6 +18,11 @@ const presentation = presentToolProgressEnd(
   process.env["TOOL_CALL_ERROR"],
   process.env["TOOL_DURATION_MS"]
 )
+
+await maybeChecktimeParentNvim()
+
+// give user time to read the message
+await Bun.sleep(3000)
 
 await progressEnd({
   token,

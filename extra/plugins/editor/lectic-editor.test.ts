@@ -6,6 +6,11 @@ import { dirname, join, resolve } from "node:path"
 
 import { editorBridgeSocketPath } from "../../../src/lsp/editorBridge"
 
+import {
+  maybeChecktimeParentNvim,
+  parentNvimChecktimeCommand,
+} from "./lib"
+
 type BridgeRequest = {
   id?: string
   type?: string
@@ -102,6 +107,47 @@ async function runTsScript(
 }
 
 describe("lectic editor plugin", () => {
+  test("builds a parent nvim checktime command from NVIM", () => {
+    expect(parentNvimChecktimeCommand({ NVIM: "/tmp/nvim.sock" })).toEqual([
+      "nvim",
+      "--server",
+      "/tmp/nvim.sock",
+      "--remote-expr",
+      "luaeval('vim.schedule(function() pcall(vim.cmd, [[checktime]]) end)')",
+    ])
+  })
+
+  test("skips parent nvim checktime when NVIM is not set", async () => {
+    const calls: string[][] = []
+    const changed = await maybeChecktimeParentNvim({}, async (argv) => {
+      calls.push(argv)
+    })
+
+    expect(changed).toBe(false)
+    expect(calls).toEqual([])
+  })
+
+  test("runs parent nvim checktime when NVIM is set", async () => {
+    const calls: string[][] = []
+    const changed = await maybeChecktimeParentNvim(
+      { NVIM: "/tmp/nvim.sock" },
+      async (argv) => {
+        calls.push(argv)
+      }
+    )
+
+    expect(changed).toBe(true)
+    expect(calls).toEqual([
+      [
+        "nvim",
+        "--server",
+        "/tmp/nvim.sock",
+        "--remote-expr",
+        "luaeval('vim.schedule(function() pcall(vim.cmd, [[checktime]]) end)')",
+      ],
+    ])
+  })
+
   test("pick discovers the bridge by walking upward from cwd", async () => {
     const stateDir = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-state-"))
     const workspaceRoot = mkdtempSync(join(tmpdir(), "lectic-editor-plugin-root-"))

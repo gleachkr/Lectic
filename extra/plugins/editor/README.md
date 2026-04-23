@@ -124,6 +124,11 @@ do not hold up the main run. The bridge tolerates an `end` that arrives
 before `begin`, which avoids stuck notifications when hook delivery is
 out of order.
 
+When Lectic is launched from `extra/lectic.nvim`, that plugin exports
+Neovim's RPC server address in `NVIM`. The bundled `tool_use_post` hook
+uses that to ask the parent Neovim to run `:checktime`, so buffers notice
+external file changes promptly after tool calls finish.
+
 They also format tool arguments into compact, polished summaries instead of
 forwarding raw JSON blobs.
 
