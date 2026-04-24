@@ -3,6 +3,7 @@ import { lecticEnv } from "../utils/xdg";
 import { withTimeout, TimeoutError } from "../utils/timeout";
 import { readStream } from "../utils/stream";
 import {
+    cleanupTempScriptAfterProcess,
     parseAndExpandCommand,
     writeTempShebangScriptAsync,
 } from "../utils/execHelpers";
@@ -98,7 +99,8 @@ async function spawnScript(
         stderr: "pipe",
         env: { ...process.env, ...lecticEnv, ...env }
     })
-    return { proc, cleanup }
+    const exited = cleanupTempScriptAfterProcess(proc, cleanup)
+    return { proc, cleanup, exited }
 }
 
 function spawnCommand(
@@ -215,9 +217,15 @@ export class ExecTool extends Tool {
 
         let proc = null
         let cleanup = () => {}
+        let exited: Promise<number> | undefined
 
         if (this.isScript) {
-            ({proc, cleanup} = await spawnScript(this.exec, args, this.sandbox, env))
+            ({proc, cleanup, exited} = await spawnScript(
+                this.exec,
+                args,
+                this.sandbox,
+                env
+            ))
         } else {
             proc = spawnCommand(this.exec, args, this.sandbox, env)
         }
@@ -243,7 +251,7 @@ export class ExecTool extends Tool {
         const rslt = Promise.all([
             readStream(proc.stdout, s => appendLimited("stdout", s)),
             readStream(proc.stderr, s => appendLimited("stderr", s)),
-        ]).then(() => proc.exited).then((code) => {
+        ]).then(() => exited ?? proc.exited).then((code) => {
             // Clean up CLI output after collection is complete
             collected.stdout = sanitizeCliOutput(collected.stdout)
             collected.stderr = sanitizeCliOutput(collected.stderr)

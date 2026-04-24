@@ -92,4 +92,4 @@ program
 )
 .action(a2aCmd)
 
-program.parse()
+await program.parseAsync()

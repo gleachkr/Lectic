@@ -1,5 +1,6 @@
 import { lecticEnv } from "../utils/xdg";
 import {
+    cleanupTempScriptAfterProcess,
     parseAndExpandCommand,
     writeTempShebangScriptSync,
 } from "./execHelpers";
@@ -14,18 +15,22 @@ export function execScriptFull(
     stdin? : Blob
 ) {
     const { path, shebangArgs, cleanup } = writeTempShebangScriptSync(script)
-    const proc = Bun.spawnSync([
-        ...shebangArgs,
-        path
-    ], {
-        stdin,
-        env: mergedEnv(env)
-    })
-    cleanup()
-    return {
-        stdout: proc.stdout.toString(),
-        stderr: proc.stderr.toString(),
-        exitCode: proc.exitCode,
+
+    try {
+        const proc = Bun.spawnSync([
+            ...shebangArgs,
+            path
+        ], {
+            stdin,
+            env: mergedEnv(env)
+        })
+        return {
+            stdout: proc.stdout.toString(),
+            stderr: proc.stderr.toString(),
+            exitCode: proc.exitCode,
+        }
+    } finally {
+        cleanup()
     }
 }
 
@@ -67,9 +72,7 @@ export function execScriptBackground(
     env: Record<string, string | undefined> = {},
     stdin?: Blob
 ): Promise<number> {
-    const { path, shebangArgs, cleanup } = writeTempShebangScriptSync(script, {
-        registerExitCleanup: false,
-    })
+    const { path, shebangArgs, cleanup } = writeTempShebangScriptSync(script)
 
     try {
         const proc = Bun.spawn([
@@ -81,7 +84,7 @@ export function execScriptBackground(
             stderr: "ignore",
             env: mergedEnv(env),
         })
-        return proc.exited.finally(cleanup)
+        return cleanupTempScriptAfterProcess(proc, cleanup)
     } catch (error) {
         cleanup()
         throw error
@@ -108,9 +111,7 @@ export function execScriptDetached(
     env: Record<string, string | undefined> = {},
     stdin?: Blob
 ): Promise<number> {
-    const { path, shebangArgs } = writeTempShebangScriptSync(script, {
-        registerExitCleanup: false,
-    })
+    const { path, shebangArgs } = writeTempShebangScriptSync(script)
 
     const proc = Bun.spawn([
         ...shebangArgs,
