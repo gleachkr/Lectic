@@ -437,7 +437,8 @@ export class MCPTool extends Tool {
                 // ↓ We cast here. The MCP docs seem to guarantee these are schemata
                 schema: tool.inputSchema as ObjectSchema,
                 client: client, // the tools share a single client
-                sandbox: "sandbox" in spec ? spec.sandbox : undefined
+                sandbox: "sandbox" in spec ? spec.sandbox : undefined,
+                hooks: spec.hooks,
             })
         })
 
@@ -446,6 +447,7 @@ export class MCPTool extends Tool {
                 server_name: spec.name,
                 client,
                 icon: spec.icon,
+                hooks: spec.hooks,
             }))
         }
         

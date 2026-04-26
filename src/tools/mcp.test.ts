@@ -59,12 +59,16 @@ describe("MCPTool.fromSpec registration and namespacing", () => {
     // clientByName contains mapping
     const client = (MCPTool as any).clientByName["foo"];
     expect(client).toBeDefined();
-    const searchTool = tools.find((t: any) => t.name === "foo_search") as any;
+    const searchTool = tools.find(
+      (t: any) => t.name === "foo_search"
+    ) as any;
     expect(searchTool.client).toBe(client);
   });
 
   it("uses generated prefix when name is absent", async () => {
-    const tools = await MCPTool.fromSpec({ mcp_shttp: "http://example.com" } as any);
+    const tools = await MCPTool.fromSpec({
+      mcp_shttp: "http://example.com",
+    } as any);
     const names = tools.map((t: any) => t.name).sort();
     // count starts at 0 in beforeEach
     expect(names).toContain("mcp_server_0_search");
@@ -73,6 +77,33 @@ describe("MCPTool.fromSpec registration and namespacing", () => {
     // clientByName should map the generated prefix
     const client = (MCPTool as any).clientByName["mcp_server_0"];
     expect(client).toBeDefined();
+  });
+
+  it("passes configured hooks to MCP tools and list_resources", async () => {
+    const hooks = [
+      {
+        on: "tool_use_pre" as const,
+        do: "echo ok",
+      },
+    ];
+
+    const tools = await MCPTool.fromSpec({
+      mcp_shttp: "http://example.com",
+      name: "foo",
+      hooks,
+    } as any);
+
+    const searchTool = tools.find(
+      (t: any) => t.name === "foo_search"
+    ) as any;
+    const listTool = tools.find(
+      (t: any) => t.name === "foo_list_resources"
+    ) as any;
+
+    expect(searchTool.hooks).toHaveLength(1);
+    expect(searchTool.hooks[0].do).toBe("echo ok");
+    expect(listTool.hooks).toHaveLength(1);
+    expect(listTool.hooks[0].do).toBe("echo ok");
   });
 });
 
