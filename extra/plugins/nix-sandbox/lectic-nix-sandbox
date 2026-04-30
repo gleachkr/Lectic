@@ -186,6 +186,10 @@ NIX_PACKAGES_FILE=""
 NIX_EXE="nix"
 PODMAN_EXE="podman"
 NIX_EXTRA=""
+NIX_GLOBAL_ARGS=(
+    --quiet
+    --log-format raw
+)
 PODMAN_EXTRA=""
 VOLUME_SPECS=()
 CMD=()
@@ -343,7 +347,7 @@ if command -v "$PODMAN_EXE" >/dev/null 2>&1; then
   PODMAN_CMD=("$PODMAN_EXE")
 else
   PODMAN_CMD=(
-    "$NIX_EXE" shell nixpkgs#podman --command podman
+    "$NIX_EXE" "${NIX_GLOBAL_ARGS[@]}" shell nixpkgs#podman --command podman
   )
 fi
 
@@ -374,7 +378,7 @@ if [[ -n "$NIX_EXTRA" ]]; then
   NIX_BUILD_ARGS+=("${EXTRA_NIX_ARR[@]}")
 fi
 
-IMAGE_TAR=$("$NIX_EXE" "${NIX_BUILD_ARGS[@]}")
+IMAGE_TAR=$("$NIX_EXE" "${NIX_GLOBAL_ARGS[@]}" "${NIX_BUILD_ARGS[@]}")
 [[ -n "$IMAGE_TAR" ]] || die "nix build did not return an image path"
 [[ -f "$IMAGE_TAR" ]] || die "image path is not a file: $IMAGE_TAR"
 
