@@ -90,9 +90,17 @@ function hookStartError(
   )
 }
 
+type ActiveToolCall = {
+  hooks: Hook[]
+  env: Record<string, string>
+  startedAt: number
+}
+
 export class HookExecutionTracker {
   private pending = new Set<Promise<void>>()
   private failures: Error[] = []
+  private activeToolCalls = new Map<string, ActiveToolCall>()
+  private emittedToolPostIds = new Set<string>()
 
   private debugFailure(
     kind: "background" | "detached",
@@ -119,6 +127,60 @@ export class HookExecutionTracker {
     }
     if (hook.mode === "detached") {
       this.launchDetached(hook, event, env, stdin)
+    }
+  }
+
+  beginToolCall(
+    callId: string,
+    hooks: Hook[],
+    env: Record<string, string>,
+    startedAt: number
+  ): void {
+    this.activeToolCalls.set(callId, {
+      hooks,
+      env: { ...env },
+      startedAt,
+    })
+  }
+
+  shouldEmitToolUsePost(callId: string): boolean {
+    this.activeToolCalls.delete(callId)
+    if (this.emittedToolPostIds.has(callId)) return false
+    this.emittedToolPostIds.add(callId)
+    return true
+  }
+
+  emitInterruptedToolUsePost(signal: string): void {
+    const failures: string[] = []
+
+    for (const [callId, active] of [...this.activeToolCalls]) {
+      if (!this.shouldEmitToolUsePost(callId)) continue
+
+      const postEnv = {
+        ...active.env,
+        TOOL_DURATION_MS: String(Date.now() - active.startedAt),
+        TOOL_CALL_ERROR: JSON.stringify({
+          type: "error",
+          message: `Interrupted by ${signal}`,
+        }),
+      }
+
+      try {
+        runHooksNoInline(
+          active.hooks,
+          "tool_use_post",
+          postEnv,
+          undefined,
+          this,
+        )
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        failures.push(message)
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(failures.join("\n"))
     }
   }
 
@@ -488,6 +550,8 @@ export async function resolveToolCalls(
         TOOL_ARGS: argsJSON,
       }, opt?.usage)
 
+      opt?.runner?.beginToolCall(callId, hooks, preEnv, startedAt)
+
       const preHooks = getActiveHooks(hooks, "tool_use_pre", preEnv)
       for (const hook of preHooks) {
         if (hook.mode === "background" || hook.mode === "detached") {
@@ -526,7 +590,10 @@ export async function resolveToolCalls(
         setToolCallResultsEnv(postEnv, callResults)
       }
 
-      runHooksNoInline(hooks, "tool_use_post", postEnv, undefined, opt?.runner)
+      const shouldEmitPost = opt?.runner?.shouldEmitToolUsePost(callId) ?? true
+      if (shouldEmitPost) {
+        runHooksNoInline(hooks, "tool_use_post", postEnv, undefined, opt?.runner)
+      }
     }
 
     const opaque = entry.opaque

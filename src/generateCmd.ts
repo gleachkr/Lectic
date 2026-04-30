@@ -33,6 +33,12 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : JSON.stringify(error)
 }
 
+function signalExitCode(signal: string): number {
+  if (signal === "SIGINT") return 128 + 2
+  if (signal === "SIGTERM") return 128 + 15
+  return 1
+}
+
 async function failAndExit(message: string): Promise<never> {
   await Logger.write(message)
   process.exit(1)
@@ -154,6 +160,9 @@ export async function generate() {
   let lectic: Lectic | undefined
   let exitCode = 0
   let headerPrinted = false
+  let blockClosed = false
+  let finalizePromise: Promise<void> | undefined
+  let removeSignalHandlers = () => {}
 
   const runId = Bun.randomUUIDv7()
   const runStartedMs = Date.now()
@@ -161,8 +170,97 @@ export async function generate() {
   let tokenTotals: BackendUsage | undefined
   const hookRunner = new HookExecutionTracker()
 
+  const closeOutputBlock = async (footer: string): Promise<void> => {
+    if (!showBlock || !headerPrinted || blockClosed) return
+    await Logger.write(footer)
+    blockClosed = true
+  }
+
+  const finalizeRun = (): Promise<void> => {
+    if (finalizePromise) return finalizePromise
+
+    finalizePromise = (async () => {
+      if (!lectic) return
+
+      const runEndEnv: Record<string, string> = {
+        RUN_ID: runId,
+        RUN_STATUS: exitCode === 0 ? "success" : "error",
+        RUN_DURATION_MS: String(Math.max(0, Date.now() - runStartedMs)),
+      }
+
+      if (runErrorMessage) {
+        runEndEnv["RUN_ERROR_MESSAGE"] = runErrorMessage
+        runEndEnv["ERROR_MESSAGE"] = runErrorMessage
+      }
+
+      if (tokenTotals) {
+        runEndEnv["TOKEN_USAGE_INPUT"] = String(tokenTotals.input)
+        runEndEnv["TOKEN_USAGE_CACHED"] = String(tokenTotals.cached)
+        runEndEnv["TOKEN_USAGE_OUTPUT"] = String(tokenTotals.output)
+        runEndEnv["TOKEN_USAGE_TOTAL"] = String(tokenTotals.total)
+      }
+
+      try {
+        runHooksNoInline(
+          getScopedHooks(lectic),
+          "run_end",
+          runEndEnv,
+          undefined,
+          hookRunner,
+        )
+        await hookRunner.drain()
+      } catch (error) {
+        if (exitCode === 0) exitCode = 1
+        const message = errorMessage(error)
+        await Logger.write(`\n<hook-error>\n${message}\n</hook-error>`)
+      }
+    })()
+
+    return finalizePromise
+  }
+
+  const installSignalHandlers = (footer: string) => {
+    let shutdownStarted = false
+    const handleSignal = (signal: string) => {
+      if (shutdownStarted) process.exit(signalExitCode(signal))
+      shutdownStarted = true
+      exitCode = signalExitCode(signal)
+      runErrorMessage = `Interrupted by ${signal}`
+
+      void (async () => {
+        await closeOutputBlock(footer)
+        let toolHookError: unknown
+        try {
+          hookRunner.emitInterruptedToolUsePost(signal)
+        } catch (error) {
+          toolHookError = error
+        }
+        await finalizeRun()
+        if (toolHookError) throw toolHookError
+        process.exit(exitCode)
+      })().catch((error: unknown) => {
+        const message = errorMessage(error)
+        void Logger.write(`\n<hook-error>\n${message}\n</hook-error>`)
+          .finally(() => process.exit(exitCode))
+      })
+    }
+
+    process.on("SIGTERM", handleSignal)
+    process.on("SIGINT", handleSignal)
+    removeSignalHandlers = () => {
+      process.off("SIGTERM", handleSignal)
+      process.off("SIGINT", handleSignal)
+    }
+  }
+
   try {
     lectic = await parseAndInitializeLectic(lecticString)
+
+    const backend = getBackend(lectic.header.interlocutor)
+    const header = `:::${lectic.header.interlocutor.name}\n\n`
+    const footer = `:::`
+
+    installSignalHandlers(footer)
 
     runHooksNoInline(getScopedHooks(lectic), "run_start", {
       RUN_ID: runId,
@@ -170,23 +268,11 @@ export async function generate() {
       RUN_CWD: process.cwd(),
     }, undefined, hookRunner)
 
-    const backend = getBackend(lectic.header.interlocutor)
-    const header = `:::${lectic.header.interlocutor.name}\n\n`
-    const footer = `:::`
-
     lectic.body.raw = `${lectic.body.raw.trim()}\n\n${header}`
 
     if (showBlock) {
       await Logger.write(header)
       headerPrinted = true
-
-      const closeHeader = () => {
-        void Logger.write(footer)
-          .then(() => process.exit(0))
-          .catch(() => process.exit(1))
-      }
-      process.on("SIGTERM", closeHeader)
-      process.on("SIGINT", closeHeader)
     }
 
     let assistantRaw = ""
@@ -223,7 +309,7 @@ export async function generate() {
       interlocutor: lectic.header.interlocutor,
     }))
 
-    if (showBlock) await Logger.write(footer)
+    await closeOutputBlock(footer)
     lectic.body.raw += footer
 
     if (opts["inplace"] && opts["file"]) {
@@ -247,43 +333,14 @@ export async function generate() {
 
       await Logger.write(`<error>\n${runErrorMessage}\n</error>`)
 
-      if (showBlock) await Logger.write("\n\n:::")
+      if (showBlock) {
+        await Logger.write("\n\n:::")
+        blockClosed = true
+      }
     }
   } finally {
-    if (lectic) {
-      const runEndEnv: Record<string, string> = {
-        RUN_ID: runId,
-        RUN_STATUS: exitCode === 0 ? "success" : "error",
-        RUN_DURATION_MS: String(Math.max(0, Date.now() - runStartedMs)),
-      }
-
-      if (runErrorMessage) {
-        runEndEnv["RUN_ERROR_MESSAGE"] = runErrorMessage
-        runEndEnv["ERROR_MESSAGE"] = runErrorMessage
-      }
-
-      if (tokenTotals) {
-        runEndEnv["TOKEN_USAGE_INPUT"] = String(tokenTotals.input)
-        runEndEnv["TOKEN_USAGE_CACHED"] = String(tokenTotals.cached)
-        runEndEnv["TOKEN_USAGE_OUTPUT"] = String(tokenTotals.output)
-        runEndEnv["TOKEN_USAGE_TOTAL"] = String(tokenTotals.total)
-      }
-
-      try {
-        runHooksNoInline(
-          getScopedHooks(lectic),
-          "run_end",
-          runEndEnv,
-          undefined,
-          hookRunner,
-        )
-        await hookRunner.drain()
-      } catch (error) {
-        exitCode = 1
-        const message = errorMessage(error)
-        await Logger.write(`\n<hook-error>\n${message}\n</hook-error>`)
-      }
-    }
+    await finalizeRun()
+    removeSignalHandlers()
   }
 
   process.exit(exitCode)

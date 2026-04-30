@@ -900,6 +900,72 @@ describe("resolveToolCalls with tool_use_pre hook", () => {
         expect(results[0].results[0].content).toBe("mock result")
     })
 
+    it("emits interrupted tool_use_post once for active tool calls", async () => {
+        class SlowTool extends Tool {
+            required: string[] = []
+            name = "slow_tool"
+            description = "A slow mock tool"
+            parameters = {}
+            kind = "mock"
+
+            constructor(private release: Promise<void>, private started: () => void) {
+                super()
+            }
+
+            async call() {
+                this.started()
+                await this.release
+                return ToolCallResults("done")
+            }
+        }
+
+        const out = join(
+            tmpdir(),
+            `lectic-tool-post-interrupt-${Date.now()}-${Math.random()}.txt`
+        )
+        const postHook = new Hook({
+            on: "tool_use_post",
+            env: { OUT: out },
+            do: "#!/bin/bash\nprintf '%s\n' \"$TOOL_CALL_ERROR\" >> \"$OUT\"",
+        })
+
+        let startTool!: () => void
+        const started = new Promise<void>((resolve) => {
+            startTool = resolve
+        })
+        let releaseTool!: () => void
+        const release = new Promise<void>((resolve) => {
+            releaseTool = resolve
+        })
+        const runner = new HookExecutionTracker()
+        const lectic = {
+            header: {
+                hooks: [postHook],
+                interlocutor: {},
+            },
+        }
+
+        const pending = resolveToolCalls([
+            { id: "call-interrupt", name: "slow_tool", args: {} },
+        ], {
+            slow_tool: new SlowTool(release, startTool),
+        }, {
+            lectic: lectic as any,
+            runner,
+        })
+
+        await started
+        runner.emitInterruptedToolUsePost("SIGINT")
+        releaseTool()
+        await pending
+
+        const written = await Bun.file(out).text()
+        try { unlinkSync(out) } catch { /* ignore */ }
+
+        expect(written).toContain('"message":"Interrupted by SIGINT"')
+        expect(written.trim().split("\n")).toHaveLength(1)
+    })
+
     it("omits oversized TOOL_CALL_RESULTS and sets TOOL_CALL_WARNING", async () => {
         class LargeTool extends Tool {
             required: string[] = []
