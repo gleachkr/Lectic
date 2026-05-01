@@ -101,7 +101,7 @@ async function getResult(
     case "medium":
       thinkingConfig = {
         includeThoughts: true,
-        thinkingLevel: ThinkingLevel.THINKING_LEVEL_UNSPECIFIED,
+        thinkingLevel: ThinkingLevel.MEDIUM,
       }
       break
     case "high":
@@ -111,12 +111,15 @@ async function getResult(
       }
       break
     case "none":
-      thinkingConfig = { includeThoughts: true, thinkingBudget: 0 }
+      thinkingConfig = { 
+        includeThoughts: true, 
+        thinkingLevel: ThinkingLevel.MINIMAL,
+    }
       break
     default:
       thinkingConfig = {
         includeThoughts: true,
-        thinkingBudget: lectic.header.interlocutor.thinking_budget ?? -1,
+        thinkingLevel: ThinkingLevel.THINKING_LEVEL_UNSPECIFIED,
       }
   }
 
