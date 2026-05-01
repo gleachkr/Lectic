@@ -45,46 +45,16 @@ async function failAndExit(message: string): Promise<never> {
 }
 
 async function resolveOutputFormat(opts: OptionValues): Promise<OutputFormat> {
-  const hasFormat = opts["format"] !== undefined
-  const hasShort = Boolean(opts["short"])
-  const hasRawShort = Boolean(opts["Short"])
-  const hasQuiet = Boolean(opts["quiet"])
-  const hasLegacy = hasShort || hasRawShort || hasQuiet
+  if (opts["format"] === undefined) return "full"
 
-  if (hasFormat && hasLegacy) {
+  const normalized = String(opts["format"]).toLowerCase()
+  if (!isOutputFormat(normalized)) {
     await failAndExit(
-      "You can't combine --format with --short, --Short, or --quiet"
+      `Unsupported --format value: ${normalized}. ` +
+      `Use one of: ${OUTPUT_FORMATS.join(", ")}`
     )
   }
-
-  if (hasFormat) {
-    const normalized = String(opts["format"]).toLowerCase()
-    if (!isOutputFormat(normalized)) {
-      await failAndExit(
-        `Unsupported --format value: ${normalized}. ` +
-        `Use one of: ${OUTPUT_FORMATS.join(", ")}`
-      )
-    } else {
-        return normalized
-    }
-  }
-
-  if (hasShort && hasRawShort) {
-    await failAndExit("You can't combine --short and --Short")
-  }
-
-  if (hasQuiet && hasShort) {
-    await failAndExit("You can't combine --short and --quiet")
-  }
-
-  if (hasQuiet && hasRawShort) {
-    await failAndExit("You can't combine --Short and --quiet")
-  }
-
-  if (hasQuiet) return "none"
-  if (hasRawShort) return "raw"
-  if (hasShort) return "block"
-  return "full"
+  return normalized as OutputFormat
 }
 
 async function validateOptions(

@@ -27,6 +27,11 @@ for a tag and publish them on the corresponding GitHub Release.
   centralized and more consistent.
 - Editor-facing tool progress messages are formatted more readably.
 
+### Removed
+
+- Deprecated CLI aliases `-s`/`--short`, `-S`/`--Short`, and `-q`/`--quiet`.
+  Use `--format block`, `--format raw`, and `--format none` instead.
+
 ### Fixed
 
 - Flaky Codex API handling.

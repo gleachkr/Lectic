@@ -266,8 +266,8 @@ _lectic_complete() {
   if [[ -z "${subcmd_idx}" ]]; then
     # No subcommand yet. Offer global options and known subcommands.
     local global_opts
-    global_opts="--format -s --short -S --Short -f --file "
-    global_opts+="-i --inplace -l --log -q --quiet -v --version -h --help"
+    global_opts="--format -f --file "
+    global_opts+="-i --inplace -l --log -v --version -h --help"
 
     if [[ "${cur}" == -* ]]; then
       COMPREPLY=( $(compgen -W "${global_opts}" -- "${cur}") )

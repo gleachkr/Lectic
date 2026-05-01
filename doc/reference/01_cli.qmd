@@ -156,17 +156,8 @@ guide for details.
     used when replaying one interlocutor's prior assistant turn to another.
   - `none`: print nothing
 
-- `-s`, `--short` (deprecated)
-  Alias for `--format block`.
-
-- `-S`, `--Short` (deprecated)
-  Alias for `--format raw`.
-
 - `-l`, `--log <PATH>`
   Write detailed debug logs to the given file.
-
-- `-q`, `--quiet` (deprecated)
-  Alias for `--format none`.
 
 - `-h`, `--help`
   Show help for all flags and options.
@@ -174,8 +165,6 @@ guide for details.
 ## Constraints
 
 - --inplace requires --file.
-- --format cannot be combined with legacy output flags:
-  --short, --Short, or --quiet.
 
 ## Common examples
 
