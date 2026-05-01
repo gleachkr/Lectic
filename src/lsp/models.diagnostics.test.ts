@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test"
 import { computeModelDiagnostics, modelRegistry } from "./models"
 import { LLMProvider } from "../types/provider"
+import { withTemporaryLecticConfig } from "./utils/testHelpers"
 
 function hasMessage(diags: any[], substr: string): boolean {
   return diags.some(d => typeof d?.message === 'string' && d.message.includes(substr))
@@ -14,7 +15,9 @@ describe("model diagnostics", () => {
       "claude-3-haiku-20240307", "claude-3-5-sonnet"
     ]]])
 
-    const diags = await computeModelDiagnostics(text)
+    const diags = await withTemporaryLecticConfig(() =>
+      computeModelDiagnostics(text)
+    )
     expect(diags.length).toBeGreaterThan(0)
     expect(hasMessage(diags, "Unknown model for anthropic")).toBeTrue()
   })
@@ -24,7 +27,9 @@ describe("model diagnostics", () => {
     ;(modelRegistry as any).cache = new Map([
       [LLMProvider.OpenAIResponses, ["gpt-4o-mini", "gpt-4o"]]
     ])
-    const diags = await computeModelDiagnostics(text)
+    const diags = await withTemporaryLecticConfig(() =>
+      computeModelDiagnostics(text)
+    )
     expect(diags.length).toBeGreaterThan(0)
     expect(hasMessage(diags, "Unknown model for openai")).toBeTrue()
   })
@@ -33,7 +38,9 @@ describe("model diagnostics", () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  provider: gemini\n  model: nonsense\n---\nBody\n`
     // Clear cache entirely -> undefined
     ;(modelRegistry as any).cache = new Map()
-    const diags = await computeModelDiagnostics(text)
+    const diags = await withTemporaryLecticConfig(() =>
+      computeModelDiagnostics(text)
+    )
     expect(diags.length).toBe(0)
   })
 
@@ -42,7 +49,9 @@ describe("model diagnostics", () => {
     ;(modelRegistry as any).cache = new Map([
       [LLMProvider.Gemini, ["gemini-2.5-flash"]]
     ])
-    const diags = await computeModelDiagnostics(text)
+    const diags = await withTemporaryLecticConfig(() =>
+      computeModelDiagnostics(text)
+    )
     expect(diags.length).toBe(0)
   })
 })

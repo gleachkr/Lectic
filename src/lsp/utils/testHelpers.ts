@@ -6,6 +6,23 @@ import { tmpdir } from "os"
 
 let isolatedConfig: { dir: string, prev: string | undefined } | null = null
 
+export async function withTemporaryLecticConfig<T>(
+  run: (dir: string) => Promise<T> | T,
+): Promise<T> {
+  const prev = process.env["LECTIC_CONFIG"]
+  const dir = mkdtempSync(join(tmpdir(), "lectic-test-config-"))
+
+  try {
+    process.env["LECTIC_CONFIG"] = dir
+    return await run(dir)
+  } finally {
+    if (prev === undefined) delete process.env["LECTIC_CONFIG"]
+    else process.env["LECTIC_CONFIG"] = prev
+
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 function ensureIsolatedSystemConfig() {
   if (process.env["LECTIC_TEST_USE_EXISTING_CONFIG"] === "1") return
   if (isolatedConfig) return

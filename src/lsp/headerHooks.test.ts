@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test"
 import { buildDiagnostics } from "./diagnostics"
 import { remark } from "remark"
 import remarkDirective from "remark-directive"
+import { withTemporaryLecticConfig } from "./utils/testHelpers"
 
 function lines(text: string): string[] { return text.split(/\r?\n/) }
 function findDiag(diags: any[], substr: string) {
@@ -12,7 +13,9 @@ describe("header field diagnostics for hooks", () => {
   test("hooks wrong type points to hooks value", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks: nope\n---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)
-    const diags = await buildDiagnostics(ast, text, undefined)
+    const diags = await withTemporaryLecticConfig(() =>
+      buildDiagnostics(ast, text, undefined)
+    )
     const d = findDiag(diags, "The hooks for A need to be given in an array")
     expect(d).toBeDefined()
     const ls = lines(text)
@@ -23,7 +26,9 @@ describe("header field diagnostics for hooks", () => {
   test("hook item missing fields", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n    - on: user_message\n      # missing do\n---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)
-    const diags = await buildDiagnostics(ast, text, undefined)
+    const diags = await withTemporaryLecticConfig(() =>
+      buildDiagnostics(ast, text, undefined)
+    )
     const d = findDiag(diags, "Hook needs to be given with a \"do\" field")
     expect(d).toBeDefined()
     const ls = lines(text)
@@ -35,7 +40,9 @@ describe("header field diagnostics for hooks", () => {
   test("hook invalid event", async () => {
       const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n    - on: bad_event\n      do: echo\n---\nBody\n`
       const ast = remark().use(remarkDirective).parse(text)
-      const diags = await buildDiagnostics(ast, text, undefined)
+      const diags = await withTemporaryLecticConfig(() =>
+        buildDiagnostics(ast, text, undefined)
+      )
       const d = findDiag(diags, "Hook \"on\" needs to be one of")
       expect(d).toBeDefined()
     })
@@ -45,7 +52,9 @@ describe("header field diagnostics for hooks", () => {
       `---\ninterlocutor:\n  name: A\n  prompt: p\n  hooks:\n` +
       `    - on: user_message\n      do: echo\n      icon: 12\n---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)
-    const diags = await buildDiagnostics(ast, text, undefined)
+    const diags = await withTemporaryLecticConfig(() =>
+      buildDiagnostics(ast, text, undefined)
+    )
     const d = findDiag(diags, 'The "icon" field of a hook must be a string')
     expect(d).toBeDefined()
   })
@@ -56,7 +65,9 @@ describe("header field diagnostics for hooks", () => {
       `    - on: user_message\n      do: echo\n      inline_as: xml\n` +
       `---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)
-    const diags = await buildDiagnostics(ast, text, undefined)
+    const diags = await withTemporaryLecticConfig(() =>
+      buildDiagnostics(ast, text, undefined)
+    )
     const d = findDiag(
       diags,
       'The "inline_as" field of a hook must be "attachment" or ' +
@@ -71,7 +82,9 @@ describe("header field diagnostics for hooks", () => {
       `    - on: user_message\n      do: echo\n      allow_failure: nope\n` +
       `---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)
-    const diags = await buildDiagnostics(ast, text, undefined)
+    const diags = await withTemporaryLecticConfig(() =>
+      buildDiagnostics(ast, text, undefined)
+    )
     const d = findDiag(
       diags,
       'The "allow_failure" field of a hook must be a boolean'
@@ -85,7 +98,9 @@ describe("header field diagnostics for hooks", () => {
       `    - on: run_end\n      do: echo\n      mode: later\n` +
       `---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)
-    const diags = await buildDiagnostics(ast, text, undefined)
+    const diags = await withTemporaryLecticConfig(() =>
+      buildDiagnostics(ast, text, undefined)
+    )
     const d = findDiag(
       diags,
       'The "mode" field of a hook must be "sync", "background", ' +
@@ -101,7 +116,9 @@ describe("header field diagnostics for hooks", () => {
       `      inline: true\n` +
       `---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)
-    const diags = await buildDiagnostics(ast, text, undefined)
+    const diags = await withTemporaryLecticConfig(() =>
+      buildDiagnostics(ast, text, undefined)
+    )
     const d = findDiag(
       diags,
       'Only hooks with "mode: sync" can set "inline: true"'
