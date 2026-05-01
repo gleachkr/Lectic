@@ -87,6 +87,8 @@ website:
             href: ./reference/03_lsp.qmd
           - text: Structured Outputs
             href: ./reference/04_structured_outputs.qmd
+          - text: A2A Server
+            href: ./reference/05_a2a_server.qmd
 
 format:
   html:

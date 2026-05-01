@@ -68,6 +68,8 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
 
 - `lectic a2a`
   Start an A2A (JSON-RPC + SSE) server exposing configured agents.
+  See [A2A Server](./05_a2a_server.qmd) for an overview of the
+  protocol surface, agent card, and task lifecycle.
 
   Options:
   - `--root <path>`: Workspace root (process.chdir to this path).

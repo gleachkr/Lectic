@@ -24,8 +24,13 @@ interlocutor:
 ```
 
 If `a2a.id` is not set, the interlocutor's `name` is used as the agent
-ID. The `description` is exposed in the agent card returned by the A2A
-server.
+ID (slugified). The `description` is exposed in the agent card
+returned by the A2A server.
+
+For full details about hosting a Lectic A2A server — agent card
+shape, JSON-RPC methods, context/task lifecycle, authentication,
+persistence, and monitoring — see
+[A2A Server](../reference/05_a2a_server.qmd).
 
 ## Configuration
 

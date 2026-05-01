@@ -1,0 +1,327 @@
+# Reference: A2A Server
+
+Lectic ships an [Agent2Agent (A2A)](https://github.com/google-a2a/A2A)
+server that exposes configured interlocutors as remote agents. Other
+A2A-aware clients (including Lectic's own [`a2a`
+tool](../tools/06_a2a.qmd)) can talk to those agents using the standard
+A2A JSON-RPC protocol over HTTP, with Server-Sent Events for streaming.
+
+This page documents the server side: how interlocutors become agents,
+the HTTP surface that is mounted, the agent-card shape, the task and
+context lifecycle, and the operational concerns (authentication,
+persistence, monitoring, and limitations).
+
+The CLI flags are documented in [CLI: `lectic a2a`](./01_cli.qmd).
+
+## Overview
+
+When you run `lectic a2a`, Lectic:
+
+1. Reads your Lectic configuration via the same `imports` resolution
+   used elsewhere.
+2. Selects every interlocutor that has an `a2a` field and turns each
+   one into an A2A agent.
+3. Builds an agent card per interlocutor and starts a Bun HTTP server
+   exposing the agent card and a JSON-RPC endpoint per agent.
+4. Optionally requires a bearer token, and exposes a set of monitoring
+   endpoints for inspecting live tasks.
+
+If no interlocutor declares an `a2a` field the command fails with
+`No A2A agents configured`.
+
+## Configuring an interlocutor as an agent
+
+Add an `a2a` block to any interlocutor you want to expose. Both fields
+are optional:
+
+```yaml
+interlocutors:
+  - name: Research Assistant
+    prompt: You are a research assistant.
+    a2a:
+      id: researcher
+      description: Finds and summarizes academic papers.
+```
+
+- `a2a.id`: agent ID used in the URL path. Must match
+  `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`. Defaults to the interlocutor's
+  `name` slugified (lowercased, non-alphanumeric runs replaced with
+  `-`).
+- `a2a.description`: text used as the `description` field in the agent
+  card. Defaults to
+  `"Lectic agent exposed from interlocutor <name>."`.
+
+Interlocutors without an `a2a` block are not exposed by `lectic a2a`,
+even if they are otherwise valid speakers in the file.
+
+## Starting the server
+
+```bash
+lectic a2a --root ./my-workspace --port 41240
+```
+
+`--root` is the workspace directory; the server `chdir`s there before
+loading config, so relative `imports`, `file:`, and `exec:` references
+behave the same as they would for `lectic` invoked from that
+directory.
+
+On startup the server logs the bound address and one well-known agent
+card URL per agent:
+
+```
+Lectic A2A server running on http://127.0.0.1:41240 (2 agent(s))
+  - http://127.0.0.1:41240/agents/researcher/.well-known/agent-card.json
+  - http://127.0.0.1:41240/agents/editor/.well-known/agent-card.json
+```
+
+If you bind to a non-loopback host without `--token`, the server
+prints a warning recommending a token and/or a TLS-terminating reverse
+proxy. The server itself only speaks plain HTTP.
+
+## HTTP surface
+
+For each agent ID `:agentId`, the server mounts:
+
+- `GET /agents/:agentId/.well-known/agent-card.json` — the public
+  [agent card](#agent-card).
+- `POST /agents/:agentId/a2a/jsonrpc` — the A2A JSON-RPC endpoint.
+
+In addition, it mounts cross-agent monitoring endpoints under
+`/monitor/...`. Those are documented in
+[CLI: `lectic a2a` — Monitoring endpoints](./01_cli.qmd#subcommands).
+
+All non-routed paths return `404`. Methods other than the ones listed
+return `405 method not allowed`.
+
+### Agent card
+
+The agent card returned at
+`/agents/:agentId/.well-known/agent-card.json` has the following
+shape:
+
+```json
+{
+  "name": "Research Assistant",
+  "description": "Finds and summarizes academic papers.",
+  "protocolVersion": "0.3.0",
+  "version": "<lectic version>",
+  "preferredTransport": "JSONRPC",
+  "url": "http://127.0.0.1:41240/agents/researcher/a2a/jsonrpc",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false
+  },
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "skills": [
+    {
+      "id": "chat",
+      "name": "Chat",
+      "description": "General chat.",
+      "tags": ["chat"]
+    }
+  ]
+}
+```
+
+Notes:
+
+- `protocolVersion` is the A2A spec version Lectic implements
+  (`0.3.0`).
+- `version` is the running Lectic version (from `package.json`).
+- The agent advertises a single generic `chat` skill. Tools the
+  interlocutor uses internally (exec, MCP, etc.) are not exposed as
+  separate A2A skills; they remain implementation details of the
+  agent.
+- `pushNotifications` is always `false`. The server does not implement
+  the push-notification methods (see [Limitations](#limitations)).
+- If the server is started with `--token`, the card adds:
+
+  ```json
+  {
+    "securitySchemes": {
+      "lecticBearer": { "type": "http", "scheme": "bearer" }
+    },
+    "security": [{ "lecticBearer": [] }]
+  }
+  ```
+
+  so that compliant clients know to attach a bearer token.
+
+### JSON-RPC methods
+
+The JSON-RPC endpoint accepts standard A2A methods. Supported:
+
+- `message/send` — send a user message and receive either a `Message`
+  (when the turn finishes within the fast-path window) or a `Task`
+  snapshot.
+- `message/sendStream` — same, but the response is streamed as SSE,
+  yielding the initial `Task` followed by `status-update` events as
+  the agent produces output.
+- `tasks/get` — fetch a snapshot for a known `taskId`.
+- `tasks/resubscribe` — re-attach an SSE stream to an in-flight task
+  by `taskId` (without replaying earlier message chunks).
+
+Explicitly **unsupported** (these throw an `unsupportedOperation`
+JSON-RPC error):
+
+- `tasks/cancel`
+- `tasks/pushNotificationConfig/{set,get,list,delete}`
+- `agent/getAuthenticatedExtendedCard`
+
+Streaming responses use the SSE framing
+`data: <json>\n\n` with headers `Content-Type: text/event-stream`,
+`Cache-Control: no-cache`, `Connection: keep-alive`, and
+`X-Accel-Buffering: no`. The server-wide idle timeout is disabled, so
+long-running streams from slow providers do not get prematurely
+closed.
+
+## Contexts and tasks
+
+A2A clients identify ongoing conversations with a `contextId` and
+individual turns with a `taskId`.
+
+### contextId
+
+- Each `message/send` (or `message/sendStream`) request may include a
+  `contextId`. If omitted, the server generates a fresh UUID.
+- Provided IDs must match `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`;
+  malformed IDs cause an `invalidParams` JSON-RPC error.
+- Reusing the same `contextId` across calls is how a client continues
+  an existing conversation. The persisted runtime keys its transcript
+  by `(agentId, contextId)`, so message history is preserved on disk
+  for that context (see [Persistence](#persistence)).
+- The server keeps the **last `--max-tasks-per-context` task snapshots
+  per context** in memory (default `50`). When the cap is exceeded,
+  oldest tasks are dropped from the in-memory store. The persisted
+  transcript itself is not affected.
+
+### taskId
+
+- Every call to `message/send` creates a **new** task. The server does
+  not allow clients to attach a message to an existing taskId; if
+  `taskId` is supplied to `message/send` the call is rejected with
+  `invalidParams`.
+- To poll or re-subscribe to an existing task, use `tasks/get` or
+  `tasks/resubscribe` with the `taskId` returned by the original
+  call.
+- A task that has been evicted from the in-memory cap returns
+  `Unknown taskId ... (expired or never existed)`.
+
+### Task lifecycle
+
+Each task moves through these states:
+
+| State       | Meaning                                                |
+|-------------|--------------------------------------------------------|
+| `submitted` | Created, queued behind any in-flight turn for this context. |
+| `working`   | The runtime is actively producing output.              |
+| `completed` | The turn finished successfully.                        |
+| `failed`    | The turn raised an error; `error` carries the message. |
+
+Tasks within a single context are processed sequentially: a new turn
+for context `C` will not start until the previous turn for `C` has
+reached a terminal state.
+
+### Fast-path return on `message/send`
+
+Non-streaming `message/send` waits up to **5 seconds** for a turn that
+started immediately to reach `completed`, and if it does, returns the
+final assistant `Message` directly. Otherwise, it returns the current
+`Task` snapshot and the client is expected to poll with `tasks/get` or
+re-subscribe with `tasks/resubscribe`.
+
+### Streaming output
+
+`message/sendStream` always returns a streamed `Task` followed by
+`status-update` events:
+
+- The first event is the initial `Task` snapshot (with any history
+  available so far).
+- One `status-update` is emitted when the task transitions into
+  `working`.
+- Subsequent `status-update` events carry incremental
+  `message`-shaped chunks of assistant text. Lectic emits one chunk
+  per assistant pass (i.e., per round-trip with the underlying
+  provider that produces user-visible text).
+- The final event has `final: true` and the terminal `state`
+  (`completed` or `failed`).
+
+The server only emits message-shaped updates. It does **not** emit
+A2A artifact-update events.
+
+`tasks/resubscribe` produces the same shape, but does not replay
+earlier message chunks; it only delivers new ones from the moment of
+subscription. `message/sendStream` does replay earlier chunks, which
+makes a best-effort reconnect by re-sending the same call viable.
+
+## Authentication
+
+Lectic supports a single optional bearer token via `--token`:
+
+- When set, **all** routes — JSON-RPC and monitoring — require
+  `Authorization: Bearer <token>`. Missing or mismatched values return
+  `401 Unauthorized` with `WWW-Authenticate: Bearer`.
+- The agent card itself is **not** gated by the token, so clients can
+  discover it without authentication. The card declares
+  `securitySchemes.lecticBearer` so compliant clients know to attach
+  the token to subsequent calls.
+- Lectic does not support per-agent or per-method tokens, OAuth, or
+  mTLS. For richer auth, terminate TLS and inject auth in a reverse
+  proxy in front of `lectic a2a`.
+
+For any deployment beyond `127.0.0.1`, set `--token` and run behind
+TLS.
+
+## Persistence
+
+Each agent gets a `PersistedAgentRuntime` that writes transcripts to
+`<state-dir>/a2a/<workspaceKey>/<agentId>/<contextId>.lec`, where
+`<state-dir>` is Lectic's state directory (typically
+`~/.local/share/lectic/`) and `<workspaceKey>` is a hash of the
+workspace's resolved `--root` path. Transcripts written from
+different workspaces therefore land in separate subdirectories, but
+the files themselves are plain `.lec` (CommonMark + YAML) text. Treat the state
+directory as you would any on-disk conversation log.
+
+What is and isn't persisted:
+
+- **Persisted**: per-context conversation transcripts (the message
+  history the agent uses on each turn), keyed by
+  `(agentId, contextId)`.
+- **Not persisted**: the in-memory task store (snapshots, event
+  history). Restarting `lectic a2a` clears live task state but
+  preserves conversation history. Existing `taskId`s become unknown
+  after a restart.
+
+## Monitoring
+
+The `/monitor/*` endpoints expose live in-memory task state and an
+SSE event stream useful for dashboards or admin tools. They mirror
+the JSON-RPC surface but are read-only and Lectic-specific. See
+[CLI: `lectic a2a` — Monitoring endpoints](./01_cli.qmd#subcommands)
+for the full route list.
+
+When `--token` is set, monitoring endpoints require the same bearer
+token as the JSON-RPC endpoint.
+
+## Limitations
+
+The server intentionally implements a small slice of the A2A surface.
+The following are not supported:
+
+- Task cancellation (`tasks/cancel`).
+- Push-notification configs (`tasks/pushNotificationConfig/*`).
+- Authenticated extended agent cards.
+- Artifact updates — only message-shaped status updates are emitted.
+- Multi-input modes — agents declare `text` only; non-text parts on
+  inbound messages are ignored when extracting the user prompt.
+- Client-supplied `taskId` on `message/send` — every send creates a
+  new task.
+- TLS — terminate TLS in a reverse proxy if the server is reachable
+  beyond loopback.
+
+## Talking to it from Lectic
+
+You can have a Lectic interlocutor call any A2A server (including this
+one) using the [`a2a` tool](../tools/06_a2a.qmd).
