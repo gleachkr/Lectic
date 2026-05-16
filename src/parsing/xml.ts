@@ -55,9 +55,17 @@ export function unescapeTags(string : string) {
 }
 
 export function escapeXmlAttribute(value: string): string {
-    return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
 }
 
 export function unescapeXmlAttribute(value: string): string {
-    return value.replace(/&quot;/g, '"').replace(/&amp;/g, "&")
+    return value
+        .replace(/&quot;/g, '"')
+        .replace(/&gt;/g, ">")
+        .replace(/&lt;/g, "<")
+        .replace(/&amp;/g, "&")
 }

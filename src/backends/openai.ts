@@ -18,7 +18,7 @@ import {
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { ToolCall, ToolCallResult } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
-import { strictify } from "../types/schema.ts"
+import { openAIToolSchema, strictify } from "../types/schema.ts"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.2",
@@ -36,17 +36,19 @@ function getTools(lectic: Lectic): OpenAI.Chat.Completions.ChatCompletionTool[] 
   const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = []
 
   for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
+    const parameters = openAIToolSchema({
+      type: "object",
+      properties: tool.parameters,
+      required: tool.required,
+    })
+
     tools.push({
       type: "function",
       function: {
         name: tool.name,
         description: tool.description,
-        strict: true,
-        parameters: strictify({
-          type: "object",
-          properties: tool.parameters,
-          required: tool.required,
-        }),
+        strict: parameters.strict,
+        parameters: parameters.schema,
       },
     })
   }

@@ -1,5 +1,12 @@
 import { isIP } from "node:net"
-import {unwrap, extractElements, escapeTags, unescapeTags } from "../parsing/xml.ts"
+import {
+    unwrap,
+    extractElements,
+    escapeTags,
+    unescapeTags,
+    escapeXmlAttribute,
+    unescapeXmlAttribute,
+} from "../parsing/xml.ts"
 import { isObjectRecord } from "./guards.ts"
 
 type StringFormat =
@@ -336,19 +343,22 @@ export function validateJSONSchema(raw: unknown): raw is JSONSchema {
                         "properties",
                         "required",
                         "additionalProperties",
+                        "propertyNames",
                         ...baseAllowed,
                     ]),
                     schemaPath(path),
                 )
 
                 const propsVal = obj["properties"]
-                if (!("properties" in obj) || !isObjectRecord(propsVal)) {
-                    throw new Error(
-                        `Expected object at ${schemaPath([...path, "properties"])}`
-                    )
-                }
-                for (const [k, child] of Object.entries(propsVal)) {
-                    visit(child, [...path, "properties", k])
+                if ("properties" in obj) {
+                    if (!isObjectRecord(propsVal)) {
+                        throw new Error(
+                            `Expected object at ${schemaPath([...path, "properties"])}`
+                        )
+                    }
+                    for (const [k, child] of Object.entries(propsVal)) {
+                        visit(child, [...path, "properties", k])
+                    }
                 }
 
                 const reqVal = obj["required"]
@@ -366,10 +376,15 @@ export function validateJSONSchema(raw: unknown): raw is JSONSchema {
                 }
 
                 const apVal = obj["additionalProperties"]
-                if ("additionalProperties" in obj && typeof apVal !== "boolean") {
-                    throw new Error(
-                        `Expected boolean at ${schemaPath([...path, "additionalProperties"])}`
-                    )
+                if (
+                    "additionalProperties" in obj
+                    && typeof apVal !== "boolean"
+                ) {
+                    visit(apVal, [...path, "additionalProperties"])
+                }
+
+                if ("propertyNames" in obj) {
+                    visit(obj["propertyNames"], [...path, "propertyNames"])
                 }
                 break
             }
@@ -438,13 +453,122 @@ export type ObjectSchema = {
     type: "object",
     description?: string
     required?: string[]
-    properties: Record<string, JSONSchema>
-    additionalProperties?: boolean
+    properties?: Record<string, JSONSchema>
+    additionalProperties?: boolean | JSONSchema
+    propertyNames?: JSONSchema
 }
 
 type AnyOfSchema = {
     anyOf: JSONSchema[]
     description?: string
+}
+
+function isSchemaAdditionalProperties(
+    value: boolean | JSONSchema | undefined
+): value is JSONSchema {
+    return isObjectRecord(value)
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, keys: Set<string>) {
+    return Object.keys(value).every((key) => keys.has(key))
+}
+
+export function supportsOpenAIStrictMode(schema: unknown): boolean {
+    const visit = (value: unknown): boolean => {
+        if (!isObjectRecord(value)) return false
+
+        if ("anyOf" in value) {
+            const anyOf = value["anyOf"]
+            const allowed = new Set(["anyOf", "description", "default"])
+            return hasOnlyKeys(value, allowed)
+                && Array.isArray(anyOf)
+                && anyOf.every(visit)
+        }
+
+        const type = value["type"]
+        if (typeof type !== "string") return false
+
+        switch (type) {
+            case "string":
+                return hasOnlyKeys(value, new Set([
+                    "type",
+                    "enum",
+                    "pattern",
+                    "format",
+                    "contentMediaType",
+                    "description",
+                    "default",
+                ]))
+            case "number":
+            case "integer":
+                return hasOnlyKeys(value, new Set([
+                    "type",
+                    "enum",
+                    "minimum",
+                    "maximum",
+                    "description",
+                    "default",
+                ]))
+            case "boolean":
+            case "null":
+                return hasOnlyKeys(value, new Set([
+                    "type",
+                    "enum",
+                    "description",
+                    "default",
+                ]))
+            case "array":
+                return hasOnlyKeys(value, new Set([
+                    "type",
+                    "items",
+                    "description",
+                    "default",
+                ])) && visit(value["items"])
+            case "object": {
+                const allowed = new Set([
+                    "type",
+                    "properties",
+                    "required",
+                    "additionalProperties",
+                    "description",
+                    "default",
+                ])
+                if (!hasOnlyKeys(value, allowed)) return false
+                if (
+                    "additionalProperties" in value
+                    && value["additionalProperties"] !== false
+                ) {
+                    return false
+                }
+                if (
+                    "required" in value
+                    && !(
+                        Array.isArray(value["required"])
+                        && value["required"].every((x) => typeof x === "string")
+                    )
+                ) {
+                    return false
+                }
+                if (!("properties" in value)) return true
+                if (!isObjectRecord(value["properties"])) return false
+                return Object.values(value["properties"]).every(visit)
+            }
+            default:
+                return false
+        }
+    }
+
+    return visit(schema)
+}
+
+export function openAIToolSchema(schema: JSONSchema): {
+    strict: boolean
+    schema: JSONSchema
+} {
+    if (!supportsOpenAIStrictMode(schema)) {
+        return { strict: false, schema }
+    }
+    return { strict: true, schema: strictify(schema) }
 }
 
 // rewrites schema for compatibility with OAI strict mode
@@ -480,10 +604,12 @@ export function strictify(schema : JSONSchema) : JSONSchema {
                 }
                 break
             case "object": {
+                const properties = schema.properties ?? {}
+                const required = schema.required ?? []
                 const strictProps = Object.fromEntries(
-                    Object.entries(schema.properties).map(([k, v]) => {
+                    Object.entries(properties).map(([k, v]) => {
                         let prop = strictify(v)
-                        if (!schema.required?.includes(k)) {
+                        if (!required.includes(k)) {
                             prop = makeNullable(prop)
                         }
                         return [k, prop]
@@ -491,9 +617,10 @@ export function strictify(schema : JSONSchema) : JSONSchema {
                 )
 
                 rslt = {
-                    ...schema,
+                    type: "object",
+                    ...(schema.description ? { description: schema.description } : {}),
                     properties: strictProps,
-                    required: Object.keys(schema.properties),
+                    required: Object.keys(properties),
                     additionalProperties: false,
                 }
                 break
@@ -586,7 +713,7 @@ export function destrictify(value: unknown, schema: JSONSchema): unknown {
             const out: Record<string, unknown> = {}
 
             for (const [k, v] of Object.entries(value)) {
-                const propSchema = schema.properties[k]
+                const propSchema = schema.properties?.[k]
                 if (!propSchema) {
                     out[k] = v
                     continue
@@ -700,16 +827,38 @@ export function serialize(arg: unknown, schema: JSONSchema): string {
             if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
                 throw new Error(`Invalid object value: ${arg}`)
             }
-            const properties = schema.properties
-            return `<object>${Object.keys(properties)
-                    .map(key => {
-                        if (!(key in arg)) return ""
-                        const keySchema = properties[key]
-                        const attr = "type" in keySchema && keySchema.type === "string" && keySchema.contentMediaType
-                            ? ` contentMediaType="${keySchema.contentMediaType}"`
-                            : ""
-                        return `<${key}${attr}>${serialize((arg as { [key] : unknown })[key], properties[key])}</${key}>`
-                    }).join('')}</object>`
+            const properties = schema.properties ?? {}
+            const obj = arg as Record<string, unknown>
+            const known = Object.keys(properties).map(key => {
+                if (!(key in obj)) return ""
+                if (schema.propertyNames) {
+                    validateAgainstSchema(key, schema.propertyNames)
+                }
+                const keySchema = properties[key]
+                const attr = "type" in keySchema && keySchema.type === "string" && keySchema.contentMediaType
+                    ? ` contentMediaType="${keySchema.contentMediaType}"`
+                    : ""
+                return `<${key}${attr}>${serialize(obj[key], properties[key])}</${key}>`
+            })
+            const dynamic = Object.keys(obj)
+                .filter((key) => !(key in properties))
+                .map((key) => {
+                    if (schema.propertyNames) {
+                        validateAgainstSchema(key, schema.propertyNames)
+                    }
+                    const additional = schema.additionalProperties
+                    if (additional === false) {
+                        throw new Error(`Invalid object property: ${key}`)
+                    }
+                    const keyAttr = escapeXmlAttribute(key)
+                    if (isSchemaAdditionalProperties(additional)) {
+                        return `<entry key="${keyAttr}">` +
+                            `${serialize(obj[key], additional)}</entry>`
+                    }
+                    return `<entry key="${keyAttr}">` +
+                        `${escapeTags(JSON.stringify(obj[key]))}</entry>`
+                })
+            return `<object>${known.join('')}${dynamic.join('')}</object>`
 
         }
         default: throw new Error("type" in schema ? `Unknown schema type: ${schema["type"]}`: "Couldn't read Schema: no type")
@@ -785,17 +934,33 @@ export function validateAgainstSchema(arg: unknown , schema: JSONSchema) : boole
             if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
                 throw new Error(`Invalid object value: ${arg}`)
             }
-            const properties = schema.properties
+            const properties = schema.properties ?? {}
             const required = schema.required || []
+            const obj = arg as Record<string, unknown>
             for (const key of required) {
-                if (!(key in arg)) {
+                if (!(key in obj)) {
                     throw new Error(`Missing required property: ${key}`)
                 }
             }
-            return Object.keys(arg).every(key => {
-                        if (!(key in properties)) return true
-                        return validateAgainstSchema((arg as { [key] : unknown })[key], properties[key])
-                    })
+            return Object.keys(obj).every(key => {
+                if (
+                    schema.propertyNames
+                    && !validateAgainstSchema(key, schema.propertyNames)
+                ) {
+                    return false
+                }
+                if (key in properties) {
+                    return validateAgainstSchema(obj[key], properties[key])
+                }
+                const additional = schema.additionalProperties
+                if (additional === false) {
+                    throw new Error(`Invalid object property: ${key}`)
+                }
+                if (isSchemaAdditionalProperties(additional)) {
+                    return validateAgainstSchema(obj[key], additional)
+                }
+                return true
+            })
         }
         default:
             throw new Error("Unknown schema type")
@@ -911,6 +1076,29 @@ export function deserialize(xml: string, schema: JSONSchema): unknown {
             const obj: Record<string, unknown> = {}
             const elements = extractElements(inner)
             for (const element of elements) {
+                if (/^<entry\b[^>]*\bkey="/.test(element)) {
+                    const match = /\bkey="([^"]*)"/.exec(element)
+                    if (!match) {
+                        throw new Error(`Malformed dynamic object key: ${element}`)
+                    }
+                    const key = unescapeXmlAttribute(match[1])
+                    if (schema.propertyNames) {
+                        validateAgainstSchema(key, schema.propertyNames)
+                    }
+                    if (key in obj) {
+                        throw new Error(`Duplicated property: ${key} on ${xml}`)
+                    }
+                    const additional = schema.additionalProperties
+                    if (additional === false) {
+                        throw new Error(`Unrecognized property: ${key} on ${xml}`)
+                    }
+                    const entry = unwrap(element, "entry")
+                    obj[key] = isSchemaAdditionalProperties(additional)
+                        ? deserialize(entry, additional)
+                        : JSON.parse(unescapeTags(entry))
+                    continue
+                }
+
                 // Extract only the tag name, ignoring any attributes.
                 const keyNameRegex = /^<([a-zA-Z][a-zA-Z0-9_]*)\b/
                 const keyMatch = keyNameRegex.exec(element)
@@ -919,13 +1107,17 @@ export function deserialize(xml: string, schema: JSONSchema): unknown {
                     throw new Error(`Malformed object key: "${element}" on ${xml}`)
                 }
                 const key = keyMatch[1]
-                if (!(key in schema.properties)) {
+                if (schema.propertyNames) {
+                    validateAgainstSchema(key, schema.propertyNames)
+                }
+                const properties = schema.properties ?? {}
+                if (!(key in properties)) {
                     throw new Error(`Unrecognized property: ${key} on ${xml}`)
                 }
                 if (key in obj) {
                     throw new Error(`Duplicated property: ${key} on ${xml}`)
                 }
-                obj[key] = deserialize(unwrap(element, key), schema.properties[key])
+                obj[key] = deserialize(unwrap(element, key), properties[key])
             }
             return obj
         }

@@ -7,6 +7,8 @@ import {
     destrictify,
     validateJSONSchema,
     isJSONSchema,
+    supportsOpenAIStrictMode,
+    openAIToolSchema,
 } from './schema';
 import { expect, it, describe } from "bun:test"
 
@@ -137,6 +139,34 @@ describe('null schema', () => {
         };
         const obj = { key1: 'value1', key2: 42 };
         expect(serialize(obj, schema)).toBe('<object><key1>\n┆value1\n</key1><key2>42</key2></object>');
+    });
+
+    it('round-trips object map schemas', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            propertyNames: { type: "string" },
+            additionalProperties: { type: "string" },
+        }
+        const obj = { 'a&b': 'one', 'x>y': '<two>' }
+        const xml = serialize(obj, schema)
+        expect(deserialize(xml, schema)).toEqual(obj)
+    });
+
+    it('validates object map keys and values', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            propertyNames: { type: "string", pattern: "^x" },
+            additionalProperties: { type: "string" },
+        }
+        expect(validateAgainstSchema({ xyz: "ok" }, schema)).toBeTrue()
+        expect(serialize({ xyz: "ok" }, schema))
+            .toBe('<object><entry key="xyz">\n┆ok\n</entry></object>')
+        expect(() => validateAgainstSchema({ abc: "bad" }, schema))
+            .toThrow("Invalid string value")
+        expect(() => serialize({ abc: "bad" }, schema))
+            .toThrow("Invalid string value")
+        expect(() => validateAgainstSchema({ xyz: 1 }, schema))
+            .toThrow("Invalid string value")
     });
 
     it('should throw an error for integer below minimum constraint', () => {
@@ -719,6 +749,69 @@ describe('oai strictify/destrictify', () => {
             .toBe(1)
     })
 
+    it('uses non-strict mode for schemas strict mode cannot represent', () => {
+        const schema = {
+            type: "object",
+            properties: {
+                data: {
+                    type: "object",
+                    propertyNames: { type: "string" },
+                    additionalProperties: { type: "string" },
+                },
+            },
+        } as JSONSchema
+
+        expect(supportsOpenAIStrictMode(schema)).toBeFalse()
+        expect(openAIToolSchema(schema)).toEqual({
+            strict: false,
+            schema,
+        })
+    })
+
+    it('uses strict mode for schemas strict mode can represent', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            properties: {
+                required: { type: "string" },
+                optional: { type: "number" },
+            },
+            required: ["required"],
+        }
+
+        expect(supportsOpenAIStrictMode(schema)).toBeTrue()
+        expect(openAIToolSchema(schema)).toEqual({
+            strict: true,
+            schema: {
+                type: "object",
+                properties: {
+                    required: { type: "string" },
+                    optional: {
+                        anyOf: [
+                            { type: "number" },
+                            { type: "null" },
+                        ],
+                    },
+                },
+                required: ["required", "optional"],
+                additionalProperties: false,
+            },
+        })
+    })
+
+    it('strictify tolerates object schemas without properties', () => {
+        const schema: JSONSchema = {
+            type: "object",
+            additionalProperties: false,
+        }
+
+        expect(strictify(schema)).toEqual({
+            type: "object",
+            properties: {},
+            required: [],
+            additionalProperties: false,
+        })
+    })
+
     it('destrictify removes null optional properties', () => {
         const schema: JSONSchema = {
             type: "object",
@@ -764,6 +857,16 @@ describe('oai strictify/destrictify', () => {
                 },
                 required: ["a"],
                 additionalProperties: false,
+            }
+            expect(validateJSONSchema(s)).toBeTrue()
+            expect(isJSONSchema(s)).toBeTrue()
+        })
+
+        it('accepts object map schemas', () => {
+            const s: unknown = {
+                type: "object",
+                propertyNames: { type: "string" },
+                additionalProperties: { type: "string" },
             }
             expect(validateJSONSchema(s)).toBeTrue()
             expect(isJSONSchema(s)).toBeTrue()

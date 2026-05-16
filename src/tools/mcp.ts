@@ -253,7 +253,12 @@ export class MCPTool extends Tool {
         // XXX: Which backends actually *require* the description field?
         this.description = description || ""
 
-        this.parameters = schema.properties
+        // MCP input schemas can be broader than Lectic's internal schema
+        // subset. In particular, JSON Schema permits object schemas with no
+        // `properties` field when `additionalProperties` describes a map.
+        // Treat the missing top-level field as an empty property map so the
+        // tool can still be exposed to providers.
+        this.parameters = schema.properties ?? {}
         // XXX: MCP types don't require the required property. The JSON
         // Schema spec says that when it's omitted, nothing is required
         // <https://json-schema.org/draft/2020-12/draft-bhutton-json-schema-validation-00#rfc.section.6.5>
