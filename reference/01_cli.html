@@ -77,7 +77,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-bfc81c90a4e668f7cc6782dca231ae32.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-84365199647afda7ec578bfe13ef3742.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -406,6 +406,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../reference/05_a2a_server.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A2A Server</span></a>
+  </div>
+</li>
       </ul>
   </li>
     </ul>
@@ -467,7 +473,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>For example:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/env -S lectic script</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">console.log</span><span class="er">(</span><span class="st">"Hello from a lectic script!"</span><span class="kw">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
-<li><p><code>lectic a2a</code> Start an A2A (JSON-RPC + SSE) server exposing configured agents.</p>
+<li><p><code>lectic a2a</code> Start an A2A (JSON-RPC + SSE) server exposing configured agents. See <a href="../reference/05_a2a_server.html">A2A Server</a> for an overview of the protocol surface, agent card, and task lifecycle.</p>
 <p>Options:</p>
 <ul>
 <li><code>--root &lt;path&gt;</code>: Workspace root (process.chdir to this path).</li>
@@ -548,10 +554,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>clean</code>: stream only assistant text, stripping tool calls, thought blocks, and inline attachments. This is similar to the prose-only view used when replaying one interlocutor’s prior assistant turn to another.</li>
 <li><code>none</code>: print nothing</li>
 </ul></li>
-<li><p><code>-s</code>, <code>--short</code> (deprecated) Alias for <code>--format block</code>.</p></li>
-<li><p><code>-S</code>, <code>--Short</code> (deprecated) Alias for <code>--format raw</code>.</p></li>
 <li><p><code>-l</code>, <code>--log &lt;PATH&gt;</code> Write detailed debug logs to the given file.</p></li>
-<li><p><code>-q</code>, <code>--quiet</code> (deprecated) Alias for <code>--format none</code>.</p></li>
 <li><p><code>-h</code>, <code>--help</code> Show help for all flags and options.</p></li>
 </ul>
 </section>
@@ -559,7 +562,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="constraints">Constraints</h2>
 <ul>
 <li>–inplace requires –file.</li>
-<li>–format cannot be combined with legacy output flags: –short, –Short, or –quiet.</li>
 </ul>
 </section>
 <section id="common-examples" class="level2">

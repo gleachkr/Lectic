@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>research_perspectives – Lectic Documentation</title>
+<title>a2a_server – Lectic Documentation</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -119,7 +119,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/03_research_perspectives.html">Research Perspectives</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/05_a2a_server.html">A2A Server</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -331,7 +331,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../cookbook/03_research_perspectives.html" class="sidebar-item-text sidebar-link active">
+  <a href="../cookbook/03_research_perspectives.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Research Perspectives</span></a>
   </div>
 </li>
@@ -408,7 +408,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../reference/05_a2a_server.html" class="sidebar-item-text sidebar-link">
+  <a href="../reference/05_a2a_server.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">A2A Server</span></a>
   </div>
 </li>
@@ -424,153 +424,260 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#recipe-research-with-multiple-perspectives" id="toc-recipe-research-with-multiple-perspectives" class="nav-link active" data-scroll-target="#recipe-research-with-multiple-perspectives">Recipe: Research with Multiple Perspectives</a>
+  <li><a href="#reference-a2a-server" id="toc-reference-a2a-server" class="nav-link active" data-scroll-target="#reference-a2a-server">Reference: A2A Server</a>
   <ul class="collapse">
-  <li><a href="#the-setup" id="toc-the-setup" class="nav-link" data-scroll-target="#the-setup">The Setup</a></li>
-  <li><a href="#usage" id="toc-usage" class="nav-link" data-scroll-target="#usage">Usage</a>
+  <li><a href="#overview" id="toc-overview" class="nav-link" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#configuring-an-interlocutor-as-an-agent" id="toc-configuring-an-interlocutor-as-an-agent" class="nav-link" data-scroll-target="#configuring-an-interlocutor-as-an-agent">Configuring an interlocutor as an agent</a></li>
+  <li><a href="#starting-the-server" id="toc-starting-the-server" class="nav-link" data-scroll-target="#starting-the-server">Starting the server</a></li>
+  <li><a href="#http-surface" id="toc-http-surface" class="nav-link" data-scroll-target="#http-surface">HTTP surface</a>
   <ul class="collapse">
-  <li><a href="#start-with-research" id="toc-start-with-research" class="nav-link" data-scroll-target="#start-with-research">Start with research</a></li>
-  <li><a href="#get-a-quick-critique" id="toc-get-a-quick-critique" class="nav-link" data-scroll-target="#get-a-quick-critique">Get a quick critique</a></li>
-  <li><a href="#permanently-switch-for-deeper-critique" id="toc-permanently-switch-for-deeper-critique" class="nav-link" data-scroll-target="#permanently-switch-for-deeper-critique">Permanently switch for deeper critique</a></li>
-  <li><a href="#synthesize-at-the-end" id="toc-synthesize-at-the-end" class="nav-link" data-scroll-target="#synthesize-at-the-end">Synthesize at the end</a></li>
+  <li><a href="#agent-card" id="toc-agent-card" class="nav-link" data-scroll-target="#agent-card">Agent card</a></li>
+  <li><a href="#json-rpc-methods" id="toc-json-rpc-methods" class="nav-link" data-scroll-target="#json-rpc-methods">JSON-RPC methods</a></li>
   </ul></li>
-  <li><a href="#variations" id="toc-variations" class="nav-link" data-scroll-target="#variations">Variations</a>
+  <li><a href="#contexts-and-tasks" id="toc-contexts-and-tasks" class="nav-link" data-scroll-target="#contexts-and-tasks">Contexts and tasks</a>
   <ul class="collapse">
-  <li><a href="#domain-specific-experts" id="toc-domain-specific-experts" class="nav-link" data-scroll-target="#domain-specific-experts">Domain-specific experts</a></li>
-  <li><a href="#agent-delegation" id="toc-agent-delegation" class="nav-link" data-scroll-target="#agent-delegation">Agent delegation</a></li>
-  <li><a href="#different-models-for-different-roles" id="toc-different-models-for-different-roles" class="nav-link" data-scroll-target="#different-models-for-different-roles">Different models for different roles</a></li>
+  <li><a href="#contextid" id="toc-contextid" class="nav-link" data-scroll-target="#contextid">contextId</a></li>
+  <li><a href="#taskid" id="toc-taskid" class="nav-link" data-scroll-target="#taskid">taskId</a></li>
+  <li><a href="#task-lifecycle" id="toc-task-lifecycle" class="nav-link" data-scroll-target="#task-lifecycle">Task lifecycle</a></li>
+  <li><a href="#fast-path-return-on-messagesend" id="toc-fast-path-return-on-messagesend" class="nav-link" data-scroll-target="#fast-path-return-on-messagesend">Fast-path return on <code>message/send</code></a></li>
+  <li><a href="#streaming-output" id="toc-streaming-output" class="nav-link" data-scroll-target="#streaming-output">Streaming output</a></li>
   </ul></li>
-  <li><a href="#tips" id="toc-tips" class="nav-link" data-scroll-target="#tips">Tips</a></li>
+  <li><a href="#authentication" id="toc-authentication" class="nav-link" data-scroll-target="#authentication">Authentication</a></li>
+  <li><a href="#persistence" id="toc-persistence" class="nav-link" data-scroll-target="#persistence">Persistence</a></li>
+  <li><a href="#monitoring" id="toc-monitoring" class="nav-link" data-scroll-target="#monitoring">Monitoring</a></li>
+  <li><a href="#limitations" id="toc-limitations" class="nav-link" data-scroll-target="#limitations">Limitations</a></li>
+  <li><a href="#talking-to-it-from-lectic" id="toc-talking-to-it-from-lectic" class="nav-link" data-scroll-target="#talking-to-it-from-lectic">Talking to it from Lectic</a></li>
   </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../cookbook/index.html">Cookbook</a></li><li class="breadcrumb-item"><a href="../cookbook/03_research_perspectives.html">Research Perspectives</a></li></ol></nav></header>
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../reference/01_cli.html">Reference</a></li><li class="breadcrumb-item"><a href="../reference/05_a2a_server.html">A2A Server</a></li></ol></nav></header>
 
 
 
 
-<section id="recipe-research-with-multiple-perspectives" class="level1">
-<h1>Recipe: Research with Multiple Perspectives</h1>
-<p>This recipe shows how to use multiple interlocutors to explore a topic from different angles. One interlocutor does research, another provides critique, and you can quickly get second opinions without derailing the main conversation.</p>
-<section id="the-setup" class="level2">
-<h2 class="anchored" data-anchor-id="the-setup">The Setup</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Researcher</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">    prompt</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>      You are a thorough researcher. When exploring a topic:</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>      - Consider multiple sources and viewpoints</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>      - Note uncertainties and limitations</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>      - Suggest follow-up questions</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> anthropic</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-sonnet-4-6</span></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> search</span></span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Critic  </span></span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">    prompt</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>      You are a skeptical critic. Your job is to:</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>      - Challenge assumptions and weak arguments</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>      - Point out missing evidence or alternative explanations</span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>      - Steelman opposing viewpoints</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>      Be constructive but rigorous.</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> anthropic</span></span>
-<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-sonnet-4-6</span></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Synthesizer</span></span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a><span class="fu">    prompt</span><span class="kw">: </span><span class="ch">|</span></span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>      You synthesize discussions into clear summaries. Focus on:</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>      - Key points of agreement and disagreement</span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>      - Open questions that remain</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>      - Actionable conclusions</span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">provider</span><span class="kw">:</span><span class="at"> anthropic</span></span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-haiku-4-5</span></span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="reference-a2a-server" class="level1">
+<h1>Reference: A2A Server</h1>
+<p>Lectic ships an <a href="https://github.com/google-a2a/A2A">Agent2Agent (A2A)</a> server that exposes configured interlocutors as remote agents. Other A2A-aware clients (including Lectic’s own <a href="../tools/06_a2a.html"><code>a2a</code> tool</a>) can talk to those agents using the standard A2A JSON-RPC protocol over HTTP, with Server-Sent Events for streaming.</p>
+<p>This page documents the server side: how interlocutors become agents, the HTTP surface that is mounted, the agent-card shape, the task and context lifecycle, and the operational concerns (authentication, persistence, monitoring, and limitations).</p>
+<p>The CLI flags are documented in <a href="../reference/01_cli.html">CLI: <code>lectic a2a</code></a>.</p>
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>When you run <code>lectic a2a</code>, Lectic:</p>
+<ol type="1">
+<li>Reads your Lectic configuration via the same <code>imports</code> resolution used elsewhere.</li>
+<li>Selects every interlocutor that has an <code>a2a</code> field and turns each one into an A2A agent.</li>
+<li>Builds an agent card per interlocutor and starts a Bun HTTP server exposing the agent card and a JSON-RPC endpoint per agent.</li>
+<li>Optionally requires a bearer token, and exposes a set of monitoring endpoints for inspecting live tasks.</li>
+</ol>
+<p>If no interlocutor declares an <code>a2a</code> field the command fails with <code>No A2A agents configured</code>.</p>
 </section>
-<section id="usage" class="level2">
-<h2 class="anchored" data-anchor-id="usage">Usage</h2>
-<section id="start-with-research" class="level3">
-<h3 class="anchored" data-anchor-id="start-with-research">Start with research</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>:ask<span class="co">[</span><span class="ot">Researcher</span><span class="co">]</span> I'm trying to understand the tradeoffs between</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>microservices and monolithic architectures for a team of 5 developers</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>building a B2B SaaS product.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The Researcher will explore the topic, potentially using web search.</p>
-</section>
-<section id="get-a-quick-critique" class="level3">
-<h3 class="anchored" data-anchor-id="get-a-quick-critique">Get a quick critique</h3>
-<p>Use <code>:aside</code> to get feedback without switching the main conversation:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>:aside<span class="co">[</span><span class="ot">Critic</span><span class="co">]</span> What's wrong with this analysis?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>The Critic responds, then the next message goes back to the Researcher automatically.</p>
-</section>
-<section id="permanently-switch-for-deeper-critique" class="level3">
-<h3 class="anchored" data-anchor-id="permanently-switch-for-deeper-critique">Permanently switch for deeper critique</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>:ask<span class="co">[</span><span class="ot">Critic</span><span class="co">]</span> Let's dig into the claim about "complexity tax." What's</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>the actual evidence here?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Now you’re in a conversation with the Critic until you switch again.</p>
-</section>
-<section id="synthesize-at-the-end" class="level3">
-<h3 class="anchored" data-anchor-id="synthesize-at-the-end">Synthesize at the end</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>:ask<span class="co">[</span><span class="ot">Synthesizer</span><span class="co">]</span> Summarize this discussion. What did we learn? What</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>should we do next?</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-</section>
-<section id="variations" class="level2">
-<h2 class="anchored" data-anchor-id="variations">Variations</h2>
-<section id="domain-specific-experts" class="level3">
-<h3 class="anchored" data-anchor-id="domain-specific-experts">Domain-specific experts</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Legal</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a legal expert. Focus on regulatory compliance...</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Technical</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a senior engineer. Focus on implementation...</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Business</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a business strategist. Focus on market fit...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="agent-delegation" class="level3">
-<h3 class="anchored" data-anchor-id="agent-delegation">Agent delegation</h3>
-<p>Have one interlocutor call another as a tool:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Lead</span></span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You coordinate research. Delegate to specialists.</span></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> Researcher</span></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> research</span></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> Get detailed research on a specific topic.</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">agent</span><span class="kw">:</span><span class="at"> Critic</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> critique</span></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">usage</span><span class="kw">:</span><span class="at"> Get critical analysis of a claim or argument.</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Researcher</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> ...</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">native</span><span class="kw">:</span><span class="at"> search</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Critic</span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> ...</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Now the Lead can autonomously decide when to delegate:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>:ask<span class="co">[</span><span class="ot">Lead</span><span class="co">]</span> Evaluate whether we should migrate from PostgreSQL to</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>CockroachDB for our multi-region deployment.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-<section id="different-models-for-different-roles" class="level3">
-<h3 class="anchored" data-anchor-id="different-models-for-different-roles">Different models for different roles</h3>
-<p>Use cheaper/faster models for quick checks:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Deep</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-opus-4-6</span><span class="co">  # For complex analysis</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span></span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Quick</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">model</span><span class="kw">:</span><span class="at"> claude-haiku-4-5</span><span class="co">  # For quick sanity checks</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</section>
-</section>
-<section id="tips" class="level2">
-<h2 class="anchored" data-anchor-id="tips">Tips</h2>
+<section id="configuring-an-interlocutor-as-an-agent" class="level2">
+<h2 class="anchored" data-anchor-id="configuring-an-interlocutor-as-an-agent">Configuring an interlocutor as an agent</h2>
+<p>Add an <code>a2a</code> block to any interlocutor you want to expose. Both fields are optional:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">interlocutors</span><span class="kw">:</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Research Assistant</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">prompt</span><span class="kw">:</span><span class="at"> You are a research assistant.</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">a2a</span><span class="kw">:</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">id</span><span class="kw">:</span><span class="at"> researcher</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">description</span><span class="kw">:</span><span class="at"> Finds and summarizes academic papers.</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ul>
-<li><p><strong>Use <code>:aside</code> liberally.</strong> It’s cheap to get a second opinion without losing your place in the main conversation.</p></li>
-<li><p><strong>Give each interlocutor a distinct voice.</strong> The prompts should produce noticeably different responses, otherwise there’s no point in having multiple speakers.</p></li>
-<li><p><strong>Use <code>:reset[]</code> when switching topics.</strong> If you’re starting a new line of inquiry, reset context to avoid confusion from earlier discussion.</p></li>
+<li><code>a2a.id</code>: agent ID used in the URL path. Must match <code>^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$</code>. Defaults to the interlocutor’s <code>name</code> slugified (lowercased, non-alphanumeric runs replaced with <code>-</code>).</li>
+<li><code>a2a.description</code>: text used as the <code>description</code> field in the agent card. Defaults to <code>"Lectic agent exposed from interlocutor &lt;name&gt;."</code>.</li>
 </ul>
+<p>Interlocutors without an <code>a2a</code> block are not exposed by <code>lectic a2a</code>, even if they are otherwise valid speakers in the file.</p>
+</section>
+<section id="starting-the-server" class="level2">
+<h2 class="anchored" data-anchor-id="starting-the-server">Starting the server</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">lectic</span> a2a <span class="at">--root</span> ./my-workspace <span class="at">--port</span> 41240</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>--root</code> is the workspace directory; the server <code>chdir</code>s there before loading config, so relative <code>imports</code>, <code>file:</code>, and <code>exec:</code> references behave the same as they would for <code>lectic</code> invoked from that directory.</p>
+<p>On startup the server logs the bound address and one well-known agent card URL per agent:</p>
+<pre><code>Lectic A2A server running on http://127.0.0.1:41240 (2 agent(s))
+  - http://127.0.0.1:41240/agents/researcher/.well-known/agent-card.json
+  - http://127.0.0.1:41240/agents/editor/.well-known/agent-card.json</code></pre>
+<p>If you bind to a non-loopback host without <code>--token</code>, the server prints a warning recommending a token and/or a TLS-terminating reverse proxy. The server itself only speaks plain HTTP.</p>
+</section>
+<section id="http-surface" class="level2">
+<h2 class="anchored" data-anchor-id="http-surface">HTTP surface</h2>
+<p>For each agent ID <code>:agentId</code>, the server mounts:</p>
+<ul>
+<li><code>GET /agents/:agentId/.well-known/agent-card.json</code> — the public <a href="#agent-card">agent card</a>.</li>
+<li><code>POST /agents/:agentId/a2a/jsonrpc</code> — the A2A JSON-RPC endpoint.</li>
+</ul>
+<p>In addition, it mounts cross-agent monitoring endpoints under <code>/monitor/...</code>. Those are documented in <a href="../reference/01_cli.html#subcommands">CLI: <code>lectic a2a</code> — Monitoring endpoints</a>.</p>
+<p>All non-routed paths return <code>404</code>. Methods other than the ones listed return <code>405 method not allowed</code>.</p>
+<section id="agent-card" class="level3">
+<h3 class="anchored" data-anchor-id="agent-card">Agent card</h3>
+<p>The agent card returned at <code>/agents/:agentId/.well-known/agent-card.json</code> has the following shape:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"name"</span><span class="fu">:</span> <span class="st">"Research Assistant"</span><span class="fu">,</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"description"</span><span class="fu">:</span> <span class="st">"Finds and summarizes academic papers."</span><span class="fu">,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"protocolVersion"</span><span class="fu">:</span> <span class="st">"0.3.0"</span><span class="fu">,</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"version"</span><span class="fu">:</span> <span class="st">"&lt;lectic version&gt;"</span><span class="fu">,</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"preferredTransport"</span><span class="fu">:</span> <span class="st">"JSONRPC"</span><span class="fu">,</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"url"</span><span class="fu">:</span> <span class="st">"http://127.0.0.1:41240/agents/researcher/a2a/jsonrpc"</span><span class="fu">,</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"capabilities"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"streaming"</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"pushNotifications"</span><span class="fu">:</span> <span class="kw">false</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"defaultInputModes"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"text"</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"defaultOutputModes"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"text"</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"skills"</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"id"</span><span class="fu">:</span> <span class="st">"chat"</span><span class="fu">,</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"name"</span><span class="fu">:</span> <span class="st">"Chat"</span><span class="fu">,</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"description"</span><span class="fu">:</span> <span class="st">"General chat."</span><span class="fu">,</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>      <span class="dt">"tags"</span><span class="fu">:</span> <span class="ot">[</span><span class="st">"chat"</span><span class="ot">]</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Notes:</p>
+<ul>
+<li><p><code>protocolVersion</code> is the A2A spec version Lectic implements (<code>0.3.0</code>).</p></li>
+<li><p><code>version</code> is the running Lectic version (from <code>package.json</code>).</p></li>
+<li><p>The agent advertises a single generic <code>chat</code> skill. Tools the interlocutor uses internally (exec, MCP, etc.) are not exposed as separate A2A skills; they remain implementation details of the agent.</p></li>
+<li><p><code>pushNotifications</code> is always <code>false</code>. The server does not implement the push-notification methods (see <a href="#limitations">Limitations</a>).</p></li>
+<li><p>If the server is started with <code>--token</code>, the card adds:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode json code-with-copy"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"securitySchemes"</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">"lecticBearer"</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">"type"</span><span class="fu">:</span> <span class="st">"http"</span><span class="fu">,</span> <span class="dt">"scheme"</span><span class="fu">:</span> <span class="st">"bearer"</span> <span class="fu">}</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">},</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">"security"</span><span class="fu">:</span> <span class="ot">[</span><span class="fu">{</span> <span class="dt">"lecticBearer"</span><span class="fu">:</span> <span class="ot">[]</span> <span class="fu">}</span><span class="ot">]</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>so that compliant clients know to attach a bearer token.</p></li>
+</ul>
+</section>
+<section id="json-rpc-methods" class="level3">
+<h3 class="anchored" data-anchor-id="json-rpc-methods">JSON-RPC methods</h3>
+<p>The JSON-RPC endpoint accepts standard A2A methods. Supported:</p>
+<ul>
+<li><code>message/send</code> — send a user message and receive either a <code>Message</code> (when the turn finishes within the fast-path window) or a <code>Task</code> snapshot.</li>
+<li><code>message/sendStream</code> — same, but the response is streamed as SSE, yielding the initial <code>Task</code> followed by <code>status-update</code> events as the agent produces output.</li>
+<li><code>tasks/get</code> — fetch a snapshot for a known <code>taskId</code>.</li>
+<li><code>tasks/resubscribe</code> — re-attach an SSE stream to an in-flight task by <code>taskId</code> (without replaying earlier message chunks).</li>
+</ul>
+<p>Explicitly <strong>unsupported</strong> (these throw an <code>unsupportedOperation</code> JSON-RPC error):</p>
+<ul>
+<li><code>tasks/cancel</code></li>
+<li><code>tasks/pushNotificationConfig/{set,get,list,delete}</code></li>
+<li><code>agent/getAuthenticatedExtendedCard</code></li>
+</ul>
+<p>Streaming responses use the SSE framing <code>data: &lt;json&gt;\n\n</code> with headers <code>Content-Type: text/event-stream</code>, <code>Cache-Control: no-cache</code>, <code>Connection: keep-alive</code>, and <code>X-Accel-Buffering: no</code>. The server-wide idle timeout is disabled, so long-running streams from slow providers do not get prematurely closed.</p>
+</section>
+</section>
+<section id="contexts-and-tasks" class="level2">
+<h2 class="anchored" data-anchor-id="contexts-and-tasks">Contexts and tasks</h2>
+<p>A2A clients identify ongoing conversations with a <code>contextId</code> and individual turns with a <code>taskId</code>.</p>
+<section id="contextid" class="level3">
+<h3 class="anchored" data-anchor-id="contextid">contextId</h3>
+<ul>
+<li>Each <code>message/send</code> (or <code>message/sendStream</code>) request may include a <code>contextId</code>. If omitted, the server generates a fresh UUID.</li>
+<li>Provided IDs must match <code>^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$</code>; malformed IDs cause an <code>invalidParams</code> JSON-RPC error.</li>
+<li>Reusing the same <code>contextId</code> across calls is how a client continues an existing conversation. The persisted runtime keys its transcript by <code>(agentId, contextId)</code>, so message history is preserved on disk for that context (see <a href="#persistence">Persistence</a>).</li>
+<li>The server keeps the <strong>last <code>--max-tasks-per-context</code> task snapshots per context</strong> in memory (default <code>50</code>). When the cap is exceeded, oldest tasks are dropped from the in-memory store. The persisted transcript itself is not affected.</li>
+</ul>
+</section>
+<section id="taskid" class="level3">
+<h3 class="anchored" data-anchor-id="taskid">taskId</h3>
+<ul>
+<li>Every call to <code>message/send</code> creates a <strong>new</strong> task. The server does not allow clients to attach a message to an existing taskId; if <code>taskId</code> is supplied to <code>message/send</code> the call is rejected with <code>invalidParams</code>.</li>
+<li>To poll or re-subscribe to an existing task, use <code>tasks/get</code> or <code>tasks/resubscribe</code> with the <code>taskId</code> returned by the original call.</li>
+<li>A task that has been evicted from the in-memory cap returns <code>Unknown taskId ... (expired or never existed)</code>.</li>
+</ul>
+</section>
+<section id="task-lifecycle" class="level3">
+<h3 class="anchored" data-anchor-id="task-lifecycle">Task lifecycle</h3>
+<p>Each task moves through these states:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 81%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>submitted</code></td>
+<td>Created, queued behind any in-flight turn for this context.</td>
+</tr>
+<tr class="even">
+<td><code>working</code></td>
+<td>The runtime is actively producing output.</td>
+</tr>
+<tr class="odd">
+<td><code>completed</code></td>
+<td>The turn finished successfully.</td>
+</tr>
+<tr class="even">
+<td><code>failed</code></td>
+<td>The turn raised an error; <code>error</code> carries the message.</td>
+</tr>
+</tbody>
+</table>
+<p>Tasks within a single context are processed sequentially: a new turn for context <code>C</code> will not start until the previous turn for <code>C</code> has reached a terminal state.</p>
+</section>
+<section id="fast-path-return-on-messagesend" class="level3">
+<h3 class="anchored" data-anchor-id="fast-path-return-on-messagesend">Fast-path return on <code>message/send</code></h3>
+<p>Non-streaming <code>message/send</code> waits up to <strong>5 seconds</strong> for a turn that started immediately to reach <code>completed</code>, and if it does, returns the final assistant <code>Message</code> directly. Otherwise, it returns the current <code>Task</code> snapshot and the client is expected to poll with <code>tasks/get</code> or re-subscribe with <code>tasks/resubscribe</code>.</p>
+</section>
+<section id="streaming-output" class="level3">
+<h3 class="anchored" data-anchor-id="streaming-output">Streaming output</h3>
+<p><code>message/sendStream</code> always returns a streamed <code>Task</code> followed by <code>status-update</code> events:</p>
+<ul>
+<li>The first event is the initial <code>Task</code> snapshot (with any history available so far).</li>
+<li>One <code>status-update</code> is emitted when the task transitions into <code>working</code>.</li>
+<li>Subsequent <code>status-update</code> events carry incremental <code>message</code>-shaped chunks of assistant text. Lectic emits one chunk per assistant pass (i.e., per round-trip with the underlying provider that produces user-visible text).</li>
+<li>The final event has <code>final: true</code> and the terminal <code>state</code> (<code>completed</code> or <code>failed</code>).</li>
+</ul>
+<p>The server only emits message-shaped updates. It does <strong>not</strong> emit A2A artifact-update events.</p>
+<p><code>tasks/resubscribe</code> produces the same shape, but does not replay earlier message chunks; it only delivers new ones from the moment of subscription. <code>message/sendStream</code> does replay earlier chunks, which makes a best-effort reconnect by re-sending the same call viable.</p>
+</section>
+</section>
+<section id="authentication" class="level2">
+<h2 class="anchored" data-anchor-id="authentication">Authentication</h2>
+<p>Lectic supports a single optional bearer token via <code>--token</code>:</p>
+<ul>
+<li>When set, <strong>all</strong> routes — JSON-RPC and monitoring — require <code>Authorization: Bearer &lt;token&gt;</code>. Missing or mismatched values return <code>401 Unauthorized</code> with <code>WWW-Authenticate: Bearer</code>.</li>
+<li>The agent card itself is <strong>not</strong> gated by the token, so clients can discover it without authentication. The card declares <code>securitySchemes.lecticBearer</code> so compliant clients know to attach the token to subsequent calls.</li>
+<li>Lectic does not support per-agent or per-method tokens, OAuth, or mTLS. For richer auth, terminate TLS and inject auth in a reverse proxy in front of <code>lectic a2a</code>.</li>
+</ul>
+<p>For any deployment beyond <code>127.0.0.1</code>, set <code>--token</code> and run behind TLS.</p>
+</section>
+<section id="persistence" class="level2">
+<h2 class="anchored" data-anchor-id="persistence">Persistence</h2>
+<p>Each agent gets a <code>PersistedAgentRuntime</code> that writes transcripts to <code>&lt;state-dir&gt;/a2a/&lt;workspaceKey&gt;/&lt;agentId&gt;/&lt;contextId&gt;.lec</code>, where <code>&lt;state-dir&gt;</code> is Lectic’s state directory (typically <code>~/.local/share/lectic/</code>) and <code>&lt;workspaceKey&gt;</code> is a hash of the workspace’s resolved <code>--root</code> path. Transcripts written from different workspaces therefore land in separate subdirectories, but the files themselves are plain <code>.lec</code> (CommonMark + YAML) text. Treat the state directory as you would any on-disk conversation log.</p>
+<p>What is and isn’t persisted:</p>
+<ul>
+<li><strong>Persisted</strong>: per-context conversation transcripts (the message history the agent uses on each turn), keyed by <code>(agentId, contextId)</code>.</li>
+<li><strong>Not persisted</strong>: the in-memory task store (snapshots, event history). Restarting <code>lectic a2a</code> clears live task state but preserves conversation history. Existing <code>taskId</code>s become unknown after a restart.</li>
+</ul>
+</section>
+<section id="monitoring" class="level2">
+<h2 class="anchored" data-anchor-id="monitoring">Monitoring</h2>
+<p>The <code>/monitor/*</code> endpoints expose live in-memory task state and an SSE event stream useful for dashboards or admin tools. They mirror the JSON-RPC surface but are read-only and Lectic-specific. See <a href="../reference/01_cli.html#subcommands">CLI: <code>lectic a2a</code> — Monitoring endpoints</a> for the full route list.</p>
+<p>When <code>--token</code> is set, monitoring endpoints require the same bearer token as the JSON-RPC endpoint.</p>
+</section>
+<section id="limitations" class="level2">
+<h2 class="anchored" data-anchor-id="limitations">Limitations</h2>
+<p>The server intentionally implements a small slice of the A2A surface. The following are not supported:</p>
+<ul>
+<li>Task cancellation (<code>tasks/cancel</code>).</li>
+<li>Push-notification configs (<code>tasks/pushNotificationConfig/*</code>).</li>
+<li>Authenticated extended agent cards.</li>
+<li>Artifact updates — only message-shaped status updates are emitted.</li>
+<li>Multi-input modes — agents declare <code>text</code> only; non-text parts on inbound messages are ignored when extracting the user prompt.</li>
+<li>Client-supplied <code>taskId</code> on <code>message/send</code> — every send creates a new task.</li>
+<li>TLS — terminate TLS in a reverse proxy if the server is reachable beyond loopback.</li>
+</ul>
+</section>
+<section id="talking-to-it-from-lectic" class="level2">
+<h2 class="anchored" data-anchor-id="talking-to-it-from-lectic">Talking to it from Lectic</h2>
+<p>You can have a Lectic interlocutor call any A2A server (including this one) using the <a href="../tools/06_a2a.html"><code>a2a</code> tool</a>.</p>
 
 
 </section>
