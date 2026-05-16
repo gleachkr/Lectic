@@ -133,6 +133,7 @@ export async function generate() {
   let blockClosed = false
   let finalizePromise: Promise<void> | undefined
   let removeSignalHandlers = () => {}
+  let shutdownRequested = false
 
   const runId = Bun.randomUUIDv7()
   const runStartedMs = Date.now()
@@ -194,6 +195,7 @@ export async function generate() {
     const handleSignal = (signal: string) => {
       if (shutdownStarted) process.exit(signalExitCode(signal))
       shutdownStarted = true
+      shutdownRequested = true
       exitCode = signalExitCode(signal)
       runErrorMessage = `Interrupted by ${signal}`
 
@@ -268,10 +270,18 @@ export async function generate() {
         await Logger.write(text)
       },
     })) {
+      if (shutdownRequested) break
+
       lectic.body.raw += chunk
       assistantRaw += chunk
 
       if (showRaw) await Logger.write(chunk)
+    }
+
+    if (shutdownRequested) {
+      await closeOutputBlock(footer)
+      await finalizeRun()
+      process.exit(exitCode)
     }
 
     lectic.body.messages.push(new AssistantMessage({

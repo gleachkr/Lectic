@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from 'bun:test'
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
-import { createServer, type Server } from 'http'
+import { createServer, type Server, type ServerResponse } from 'http'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 
@@ -45,6 +45,14 @@ async function waitForExists(path: string, timeoutMs = 1000): Promise<boolean> {
     }
 
     return existsSync(path)
+}
+
+function writeOpenAIStreamChunk(
+    res: ServerResponse,
+    chunk: object | '[DONE]'
+): void {
+    const payload = typeof chunk === 'string' ? chunk : JSON.stringify(chunk)
+    res.write(`data: ${payload}\n\n`)
 }
 
 async function waitFor<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -192,6 +200,139 @@ describe('main generate CLI flags', () => {
         expect(result.exitCode).toBe(1)
         expect(await waitForExists(hookOut)).toBe(true)
         expect(await Bun.file(hookOut).text()).toBe('end')
+    })
+
+    it('stops writing streamed output after SIGINT closes block', async () => {
+        const hookOut = join(dir, 'sigint-output-hook.txt')
+        const preOut = join(dir, 'sigint-output-pre.txt')
+        const file = join(dir, 'sigint-output.lec')
+        const cacheDir = join(dir, 'sigint-output-cache')
+        const stateDir = join(dir, 'sigint-output-state')
+
+        const server = createServer((_req, res) => {
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+            })
+            writeOpenAIStreamChunk(res, {
+                id: 'chatcmpl-test',
+                object: 'chat.completion.chunk',
+                created: 0,
+                model: 'llama3.2',
+                choices: [{
+                    index: 0,
+                    delta: { role: 'assistant', content: 'before tool' },
+                    finish_reason: null,
+                }],
+            })
+            writeOpenAIStreamChunk(res, {
+                id: 'chatcmpl-test',
+                object: 'chat.completion.chunk',
+                created: 0,
+                model: 'llama3.2',
+                choices: [{
+                    index: 0,
+                    delta: {
+                        tool_calls: [{
+                            index: 0,
+                            id: 'call_slow',
+                            type: 'function',
+                            function: {
+                                name: 'slow_tool',
+                                arguments: '{"argv":[]}',
+                            },
+                        }],
+                    },
+                    finish_reason: null,
+                }],
+            })
+            writeOpenAIStreamChunk(res, {
+                id: 'chatcmpl-test',
+                object: 'chat.completion.chunk',
+                created: 0,
+                model: 'llama3.2',
+                choices: [{
+                    index: 0,
+                    delta: {},
+                    finish_reason: 'tool_calls',
+                }],
+                usage: {
+                    prompt_tokens: 1,
+                    completion_tokens: 1,
+                    total_tokens: 2,
+                },
+            })
+            writeOpenAIStreamChunk(res, '[DONE]')
+            res.end()
+        })
+        const listening = await tryListen(server, 11434)
+        if (!listening) return
+
+        try {
+            writeFileSync(
+                file,
+                [
+                    '---',
+                    'hooks:',
+                    '  - on: run_end',
+                    '    env:',
+                    `      OUT: ${hookOut}`,
+                    '    do: |',
+                    '      #!/usr/bin/env bash',
+                    '      sleep 0.3',
+                    '      printf end > "$OUT"',
+                    '  - on: tool_use_pre',
+                    '    env:',
+                    `      OUT: ${preOut}`,
+                    '    do: |',
+                    '      #!/usr/bin/env bash',
+                    '      printf started > "$OUT"',
+                    'interlocutor:',
+                    '  name: Assistant',
+                    '  prompt: hi',
+                    '  provider: ollama',
+                    '  model: llama3.2',
+                    '  tools:',
+                    '    - name: slow_tool',
+                    '      exec: bash -lc "sleep 0.05; echo TOOL_DONE"',
+                    '---',
+                    '',
+                    'hello',
+                    '',
+                ].join('\n')
+            )
+
+            const mainPath = resolve(import.meta.dir, 'main.ts')
+            const proc = Bun.spawn({
+                cmd: [process.execPath, mainPath, '--format', 'block', '-f', file],
+                cwd: process.cwd(),
+                env: {
+                    ...process.env,
+                    LECTIC_CONFIG: 'not-a-directory',
+                    LECTIC_CACHE: cacheDir,
+                    LECTIC_STATE: stateDir,
+                },
+                stdout: 'pipe',
+                stderr: 'pipe',
+            })
+
+            expect(await waitForExists(preOut, 3000)).toBe(true)
+            proc.kill('SIGINT')
+
+            const stdout = await new Response(proc.stdout).text()
+            const stderr = await new Response(proc.stderr).text()
+            const exitCode = await waitFor(proc.exited, 3000)
+
+            expect(exitCode).toBe(130)
+            expect(stderr).toBe('')
+            expect(stdout).toContain(':::Assistant')
+            expect(stdout).toContain('before tool')
+            expect(stdout).toContain(':::')
+            expect(stdout).not.toContain('TOOL_DONE')
+            expect(stdout).not.toContain('<tool-call')
+        } finally {
+            await closeServer(server)
+        }
     })
 
     it('runs run_end hooks before exiting on SIGINT', async () => {
