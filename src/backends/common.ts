@@ -5,7 +5,8 @@ import type { AssistantMessage, UserMessage } from "../types/message"
 import type { MessageLink } from "../types/link"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
 import type { InlineAttachment } from "../types/inlineAttachment"
-import { destrictify, type JSONSchema } from "../types/schema.ts"
+import { type JSONSchema } from "../types/schema.ts"
+import { destrictify } from "../types/openaiSchema.ts"
 
 export function wrapForeignAssistantMessage(
     msg: AssistantMessage

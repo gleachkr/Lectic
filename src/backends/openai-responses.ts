@@ -19,7 +19,7 @@ import {
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { ToolCall } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
-import { openAIToolSchema, strictify } from "../types/schema.ts"
+import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
 import type { ThoughtBlock } from "../types/thought"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [

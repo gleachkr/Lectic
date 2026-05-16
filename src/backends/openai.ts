@@ -18,7 +18,7 @@ import {
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { ToolCall, ToolCallResult } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
-import { openAIToolSchema, strictify } from "../types/schema.ts"
+import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.2",

@@ -3,12 +3,8 @@ import {
     serialize,
     deserialize,
     validateAgainstSchema,
-    strictify,
-    destrictify,
     validateJSONSchema,
     isJSONSchema,
-    supportsOpenAIStrictMode,
-    openAIToolSchema,
 } from './schema';
 import { expect, it, describe } from "bun:test"
 
@@ -701,233 +697,85 @@ describe('Round-trip serialization/deserialization tests', () => {
 
 });
 
-describe('oai strictify/destrictify', () => {
-    it('strictify makes optional properties nullable and required', () => {
-        const schema: JSONSchema = {
+describe('validateJSONSchema', () => {
+    it('accepts a simple object schema', () => {
+        const s: unknown = {
             type: "object",
-            description: "root",
             properties: {
-                a: { type: "string", description: "a" },
-                b: { type: "string", description: "b" },
+                a: { type: "string" },
             },
             required: ["a"],
-        }
-
-        const strict = strictify(schema)
-        expect(strict).toMatchObject({
-            type: "object",
-            required: ["a", "b"],
-            additionalProperties: false,
-        })
-
-        const b = (strict as any).properties.b
-        expect(Array.isArray(b.anyOf)).toBe(true)
-        expect((b.anyOf as any[]).some((s: any) => s.type === "null"))
-            .toBe(true)
-    })
-
-    it('strictify does not double-wrap already nullable properties', () => {
-        const schema: JSONSchema = {
-            type: "object",
-            description: "root",
-            properties: {
-                a: { type: "string", description: "a" },
-                b: {
-                    anyOf: [
-                        { type: "string", description: "b" },
-                        { type: "null" },
-                    ],
-                },
-            },
-            required: ["a"],
-        }
-
-        const strict = strictify(schema) as any
-        const b = strict.properties.b
-        expect(Array.isArray(b.anyOf)).toBe(true)
-        expect((b.anyOf as any[]).filter((s: any) => s.type === "null").length)
-            .toBe(1)
-    })
-
-    it('uses non-strict mode for schemas strict mode cannot represent', () => {
-        const schema = {
-            type: "object",
-            properties: {
-                data: {
-                    type: "object",
-                    propertyNames: { type: "string" },
-                    additionalProperties: { type: "string" },
-                },
-            },
-        } as JSONSchema
-
-        expect(supportsOpenAIStrictMode(schema)).toBeFalse()
-        expect(openAIToolSchema(schema)).toEqual({
-            strict: false,
-            schema,
-        })
-    })
-
-    it('uses strict mode for schemas strict mode can represent', () => {
-        const schema: JSONSchema = {
-            type: "object",
-            properties: {
-                required: { type: "string" },
-                optional: { type: "number" },
-            },
-            required: ["required"],
-        }
-
-        expect(supportsOpenAIStrictMode(schema)).toBeTrue()
-        expect(openAIToolSchema(schema)).toEqual({
-            strict: true,
-            schema: {
-                type: "object",
-                properties: {
-                    required: { type: "string" },
-                    optional: {
-                        anyOf: [
-                            { type: "number" },
-                            { type: "null" },
-                        ],
-                    },
-                },
-                required: ["required", "optional"],
-                additionalProperties: false,
-            },
-        })
-    })
-
-    it('strictify tolerates object schemas without properties', () => {
-        const schema: JSONSchema = {
-            type: "object",
             additionalProperties: false,
         }
-
-        expect(strictify(schema)).toEqual({
-            type: "object",
-            properties: {},
-            required: [],
-            additionalProperties: false,
-        })
+        expect(validateJSONSchema(s)).toBeTrue()
+        expect(isJSONSchema(s)).toBeTrue()
     })
 
-    it('destrictify removes null optional properties', () => {
-        const schema: JSONSchema = {
+    it('accepts object map schemas', () => {
+        const s: unknown = {
             type: "object",
-            description: "root",
-            properties: {
-                a: { type: "string", description: "a" },
-                b: { type: "string", description: "b" },
-            },
-            required: ["a"],
+            propertyNames: { type: "string" },
+            additionalProperties: { type: "string" },
         }
-
-        const value = { a: "x", b: null }
-        expect(destrictify(value, schema)).toEqual({ a: "x" })
+        expect(validateJSONSchema(s)).toBeTrue()
+        expect(isJSONSchema(s)).toBeTrue()
     })
 
-    it('destrictify removes nulls in nested optional object properties', () => {
-        const schema: JSONSchema = {
-            type: "object",
-            description: "root",
-            properties: {
-                nested: {
-                    type: "object",
-                    description: "nested",
-                    properties: {
-                        x: { type: "string", description: "x" },
-                    },
-                    required: [],
-                },
-            },
-            required: ["nested"],
+    it('rejects non-objects', () => {
+        expect(isJSONSchema(123)).toBeFalse()
+        expect(() => validateJSONSchema(123))
+            .toThrow('Expected object')
+    })
+
+    it('accepts supported string format and pattern', () => {
+        const s: unknown = {
+            type: "string",
+            format: "email",
+            pattern: "^[^@]+@[^@]+$",
         }
-
-        const value = { nested: { x: null } }
-        expect(destrictify(value, schema)).toEqual({ nested: {} })
+        expect(validateJSONSchema(s)).toBeTrue()
+        expect(isJSONSchema(s)).toBeTrue()
     })
 
-    describe('validateJSONSchema', () => {
-        it('accepts a simple object schema', () => {
-            const s: unknown = {
-                type: "object",
-                properties: {
-                    a: { type: "string" },
-                },
-                required: ["a"],
-                additionalProperties: false,
-            }
-            expect(validateJSONSchema(s)).toBeTrue()
-            expect(isJSONSchema(s)).toBeTrue()
-        })
+    it('rejects invalid regex patterns', () => {
+        const s: unknown = {
+            type: "string",
+            pattern: "[unterminated",
+        }
+        expect(isJSONSchema(s)).toBeFalse()
+        expect(() => validateJSONSchema(s))
+            .toThrow('Invalid regex pattern')
+    })
 
-        it('accepts object map schemas', () => {
-            const s: unknown = {
-                type: "object",
-                propertyNames: { type: "string" },
-                additionalProperties: { type: "string" },
-            }
-            expect(validateJSONSchema(s)).toBeTrue()
-            expect(isJSONSchema(s)).toBeTrue()
-        })
+    it('rejects unsupported string formats', () => {
+        const s: unknown = {
+            type: "string",
+            format: "uri",
+        }
+        expect(isJSONSchema(s)).toBeFalse()
+        expect(() => validateJSONSchema(s))
+            .toThrow('Unsupported format')
+    })
 
-        it('rejects non-objects', () => {
-            expect(isJSONSchema(123)).toBeFalse()
-            expect(() => validateJSONSchema(123))
-                .toThrow('Expected object')
-        })
+    it('accepts boolean and null enums', () => {
+        const b: unknown = {
+            type: "boolean",
+            enum: [true, false],
+        }
+        const n: unknown = {
+            type: "null",
+            enum: [null],
+        }
+        expect(validateJSONSchema(b)).toBeTrue()
+        expect(validateJSONSchema(n)).toBeTrue()
+    })
 
-        it('accepts supported string format and pattern', () => {
-            const s: unknown = {
-                type: "string",
-                format: "email",
-                pattern: "^[^@]+@[^@]+$",
-            }
-            expect(validateJSONSchema(s)).toBeTrue()
-            expect(isJSONSchema(s)).toBeTrue()
-        })
-
-        it('rejects invalid regex patterns', () => {
-            const s: unknown = {
-                type: "string",
-                pattern: "[unterminated",
-            }
-            expect(isJSONSchema(s)).toBeFalse()
-            expect(() => validateJSONSchema(s))
-                .toThrow('Invalid regex pattern')
-        })
-
-        it('rejects unsupported string formats', () => {
-            const s: unknown = {
-                type: "string",
-                format: "uri",
-            }
-            expect(isJSONSchema(s)).toBeFalse()
-            expect(() => validateJSONSchema(s))
-                .toThrow('Unsupported format')
-        })
-
-        it('accepts boolean and null enums', () => {
-            const b: unknown = {
-                type: "boolean",
-                enum: [true, false],
-            }
-            const n: unknown = {
-                type: "null",
-                enum: [null],
-            }
-            expect(validateJSONSchema(b)).toBeTrue()
-            expect(validateJSONSchema(n)).toBeTrue()
-        })
-
-        it('rejects unknown keys', () => {
-            const s: unknown = {
-                type: "string",
-                no_such_key: true,
-            }
-            expect(isJSONSchema(s)).toBeFalse()
-            expect(() => validateJSONSchema(s)).toThrow('Unknown key')
-        })
+    it('rejects unknown keys', () => {
+        const s: unknown = {
+            type: "string",
+            no_such_key: true,
+        }
+        expect(isJSONSchema(s)).toBeFalse()
+        expect(() => validateJSONSchema(s)).toThrow('Unknown key')
     })
 })
