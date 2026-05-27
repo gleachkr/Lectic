@@ -353,76 +353,91 @@ export class OpenAIResponsesBackend extends Backend<
       store: false,
     })
 
+    // The codex endpoint sometimes emits a response.completed payload with
+    // no `output` field. The OpenAI SDK's parser then throws on
+    // `response.output.map(...)`, surfacing both as a finalResponse()
+    // rejection and as an iterator error mid-stream. We capture the raw
+    // snapshot here so both paths below can recover from it.
+    let capturedSnapshot: OpenAI.Responses.Response | undefined
+
     async function* chunks(
       accumulator: OpenAI.Responses.ResponseOutputItem[]
     ): AsyncGenerator<StreamChunk> {
       let thoughtOrder = 0
 
-      for await (const event of stream) {
-        if (event.type === "response.output_text.delta") {
-          yield { kind: "text", text: event.delta || "" }
-        }
+      try {
+        for await (const event of stream) {
+          if (event.type === "response.completed") {
+            capturedSnapshot = event.response
+          }
 
-        if (event.type === "response.output_item.done") {
+          if (event.type === "response.output_text.delta") {
+            yield { kind: "text", text: event.delta || "" }
+          }
+
+          if (event.type === "response.output_item.done") {
             accumulator[event.output_index] = event.item
-        }
+          }
 
-        if (
-          event.type === "response.output_item.done" &&
-          event.item.type === "reasoning"
-        ) {
-          const item = event.item
-          const summary: string[] = []
-          const content: string[] = []
-          const opaque: Record<string, string> = {}
+          if (
+            event.type === "response.output_item.done" &&
+            event.item.type === "reasoning"
+          ) {
+            const item = event.item
+            const summary: string[] = []
+            const content: string[] = []
+            const opaque: Record<string, string> = {}
 
-          if (Array.isArray(item.summary)) {
-            for (const s of item.summary) {
-              if (
-                s.type === "summary_text" &&
-                s.text
-              ) {
-                summary.push(s.text)
+            if (Array.isArray(item.summary)) {
+              for (const s of item.summary) {
+                if (
+                  s.type === "summary_text" &&
+                  s.text
+                ) {
+                  summary.push(s.text)
+                }
               }
             }
-          }
 
-          if (Array.isArray(item.content)) {
-            for (const c of item.content) {
-              if (
-                c.type === "reasoning_text" &&
-                c.text
-              ) {
-                content.push(c.text)
+            if (Array.isArray(item.content)) {
+              for (const c of item.content) {
+                if (
+                  c.type === "reasoning_text" &&
+                  c.text
+                ) {
+                  content.push(c.text)
+                }
               }
             }
-          }
 
-          if (item.encrypted_content) {
-            opaque["encrypted_content"] =
-              item.encrypted_content
-          }
+            if (item.encrypted_content) {
+              opaque["encrypted_content"] =
+                item.encrypted_content
+            }
 
-          yield {
-            kind: "thought",
-            block: {
-              provider: "openai",
-              providerKind: "reasoning",
-              id: item.id,
-              status: item.status ?? undefined,
-              order: thoughtOrder++,
-              ...(summary.length > 0
-                ? { summary }
-                : {}),
-              ...(content.length > 0
-                ? { content }
-                : {}),
-              ...(Object.keys(opaque).length > 0
-                ? { opaque }
-                : {}),
-            },
+            yield {
+              kind: "thought",
+              block: {
+                provider: "openai",
+                providerKind: "reasoning",
+                id: item.id,
+                status: item.status ?? undefined,
+                order: thoughtOrder++,
+                ...(summary.length > 0
+                  ? { summary }
+                  : {}),
+                ...(content.length > 0
+                  ? { content }
+                  : {}),
+                ...(Object.keys(opaque).length > 0
+                  ? { opaque }
+                  : {}),
+              },
+            }
           }
         }
+      } catch (err) {
+        if (!capturedSnapshot && accumulator.length === 0) throw err
       }
     }
 
@@ -431,17 +446,23 @@ export class OpenAIResponsesBackend extends Backend<
     return {
       chunks: chunks(accumulator),
       final: stream.finalResponse()
+        .catch((err) => {
+          if (capturedSnapshot) return capturedSnapshot
+          throw err
+        })
         .then(rsp => {
-            // the Openai SDK lets an empty final output clobber the
-            // accumulated items, and also occasionally emits an empty final
-            // output. This is an ugly but (for now) necessary workaround.
-            if (rsp.output.length === 0 && accumulator.length > 0) {
-                const replacement: typeof rsp.output = accumulator.map((item) => {
+            // The OpenAI SDK lets an empty final output clobber the
+            // accumulated items, and also occasionally emits an empty (or
+            // missing) final output. This is an ugly but (for now) necessary
+            // workaround.
+            const outputMissing = !Array.isArray(rsp.output) || rsp.output.length === 0
+            if (outputMissing && accumulator.length > 0) {
+                const replacement: OpenAI.Responses.ResponseOutputItem[] = accumulator.map((item) => {
                   if (item.type === "function_call") {
                     return {
                       ...item,
                       parsed_arguments: null,
-                    } as typeof rsp.output[number]
+                    } as OpenAI.Responses.ResponseOutputItem
                   }
 
                   if (item.type === "message") {
@@ -452,13 +473,15 @@ export class OpenAIResponsesBackend extends Backend<
                           ? { ...content, parsed: null }
                           : content
                       ),
-                    } as typeof rsp.output[number]
+                    } as OpenAI.Responses.ResponseOutputItem
                   }
 
-                  return item as typeof rsp.output[number]
+                  return item as OpenAI.Responses.ResponseOutputItem
                 })
 
                 rsp.output = replacement
+              } else if (!Array.isArray(rsp.output)) {
+                rsp.output = []
               }
             return rsp
         }),
