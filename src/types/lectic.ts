@@ -50,21 +50,21 @@ function validateToolKit(raw : unknown) : raw is ToolKitSpec {
     return true
 }
 
-type DialecticHeaderSpec = {
-    interlocutor : InterlocutorSpec
-    interlocutors? : [ ...InterlocutorSpec[] ]
+type CommonHeaderSpec = {
+    id?: string
     macros?: MacroSpec[]
     hooks?: HookSpec[]
     kits? : ToolKitSpec[]
     sandbox? : string
 }
 
-type ManylecticHeaderSpec = {
+type DialecticHeaderSpec = CommonHeaderSpec & {
+    interlocutor : InterlocutorSpec
+    interlocutors? : [ ...InterlocutorSpec[] ]
+}
+
+type ManylecticHeaderSpec = CommonHeaderSpec & {
     interlocutors : [ InterlocutorSpec, ...InterlocutorSpec[] ]
-    macros?: MacroSpec[]
-    hooks?: HookSpec[]
-    kits? : ToolKitSpec[]
-    sandbox? : string
 }
 
 export type LecticHeaderSpec = DialecticHeaderSpec | ManylecticHeaderSpec
@@ -76,6 +76,7 @@ export class LecticHeader {
     hooks: Hook[]
     kits: ToolKitSpec[]
     spec: LecticHeaderSpec
+    id?: string
     sandbox? : string
     constructor(spec : LecticHeaderSpec) {
         if ("interlocutor" in spec) {
@@ -96,6 +97,7 @@ export class LecticHeader {
             this.interlocutors = spec.interlocutors as Interlocutor[]
         }
         this.spec = spec
+        this.id = spec.id
         this.sandbox = spec.sandbox
         this.macros = (spec.macros ?? []).map(spec => new Macro(spec))
         this.hooks = (spec.hooks ?? []).map(spec => new Hook(spec))
@@ -269,6 +271,10 @@ export function validateLecticHeaderSpec(raw : unknown) : raw is LecticHeaderSpe
         if (!hasInterlocutor && raw['interlocutors'].length === 0) {
             throw Error(Messages.header.interlocutorsEmpty())
         }
+    }
+
+    if ('id' in raw && !(typeof raw['id'] === "string")) {
+        throw Error(Messages.header.idType())
     }
 
     if ('macros' in raw) {

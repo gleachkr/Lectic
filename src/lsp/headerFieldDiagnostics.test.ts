@@ -32,6 +32,18 @@ describe("header field diagnostics", () => {
     expect(d!.range.start.line).toBe(idx)
   })
 
+  test("top-level id wrong type points to its scalar value", async () => {
+    const text = `---\nid: 123\ninterlocutor:\n  name: A\n  prompt: p\n---\nBody\n`
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const d = findDiag(diags, "'id' must be a string.")
+    expect(d).toBeDefined()
+    const ls = lines(text)
+    const idx = ls.findIndex(l => l.includes("id: 123"))
+    expect(idx).toBeGreaterThanOrEqual(0)
+    expect(d!.range.start.line).toBe(idx)
+  })
+
   test("max_tokens wrong type points to its scalar value in list entry", async () => {
     const text = `---\ninterlocutors:\n  - name: Baba\n    prompt: p\n    max_tokens: "abc"\n---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)

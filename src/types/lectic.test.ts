@@ -30,6 +30,15 @@ describe('LecticHeader', () => {
     expect(header.interlocutors).toHaveLength(2);
   });
 
+  it('preserves an optional top-level id', () => {
+    const spec = {
+      id: 'my-project',
+      interlocutor: { name: 'Assistant', prompt: 'You are an assistant.' }
+    };
+    const header = new LecticHeader(spec);
+    expect(header.id).toBe('my-project');
+  });
+
   it('should switch the main interlocutor', () => {
     const spec = {
         interlocutors: [
@@ -248,6 +257,19 @@ describe('LecticHeader', () => {
       expect(test).toThrow(
         "The account for Tester wasn't well-formed, it needs to be a string."
       );
+    });
+
+    it('validates the top-level id field type', () => {
+      const spec = {
+        id: 42,
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+        }
+      };
+
+      const test = () => validateLecticHeaderSpec(spec as any);
+      expect(test).toThrow("'id' must be a string.");
     });
 
     it('should correctly initialize an AgentTool', async () => {

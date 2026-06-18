@@ -282,6 +282,11 @@ export function buildHeaderRangeIndex(docText: string): HeaderRangeIndex | null 
     }
   })
 
+  const rootIdVal = getPair(root, 'id')?.value
+  if (rootIdVal) {
+    pushField(['id'], rootIdVal)
+  }
+
   // top-level sandbox
   const rootSandboxVal = getPair(root, 'sandbox')?.value
   if (rootSandboxVal) {

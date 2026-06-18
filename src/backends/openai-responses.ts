@@ -23,6 +23,9 @@ import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
 import type { ThoughtBlock } from "../types/thought"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
+  "gpt-5.5",
+  "gpt-5.5-pro",
+  "gpt-5.4",
   "gpt-5.2",
   "gpt-5.1",
   "gpt-5.1-codex",
@@ -340,6 +343,7 @@ export class OpenAIResponsesBackend extends Backend<
       input: messages,
       model,
       include: ["reasoning.encrypted_content", "code_interpreter_call.outputs"],
+      prompt_cache_key: lectic.header.id,
       prompt_cache_retention: this.cache_retention && SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
         ? "24h"
         : undefined,

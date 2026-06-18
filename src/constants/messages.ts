@@ -128,7 +128,10 @@ export const Messages = {
   header: {
     baseNull: () => `Header cannot be null.`,
     baseType: () => `Header must be an object.`,
-    missingInterlocutor: () => `Header must have either an 'interlocutor' or 'interlocutors' field.`,
+    missingInterlocutor: () =>
+      `Header must have either an 'interlocutor' or ` +
+      `'interlocutors' field.`,
+    idType: () => `'id' must be a string.`,
     interlocutorsType: () => `'interlocutors' must be an array.`,
     interlocutorsEmpty: () => `'interlocutors' array cannot be empty.`,
     macrosType: () => `'macros' must be an array.`,

@@ -45,8 +45,6 @@ export class CodexBackend extends OpenAIResponsesBackend {
     super({
       apiKeyEnv: "CODEX_ACCESS_TOKEN",
       provider: LLMProvider.Codex,
-      // This is a reasonable default for subscription auth. Users can still
-      // override it in their lectic header.
       defaultModel: "gpt-5.4",
     })
     this.account = account

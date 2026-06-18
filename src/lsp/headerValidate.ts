@@ -442,6 +442,15 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     }
   }
 
+  if ("id" in root && typeof root["id"] !== "string") {
+    issues.push({
+      code: "header.id.type",
+      message: Messages.header.idType(),
+      path: ["id"],
+      severity: "error",
+    })
+  }
+
   // macros
   if ("macros" in root) {
     const macros = root["macros"]

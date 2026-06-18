@@ -10,6 +10,7 @@ included configuration files.
   path, an object with `path` and optional `optional: true`, or an object
   with `plugin` and optional `optional: true`. If a `path` is a directory,
   Lectic loads `<path>/lectic.yaml`.
+- `id`: Optional string identifier for the configuration.
 - `interlocutor`: A single object defining the primary LLM speaker.
 - `interlocutors`: A list of interlocutor objects for multiparty
   conversations.
@@ -26,6 +27,20 @@ included configuration files.
   [Reusable Definitions](#reusable-definitions-with-use) below.
 - `sandbox_defs`: A list of reusable named sandbox command strings. See
   [Reusable Definitions](#reusable-definitions-with-use) below.
+
+---
+
+## The `id` Entry
+
+`id` is an optional top-level string you can use as a stable identifier for
+this configuration.
+
+```yaml
+id: my-project
+```
+
+Lectic preserves this value in the merged configuration, but does not assign
+any built-in behavior to it.
 
 ---
 

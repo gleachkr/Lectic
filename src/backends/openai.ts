@@ -21,6 +21,9 @@ import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
+  "gpt-5.5",
+  "gpt-5.5-pro",
+  "gpt-5.4",
   "gpt-5.2",
   "gpt-5.1",
   "gpt-5.1-codex",
@@ -304,6 +307,7 @@ export class OpenAIBackend extends Backend<
       model,
       temperature: lectic.header.interlocutor.temperature,
       max_completion_tokens: lectic.header.interlocutor.max_tokens,
+      prompt_cache_key: lectic.header.id,
       prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
         ? "24h"
         : undefined,
