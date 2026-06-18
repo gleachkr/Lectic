@@ -975,6 +975,18 @@ Lectic’s runtime/config/data roots and you want its bundled config. Use
 `path:` or a string path for in-repo modules and other explicit
 filesystem imports.
 
+## Optional Configuration ID
+
+You can also assign a top-level `id` to a configuration:
+
+``` yaml
+id: my-project
+```
+
+This is a plain string identifier preserved in the merged configuration.
+Lectic does not attach built-in behavior to it, but it can be useful for
+plugins, tooling, or your own conventions.
+
 ## Overriding Default Directories
 
 You can change the default locations for Lectic’s data directories by
@@ -4828,6 +4840,7 @@ and any included configuration files.
   string path, an object with `path` and optional `optional: true`, or
   an object with `plugin` and optional `optional: true`. If a `path` is
   a directory, Lectic loads `<path>/lectic.yaml`.
+- `id`: Optional string identifier for the configuration.
 - `interlocutor`: A single object defining the primary LLM speaker.
 - `interlocutors`: A list of interlocutor objects for multiparty
   conversations.
@@ -4846,6 +4859,20 @@ and any included configuration files.
   [Reusable Definitions](#reusable-definitions-with-use) below.
 - `sandbox_defs`: A list of reusable named sandbox command strings. See
   [Reusable Definitions](#reusable-definitions-with-use) below.
+
+------------------------------------------------------------------------
+
+## The `id` Entry
+
+`id` is an optional top-level string you can use as a stable identifier
+for this configuration.
+
+``` yaml
+id: my-project
+```
+
+Lectic preserves this value in the merged configuration, but does not
+assign any built-in behavior to it.
 
 ------------------------------------------------------------------------
 
