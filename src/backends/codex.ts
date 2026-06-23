@@ -3,6 +3,7 @@ import { OpenAIResponsesBackend } from "./openai-responses"
 import { CodexAuth } from "../auth/codex"
 import { LLMProvider } from "../types/provider"
 import { isObjectRecord } from "../types/guards"
+import { createCodexWebSocketFetch, type CodexWebSocketFetch } from "./codex-websocket"
 
 const CODEX_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
 const OPENAI_BETA = "OpenAI-Beta"
@@ -40,6 +41,7 @@ export class CodexBackend extends OpenAIResponsesBackend {
   account?: string
   private auth: CodexAuth
   private _client?: OpenAI
+  private _webSocketFetch?: CodexWebSocketFetch
 
   constructor(account?: string) {
     super({
@@ -54,6 +56,8 @@ export class CodexBackend extends OpenAIResponsesBackend {
 
   get client() {
     if (this._client) return this._client
+
+    this._webSocketFetch = createCodexWebSocketFetch()
 
     this._client = new OpenAI({
       // The SDK wants some apiKey value, but we override the Authorization
@@ -74,7 +78,7 @@ export class CodexBackend extends OpenAIResponsesBackend {
           headers.set(CODEX_ACCOUNT_ID_HEADER, accountId)
         }
 
-        return fetch(input, {
+        return this._webSocketFetch!(input, {
           ...init,
           headers,
         })
