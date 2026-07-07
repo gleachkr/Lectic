@@ -62,6 +62,7 @@ function makeLectic(id?: string) {
         prompt: "Be helpful.",
         model: "gpt-5",
         registry: {},
+        tools: [] as { native: "search" | "code" }[],
       },
     },
   }
@@ -153,5 +154,27 @@ describe("OpenAI prompt_cache_key", () => {
     await backend.createForTest([], makeLectic())
 
     expect(seen?.["prompt_cache_key"]).toBeUndefined()
+  })
+})
+
+describe("OpenAI Responses native tools", () => {
+  test("uses the current OpenAI web search tool type", async () => {
+    let seen: Record<string, unknown> | undefined
+
+    const backend = new TestOpenAIResponsesBackend({
+      responses: {
+        stream(args: Record<string, unknown>) {
+          seen = args
+          return emptyResponsesStream()
+        },
+      },
+    })
+
+    const lectic = makeLectic()
+    lectic.header.interlocutor.tools = [{ native: "search" }]
+
+    await backend.createForTest([], lectic)
+
+    expect(seen?.["tools"]).toContainEqual({ type: "web_search" })
   })
 })

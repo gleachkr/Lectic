@@ -94,7 +94,7 @@ function getTools(lectic: Lectic): OpenAI.Responses.Tool[] {
   }
 
   if (nativeTools.find((tool) => tool === "search")) {
-    tools.push({ type: "web_search_preview" })
+    tools.push({ type: "web_search" })
   }
 
   if (nativeTools.find((tool) => tool === "code")) {
@@ -537,7 +537,7 @@ export class OpenAIResponsesBackend extends Backend<
       if (o.type === "apply_patch_call_output" || o.type === "apply_patch_call") {
         continue
       }
-      messages.push(o)
+      messages.push(o as OpenAI.Responses.ResponseInputItem)
     }
   }
 
