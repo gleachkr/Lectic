@@ -595,7 +595,7 @@ async function cmdRun(
       cmd = ["bash", scriptPath, ...args];
     } else if (ext === ".py") {
       cmd = ["python3", scriptPath, ...args];
-    } else if (ext === ".js" || ext === ".ts") {
+    } else if (ext === ".js" || ext === ".ts" || ext === ".mjs") {
       cmd = ["lectic", "script", scriptPath, ...args];
     } else {
       throw new Error(
