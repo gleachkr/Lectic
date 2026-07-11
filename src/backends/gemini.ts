@@ -27,6 +27,7 @@ import { inlineReset, type InlineAttachment, } from "../types/inlineAttachment"
 import type { ToolCall } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import type { ThoughtBlock } from "../types/thought"
+import { Messages } from "../constants/messages"
 
 type GeminiFinal = {
   response: GenerateContentResponse
@@ -111,11 +112,17 @@ async function getResult(
       }
       break
     case "none":
-      thinkingConfig = { 
-        includeThoughts: true, 
+      thinkingConfig = {
+        includeThoughts: true,
         thinkingLevel: ThinkingLevel.MINIMAL,
-    }
+      }
       break
+    case "xhigh":
+    case "max":
+      throw Error(Messages.interlocutor.thinkingEffortUnsupported(
+        "gemini",
+        lectic.header.interlocutor.thinking_effort,
+      ))
     default:
       thinkingConfig = {
         includeThoughts: true,

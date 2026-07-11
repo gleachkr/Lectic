@@ -56,6 +56,43 @@ describe("header field diagnostics", () => {
     expect(d!.range.start.line).toBe(idx)
   })
 
+  test("accepts xhigh and max thinking efforts", async () => {
+    const text = [
+      "---",
+      "interlocutors:",
+      "  - name: A",
+      "    prompt: p",
+      "    thinking_effort: xhigh",
+      "  - name: B",
+      "    prompt: p",
+      "    thinking_effort: max",
+      "---",
+      "Body",
+      "",
+    ].join("\n")
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    expect(findDiag(diags, "thinking effort")).toBeUndefined()
+  })
+
+  test("reports an unknown thinking effort", async () => {
+    const text = [
+      "---",
+      "interlocutor:",
+      "  name: A",
+      "  prompt: p",
+      "  thinking_effort: extreme",
+      "---",
+      "Body",
+      "",
+    ].join("\n")
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const diag = findDiag(diags, "thinking effort for A")
+    expect(diag).toBeDefined()
+    expect(diag!.message).toContain("'xhigh' or 'max'")
+  })
+
   test("unknown interlocutor property warns on its value", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  mood: cheerful\n---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)

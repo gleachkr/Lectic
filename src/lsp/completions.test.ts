@@ -1017,6 +1017,8 @@ describe("completions (unit)", () => {
     expect(labels.has("low")).toBeTrue()
     expect(labels.has("medium")).toBeTrue()
     expect(labels.has("high")).toBeTrue()
+    expect(labels.has("xhigh")).toBeTrue()
+    expect(labels.has("max")).toBeTrue()
   })
 
   test("suggests provider values with prefix", async () => {

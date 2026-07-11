@@ -23,6 +23,15 @@ import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema.js"
 import type { ThoughtBlock } from "../types/thought"
 import type { OutputConfig } from "@anthropic-ai/sdk/resources"
+import type { ThinkingEffort } from "../types/thinkingEffort"
+
+function anthropicThinkingEffort(
+  effort: Exclude<ThinkingEffort, "none">,
+): NonNullable<OutputConfig["effort"]> {
+  // Newer Anthropic models accept `xhigh`, but the current SDK declaration
+  // only includes levels through `max`. Requests are serialized unchanged.
+  return effort as NonNullable<OutputConfig["effort"]>
+}
 
 // Yield text deltas and complete thought blocks from an
 // Anthropic stream, preserving provider ordering.
@@ -401,7 +410,9 @@ export class AnthropicBackend extends Backend<
 
     if (lectic.header.interlocutor.thinking_effort &&
         lectic.header.interlocutor.thinking_effort !== "none") {
-      output_config.effort = lectic.header.interlocutor.thinking_effort
+      output_config.effort = anthropicThinkingEffort(
+        lectic.header.interlocutor.thinking_effort,
+      )
     }
 
     Logger.debug("anthropic - messages", messages)

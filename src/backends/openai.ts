@@ -307,6 +307,7 @@ export class OpenAIBackend extends Backend<
       model,
       temperature: lectic.header.interlocutor.temperature,
       max_completion_tokens: lectic.header.interlocutor.max_tokens,
+      reasoning_effort: lectic.header.interlocutor.thinking_effort,
       prompt_cache_key: lectic.header.id,
       prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
         ? "24h"

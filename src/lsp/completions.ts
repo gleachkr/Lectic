@@ -30,6 +30,7 @@ import { startsWithCI } from "./utils/text"
 import { effectiveProviderForPath } from "./utils/provider"
 import { LLMProvider } from "../types/provider"
 import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
+import { THINKING_EFFORTS } from "../types/thinkingEffort"
 import {
   DIRECTIVE_DOCS,
   formatKitDocsMarkdown,
@@ -224,8 +225,7 @@ export async function computeCompletions(
     })
     if (thinkingEffortHit) {
       const { prefixLc, range } = computeValueEdit(lineText, pos)
-      const values = ["none", "low", "medium", "high"]
-      for (const v of values) {
+      for (const v of THINKING_EFFORTS) {
         if (prefixLc && !startsWithCI(v, prefixLc)) continue
         items.push({
           label: v,

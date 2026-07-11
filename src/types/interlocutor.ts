@@ -4,6 +4,10 @@ import { type HookSpec, type Hook, isHookSpecList } from "./hook"
 import { type JSONSchema, validateJSONSchema } from "./schema"
 import { Messages } from "../constants/messages"
 import { isLoadableSource, loadFrom } from "../utils/loader"
+import {
+    isThinkingEffort,
+    type ThinkingEffort,
+} from "./thinkingEffort"
 import * as YAML from "yaml"
 
 export type A2AAgentConfig = {
@@ -27,7 +31,7 @@ export type Interlocutor = {
     hooks? : HookSpec[]
     active_hooks?: Hook[]
     thinking_budget?: number
-    thinking_effort?: "none" | "low" | "medium" | "high"
+    thinking_effort?: ThinkingEffort
     sandbox?: string
 
     // Constrain the assistant's output to a structured JSON response.
@@ -73,13 +77,10 @@ export function validateInterlocutor(raw : unknown) : raw is InterlocutorSpec {
     if (("thinking_budget" in raw) && !Number.isInteger(raw.thinking_budget)) {
         throw Error(Messages.interlocutor.thinkingBudgetType(raw.name))
     } 
-    if (("thinking_effort" in raw) && 
-        (raw.thinking_effort !== "none") &&
-        (raw.thinking_effort !== "low") &&
-        (raw.thinking_effort !== "medium") &&
-        (raw.thinking_effort !== "high")) {
+    if (("thinking_effort" in raw) &&
+        !isThinkingEffort(raw.thinking_effort)) {
         throw Error(Messages.interlocutor.thinkingEffortType(raw.name))
-    } 
+    }
     if (("account" in raw) && typeof raw.account !== "string") {
         throw Error(Messages.interlocutor.accountType(raw.name))
     }

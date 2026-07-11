@@ -1,3 +1,5 @@
+import { formatThinkingEfforts } from "../types/thinkingEffort"
+
 // Centralized diagnostic and validation messages used by runtime
 // validators and the LSP diagnostics pass. Keep text identical so
 // tests and UX remain consistent.
@@ -26,7 +28,10 @@ export const Messages = {
     thinkingBudgetType: (name: string) =>
       `The thinking budget for ${name} wasn't well-formed, it needs to be a whole number.`,
     thinkingEffortType: (name: string) =>
-      `The thinking effort for ${name} wasn't well-formed, it needs to be one of 'none', 'low', 'medium' or 'high'.`,
+      `The thinking effort for ${name} wasn't well-formed, it needs to be ` +
+      `one of ${formatThinkingEfforts()}.`,
+    thinkingEffortUnsupported: (provider: string, effort: string) =>
+      `The ${provider} provider does not support thinking_effort '${effort}'.`,
     accountType: (name: string) =>
       `The account for ${name} wasn't well-formed, it needs to be a string.`,
     sandboxType: (name: string) =>

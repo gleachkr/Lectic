@@ -7,6 +7,7 @@ import { isObjectRecord } from "../types/guards"
 import { HOOK_EVENT_TYPES, type HookEvents } from "../types/hook"
 import { INTERLOCUTOR_KEY_SET } from "./interlocutorFields"
 import { isLoadableSource } from "../utils/loader"
+import { isThinkingEffort } from "../types/thinkingEffort"
 
 function isUseRefObject(v: unknown): v is { use: string } {
   return isObjectRecord(v) &&
@@ -241,7 +242,7 @@ export function validateHeaderShape(spec: unknown): Issue[] {
     // thinking_effort
     if ("thinking_effort" in raw) {
       const eff = raw["thinking_effort"]
-      if (eff !== "none" && eff !== "low" && eff !== "medium" && eff !== "high") {
+      if (!isThinkingEffort(eff)) {
         issues.push({
           code: "interlocutor.thinking_effort.type",
           message: Messages.interlocutor.thinkingEffortType(nameVal),

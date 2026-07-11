@@ -244,6 +244,35 @@ describe('LecticHeader', () => {
       expect(header.interlocutor.account).toBe('sk-exec-account');
     });
 
+    it.each(['xhigh', 'max'])(
+      'accepts the %s thinking effort',
+      (thinking_effort) => {
+        const spec = {
+          interlocutor: {
+            name: 'Tester',
+            prompt: 'Test prompt',
+            thinking_effort,
+          }
+        };
+
+        expect(() => validateLecticHeaderSpec(spec as any)).not.toThrow();
+      }
+    );
+
+    it('rejects an unknown thinking effort', () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          thinking_effort: 'extreme',
+        }
+      };
+
+      expect(() => validateLecticHeaderSpec(spec as any)).toThrow(
+        "one of 'none', 'low', 'medium', 'high', 'xhigh' or 'max'."
+      );
+    });
+
     it('validates the account field type', () => {
       const spec = {
         interlocutor: {

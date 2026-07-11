@@ -53,7 +53,7 @@ class TestOpenAIResponsesBackend extends OpenAIResponsesBackend {
   }
 }
 
-function makeLectic(id?: string) {
+function makeLectic(id?: string, thinking_effort?: "xhigh" | "max") {
   return {
     header: {
       id,
@@ -63,6 +63,7 @@ function makeLectic(id?: string) {
         model: "gpt-5",
         registry: {},
         tools: [] as { native: "search" | "code" }[],
+        thinking_effort,
       },
     },
   }
@@ -155,6 +156,48 @@ describe("OpenAI prompt_cache_key", () => {
 
     expect(seen?.["prompt_cache_key"]).toBeUndefined()
   })
+})
+
+describe("OpenAI reasoning effort", () => {
+  test.each(["xhigh", "max"] as const)(
+    "passes %s to chat completions requests",
+    async (effort) => {
+      let seen: Record<string, unknown> | undefined
+      const backend = new TestOpenAIBackend({
+        chat: {
+          completions: {
+            stream(args: Record<string, unknown>) {
+              seen = args
+              return emptyChatStream()
+            },
+          },
+        },
+      })
+
+      await backend.createForTest([], makeLectic(undefined, effort))
+
+      expect(seen?.["reasoning_effort"]).toBe(effort)
+    },
+  )
+
+  test.each(["xhigh", "max"] as const)(
+    "passes %s to Responses requests",
+    async (effort) => {
+      let seen: Record<string, unknown> | undefined
+      const backend = new TestOpenAIResponsesBackend({
+        responses: {
+          stream(args: Record<string, unknown>) {
+            seen = args
+            return emptyResponsesStream()
+          },
+        },
+      })
+
+      await backend.createForTest([], makeLectic(undefined, effort))
+
+      expect(seen?.["reasoning"]).toEqual({ effort })
+    },
+  )
 })
 
 describe("OpenAI Responses native tools", () => {
