@@ -273,6 +273,64 @@ describe('LecticHeader', () => {
       );
     });
 
+    it.each(['low', 'medium', 'high'])(
+      'accepts the %s verbosity',
+      (verbosity) => {
+        const spec = {
+          interlocutor: {
+            name: 'Tester',
+            prompt: 'Test prompt',
+            verbosity,
+          }
+        };
+
+        expect(() => validateLecticHeaderSpec(spec as any)).not.toThrow();
+      }
+    );
+
+    it('rejects an unknown verbosity', () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          verbosity: 'extreme',
+        }
+      };
+
+      expect(() => validateLecticHeaderSpec(spec as any)).toThrow(
+        "one of 'low', 'medium' or 'high'."
+      );
+    });
+
+    it.each(['auto', 'default', 'standard', 'flex', 'priority'])(
+      'accepts the %s service tier',
+      (service_tier) => {
+        const spec = {
+          interlocutor: {
+            name: 'Tester',
+            prompt: 'Test prompt',
+            service_tier,
+          }
+        };
+
+        expect(() => validateLecticHeaderSpec(spec as any)).not.toThrow();
+      }
+    );
+
+    it('rejects an unknown service tier', () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'Test prompt',
+          service_tier: 'turbo',
+        }
+      };
+
+      expect(() => validateLecticHeaderSpec(spec as any)).toThrow(
+        "one of 'auto', 'default', 'standard', 'flex' or 'priority'."
+      );
+    });
+
     it('validates the account field type', () => {
       const spec = {
         interlocutor: {

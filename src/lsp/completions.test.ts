@@ -1021,6 +1021,64 @@ describe("completions (unit)", () => {
     expect(labels.has("max")).toBeTrue()
   })
 
+  test("suggests verbosity values", async () => {
+    const text = [
+      "---",
+      "interlocutor:",
+      "  name: A",
+      "  prompt: hi",
+      "  verbosity: ",
+      "---",
+      "",
+    ].join("\n")
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('verbosity:'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char },
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+
+    expect(labels).toEqual(new Set(["low", "medium", "high"]))
+  })
+
+  test("suggests service_tier values", async () => {
+    const text = [
+      "---",
+      "interlocutor:",
+      "  name: A",
+      "  prompt: hi",
+      "  service_tier: ",
+      "---",
+      "",
+    ].join("\n")
+    const lines = text.split(/\r?\n/)
+    const line = lines.findIndex(l => l.includes('service_tier:'))
+    const char = lines[line].length
+    const items: any = await computeCompletions(
+      "file:///doc.lec",
+      text,
+      { line, character: char },
+      undefined,
+      buildTestBundle(text)
+    )
+    const arr = Array.isArray(items) ? items : (items?.items ?? [])
+    const labels = new Set(arr.map((x: any) => x.label))
+
+    expect(labels).toEqual(new Set([
+      "auto",
+      "default",
+      "standard",
+      "flex",
+      "priority",
+    ]))
+  })
+
   test("suggests provider values with prefix", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: hi\n  provider: ant\n---\n`
     const lines = text.split(/\r?\n/)

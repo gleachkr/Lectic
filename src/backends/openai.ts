@@ -3,7 +3,7 @@ import type { Message } from "../types/message"
 import type { HasModel, Lectic } from "../types/lectic"
 import type { BackendCompletion, BackendUsage, StreamChunk } from "../types/backend"
 import { Backend } from "../types/backend"
-import type { LLMProvider } from "../types/provider"
+import { LLMProvider } from "../types/provider"
 import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
@@ -19,6 +19,8 @@ import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
 import type { ToolCall, ToolCallResult } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
+import { Messages } from "../constants/messages"
+import { openAIServiceTier } from "./modelControls"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.5",
@@ -302,12 +304,27 @@ export class OpenAIBackend extends Backend<
 
     Logger.debug("openai - messages", messages)
 
+    const supportsOpenAIControls =
+      this.provider === LLMProvider.OpenAI ||
+      this.provider === LLMProvider.OpenRouter
+    const verbosity = lectic.header.interlocutor.verbosity
+    const serviceTier = lectic.header.interlocutor.service_tier
+
+    if (verbosity && !supportsOpenAIControls) {
+      throw Error(Messages.interlocutor.verbosityUnsupported(this.provider))
+    }
+    if (serviceTier && !supportsOpenAIControls) {
+      throw Error(Messages.interlocutor.serviceTierUnsupported(this.provider))
+    }
+
     const stream = this.client.chat.completions.stream({
       messages: [developerMessage(lectic), ...messages],
       model,
       temperature: lectic.header.interlocutor.temperature,
       max_completion_tokens: lectic.header.interlocutor.max_tokens,
       reasoning_effort: lectic.header.interlocutor.thinking_effort,
+      verbosity,
+      service_tier: openAIServiceTier(serviceTier),
       prompt_cache_key: lectic.header.id,
       prompt_cache_retention: SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
         ? "24h"

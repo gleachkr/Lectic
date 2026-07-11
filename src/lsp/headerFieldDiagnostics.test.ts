@@ -93,6 +93,48 @@ describe("header field diagnostics", () => {
     expect(diag!.message).toContain("'xhigh' or 'max'")
   })
 
+  test("accepts verbosity and service tier values", async () => {
+    const text = [
+      "---",
+      "interlocutors:",
+      "  - name: A",
+      "    prompt: p",
+      "    verbosity: low",
+      "    service_tier: flex",
+      "  - name: B",
+      "    prompt: p",
+      "    verbosity: high",
+      "    service_tier: standard",
+      "---",
+      "Body",
+      "",
+    ].join("\n")
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    expect(findDiag(diags, "verbosity for")).toBeUndefined()
+    expect(findDiag(diags, "service tier for")).toBeUndefined()
+  })
+
+  test("reports unknown verbosity and service tier values", async () => {
+    const text = [
+      "---",
+      "interlocutor:",
+      "  name: A",
+      "  prompt: p",
+      "  verbosity: extreme",
+      "  service_tier: turbo",
+      "---",
+      "Body",
+      "",
+    ].join("\n")
+    const ast = remark().use(remarkDirective).parse(text)
+    const diags = await buildDiagnostics(ast, text, undefined)
+    const verbosity = findDiag(diags, "verbosity for A")
+    const serviceTier = findDiag(diags, "service tier for A")
+    expect(verbosity?.message).toContain("'low', 'medium' or 'high'")
+    expect(serviceTier?.message).toContain("'flex' or 'priority'")
+  })
+
   test("unknown interlocutor property warns on its value", async () => {
     const text = `---\ninterlocutor:\n  name: A\n  prompt: p\n  mood: cheerful\n---\nBody\n`
     const ast = remark().use(remarkDirective).parse(text)

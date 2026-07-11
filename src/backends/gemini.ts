@@ -4,6 +4,7 @@ import {
   type FunctionResponse,
   GenerateContentResponse,
   GoogleGenAI,
+  ServiceTier as GeminiServiceTier,
   ThinkingLevel,
   type FunctionCall,
 } from "@google/genai"
@@ -28,6 +29,25 @@ import type { ToolCall } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import type { ThoughtBlock } from "../types/thought"
 import { Messages } from "../constants/messages"
+import type { ServiceTier } from "../types/serviceTier"
+
+function geminiServiceTier(
+  tier: ServiceTier | undefined,
+): GeminiServiceTier | undefined {
+  switch (tier) {
+    case undefined:
+      return undefined
+    case "auto":
+    case "default":
+      return GeminiServiceTier.UNSPECIFIED
+    case "standard":
+      return GeminiServiceTier.STANDARD
+    case "flex":
+      return GeminiServiceTier.FLEX
+    case "priority":
+      return GeminiServiceTier.PRIORITY
+  }
+}
 
 type GeminiFinal = {
   response: GenerateContentResponse
@@ -86,6 +106,10 @@ async function getResult(
   model: string,
   messages: ContentListUnion
 ) {
+  if (lectic.header.interlocutor.verbosity) {
+    throw Error(Messages.interlocutor.verbosityUnsupported("gemini"))
+  }
+
   const nativeTools = (lectic.header.interlocutor.tools || [])
     .filter((tool) => "native" in tool)
     .map((tool) => tool.native)
@@ -152,6 +176,9 @@ async function getResult(
       temperature: lectic.header.interlocutor.temperature,
       maxOutputTokens: lectic.header.interlocutor.max_tokens,
       thinkingConfig,
+      serviceTier: geminiServiceTier(
+        lectic.header.interlocutor.service_tier,
+      ),
       responseMimeType: output_schema ? "application/json" : undefined,
       responseJsonSchema: output_schema,
     },

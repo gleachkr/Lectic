@@ -55,7 +55,8 @@ The LSP suggests completions as you type:
   sources, or `exec:` sources. `exec:` defaults to manual trigger policy.
 - **YAML header fields**: In the frontmatter, get suggestions for
   interlocutor properties (`provider`, `model`, `thinking_effort`,
-  etc.), tool types, kit names, model names, and `use:` reference
+  `verbosity`, `service_tier`, etc.), enum values for those controls,
+  tool types, kit names, model names, and `use:` reference
   values (`hook_defs`, `env_defs`, `sandbox_defs`).
 - **Tool types**: Type `-` inside a `tools:` array to see available tool
   kinds (`exec`, `sqlite`, `mcp_command`, `native`, etc.).

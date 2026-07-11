@@ -8,6 +8,8 @@ import {
     isThinkingEffort,
     type ThinkingEffort,
 } from "./thinkingEffort"
+import { isVerbosity, type Verbosity } from "./verbosity"
+import { isServiceTier, type ServiceTier } from "./serviceTier"
 import * as YAML from "yaml"
 
 export type A2AAgentConfig = {
@@ -32,6 +34,8 @@ export type Interlocutor = {
     active_hooks?: Hook[]
     thinking_budget?: number
     thinking_effort?: ThinkingEffort
+    verbosity?: Verbosity
+    service_tier?: ServiceTier
     sandbox?: string
 
     // Constrain the assistant's output to a structured JSON response.
@@ -80,6 +84,12 @@ export function validateInterlocutor(raw : unknown) : raw is InterlocutorSpec {
     if (("thinking_effort" in raw) &&
         !isThinkingEffort(raw.thinking_effort)) {
         throw Error(Messages.interlocutor.thinkingEffortType(raw.name))
+    }
+    if (("verbosity" in raw) && !isVerbosity(raw.verbosity)) {
+        throw Error(Messages.interlocutor.verbosityType(raw.name))
+    }
+    if (("service_tier" in raw) && !isServiceTier(raw.service_tier)) {
+        throw Error(Messages.interlocutor.serviceTierType(raw.name))
     }
     if (("account" in raw) && typeof raw.account !== "string") {
         throw Error(Messages.interlocutor.accountType(raw.name))

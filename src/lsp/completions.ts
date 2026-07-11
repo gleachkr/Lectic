@@ -31,6 +31,8 @@ import { effectiveProviderForPath } from "./utils/provider"
 import { LLMProvider } from "../types/provider"
 import { INTERLOCUTOR_KEYS } from "./interlocutorFields"
 import { THINKING_EFFORTS } from "../types/thinkingEffort"
+import { VERBOSITIES } from "../types/verbosity"
+import { SERVICE_TIERS } from "../types/serviceTier"
 import {
   DIRECTIVE_DOCS,
   formatKitDocsMarkdown,
@@ -231,6 +233,46 @@ export async function computeCompletions(
           label: v,
           kind: CompletionItemKind.Value,
           detail: 'Thinking Effort',
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit: { range, newText: v },
+        })
+      }
+      return items
+    }
+
+    // Verbosity suggestions
+    const verbosityHit = header.fieldRanges.find(fr => {
+      const last = fr.path[fr.path.length - 1]
+      return last === 'verbosity' && inRange(pos, fr.range)
+    })
+    if (verbosityHit) {
+      const { prefixLc, range } = computeValueEdit(lineText, pos)
+      for (const v of VERBOSITIES) {
+        if (prefixLc && !startsWithCI(v, prefixLc)) continue
+        items.push({
+          label: v,
+          kind: CompletionItemKind.Value,
+          detail: 'Verbosity',
+          insertTextFormat: InsertTextFormat.PlainText,
+          textEdit: { range, newText: v },
+        })
+      }
+      return items
+    }
+
+    // Service tier suggestions
+    const serviceTierHit = header.fieldRanges.find(fr => {
+      const last = fr.path[fr.path.length - 1]
+      return last === 'service_tier' && inRange(pos, fr.range)
+    })
+    if (serviceTierHit) {
+      const { prefixLc, range } = computeValueEdit(lineText, pos)
+      for (const v of SERVICE_TIERS) {
+        if (prefixLc && !startsWithCI(v, prefixLc)) continue
+        items.push({
+          label: v,
+          kind: CompletionItemKind.Value,
+          detail: 'Service Tier',
           insertTextFormat: InsertTextFormat.PlainText,
           textEdit: { range, newText: v },
         })

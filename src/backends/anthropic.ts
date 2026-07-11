@@ -24,6 +24,8 @@ import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema
 import type { ThoughtBlock } from "../types/thought"
 import type { OutputConfig } from "@anthropic-ai/sdk/resources"
 import type { ThinkingEffort } from "../types/thinkingEffort"
+import { Messages } from "../constants/messages"
+import { anthropicServiceTier } from "./modelControls"
 
 function anthropicThinkingEffort(
   effort: Exclude<ThinkingEffort, "none">,
@@ -393,6 +395,23 @@ export class AnthropicBackend extends Backend<
     lectic: Lectic & HasModel
   }): Promise<BackendCompletion<Anthropic.Messages.Message>> {
     const { messages, lectic } = opt
+    const verbosity = lectic.header.interlocutor.verbosity
+    const requestedTier = lectic.header.interlocutor.service_tier
+
+    if (verbosity) {
+      throw Error(Messages.interlocutor.verbosityUnsupported(this.provider))
+    }
+    if (requestedTier && this.provider === LLMProvider.AnthropicBedrock) {
+      throw Error(Messages.interlocutor.serviceTierUnsupported(this.provider))
+    }
+    if (requestedTier === "flex") {
+      throw Error(Messages.interlocutor.serviceTierUnsupported(
+        this.provider,
+        requestedTier,
+      ))
+    }
+
+    const serviceTier = anthropicServiceTier(requestedTier)
 
     if (!lectic.header.interlocutor.nocache) updateCache(messages)
 
@@ -425,6 +444,7 @@ export class AnthropicBackend extends Backend<
       temperature: lectic.header.interlocutor.temperature,
       tools: getTools(lectic),
       output_config,
+      service_tier: serviceTier,
       thinking:
         lectic.header.interlocutor.thinking_budget !== undefined ? {
           type: "enabled",

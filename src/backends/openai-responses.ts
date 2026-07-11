@@ -3,7 +3,7 @@ import type { Message } from "../types/message"
 import type { HasModel, Lectic } from "../types/lectic"
 import type { BackendCompletion, BackendUsage, StreamChunk } from "../types/backend"
 import { Backend } from "../types/backend"
-import { type LLMProvider } from "../types/provider"
+import { LLMProvider } from "../types/provider"
 import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
@@ -21,6 +21,7 @@ import type { ToolCall } from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
 import type { ThoughtBlock } from "../types/thought"
+import { codexServiceTier, openAIServiceTier } from "./modelControls"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.5",
@@ -335,6 +336,17 @@ export class OpenAIResponsesBackend extends Backend<
           },
         }
       : undefined
+    const verbosity = lectic.header.interlocutor.verbosity
+    const text = textConfig || verbosity
+      ? {
+          ...textConfig,
+          ...(verbosity ? { verbosity } : {}),
+        }
+      : undefined
+    const requestedTier = lectic.header.interlocutor.service_tier
+    const serviceTier = this.provider === LLMProvider.Codex
+      ? codexServiceTier(requestedTier)
+      : openAIServiceTier(requestedTier)
 
     Logger.debug("openai - messages", messages)
 
@@ -353,7 +365,8 @@ export class OpenAIResponsesBackend extends Backend<
         ? { effort: lectic.header.interlocutor.thinking_effort }
         : undefined,
       tools: getTools(lectic),
-      text: textConfig,
+      text,
+      service_tier: serviceTier,
       store: false,
     })
 

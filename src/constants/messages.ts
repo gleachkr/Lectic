@@ -1,4 +1,6 @@
 import { formatThinkingEfforts } from "../types/thinkingEffort"
+import { formatVerbosities } from "../types/verbosity"
+import { formatServiceTiers } from "../types/serviceTier"
 
 // Centralized diagnostic and validation messages used by runtime
 // validators and the LSP diagnostics pass. Keep text identical so
@@ -32,6 +34,18 @@ export const Messages = {
       `one of ${formatThinkingEfforts()}.`,
     thinkingEffortUnsupported: (provider: string, effort: string) =>
       `The ${provider} provider does not support thinking_effort '${effort}'.`,
+    verbosityType: (name: string) =>
+      `The verbosity for ${name} wasn't well-formed, it needs to be ` +
+      `one of ${formatVerbosities()}.`,
+    verbosityUnsupported: (provider: string) =>
+      `The ${provider} provider does not support verbosity.`,
+    serviceTierType: (name: string) =>
+      `The service tier for ${name} wasn't well-formed, it needs to be ` +
+      `one of ${formatServiceTiers()}.`,
+    serviceTierUnsupported: (provider: string, tier?: string) =>
+      tier === undefined
+        ? `The ${provider} provider does not support service_tier.`
+        : `The ${provider} provider does not support service_tier '${tier}'.`,
     accountType: (name: string) =>
       `The account for ${name} wasn't well-formed, it needs to be a string.`,
     sandboxType: (name: string) =>

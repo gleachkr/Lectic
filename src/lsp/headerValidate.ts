@@ -8,6 +8,8 @@ import { HOOK_EVENT_TYPES, type HookEvents } from "../types/hook"
 import { INTERLOCUTOR_KEY_SET } from "./interlocutorFields"
 import { isLoadableSource } from "../utils/loader"
 import { isThinkingEffort } from "../types/thinkingEffort"
+import { isVerbosity } from "../types/verbosity"
+import { isServiceTier } from "../types/serviceTier"
 
 function isUseRefObject(v: unknown): v is { use: string } {
   return isObjectRecord(v) &&
@@ -250,6 +252,26 @@ export function validateHeaderShape(spec: unknown): Issue[] {
           severity: "error"
         })
       }
+    }
+
+    // verbosity
+    if ("verbosity" in raw && !isVerbosity(raw["verbosity"])) {
+      issues.push({
+        code: "interlocutor.verbosity.type",
+        message: Messages.interlocutor.verbosityType(nameVal),
+        path: [...pathBase, "verbosity"],
+        severity: "error"
+      })
+    }
+
+    // service_tier
+    if ("service_tier" in raw && !isServiceTier(raw["service_tier"])) {
+      issues.push({
+        code: "interlocutor.service_tier.type",
+        message: Messages.interlocutor.serviceTierType(nameVal),
+        path: [...pathBase, "service_tier"],
+        severity: "error"
+      })
     }
 
     // temperature
