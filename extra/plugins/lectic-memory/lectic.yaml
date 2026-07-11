@@ -1,0 +1,31 @@
+# Lectic memory plugin config
+#
+# Import this file to enable conversation-history capture and a first-message
+# briefing. Add `memory_kit` to an interlocutor to let it manage and search
+# durable memories and search older conversation history.
+
+kits:
+  - name: memory_kit
+    description: Local durable memory and conversation-history recall.
+    tools:
+      - name: memory
+        exec: '"local:./lectic-memory.ts"'
+        usage: file:local:./prompt.md
+        limit: 20000
+
+hooks:
+  - name: memory_record_user
+    on: user_message
+    allow_failure: true
+    do: '"local:./scripts/record.sh"'
+
+  - name: memory_record_assistant
+    on: assistant_message
+    allow_failure: true
+    do: '"local:./scripts/record.sh"'
+
+  - name: memory_briefing
+    on: user_first
+    inline: true
+    allow_failure: true
+    do: '"local:./scripts/briefing.sh"'
