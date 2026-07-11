@@ -23,6 +23,9 @@ import { Messages } from "../constants/messages"
 import { openAIServiceTier } from "./modelControls"
 
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
+  "gpt-5.6-sol",
+  "gpt-5.6-terra",
+  "gpt-5.6-luna",
   "gpt-5.5",
   "gpt-5.5-pro",
   "gpt-5.4",
