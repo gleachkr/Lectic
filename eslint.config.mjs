@@ -71,6 +71,12 @@ export default defineConfig(
 
       // Prefer strict equality except for "nullish" checks.
       eqeqeq: ['warn', 'always', { null: 'ignore' }],
+
+      // Added to eslint:recommended in ESLint 10. These are intentionally
+      // disabled to preserve the project's existing error-handling and
+      // flow-control conventions during the dependency-only upgrade.
+      'no-useless-assignment': 'off',
+      'preserve-caught-error': 'off',
     },
   },
 
