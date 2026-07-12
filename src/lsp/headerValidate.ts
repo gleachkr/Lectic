@@ -303,6 +303,23 @@ export function validateHeaderShape(spec: unknown): Issue[] {
       })
     }
 
+    // environment
+    if ("env" in raw) {
+      const env = raw["env"]
+      const ok = isUseRefObject(env) || (
+        isObjectRecord(env)
+        && Object.values(env).every(value => typeof value === "string")
+      )
+      if (!ok) {
+        issues.push({
+          code: "interlocutor.env.type",
+          message: Messages.interlocutor.envType(nameVal),
+          path: [...pathBase, "env"],
+          severity: "error",
+        })
+      }
+    }
+
     // tools
     if ("tools" in raw) {
       const tools = raw["tools"]

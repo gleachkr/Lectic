@@ -172,9 +172,17 @@ export class Hook {
     allow_failure : boolean
     mode : HookMode
     env : Record<string, string>
+    private spec: HookSpec
 
-    constructor(spec : HookSpec) {
+    constructor(
+        spec: HookSpec,
+        inheritedEnv: Record<string, string> = {},
+    ) {
         validateHookSpec(spec)
+        this.spec = {
+            ...spec,
+            ...(spec.env ? { env: { ...spec.env } } : {}),
+        }
         this.on = typeof spec.on === "string" ? [spec.on] : spec.on
         this.do = spec.do
         this.inline = spec.inline ?? false
@@ -183,7 +191,11 @@ export class Hook {
         this.icon = spec.icon
         this.allow_failure = spec.allow_failure ?? false
         this.mode = spec.mode ?? "sync"
-        this.env = spec.env || {}
+        this.env = { ...inheritedEnv, ...spec.env ?? {} }
+    }
+
+    withInheritedEnv(env: Record<string, string> = {}): Hook {
+        return new Hook(this.spec, env)
     }
 
     execute(env : Record<string, string | undefined> = {}, stdin? : string)

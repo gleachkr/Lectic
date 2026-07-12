@@ -15,6 +15,7 @@ export const INTERLOCUTOR_KEYS = [
   "nocache",
   "hooks",
   "sandbox",
+  "env",
   "output_schema",
   "a2a",
 ] as const

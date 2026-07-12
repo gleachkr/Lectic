@@ -65,14 +65,17 @@ export class SQLiteTool extends Tool {
     static defaultLimit = 10_000
     static count : number = 0
 
-    constructor(spec: SQLiteToolSpec) {
+    constructor(
+        spec: SQLiteToolSpec,
+        env: Record<string, string> = {},
+    ) {
         super(spec.hooks)
         this.name = spec.name ?? `sqlite_tool_${SQLiteTool.count}`
         this.icon = spec.icon ?? ""
         this.details = spec.details
         this.limit = spec.limit ?? SQLiteTool.defaultLimit
 
-        const dbPath = expandEnv(spec.sqlite)
+        const dbPath = expandEnv(spec.sqlite, env)
         const dbMissing = !existsSync(dbPath)
 
         if (dbMissing && spec.readonly && spec.init_sql) {
@@ -86,8 +89,14 @@ export class SQLiteTool extends Tool {
 
         try {
             switch (typeof spec.extensions) {
-                case "string" : this.db.loadExtension(spec.extensions); break
-                case "object" : spec.extensions.forEach(ext => this.db.loadExtension(ext)); break
+                case "string":
+                    this.db.loadExtension(expandEnv(spec.extensions, env))
+                    break
+                case "object":
+                    spec.extensions.forEach(ext => {
+                        this.db.loadExtension(expandEnv(ext, env))
+                    })
+                    break
             }
         } catch(e) {
             throw Error(`Something went wrong while trying to load an sqlite extension: ${e}` +

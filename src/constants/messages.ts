@@ -50,6 +50,9 @@ export const Messages = {
       `The account for ${name} wasn't well-formed, it needs to be a string.`,
     sandboxType: (name: string) =>
       `The sandbox for ${name} wasn't well-formed, it needs to be a string.`,
+    envType: (name: string) =>
+      `The env for ${name} wasn't well-formed, it needs to be an object ` +
+      `whose values are strings.`,
     outputSchemaInvalid: (name: string, msg: string) =>
       `The output_schema for ${name} wasn't well-formed: ${msg}`,
     outputSchemaSourceType: () =>

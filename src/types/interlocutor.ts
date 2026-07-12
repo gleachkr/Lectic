@@ -37,6 +37,7 @@ export type Interlocutor = {
     verbosity?: Verbosity
     service_tier?: ServiceTier
     sandbox?: string
+    env?: Record<string, string>
 
     // Constrain the assistant's output to a structured JSON response.
     output_schema?: JSONSchema
@@ -97,6 +98,12 @@ export function validateInterlocutor(raw : unknown) : raw is InterlocutorSpec {
     if (("sandbox" in raw) && typeof raw.sandbox !== "string") {
         throw Error(Messages.interlocutor.sandboxType(raw.name))
     }
+    if (("env" in raw) && (
+        typeof raw.env !== "object" || raw.env === null ||
+        !Object.values(raw.env).every(value => typeof value === "string")
+    )) {
+        throw Error(Messages.interlocutor.envType(raw.name))
+    }
     if (("output_schema" in raw)) {
         if (typeof raw.output_schema === "string") {
             if (!isLoadableSource(raw.output_schema)) {
@@ -140,10 +147,11 @@ export function validateInterlocutor(raw : unknown) : raw is InterlocutorSpec {
 
 export async function loadInterlocutorAccount(
     raw: InterlocutorSpec,
+    env: Record<string, string> = {},
 ): Promise<string | undefined> {
     if (raw.account === undefined) return undefined
 
-    const loaded = await loadFrom(raw.account)
+    const loaded = await loadFrom(raw.account, env)
     if (typeof loaded !== "string") {
         throw Error(Messages.interlocutor.accountType(raw.name))
     }
@@ -153,6 +161,7 @@ export async function loadInterlocutorAccount(
 
 export async function validateAndLoadOutputSchema(
     raw: InterlocutorSpec,
+    env: Record<string, string> = {},
 ): Promise<JSONSchema | undefined> {
     if (raw.output_schema === undefined) return undefined
 
@@ -165,7 +174,7 @@ export async function validateAndLoadOutputSchema(
         if (!isLoadableSource(raw.output_schema)) {
             throw Messages.interlocutor.outputSchemaSourceType()
         }
-        const loaded = await loadFrom(raw.output_schema)
+        const loaded = await loadFrom(raw.output_schema, env)
         if (typeof loaded !== "string") {
             throw "schema source didn't produce text"
         }

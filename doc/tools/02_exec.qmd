@@ -189,7 +189,9 @@ variables in addition to any you configure via the `env` field:
 - `LECTIC_STATE`: Lectic state directory.
 - `LECTIC_TEMP`: Lectic temporary directory.
 
-Tool `env` values override these defaults when keys overlap.
+The active interlocutor's `env` map is also inherited. Tool `env` values
+normally override the interlocutor map. Runtime identity values such as
+`LECTIC_INTERLOCUTOR` remain authoritative.
 
 ## Safety and trust
 

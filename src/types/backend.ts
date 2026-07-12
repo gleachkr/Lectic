@@ -354,10 +354,18 @@ export function runHooksNoInline(
   })
 }
 
+function inheritHookEnv(
+  hooks: Hook[],
+  env: Record<string, string> = {}
+): Hook[] {
+  return hooks.map((hook) => hook.withInheritedEnv(env))
+}
+
 export function getScopedHooks(lectic: Lectic): Hook[] {
-  return lectic.header.hooks.concat(
+  const hooks = lectic.header.hooks.concat(
     lectic.header.interlocutor.active_hooks ?? []
   )
+  return inheritHookEnv(hooks, lectic.header.interlocutor.env)
 }
 
 export function emitAssistantMessageEvent(
@@ -523,7 +531,10 @@ export async function resolveToolCalls(
     const tool = registry[name]
     const args = isObjectRecord(rawArgs) ? rawArgs : {}
     const toolHooks = tool ? tool.hooks : []
-    const hooks = [...globalHooks, ...interlocutorHooks, ...toolHooks]
+    const hooks = inheritHookEnv(
+      [...globalHooks, ...interlocutorHooks, ...toolHooks],
+      opt?.lectic?.header.interlocutor.env,
+    )
     const argsJSON = safeJSONStringify(rawArgs)
     const startedAt = Date.now()
 

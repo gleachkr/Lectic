@@ -176,12 +176,22 @@ export class LecticHeader {
 
         if (this.interlocutor.registry) return
 
-        this.interlocutor.prompt = await loadFrom(this.interlocutor.prompt)
+        const interlocutorEnv = {
+            ...this.interlocutor.env ?? {},
+            LECTIC_INTERLOCUTOR: this.interlocutor.name,
+        }
+
+        this.interlocutor.prompt = await loadFrom(
+            this.interlocutor.prompt,
+            interlocutorEnv,
+        )
         this.interlocutor.account = await loadInterlocutorAccount(
-            this.interlocutor as InterlocutorSpec,
+            this.interlocutor,
+            interlocutorEnv,
         )
         this.interlocutor.output_schema = await validateAndLoadOutputSchema(
-            this.interlocutor as InterlocutorSpec,
+            this.interlocutor,
+            interlocutorEnv,
         )
 
         this.interlocutor.registry = {}
@@ -207,23 +217,33 @@ export class LecticHeader {
                 // tool spec starts to not match the YAML, for example
                 // if the YAML uses &* references
                 const loadedSpec: ExecToolSpec = { ...spec }
-                loadedSpec.usage = await loadFrom(spec.usage)
+                loadedSpec.usage = await loadFrom(spec.usage, interlocutorEnv)
+                loadedSpec.env = {
+                    ...interlocutorEnv,
+                    ...spec.env ?? {},
+                }
                 loadedSpec.sandbox =
                     loadedSpec.sandbox ?? this.interlocutor.sandbox ?? this.sandbox
 
                 register(new ExecTool(loadedSpec, this.interlocutor.name))
             } else if (isSQLiteToolSpec(spec)) {
                 const loadedSpec: SQLiteToolSpec = { ...spec }
-                loadedSpec.details = await loadFrom(spec.details)
-                loadedSpec.init_sql = await loadFrom(spec.init_sql)
-                register(new SQLiteTool(loadedSpec))
+                loadedSpec.details = await loadFrom(
+                    spec.details,
+                    interlocutorEnv,
+                )
+                loadedSpec.init_sql = await loadFrom(
+                    spec.init_sql,
+                    interlocutorEnv,
+                )
+                register(new SQLiteTool(loadedSpec, interlocutorEnv))
             } else if (isAgentToolSpec(spec)) {
                 const loadedSpec: AgentToolSpec = { ...spec }
-                loadedSpec.usage = await loadFrom(spec.usage)
+                loadedSpec.usage = await loadFrom(spec.usage, interlocutorEnv)
                 register(new AgentTool(loadedSpec, this.interlocutors))
             } else if (isA2AToolSpec(spec)) {
                 const loadedSpec: A2AToolSpec = { ...spec }
-                loadedSpec.usage = await loadFrom(spec.usage)
+                loadedSpec.usage = await loadFrom(spec.usage, interlocutorEnv)
 
                 const tool = new A2ATool(loadedSpec)
                 await tool.init()
@@ -231,7 +251,12 @@ export class LecticHeader {
             } else if (isMCPSpec(spec)) {
                 const loadedSpec = { ...spec }
                 if ("mcp_command" in loadedSpec) {
-                     loadedSpec.sandbox =
+                    loadedSpec.env = {
+                        ...interlocutorEnv,
+                        ...loadedSpec.env ?? {},
+                        LECTIC_INTERLOCUTOR: this.interlocutor.name,
+                    }
+                    loadedSpec.sandbox =
                         loadedSpec.sandbox ?? this.interlocutor.sandbox ?? this.sandbox
                 }
                 (await MCPTool.fromSpec(loadedSpec)).map(register)

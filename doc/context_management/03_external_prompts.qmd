@@ -134,7 +134,8 @@ interlocutor:
 - Standard Lectic environment variables are provided, including
   `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`,
   `LECTIC_TEMP`, and `LECTIC_FILE` (when using `-f`). Your shell
-  environment is also passed through.
+  environment is also passed through. Sources associated with an
+  interlocutor also inherit its `env` map.
 - Macro expansions can inject additional variables into `exec:` via directive
   attributes. See the [Macros guide](../automation/01_macros.qmd) for details.
 

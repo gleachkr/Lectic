@@ -10,7 +10,7 @@ export async function loadFrom<T>(something: T, env: Record<string, string | und
     if (typeof something === "string") {
         if (something.slice(0, 5) === "file:") {
             // We expaned $VARIABLE names in paths and commands
-            const path = expandEnv(something.slice(5).trim());
+            const path = expandEnv(something.slice(5).trim(), env);
             if (!path) {
                 throw new Error("File path cannot be empty.");
             }

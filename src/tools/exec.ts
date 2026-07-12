@@ -150,7 +150,7 @@ export class ExecTool extends Tool {
         this.name = spec.name ?? `exec_tool_${ExecTool.count}`
         this.icon = spec.icon ?? ""
         this.isScript = this.exec.split('\n').length > 1
-        this.env = { LECTIC_INTERLOCUTOR: interlocutor_name, ...spec.env ?? {} }
+        this.env = { ...spec.env ?? {}, LECTIC_INTERLOCUTOR: interlocutor_name }
         this.sandbox = spec.sandbox
         this.timeoutSeconds = spec.timeoutSeconds
         this.limit = spec.limit ?? ExecTool.defaultLimit

@@ -110,6 +110,13 @@ An interlocutor object defines a single LLM "personality" or configuration.
   this interlocutor, unless overridden by the tool's own `sandbox` setting.
   This overrides any top-level `sandbox` setting. Single-line sandbox strings
   use the same tokenization rules as single-line `exec` commands.
+- `env`: An environment variable map inherited by commands associated with
+  this interlocutor. This includes global and interlocutor hooks, `exec`
+  tools, local `mcp_command` servers, SQLite path expansion, and `exec:` or
+  `file:` sources loaded for the interlocutor and its tools. Tool- and
+  hook-level `env` values override this map. Runtime event values such as
+  `LECTIC_INTERLOCUTOR`, `USER_MESSAGE`, and `TOOL_ARGS` remain authoritative.
+  The value may also be an `{ use: name }` reference to an `env_defs` entry.
 - `output_schema`: Optional JSON Schema that constrains the assistant's
   output to valid JSON. You can define it inline, or load it from `file:` or
   `exec:` (including `file:local:...`). Loaded text is parsed as YAML and then

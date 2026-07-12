@@ -62,6 +62,36 @@ describe('LecticHeader', () => {
   });
 
   describe('Tool Initialization', () => {
+    it('inherits interlocutor env in exec tools and loadable sources', async () => {
+      const spec = {
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'exec:printf "$PRIVATE_PROMPT"',
+          env: {
+            PRIVATE_PROMPT: 'private prompt',
+            PRIVATE_DB: '/tmp/private.sqlite3',
+          },
+          tools: [{
+            exec: 'env',
+            name: 'environment',
+            env: {
+              PRIVATE_DB: '/tmp/tool.sqlite3',
+              LECTIC_INTERLOCUTOR: 'Spoofed',
+            },
+          }],
+        }
+      };
+
+      const header = new LecticHeader(spec);
+      await header.initialize();
+
+      expect(header.interlocutor.prompt).toBe('private prompt');
+      const tool = header.interlocutor.registry?.['environment'] as ExecTool;
+      expect(tool.env['PRIVATE_PROMPT']).toBe('private prompt');
+      expect(tool.env['PRIVATE_DB']).toBe('/tmp/tool.sqlite3');
+      expect(tool.env['LECTIC_INTERLOCUTOR']).toBe('Tester');
+    });
+
     it('should correctly initialize an ExecTool', async () => {
       const spec = {
         interlocutor: {
@@ -465,6 +495,8 @@ describe('LecticHeader', () => {
         "interlocutor:",
         "  name: Tester",
         "  prompt: Test prompt",
+        "  env:",
+        "    use: common",
         "  hooks:",
         "    - use: audit",
         "  tools:",
@@ -482,6 +514,7 @@ describe('LecticHeader', () => {
       await header.initialize()
 
       expect(header.interlocutor.active_hooks?.[0]?.do).toBe("echo audited")
+      expect(header.interlocutor.env?.["MODE"]).toBe("strict")
 
       const shell = header.interlocutor.registry?.["shell"] as ExecTool | undefined
       expect(shell).toBeInstanceOf(ExecTool)
