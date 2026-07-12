@@ -13,7 +13,7 @@ kits:
         usage: file:local:./prompt.md
         limit: 20000
 
-hooks:
+hook_defs:
   - name: memory_record_user
     on: user_message
     allow_failure: true
