@@ -5,6 +5,7 @@ import { join, resolve } from "node:path"
 import * as YAML from "yaml"
 
 import { rewriteLocalInNode } from "../../../src/utils/localPath"
+import { memorySearchScore } from "./memory-browser-search"
 
 const repoRoot = resolve(import.meta.dir, "..", "..", "..")
 const scriptPath = resolve(import.meta.dir, "lectic-memory.ts")
@@ -68,9 +69,28 @@ describe("lectic memory plugin", () => {
       expect(await proc.exited).toBe(0)
       expect(stderr).toBe("")
       expect(stdout).toContain("lectic memory")
+      expect(stdout).toContain("browse")
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+
+  test("scores browser searches across content and metadata", () => {
+    const memory = {
+      id: 7,
+      scope: "project",
+      kind: "procedure",
+      gist: "Generate fixtures before parser tests.",
+      content: "Run bun scripts/generate-fixtures.ts first.",
+      source_file: "/tmp/parser.lec",
+      source_interlocutor: "Assistant",
+      status: "active",
+    }
+
+    expect(memorySearchScore(memory, "fixtures parser")).toBe(24)
+    expect(memorySearchScore(memory, "generate-fixtures")).toBe(5)
+    expect(memorySearchScore(memory, "procedure")).toBe(3)
+    expect(memorySearchScore(memory, "migration")).toBe(-1)
   })
 
   test("stores memories and briefs with recent gists", async () => {

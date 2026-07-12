@@ -6,7 +6,7 @@ _lectic_complete_memory() {
 
   if [[ $COMP_CWORD -eq 2 ]]; then
     COMPREPLY=( $(compgen -W \
-      "add search get list update forget history status doctor" \
+      "add search get list browse update forget history status doctor" \
       -- "$cur") )
     return
   fi

@@ -37,6 +37,7 @@ cp -r ./extra/plugins/lectic-memory/* \
   "$LECTIC_DATA/plugins/lectic-memory/"
 chmod +x \
   "$LECTIC_DATA/plugins/lectic-memory/lectic-memory.ts" \
+  "$LECTIC_DATA/plugins/lectic-memory/memory-browser.tsx" \
   "$LECTIC_DATA/plugins/lectic-memory/scripts/"*.sh
 ```
 
@@ -67,6 +68,8 @@ lectic memory add \
 lectic memory search "test command"
 lectic memory get 1
 lectic memory list
+lectic memory browse
+lectic memory browse "parser failures"
 lectic memory update 1 --gist "Use Bun for all project scripts."
 lectic memory forget 1
 lectic memory history "why did the parser test fail"
@@ -76,6 +79,11 @@ lectic memory doctor
 
 The default scope is `project`. Use `--scope user` for stable preferences that
 should follow the user across projects.
+
+`browse` opens an Ink TUI showing user-scoped memories and memories for the
+current project. Press `/` to search, use `j`/`k` or the arrow keys to move,
+cycle scope and kind filters with `s` and `t`, and press `q` to quit. Inactive
+memories are hidden by default; press `i` to include them.
 
 Supported kinds are:
 
@@ -95,7 +103,8 @@ Every durable memory has:
 - `content`: supporting detail, evidence, paths, commands, and qualifications
 
 The `user_first` hook injects up to ten recent active gists from user scope
-and from the current project. It does not inject full memory content or raw
+and
+from the current project. It does not inject full memory content or raw
 conversation history.
 
 The briefing explicitly labels memories as historical notes rather than
@@ -108,8 +117,8 @@ The plugin records the current `USER_MESSAGE` on `user_message` and the prose
 from each assistant pass on `assistant_message`.
 
 Lectic's `ASSISTANT_MESSAGE` does not contain tool-call or thought blocks. The
-plugin also strips serialized tool calls, thought blocks, and inline 
-attachments defensively before storage.
+plugin also strips serialized tool calls, thought blocks, inline attachments,
+and `<private>` content defensively before storage.
 
 History is searched explicitly:
 

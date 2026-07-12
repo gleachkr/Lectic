@@ -71,6 +71,7 @@ function usage(): string {
     "  search     Search durable memories",
     "  get        Read one durable memory",
     "  list       List recent durable memories",
+    "  browse     Browse and search memories in an interactive TUI",
     "  update     Update one durable memory",
     "  forget     Soft-delete one durable memory",
     "  history    Search sanitized conversation history",
@@ -282,6 +283,35 @@ function conversationKey(): string {
   return `cwd:${hash(resolve(process.cwd()))}`
 }
 
+async function runBrowser(
+  dbPath: string,
+  projectKey: string,
+  args: string[],
+): Promise<number> {
+  const entrypoint = process.argv[1]
+  if (!entrypoint) {
+    throw new CliError("cannot locate the memory browser entrypoint")
+  }
+
+  const browserPath = resolve(dirname(entrypoint), "memory-browser.tsx")
+  const proc = Bun.spawn({
+    cmd: [
+      browserPath,
+      "--db",
+      dbPath,
+      "--project-key",
+      projectKey,
+      ...args,
+    ],
+    cwd: process.cwd(),
+    env: process.env,
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  })
+  return await proc.exited
+}
+
 async function openDb(path: string): Promise<Database> {
   mkdirSync(dirname(path), { recursive: true })
   const db = new Database(path)
@@ -305,6 +335,7 @@ function cleanStoredText(text: string): string {
       /<inline-attachment\b[^>]*>[\s\S]*?<\/inline-attachment>/gi,
       "",
     )
+    .replace(/<private\b[^>]*>[\s\S]*?<\/private>/gi, "[private omitted]")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
 }
@@ -728,8 +759,18 @@ async function main(): Promise<void> {
       return
     }
 
-    const db = await openDb(parsed.dbPath)
     const project = projectIdentity(parsed.projectOverride)
+    if (first === "browse") {
+      const exitCode = await runBrowser(
+        parsed.dbPath,
+        project.key,
+        parsed.argv.slice(1),
+      )
+      if (exitCode !== 0) process.exit(exitCode)
+      return
+    }
+
+    const db = await openDb(parsed.dbPath)
     const flags = parseFlags(parsed.argv.slice(1))
     let result: unknown
 
