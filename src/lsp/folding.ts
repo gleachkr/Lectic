@@ -3,6 +3,7 @@ import { FoldingRangeKind } from "vscode-languageserver/node"
 import {
   defaultInlineAttachmentIcon,
 } from "../types/inlineAttachment"
+import { unescapeXmlAttribute } from "../parsing/xml"
 
 // ── Fast text-based scanner ─────────────────────────────────────────
 // Computes folding ranges without building a full remark AST.
@@ -149,7 +150,7 @@ function scanForClose(lines: string[], start: number, closeTag: string): number 
 
 function getAttribute(line: string, name: string): string | undefined {
   const match = new RegExp(`${name}="([^"]*)"`).exec(line)
-  return match?.[1]
+  return match ? unescapeXmlAttribute(match[1]) : undefined
 }
 
 function getCollapsedText(raw: string): string {
@@ -160,13 +161,15 @@ function getCollapsedText(raw: string): string {
     const name = getAttribute(line, "with") ?? "tool"
     const kind = getAttribute(line, "kind") ?? ""
     const icon = getAttribute(line, "icon") ?? ""
+    const intent = getAttribute(line, "intent")
+    const intentLabel = intent ? ` — ${intent}` : ""
 
     if (useNerdFont) {
-      return `${icon} ${name}`
+      return `${icon} ${name}${intentLabel}`
     }
 
     const label = kind ? `${kind} tool` : "tool"
-    return `[${label}: ${name}]`
+    return `[${label}: ${name}]${intentLabel}`
   }
 
   if (line.startsWith("<inline-attachment")) {

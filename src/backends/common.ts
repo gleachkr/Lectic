@@ -1,6 +1,10 @@
 import { PDFDocument } from "pdf-lib"
 import type { Lectic } from "../types/lectic"
-import type { Tool, ToolCall } from "../types/tool"
+import {
+    toolParameters,
+    type Tool,
+    type ToolCall,
+} from "../types/tool"
 import type { AssistantMessage, UserMessage } from "../types/message"
 import type { MessageLink } from "../types/link"
 import { MessageAttachment, MessageAttachmentPart } from "../types/attachment"
@@ -166,7 +170,7 @@ export function destrictifyToolResults(tool : Tool | null, values : string) : un
         try { args = JSON.parse(values) } catch { args = undefined }
         const toolSchema: JSONSchema = {
             type: "object",
-            properties: tool.parameters,
+            properties: toolParameters(tool),
             required: tool.required,
         }
         args = destrictify(args, toolSchema)

@@ -42,6 +42,20 @@ Lectic uses XML blocks for tool calls:
 You'll see these in assistant blocks. Lectic writes the block when the model
 requests a tool, then appends results after running it.
 
+Lectic adds an optional `intent` string to non-native tool schemas. Models can
+use it to briefly explain why they are making a call. Lectic removes this
+metadata before executing the tool and stores it on the call's XML element:
+
+```xml
+<tool-call with="search" intent="Find the current API documentation">
+```
+
+Editors can show this intent while leaving the full arguments and results
+folded. Provider-native tools do not support this field because their schemas
+are controlled by the provider. If a tool already defines its own `intent`
+parameter, Lectic leaves that parameter unchanged and does not treat it as
+call metadata.
+
 ### Example
 
 Configuration:

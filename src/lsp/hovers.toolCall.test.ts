@@ -19,7 +19,7 @@ function mkBundleWithToolSpan(start: number, end: number): AnalysisBundle {
 
 describe("hover: tool-call block", () => {
   test("shows for application/xml results", async () => {
-    const doc = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with="bun-test" id="call_1" is-error="false">\n<arguments><arguments><array></array></arguments></arguments>\n<results>\n<result type="application/xml">\n┆<│stdout>ok\n┆<│/stdout>\n</result>\n</results>\n</tool-call>\n:::\n`
+    const doc = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n<tool-call with="bun-test" id="call_1" intent="Run &quot;focused&quot; tests" is-error="false">\n<arguments><arguments><array></array></arguments></arguments>\n<results>\n<result type="application/xml">\n┆<│stdout>ok\n┆<│/stdout>\n</result>\n</results>\n</tool-call>\n:::\n`
 
     const s = doc.indexOf("<tool-call")
     const e = doc.indexOf("</tool-call>") + "</tool-call>".length
@@ -31,6 +31,7 @@ describe("hover: tool-call block", () => {
     const hover = await computeHover(doc, pos, undefined, bundle)
     expect(hover).not.toBeNull()
     const md = (hover!.contents as any).value as string
+    expect(md).toContain('**Intent:** Run "focused" tests')
     expect(md).toContain("result (application/xml)")
     expect(md).toContain("stdout")
   })

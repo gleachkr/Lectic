@@ -13,7 +13,8 @@ conversational LLM client.
 *   **Response Highlighting:** Visually distinguishes LLM response blocks
     (`:::Name ... :::`).
 *   **Tool Call Folding:** Automatically folds `<tool-call>...</tool-call>`
-    blocks generated during interaction, showing the tool name in the fold.
+    blocks generated during interaction. The fold shows the tool name and,
+    when supplied by the model, the call's intent.
 *   **Configurable Mappings:** Set your own keybindings for common actions.
 *   **Customizable Highlights:** Adjust the appearance of response blocks
     and the loading spinner.
@@ -92,8 +93,9 @@ vim.g.lectic_spinner_steps = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", 
     prompt. A spinner indicates activity. The new response block will be
     highlighted.
 6.  Tool calls within the response will appear folded, showing the tool
-    name (e.g., `[ python ]`). Use standard fold commands (`za`, `zo`,
-    `zc`), or lsp hover (usually `K`) to inspect them.
+    name and optional intent (for example, `python — Check the parser`). Use
+    standard fold commands (`za`, `zo`, `zc`), or LSP hover (usually `K`) to
+    inspect the intent, arguments, and results.
 8.  To interrupt an LLM that's generating text, use the cancel submit mapping 
     (default `<localleader>c`).
 

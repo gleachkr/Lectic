@@ -49,6 +49,12 @@ export class ToolCallResult {
     }
 }
 
+export const TOOL_INTENT_PARAMETER: JSONSchema = {
+    type: "string",
+    description:
+        "Briefly describe the purpose of this tool call for the user.",
+}
+
 export abstract class Tool {
     abstract name: string
     abstract description: string
@@ -85,6 +91,7 @@ export type ToolCall = {
     args : Record<string, unknown>, 
     results : ToolCallResult[]
     id? : string
+    intent? : string
     isError? : boolean
     /** Provider-specific opaque data (e.g. Gemini thought signatures). */
     opaque? : Record<string, string>
@@ -97,7 +104,30 @@ export function ToolCallResults(s : string | string[], mimetype? : string) : Too
 
 const resultRegex = /<result\s+type="(.*?)"\s*>([\s\S]*)<\/result>/
 
-export function serializeCall(tool: Tool | null, {name, args, results, id, isError, opaque} : ToolCall) : string {
+export function toolParameters(tool: Tool): Record<string, JSONSchema> {
+    if ("intent" in tool.parameters) return tool.parameters
+    return { ...tool.parameters, intent: TOOL_INTENT_PARAMETER }
+}
+
+export function toolSupportsIntentMetadata(tool: Tool): boolean {
+    return !("intent" in tool.parameters)
+}
+
+export function toolCallArguments(call: ToolCall): Record<string, unknown> {
+    return call.intent === undefined
+        ? call.args
+        : { ...call.args, intent: call.intent }
+}
+
+export function serializeCall(tool: Tool | null, {
+    name,
+    args,
+    results,
+    id,
+    intent,
+    isError,
+    opaque,
+} : ToolCall) : string {
     const values = [] 
     if (tool) {
         for (const key in tool.parameters) {
@@ -115,6 +145,9 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
 
     const idstring = id ? ` id="${id}"` : ""
     const errorstring = isError !== undefined ? ` is-error="${isError}"` : ""
+    const intentstring = intent !== undefined
+        ? ` intent="${escapeXmlAttribute(intent)}"`
+        : ""
     const kindstring = tool ? ` kind="${tool.kind}"` : ""
     const iconstring = tool?.icon
         ? ` icon="${escapeXmlAttribute(tool.icon)}"`
@@ -128,7 +161,8 @@ export function serializeCall(tool: Tool | null, {name, args, results, id, isErr
         opaquestring = `\n${entries}`
     }
 
-    return `<tool-call with="${name}"${idstring}${errorstring}${kindstring}${iconstring}>\n` +
+    return `<tool-call with="${name}"${idstring}${errorstring}` +
+        `${intentstring}${kindstring}${iconstring}>\n` +
         `<arguments>${values.join("\n")}</arguments>\n` +
         `<results>${results.map(r => r.toXml()).join("\n")}</results>` +
         `${opaquestring}\n` +
@@ -155,6 +189,7 @@ export function deserializeCall(tool: Tool | null, serialized : string)
 
     const name = attributes["with"]
     const id = attributes["id"]
+    const intent = attributes["intent"]
     const isErrorStr = attributes["is-error"]
 
     if (!name) return null
@@ -200,6 +235,7 @@ export function deserializeCall(tool: Tool | null, serialized : string)
         args,
         results: resultsArray.map(ToolCallResult.fromXml),
         id,
+        intent,
         isError,
         ...(Object.keys(opaque).length > 0 ? { opaque } : {}),
     }

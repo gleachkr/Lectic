@@ -1,4 +1,9 @@
-import { serializeCall, deserializeCall, ToolCallResults } from './tool';
+import {
+    deserializeCall,
+    serializeCall,
+    toolParameters,
+    ToolCallResults,
+} from './tool';
 import type { Tool } from './tool';
 import { expect, it, describe } from "bun:test"
 
@@ -193,6 +198,60 @@ describe('Round-trip of serializeCall and deserializeCall', () => {
         expect(deserialized).toEqual(call);
     });
 });
+
+describe('tool call intent metadata', () => {
+    const tool: Tool = {
+        name: 'intentTool',
+        description: 'Tool with intent metadata',
+        parameters: { value: { type: 'string' } },
+        kind: 'mock',
+        call: async (_arg) => ToolCallResults('ok'),
+        validateArguments: _ => null,
+        required: [],
+        hooks: []
+    }
+
+    it('adds intent to the provider schema without making it required', () => {
+        expect(toolParameters(tool)["intent"]).toEqual({
+            type: 'string',
+            description:
+                'Briefly describe the purpose of this tool call for the user.',
+        })
+        expect(tool.required).not.toContain('intent')
+    })
+
+    it('serializes intent as escaped XML metadata and roundtrips it', () => {
+        const call = {
+            name: 'intentTool',
+            args: { value: 'x' },
+            intent: 'Explain "x" & verify <output>',
+            results: ToolCallResults('ok')
+        }
+        const serialized = serializeCall(tool, call)
+
+        expect(serialized).toContain(
+            'intent="Explain &quot;x&quot; &amp; verify &lt;output&gt;"'
+        )
+        expect(serialized).not.toContain('<intent>')
+        expect(deserializeCall(tool, serialized)).toEqual(call)
+    })
+
+    it('does not replace a tool parameter already named intent', () => {
+        const ownIntent: Tool = {
+            name: 'ownIntent',
+            description: 'Tool with its own intent argument',
+            parameters: { intent: { type: 'boolean' } },
+            kind: 'mock',
+            call: async (_arg) => ToolCallResults('ok'),
+            validateArguments: _ => null,
+            required: [],
+            hooks: []
+        }
+        expect(toolParameters(ownIntent)["intent"]).toEqual({
+            type: 'boolean',
+        })
+    })
+})
 
 describe('serializeCall icon metadata', () => {
     it('includes icon attribute when tool has an icon', () => {

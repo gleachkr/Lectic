@@ -25,7 +25,11 @@ import {
   inlineAttachmentToPart,
 } from "./common.ts"
 import { inlineReset, type InlineAttachment, } from "../types/inlineAttachment"
-import type { ToolCall } from "../types/tool"
+import {
+  toolCallArguments,
+  toolParameters,
+  type ToolCall,
+} from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import type { ThoughtBlock } from "../types/thought"
 import { Messages } from "../constants/messages"
@@ -264,7 +268,7 @@ function getTools(lectic: Lectic): Gemini.FunctionDeclaration[] {
   const tools: Gemini.FunctionDeclaration[] = []
 
   for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
-    const properties = tool.parameters
+    const properties = toolParameters(tool)
     const required = tool.required ?? []
     const propertyOrdering = Object.keys(properties)
 
@@ -449,7 +453,7 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
           modelParts.push({
             functionCall: {
               name: call.name,
-              args: call.args,
+              args: toolCallArguments(call),
               id: call.id,
             },
             ...(sig

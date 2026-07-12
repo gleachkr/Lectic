@@ -5,7 +5,12 @@ import type { Lectic, HasModel } from "../types/lectic"
 import type { BackendCompletion, BackendUsage, StreamChunk } from "../types/backend"
 import { Backend } from "../types/backend"
 import { LLMProvider } from "../types/provider"
-import type { ToolCall, ToolCallResult } from "../types/tool"
+import {
+  toolCallArguments,
+  toolParameters,
+  type ToolCall,
+  type ToolCallResult,
+} from "../types/tool"
 import { type MessageAttachmentPart } from "../types/attachment"
 import { Logger } from "../logging/logger"
 import {
@@ -211,7 +216,7 @@ function getTools(lectic: Lectic): Anthropic.Messages.ToolUnion[] {
       description: tool.description,
       input_schema: {
         type: "object",
-        properties: tool.parameters,
+        properties: toolParameters(tool),
         required: tool.required,
       },
     })
@@ -306,7 +311,7 @@ export class AnthropicBackend extends Backend<
               type: "tool_use",
               name: call.name,
               id: call_id,
-              input: call.args,
+              input: toolCallArguments(call),
             })
 
             userParts.push({

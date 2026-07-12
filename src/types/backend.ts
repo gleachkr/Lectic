@@ -3,6 +3,7 @@ import { type Message } from "./message"
 import { getActiveHooks, type Hook, type HookEvents } from "./hook"
 import {
   serializeCall,
+  toolSupportsIntentMetadata,
   ToolCallResults,
   type Tool,
   type ToolCall,
@@ -529,13 +530,18 @@ export async function resolveToolCalls(
     const name = entry.name
     const rawArgs = entry.args
     const tool = registry[name]
-    const args = isObjectRecord(rawArgs) ? rawArgs : {}
+    const args = isObjectRecord(rawArgs) ? { ...rawArgs } : {}
+    let intent: string | undefined
+    if (tool && toolSupportsIntentMetadata(tool) && "intent" in args) {
+      if (typeof args["intent"] === "string") intent = args["intent"]
+      delete args["intent"]
+    }
     const toolHooks = tool ? tool.hooks : []
     const hooks = inheritHookEnv(
       [...globalHooks, ...interlocutorHooks, ...toolHooks],
       opt?.lectic?.header.interlocutor.env,
     )
-    const argsJSON = safeJSONStringify(rawArgs)
+    const argsJSON = safeJSONStringify(args)
     const startedAt = Date.now()
 
     let isError = true
@@ -545,6 +551,16 @@ export async function resolveToolCalls(
     try {
       if (!isObjectRecord(rawArgs)) {
         throw new ToolCallError("invalid_args", invalidArgsMsg)
+      }
+
+      if (
+        tool &&
+        toolSupportsIntentMetadata(tool) &&
+        isObjectRecord(rawArgs) &&
+        "intent" in rawArgs &&
+        typeof rawArgs["intent"] !== "string"
+      ) {
+        throw new ToolCallError("invalid_args", "Tool call intent must be a string")
       }
 
       if (opt?.limitExceeded) {
@@ -609,7 +625,7 @@ export async function resolveToolCalls(
 
     const opaque = entry.opaque
     return {
-      name, args, id, isError, results: callResults,
+      name, args, id, intent, isError, results: callResults,
       ...(opaque ? { opaque } : {}),
     }
   }))

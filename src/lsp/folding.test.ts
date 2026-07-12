@@ -414,6 +414,21 @@ describe("folding ranges (collapsedText)", () => {
     expect(ranges[0].collapsedText).toEndWith(" remote")
   })
 
+  test("tool-call includes intent in Neovim fold text", () => {
+    process.env["NERD_FONT"] = "1"
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n\n<tool-call with="search" kind="mcp" intent="Find &quot;API&quot; docs">\n<results>\n</results>\n</tool-call>\n:::\n`
+    const ranges = buildFoldingRanges(text)
+    expect(ranges[0].collapsedText).toEndWith(
+      ' search — Find "API" docs'
+    )
+
+    process.env["NERD_FONT"] = "0"
+    const rangesNoNerd = buildFoldingRanges(text)
+    expect(rangesNoNerd[0].collapsedText).toBe(
+      '[mcp tool: search] — Find "API" docs'
+    )
+  })
+
   test("tool-call shows text and name when NERD_FONT is not 1", () => {
     process.env["NERD_FONT"] = "0"
     const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n\n<tool-call with="my_db" kind="sqlite">\n<results>\n</results>\n</tool-call>\n:::\n`

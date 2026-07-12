@@ -17,7 +17,11 @@ import {
   destrictifyToolResults,
 } from "./common.ts"
 import { inlineReset, type InlineAttachment } from "../types/inlineAttachment"
-import type { ToolCall } from "../types/tool"
+import {
+  toolCallArguments,
+  toolParameters,
+  type ToolCall,
+} from "../types/tool"
 import type { ToolCallEntry, ToolRegistry } from "../types/backend"
 import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
 import type { ThoughtBlock } from "../types/thought"
@@ -84,7 +88,7 @@ function getTools(lectic: Lectic): OpenAI.Responses.Tool[] {
   for (const tool of Object.values(lectic.header.interlocutor.registry ?? {})) {
     const parameters = openAIToolSchema({
       type: "object",
-      properties: tool.parameters,
+      properties: toolParameters(tool),
       required: tool.required,
     })
 
@@ -244,7 +248,7 @@ export class OpenAIResponsesBackend extends Backend<
             type: "function_call",
             call_id: id,
             name: call.name,
-            arguments: JSON.stringify(call.args),
+            arguments: JSON.stringify(toolCallArguments(call)),
           })
         }
 

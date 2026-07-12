@@ -100,6 +100,36 @@ describe("wrapForeignAssistantMessage", () => {
     })
 })
 
+describe("resolveToolCalls intent metadata", () => {
+    it("removes intent before execution and keeps it on the realized call", async () => {
+        let received: unknown
+        const tool: Tool = {
+            name: "echo",
+            description: "echo tool",
+            parameters: { s: { type: "string" } },
+            required: ["s"],
+            kind: "mock",
+            hooks: [],
+            call: async (args) => {
+                received = args
+                return ToolCallResults("ok")
+            },
+            validateArguments: _ => null,
+        }
+
+        const [call] = await resolveToolCalls([
+            {
+                name: "echo",
+                args: { s: "hello", intent: "Show the greeting" },
+            },
+        ], { echo: tool })
+
+        expect(received).toEqual({ s: "hello" })
+        expect(call.args).toEqual({ s: "hello" })
+        expect(call.intent).toBe("Show the greeting")
+    })
+})
+
 describe("runHooks", () => {
     it("handles simple text output without headers", () => {
         const hook = new Hook({

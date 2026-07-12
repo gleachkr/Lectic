@@ -19,7 +19,12 @@ import {
 } from "./docs"
 import { stat } from "fs/promises"
 import type { AnalysisBundle } from "./analysisTypes"
-import { unescapeTags, extractElements, unwrap } from "../parsing/xml" 
+import {
+  unescapeTags,
+  unescapeXmlAttribute,
+  extractElements,
+  unwrap,
+} from "../parsing/xml"
 import { deserializeInlineAttachment } from "../types/inlineAttachment"
 import { deserializeThoughtBlock } from "../types/thought"
 import { stringify } from "yaml"
@@ -345,11 +350,19 @@ function getAttr(attrs: string, key: string): string | undefined {
 }
 
 function parseToolCallForHover(serialized: string): {
+  intent?: string,
   args: { name: string, mediaType?: string, text: string }[],
   results: { mediaType?: string, text: string }[],
 } {
   const args: { name: string, mediaType?: string, text: string }[] = []
   const results: { mediaType?: string, text: string }[] = []
+  const openingTag = /^<tool-call\b([^>]*)>/.exec(serialized)
+  const rawIntent = openingTag
+    ? getAttr(openingTag[1], "intent")
+    : undefined
+  const intent = rawIntent
+    ? unescapeXmlAttribute(rawIntent)
+    : undefined
 
   for (const el of elementsUnder(serialized, "arguments")) {
     const t = parseTag(el)
@@ -368,7 +381,7 @@ function parseToolCallForHover(serialized: string): {
     results.push({ mediaType, text })
   }
 
-  return { args, results }
+  return { intent, args, results }
 }
 
 function toolBlockHover(
@@ -385,6 +398,10 @@ function toolBlockHover(
     const parsed = parseToolCallForHover(serialized)
 
     const parts: string[] = []
+
+    if (parsed.intent) {
+      parts.push(`**Intent:** ${parsed.intent}`)
+    }
 
     const args = parsed.args.filter(a => isDisplayableMedia(a.mediaType))
     for (const a of args) {
