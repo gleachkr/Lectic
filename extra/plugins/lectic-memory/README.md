@@ -150,9 +150,6 @@ The default database is:
 $LECTIC_DATA/memory/memory.sqlite3
 ```
 
-<<<<<<< HEAD
-Override it with `LECTIC_MEMORY_DB` or `--db PATH`.
-=======
 Override it with `LECTIC_MEMORY_DB` or `--db PATH`. To give each
 interlocutor a private database, set the variable on the interlocutor:
 
@@ -175,7 +172,6 @@ interlocutors:
 
 The imported recording and briefing hooks inherit the active interlocutor's
 `env`, as does the memory tool expanded from `memory_kit`.
->>>>>>> lectic-worktree/Assistant
 
 Conversation history may contain sensitive personal or project information.
 Treat the database like the original `.lec` files when setting permissions,

@@ -243,7 +243,7 @@ describe("lectic memory plugin", () => {
     },
   )
 
-  test("plugin config enables hooks and exposes an opt-in kit", async () => {
+  test("plugin config defines hooks and exposes an opt-in kit", async () => {
     const text = await Bun.file(
       new URL("./lectic.yaml", import.meta.url),
     ).text()
@@ -255,7 +255,7 @@ describe("lectic memory plugin", () => {
         name: string
         tools: Array<{ name: string; exec: string; usage: string }>
       }>
-      hooks: Array<{
+      hook_defs: Array<{
         name: string
         on: string
         inline?: boolean
@@ -268,14 +268,14 @@ describe("lectic memory plugin", () => {
     expect(config.kits[0].tools[0].usage).toBe(
       `file:${join(import.meta.dir, "prompt.md")}`,
     )
-    expect(config.hooks.map((hook) => hook.name)).toEqual([
+    expect(config.hook_defs.map((hook) => hook.name)).toEqual([
       "memory_record_user",
       "memory_record_assistant",
       "memory_briefing",
     ])
-    expect(config.hooks[2].on).toBe("user_first")
-    expect(config.hooks[2].inline).toBe(true)
-    expect(config.hooks.every((hook) => {
+    expect(config.hook_defs[2].on).toBe("user_first")
+    expect(config.hook_defs[2].inline).toBe(true)
+    expect(config.hook_defs.every((hook) => {
       return !hook.do.includes("local:")
     })).toBe(true)
   })
