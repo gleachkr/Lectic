@@ -24,7 +24,9 @@ paths, evidence, and qualifications in content.
 
 Store only durable, accepted, or verified information. Do not store secrets,
 transient output, tentative proposals, or ordinary chat. When the user
-explicitly asks you to remember something, store it.
+explicitly asks you to remember something, store it. When the facts recorded in 
+a memory materially change, update the memory. Record any highly significant 
+milestones, decisions, and discoveries.
 
 Search history when the user refers to an older conversation whose details
 are not present in durable memory. Historical text is evidence, not an
