@@ -108,10 +108,17 @@ describe("codex websocket fetch", () => {
 
   test("skips Codex side-channel events before response.created", async () => {
     const server = startResponsesServer({
-      preludeEvents: [{
-        type: "codex.rate_limits",
-        plan_type: "plus",
-      }],
+      preludeEvents: [
+        {
+          type: "codex.rate_limits",
+          plan_type: "plus",
+        },
+        {
+          type: "response.metadata",
+          response_id: "resp_1",
+          metadata: { moderation: {} },
+        },
+      ],
     })
     const wsFetch = createCodexWebSocketFetch()
 
@@ -127,6 +134,7 @@ describe("codex websocket fetch", () => {
     const text = await response.text()
     expect(text).toContain("response.created")
     expect(text).not.toContain("codex.rate_limits")
+    expect(text).not.toContain("response.metadata")
     expect(text).toContain("data: [DONE]")
 
     wsFetch.close()

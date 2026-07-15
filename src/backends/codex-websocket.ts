@@ -536,7 +536,10 @@ function connectionLimitReached(event: Record<string, unknown>): boolean {
 
 function shouldForwardEventToSdk(event: Record<string, unknown>): boolean {
   const type = event["type"]
-  return !(typeof type === "string" && type.startsWith("codex."))
+  return !(
+    typeof type === "string" &&
+    (type.startsWith("codex.") || type === "response.metadata")
+  )
 }
 
 function isTerminalEvent(event: Record<string, unknown>): boolean {
