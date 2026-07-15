@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { Database } from "bun:sqlite"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
@@ -147,6 +148,47 @@ describe("lectic memory plugin", () => {
       expect(briefing.stdout).not.toContain("belongs only to project B")
       expect(briefing.stdout).not.toContain("verified test command")
     } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("waits for concurrent database writers", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-memory-lock-"))
+    const dbPath = join(root, "memory.sqlite3")
+    let blocker: Database | null = null
+
+    try {
+      const add = await runMemory(dbPath, [
+        "--project",
+        "p",
+        "add",
+        "--gist",
+        "A memory retrieved while another writer is active.",
+        "--content",
+        "The get command should wait before updating access metadata.",
+      ])
+      expect(add.code).toBe(0)
+
+      blocker = new Database(dbPath)
+      blocker.exec("BEGIN IMMEDIATE")
+
+      const pendingGet = runMemory(dbPath, ["--project", "p", "get", "1"])
+      await Bun.sleep(250)
+      blocker.exec("COMMIT")
+
+      const get = await pendingGet
+      expect(get.code).toBe(0)
+      expect(get.stderr).toBe("")
+      expect(payload(get.stdout).data.access_count).toBe(1)
+    } finally {
+      if (blocker) {
+        try {
+          blocker.exec("ROLLBACK")
+        } catch {
+          // The successful path already committed the transaction.
+        }
+        blocker.close(false)
+      }
       rmSync(root, { recursive: true, force: true })
     }
   })

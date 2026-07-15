@@ -753,6 +753,8 @@ function commandDoctor(db: Database): unknown {
 }
 
 async function main(): Promise<void> {
+  let db: Database | null = null
+
   try {
     const parsed = parseGlobalArgs(process.argv.slice(2))
     const first = parsed.argv[0]
@@ -776,7 +778,7 @@ async function main(): Promise<void> {
       return
     }
 
-    const db = await openDb(parsed.dbPath)
+    db = await openDb(parsed.dbPath)
     const flags = parseFlags(parsed.argv.slice(1))
     let result: unknown
 
@@ -829,6 +831,8 @@ async function main(): Promise<void> {
     const message = error instanceof Error ? error.message : String(error)
     console.error(JSON.stringify({ ok: false, error: { message } }, null, 2))
     process.exitCode = 1
+  } finally {
+    db?.close(false)
   }
 }
 
