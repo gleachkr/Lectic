@@ -118,6 +118,13 @@ describe("codex websocket fetch", () => {
           response_id: "resp_1",
           metadata: { moderation: {} },
         },
+        {
+          type: "responsesapi.websocket_timing",
+          timing_metrics: {
+            responses_duration_excl_engine_and_client_tool_time_ms: 120,
+            engine_service_total_ms: 450,
+          },
+        },
       ],
     })
     const wsFetch = createCodexWebSocketFetch()
@@ -135,6 +142,7 @@ describe("codex websocket fetch", () => {
     expect(text).toContain("response.created")
     expect(text).not.toContain("codex.rate_limits")
     expect(text).not.toContain("response.metadata")
+    expect(text).not.toContain("responsesapi.websocket_timing")
     expect(text).toContain("data: [DONE]")
 
     wsFetch.close()

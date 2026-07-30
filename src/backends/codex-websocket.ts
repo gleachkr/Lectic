@@ -538,7 +538,11 @@ function shouldForwardEventToSdk(event: Record<string, unknown>): boolean {
   const type = event["type"]
   return !(
     typeof type === "string" &&
-    (type.startsWith("codex.") || type === "response.metadata")
+    (
+      type.startsWith("codex.") ||
+      type.startsWith("responsesapi.") ||
+      type === "response.metadata"
+    )
   )
 }
 
