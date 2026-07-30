@@ -27,6 +27,9 @@ import { openAIToolSchema, strictify } from "../types/openaiSchema.ts"
 import type { ThoughtBlock } from "../types/thought"
 import { codexServiceTier, openAIServiceTier } from "./modelControls"
 
+const WEBSOCKET_STREAM_MAX_RETRIES = 5
+const WEBSOCKET_STREAM_RETRY_INITIAL_DELAY_MS = 200
+
 const SUPPORTS_PROMPT_CACHE_RETENTION = [
   "gpt-5.6-sol",
   "gpt-5.6-terra",
@@ -76,6 +79,86 @@ function thoughtBlockToReasoningItem(
     encrypted_content: encrypted,
     status,
   }
+}
+
+function errorChainText(error: unknown): string {
+  const parts: string[] = []
+  const seen = new Set<unknown>()
+  let current = error
+
+  while (current !== undefined && current !== null && !seen.has(current)) {
+    seen.add(current)
+    if (current instanceof Error) {
+      parts.push(current.message)
+      current = current.cause
+    } else {
+      parts.push(String(current))
+      break
+    }
+  }
+
+  return parts.join(": ")
+}
+
+class WebSocketRetryTextDivergenceError extends Error {
+  constructor() {
+    super("WebSocket retry text diverged from the partial response")
+    this.name = "WebSocketRetryTextDivergenceError"
+  }
+}
+
+function isRetryableWebSocketStreamError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === "AbortError") return false
+
+  const message = errorChainText(error)
+  return /websocket closed before response\.completed/i.test(message) ||
+    /websocket stream error/i.test(message) ||
+    /idle timeout (?:waiting for|sending) websocket/i.test(message)
+}
+
+function retryContextItems(
+  accumulator: OpenAI.Responses.ResponseOutputItem[]
+): OpenAI.Responses.ResponseInputItem[] {
+  return accumulator.filter((item) =>
+    item !== undefined &&
+    (item.type === "message" || item.type === "reasoning")
+  )
+}
+
+function normalizeResponseOutput(
+  response: OpenAI.Responses.Response,
+  accumulator: OpenAI.Responses.ResponseOutputItem[]
+): OpenAI.Responses.Response {
+  const outputMissing =
+    !Array.isArray(response.output) || response.output.length === 0
+
+  if (outputMissing && accumulator.length > 0) {
+    response.output = accumulator.filter((item) => item !== undefined).map((item) => {
+      if (item.type === "function_call") {
+        return {
+          ...item,
+          parsed_arguments: null,
+        } as OpenAI.Responses.ResponseOutputItem
+      }
+
+      if (item.type === "message") {
+        return {
+          ...item,
+          content: item.content.map((content) =>
+            content.type === "output_text"
+              ? { ...content, parsed: null }
+              : content
+          ),
+        }
+      }
+
+      return item
+    })
+  } else if (!Array.isArray(response.output)) {
+    response.output = []
+  }
+
+  return response
 }
 
 function getTools(lectic: Lectic): OpenAI.Responses.Tool[] {
@@ -324,6 +407,13 @@ export class OpenAIResponsesBackend extends Backend<
     return { messages, reset: false }
   }
 
+  protected webSocketStreamRetryDelay(attempt: number): number {
+    const exponent = Math.max(0, attempt - 1)
+    const base = WEBSOCKET_STREAM_RETRY_INITIAL_DELAY_MS * (2 ** exponent)
+    const jitter = 0.9 + Math.random() * 0.2
+    return Math.floor(base * jitter)
+  }
+
   protected async createCompletion(opt: {
     messages: OpenAI.Responses.ResponseInputItem[]
     lectic: Lectic & HasModel
@@ -357,15 +447,16 @@ export class OpenAIResponsesBackend extends Backend<
 
     Logger.debug("openai - messages", messages)
 
-    const stream = this.client.responses.stream({
+    const startStream = () => this.client.responses.stream({
       instructions: systemPrompt(lectic),
       input: messages,
       model,
       include: ["reasoning.encrypted_content", "code_interpreter_call.outputs"],
       prompt_cache_key: lectic.header.id,
-      prompt_cache_retention: this.cache_retention && SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
-        ? "24h"
-        : undefined,
+      prompt_cache_retention:
+        this.cache_retention && SUPPORTS_PROMPT_CACHE_RETENTION.includes(model)
+          ? "24h"
+          : undefined,
       temperature: lectic.header.interlocutor.temperature,
       max_output_tokens: lectic.header.interlocutor.max_tokens,
       reasoning: lectic.header.interlocutor.thinking_effort
@@ -377,138 +468,181 @@ export class OpenAIResponsesBackend extends Backend<
       store: false,
     })
 
-    // The codex endpoint sometimes emits a response.completed payload with
-    // no `output` field. The OpenAI SDK's parser then throws on
-    // `response.output.map(...)`, surfacing both as a finalResponse()
-    // rejection and as an iterator error mid-stream. We capture the raw
-    // snapshot here so both paths below can recover from it.
-    let capturedSnapshot: OpenAI.Responses.Response | undefined
+    let stream = startStream()
+    let resolveFinal!: (response: OpenAI.Responses.Response) => void
+    let rejectFinal!: (error: unknown) => void
+    const final = new Promise<OpenAI.Responses.Response>((resolve, reject) => {
+      resolveFinal = resolve
+      rejectFinal = reject
+    })
+    // The chunk consumer can fail before it awaits `final`. Mark the rejection
+    // as observed while retaining the rejected promise for callers that do.
+    void final.catch(() => {})
 
-    async function* chunks(
-      accumulator: OpenAI.Responses.ResponseOutputItem[]
+    const chunks = async function* (
+      backend: OpenAIResponsesBackend
     ): AsyncGenerator<StreamChunk> {
       let thoughtOrder = 0
+      let retryCount = 0
+      let retryPrefix = ""
 
-      try {
-        for await (const event of stream) {
-          if (event.type === "response.completed") {
-            capturedSnapshot = event.response
-          }
+      for (;;) {
+        // The Codex endpoint sometimes emits a response.completed payload with
+        // no `output` field. Capture the raw snapshot so an SDK parser error
+        // does not discard an otherwise complete response.
+        let capturedSnapshot: OpenAI.Responses.Response | undefined
+        const accumulator: OpenAI.Responses.ResponseOutputItem[] = []
+        let uncommittedText = ""
+        let suppressedRetryText = ""
+        let iterationError: unknown
 
-          if (event.type === "response.output_text.delta") {
-            yield { kind: "text", text: event.delta || "" }
-          }
+        const finalOutcome = stream.finalResponse().then(
+          (response) => ({ ok: true as const, response }),
+          (error: unknown) => ({ ok: false as const, error })
+        )
 
-          if (event.type === "response.output_item.done") {
-            accumulator[event.output_index] = event.item
-          }
+        try {
+          for await (const event of stream) {
+            if (event.type === "response.completed") {
+              capturedSnapshot = event.response
+            }
 
-          if (
-            event.type === "response.output_item.done" &&
-            event.item.type === "reasoning"
-          ) {
-            const item = event.item
-            const summary: string[] = []
-            const content: string[] = []
-            const opaque: Record<string, string> = {}
+            if (event.type === "response.output_text.delta") {
+              const originalDelta = event.delta || ""
+              uncommittedText += originalDelta
+              let delta = originalDelta
 
-            if (Array.isArray(item.summary)) {
-              for (const s of item.summary) {
-                if (
-                  s.type === "summary_text" &&
-                  s.text
-                ) {
-                  summary.push(s.text)
+              if (retryPrefix.length > 0) {
+                const candidate = suppressedRetryText + originalDelta
+                if (retryPrefix.startsWith(candidate)) {
+                  suppressedRetryText = candidate
+                  continue
+                }
+
+                if (!candidate.startsWith(retryPrefix)) {
+                  throw new WebSocketRetryTextDivergenceError()
+                }
+
+                delta = candidate.slice(retryPrefix.length)
+                retryPrefix = ""
+                suppressedRetryText = ""
+              }
+
+              if (delta.length > 0) yield { kind: "text", text: delta }
+            }
+
+            if (event.type === "response.output_item.done") {
+              accumulator[event.output_index] = event.item
+              if (event.item.type === "message") uncommittedText = ""
+            }
+
+            if (
+              event.type === "response.output_item.done" &&
+              event.item.type === "reasoning"
+            ) {
+              const item = event.item
+              const summary: string[] = []
+              const content: string[] = []
+              const opaque: Record<string, string> = {}
+
+              if (Array.isArray(item.summary)) {
+                for (const summaryPart of item.summary) {
+                  if (
+                    summaryPart.type === "summary_text" &&
+                    summaryPart.text
+                  ) {
+                    summary.push(summaryPart.text)
+                  }
                 }
               }
-            }
 
-            if (Array.isArray(item.content)) {
-              for (const c of item.content) {
-                if (
-                  c.type === "reasoning_text" &&
-                  c.text
-                ) {
-                  content.push(c.text)
+              if (Array.isArray(item.content)) {
+                for (const contentPart of item.content) {
+                  if (
+                    contentPart.type === "reasoning_text" &&
+                    contentPart.text
+                  ) {
+                    content.push(contentPart.text)
+                  }
                 }
               }
-            }
 
-            if (item.encrypted_content) {
-              opaque["encrypted_content"] =
-                item.encrypted_content
-            }
+              if (item.encrypted_content) {
+                opaque["encrypted_content"] = item.encrypted_content
+              }
 
-            yield {
-              kind: "thought",
-              block: {
-                provider: "openai",
-                providerKind: "reasoning",
-                id: item.id,
-                status: item.status ?? undefined,
-                order: thoughtOrder++,
-                ...(summary.length > 0
-                  ? { summary }
-                  : {}),
-                ...(content.length > 0
-                  ? { content }
-                  : {}),
-                ...(Object.keys(opaque).length > 0
-                  ? { opaque }
-                  : {}),
-              },
+              yield {
+                kind: "thought",
+                block: {
+                  provider: "openai",
+                  providerKind: "reasoning",
+                  id: item.id,
+                  status: item.status ?? undefined,
+                  order: thoughtOrder++,
+                  ...(summary.length > 0 ? { summary } : {}),
+                  ...(content.length > 0 ? { content } : {}),
+                  ...(Object.keys(opaque).length > 0 ? { opaque } : {}),
+                },
+              }
             }
           }
+        } catch (error) {
+          iterationError = error
         }
-      } catch (err) {
-        if (!capturedSnapshot && accumulator.length === 0) throw err
+
+        const outcome = await finalOutcome
+        if (
+          outcome.ok &&
+          retryPrefix.length > 0 &&
+          suppressedRetryText !== retryPrefix
+        ) {
+          iterationError = new WebSocketRetryTextDivergenceError()
+        }
+
+        if (iterationError instanceof WebSocketRetryTextDivergenceError) {
+          rejectFinal(iterationError)
+          throw iterationError
+        }
+
+        const response = outcome.ok ? outcome.response : capturedSnapshot
+        if (response) {
+          resolveFinal(normalizeResponseOutput(response, accumulator))
+          return
+        }
+
+        const error = iterationError ?? (outcome.ok ? undefined : outcome.error)
+        const canRetry =
+          retryCount <= WEBSOCKET_STREAM_MAX_RETRIES &&
+          isRetryableWebSocketStreamError(error)
+
+        if (!canRetry) {
+          rejectFinal(error)
+          throw error
+        }
+
+        const completedItems = retryContextItems(accumulator)
+        if (completedItems.length > 0) messages.push(...completedItems)
+        if (retryPrefix.length === 0) retryPrefix = uncommittedText
+
+        // One final immediate attempt lets a transport switch to its HTTPS
+        // fallback after the normal WebSocket retry limit is exhausted.
+        const delay = retryCount < WEBSOCKET_STREAM_MAX_RETRIES
+          ? backend.webSocketStreamRetryDelay(retryCount + 1)
+          : 0
+        retryCount++
+        Logger.debug("responses websocket stream disconnected; retrying", {
+          retryCount,
+          delay,
+          error: errorChainText(error),
+        })
+        if (delay > 0) await Bun.sleep(delay)
+        stream = startStream()
       }
     }
 
-    const accumulator : OpenAI.Responses.ResponseOutputItem[] = []
-
     return {
-      chunks: chunks(accumulator),
-      final: stream.finalResponse()
-        .catch((err) => {
-          if (capturedSnapshot) return capturedSnapshot
-          throw err
-        })
-        .then(rsp => {
-            // The OpenAI SDK lets an empty final output clobber the
-            // accumulated items, and also occasionally emits an empty (or
-            // missing) final output. This is an ugly but (for now) necessary
-            // workaround.
-            const outputMissing = !Array.isArray(rsp.output) || rsp.output.length === 0
-            if (outputMissing && accumulator.length > 0) {
-                const replacement: OpenAI.Responses.ResponseOutputItem[] = accumulator.map((item) => {
-                  if (item.type === "function_call") {
-                    return {
-                      ...item,
-                      parsed_arguments: null,
-                    } as OpenAI.Responses.ResponseOutputItem
-                  }
-
-                  if (item.type === "message") {
-                    return {
-                      ...item,
-                      content: item.content.map((content) =>
-                        content.type === "output_text"
-                          ? { ...content, parsed: null }
-                          : content
-                      ),
-                    } as OpenAI.Responses.ResponseOutputItem
-                  }
-
-                  return item as OpenAI.Responses.ResponseOutputItem
-                })
-
-                rsp.output = replacement
-              } else if (!Array.isArray(rsp.output)) {
-                rsp.output = []
-              }
-            return rsp
-        }),
+      chunks: chunks(this),
+      final,
     }
   }
 
