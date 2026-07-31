@@ -38,11 +38,11 @@ You configure an A2A tool by providing the base URL for the agent.
 
 If your agent card is served at:
 
-- `http://HOST:PORT/agents/<id>/.well-known/agent-card.json`
+- `http://127.0.0.1:41240/agents/<id>/.well-known/agent-card.json`
 
 then set the tool URL to:
 
-- `http://HOST:PORT/agents/<id>`
+- `http://127.0.0.1:41240/agents/<id>`
 
 Example:
 
