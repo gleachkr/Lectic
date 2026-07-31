@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.38">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,10 +12,13 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -74,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-6eba6ba83b4f5fbebb32bc0a0d298c6a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-fbc5b4e29cc3cf7a21410927c5af7b66.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -532,6 +535,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>prompt</code>: (Required) The base system prompt that defines the LLM’s personality and instructions. The value can be a string, or it can be loaded from a file (<code>file:./path.txt</code>) or a command (<code>exec:get-prompt</code>). See <a href="../context_management/03_external_prompts.html">External Prompts</a> for details and examples.</li>
 <li><code>hooks</code>: A list of hook definitions. See <a href="../automation/02_hooks.html">Hooks</a>. These hooks fire only when this interlocutor is active.</li>
 <li><code>sandbox</code>: A command string (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>) to wrap execution for all <code>exec</code> tools and local <code>mcp_command</code> tools used by this interlocutor, unless overridden by the tool’s own <code>sandbox</code> setting. This overrides any top-level <code>sandbox</code> setting. Single-line sandbox strings use the same tokenization rules as single-line <code>exec</code> commands.</li>
+<li><code>env</code>: An environment variable map inherited by commands associated with this interlocutor. This includes global and interlocutor hooks, <code>exec</code> tools, local <code>mcp_command</code> servers, SQLite path expansion, and <code>exec:</code> or <code>file:</code> sources loaded for the interlocutor and its tools. Tool- and hook-level <code>env</code> values override this map. Runtime event values such as <code>LECTIC_INTERLOCUTOR</code>, <code>USER_MESSAGE</code>, and <code>TOOL_ARGS</code> remain authoritative. The value may also be an <code>{ use: name }</code> reference to an <code>env_defs</code> entry.</li>
 <li><code>output_schema</code>: Optional JSON Schema that constrains the assistant’s output to valid JSON. You can define it inline, or load it from <code>file:</code> or <code>exec:</code> (including <code>file:local:...</code>). Loaded text is parsed as YAML and then validated as a JSON Schema. This is forwarded to backends that support structured outputs. See <a href="../reference/04_structured_outputs.html">Structured Outputs</a> for the supported schema subset and provider notes.</li>
 <li><code>a2a</code>: Optional object for configuring this interlocutor as an A2A agent when using <code>lectic a2a</code>. Fields:
 <ul>
@@ -548,10 +552,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>temperature</code>: A number between 0 and 1 controlling the randomness of the output.</li>
 <li><code>max_tokens</code>: The maximum number of tokens to generate in a response.</li>
 <li><code>max_tool_use</code>: The maximum number of tool calls the LLM is allowed to make in a single turn.</li>
-<li><code>thinking_effort</code>: Optional hint (used by the <code>openai</code> Responses provider, and by <code>gemini-3-pro</code>) about how much effort to spend reasoning. One of <code>none</code>, <code>low</code>, <code>medium</code>, or <code>high</code>.</li>
+<li><code>thinking_effort</code>: Optional hint about how much effort to spend reasoning. One of <code>none</code>, <code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>, or <code>max</code>. Supported values vary by provider and model. Newer OpenAI and Codex models support <code>xhigh</code>; GPT-5.6 Sol also supports <code>max</code>. Anthropic models with adaptive thinking support <code>max</code>, and newer model families may also support <code>xhigh</code>. Gemini supports values through <code>high</code>; use <code>thinking_budget</code> when an exact Gemini thinking-token budget is required.</li>
 <li><code>thinking_budget</code>: Optional integer token budget for providers that support structured thinking phases (Anthropic, Anthropic/Bedrock, Gemini). Ignored by the <code>openai</code> and <code>openai/chat</code> providers.</li>
+<li><code>verbosity</code>: Optional control for the length and level of detail in the final answer. One of <code>low</code>, <code>medium</code>, or <code>high</code>. This is sent as a native request option by <code>openai</code>, <code>openai/chat</code>, and <code>codex</code>. It is forwarded to OpenRouter’s OpenAI-compatible API, where support depends on the selected model and route. Anthropic, Anthropic/Bedrock, Gemini, and Ollama have no equivalent request control; Lectic reports an error rather than approximating it with a prompt or token limit.</li>
+<li><code>service_tier</code>: Optional processing-tier preference. One of <code>auto</code>, <code>default</code>, <code>standard</code>, <code>flex</code>, or <code>priority</code>. The exact mapping depends on the provider; see <a href="#service-tier-mappings">Service-tier mappings</a>.</li>
 <li><code>nocache</code>: Optional boolean. If <code>true</code>, disables prompt caching on the Anthropic provider. Defaults to <code>false</code>.</li>
 </ul>
+<section id="service-tier-mappings" class="level4">
+<h4 class="anchored" data-anchor-id="service-tier-mappings">Service-tier mappings</h4>
+<p>Lectic treats <code>standard</code> as a portable spelling for a provider’s normal on-demand tier. <code>default</code> explicitly selects the provider’s default or standard routing, while <code>auto</code> lets the provider choose when it has a separate automatic mode.</p>
+<ul>
+<li><code>openai</code> and <code>openai/chat</code>: <code>auto</code> is unchanged; <code>default</code> and <code>standard</code> become <code>default</code>; <code>flex</code> and <code>priority</code> are unchanged.</li>
+<li><code>codex</code>: <code>auto</code> leaves the model default in place; <code>default</code> and <code>standard</code> become <code>default</code>; <code>flex</code> and <code>priority</code> are unchanged.</li>
+<li><code>gemini</code>: <code>auto</code> and <code>default</code> select Gemini’s unspecified/default tier; <code>standard</code>, <code>flex</code>, and <code>priority</code> map directly.</li>
+<li><code>anthropic</code>: <code>auto</code> and <code>priority</code> become <code>auto</code>; <code>default</code> and <code>standard</code> become <code>standard_only</code>; <code>flex</code> is rejected.</li>
+<li><code>openrouter</code>: the OpenAI-compatible mappings are used.</li>
+<li><code>anthropic/bedrock</code> and <code>ollama</code>: every value is rejected.</li>
+</ul>
+<p>For Anthropic, <code>priority</code> maps to <code>service_tier: auto</code>. Anthropic’s <code>auto</code> mode uses priority capacity when it is available and otherwise falls back to standard capacity, so this does not guarantee priority processing.</p>
+<p>OpenRouter receives the OpenAI-compatible <code>service_tier</code> field. Whether it has an effect depends on the selected model, upstream provider, and route.</p>
+<p>Lectic rejects unsupported mappings before sending a request. It does not silently lower a requested tier.</p>
+</section>
 <section id="providers-and-defaults" class="level4">
 <h4 class="anchored" data-anchor-id="providers-and-defaults">Providers and defaults</h4>
 <p>If you don’t specify <code>provider</code>, Lectic picks a default based on your environment. It checks for known API keys in this order and uses the first one it finds:</p>

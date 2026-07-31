@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.9.38">
+<meta name="generator" content="quarto-1.10.18">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -12,10 +12,13 @@
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
 */
-code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-div.columns{display: flex; gap: min(4vw, 1.5em);}
-div.column{flex: auto; overflow-x: auto;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
@@ -74,10 +77,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-6eba6ba83b4f5fbebb32bc0a0d298c6a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-fbc5b4e29cc3cf7a21410927c5af7b66.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -501,7 +504,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><strong>Directives</strong>: Type <code>:</code> to see built-in directives (<code>:cmd</code>, <code>:env</code>, <code>:fetch</code>, <code>:verbatim</code>, <code>:once</code>, <code>:discard</code>, <code>:attach</code>, <code>:ask</code>, <code>:aside</code>, <code>:reset</code>) and any macros you’ve defined.</li>
 <li><strong>Interlocutor names</strong>: Inside <code>:ask[</code> or <code>:aside[</code>, the LSP suggests names from your configuration.</li>
 <li><strong>Macro argument values</strong>: Inside <code>:macro_name[...]</code>, if the macro defines <code>completions</code>, the LSP suggests argument values from inline data, <code>file:</code> sources, or <code>exec:</code> sources. <code>exec:</code> defaults to manual trigger policy.</li>
-<li><strong>YAML header fields</strong>: In the frontmatter, get suggestions for interlocutor properties (<code>provider</code>, <code>model</code>, <code>thinking_effort</code>, etc.), tool types, kit names, model names, and <code>use:</code> reference values (<code>hook_defs</code>, <code>env_defs</code>, <code>sandbox_defs</code>).</li>
+<li><strong>YAML header fields</strong>: In the frontmatter, get suggestions for interlocutor properties (<code>provider</code>, <code>model</code>, <code>thinking_effort</code>, <code>verbosity</code>, <code>service_tier</code>, etc.), enum values for those controls, tool types, kit names, model names, and <code>use:</code> reference values (<code>hook_defs</code>, <code>env_defs</code>, <code>sandbox_defs</code>).</li>
 <li><strong>Tool types</strong>: Type <code>-</code> inside a <code>tools:</code> array to see available tool kinds (<code>exec</code>, <code>sqlite</code>, <code>mcp_command</code>, <code>native</code>, etc.).</li>
 </ul>
 <p>Completions are case-insensitive and respect any prefix you’ve typed.</p>

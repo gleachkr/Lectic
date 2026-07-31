@@ -2854,7 +2854,8 @@ interlocutor:
 - Standard Lectic environment variables are provided, including
   `LECTIC_CONFIG`, `LECTIC_DATA`, `LECTIC_CACHE`, `LECTIC_STATE`,
   `LECTIC_TEMP`, and `LECTIC_FILE` (when using `-f`). Your shell
-  environment is also passed through.
+  environment is also passed through. Sources associated with an
+  interlocutor also inherit its `env` map.
 - Macro expansions can inject additional variables into `exec:` via
   directive attributes. See the [Macros
   guide](../automation/01_macros.qmd) for details.
@@ -4946,6 +4947,14 @@ configuration.
   the tool’s own `sandbox` setting. This overrides any top-level
   `sandbox` setting. Single-line sandbox strings use the same
   tokenization rules as single-line `exec` commands.
+- `env`: An environment variable map inherited by commands associated
+  with this interlocutor. This includes global and interlocutor hooks,
+  `exec` tools, local `mcp_command` servers, SQLite path expansion, and
+  `exec:` or `file:` sources loaded for the interlocutor and its tools.
+  Tool- and hook-level `env` values override this map. Runtime event
+  values such as `LECTIC_INTERLOCUTOR`, `USER_MESSAGE`, and `TOOL_ARGS`
+  remain authoritative. The value may also be an `{ use: name }`
+  reference to an `env_defs` entry.
 - `output_schema`: Optional JSON Schema that constrains the assistant’s
   output to valid JSON. You can define it inline, or load it from
   `file:` or `exec:` (including `file:local:...`). Loaded text is parsed
@@ -4974,14 +4983,60 @@ configuration.
 - `max_tokens`: The maximum number of tokens to generate in a response.
 - `max_tool_use`: The maximum number of tool calls the LLM is allowed to
   make in a single turn.
-- `thinking_effort`: Optional hint (used by the `openai` Responses
-  provider, and by `gemini-3-pro`) about how much effort to spend
-  reasoning. One of `none`, `low`, `medium`, or `high`.
+- `thinking_effort`: Optional hint about how much effort to spend
+  reasoning. One of `none`, `low`, `medium`, `high`, `xhigh`, or `max`.
+  Supported values vary by provider and model. Newer OpenAI and Codex
+  models support `xhigh`; GPT-5.6 Sol also supports `max`. Anthropic
+  models with adaptive thinking support `max`, and newer model families
+  may also support `xhigh`. Gemini supports values through `high`; use
+  `thinking_budget` when an exact Gemini thinking-token budget is
+  required.
 - `thinking_budget`: Optional integer token budget for providers that
   support structured thinking phases (Anthropic, Anthropic/Bedrock,
   Gemini). Ignored by the `openai` and `openai/chat` providers.
+- `verbosity`: Optional control for the length and level of detail in
+  the final answer. One of `low`, `medium`, or `high`. This is sent as a
+  native request option by `openai`, `openai/chat`, and `codex`. It is
+  forwarded to OpenRouter’s OpenAI-compatible API, where support depends
+  on the selected model and route. Anthropic, Anthropic/Bedrock, Gemini,
+  and Ollama have no equivalent request control; Lectic reports an error
+  rather than approximating it with a prompt or token limit.
+- `service_tier`: Optional processing-tier preference. One of `auto`,
+  `default`, `standard`, `flex`, or `priority`. The exact mapping
+  depends on the provider; see [Service-tier
+  mappings](#service-tier-mappings).
 - `nocache`: Optional boolean. If `true`, disables prompt caching on the
   Anthropic provider. Defaults to `false`.
+
+#### Service-tier mappings
+
+Lectic treats `standard` as a portable spelling for a provider’s normal
+on-demand tier. `default` explicitly selects the provider’s default or
+standard routing, while `auto` lets the provider choose when it has a
+separate automatic mode.
+
+- `openai` and `openai/chat`: `auto` is unchanged; `default` and
+  `standard` become `default`; `flex` and `priority` are unchanged.
+- `codex`: `auto` leaves the model default in place; `default` and
+  `standard` become `default`; `flex` and `priority` are unchanged.
+- `gemini`: `auto` and `default` select Gemini’s unspecified/default
+  tier; `standard`, `flex`, and `priority` map directly.
+- `anthropic`: `auto` and `priority` become `auto`; `default` and
+  `standard` become `standard_only`; `flex` is rejected.
+- `openrouter`: the OpenAI-compatible mappings are used.
+- `anthropic/bedrock` and `ollama`: every value is rejected.
+
+For Anthropic, `priority` maps to `service_tier: auto`. Anthropic’s
+`auto` mode uses priority capacity when it is available and otherwise
+falls back to standard capacity, so this does not guarantee priority
+processing.
+
+OpenRouter receives the OpenAI-compatible `service_tier` field. Whether
+it has an effect depends on the selected model, upstream provider, and
+route.
+
+Lectic rejects unsupported mappings before sending a request. It does
+not silently lower a requested tier.
 
 #### Providers and defaults
 
@@ -5336,7 +5391,8 @@ The LSP suggests completions as you type:
   trigger policy.
 - **YAML header fields**: In the frontmatter, get suggestions for
   interlocutor properties (`provider`, `model`, `thinking_effort`,
-  etc.), tool types, kit names, model names, and `use:` reference values
+  `verbosity`, `service_tier`, etc.), enum values for those controls,
+  tool types, kit names, model names, and `use:` reference values
   (`hook_defs`, `env_defs`, `sandbox_defs`).
 - **Tool types**: Type `-` inside a `tools:` array to see available tool
   kinds (`exec`, `sqlite`, `mcp_command`, `native`, etc.).
@@ -6018,6 +6074,21 @@ Lectic uses XML blocks for tool calls:
 You’ll see these in assistant blocks. Lectic writes the block when the
 model requests a tool, then appends results after running it.
 
+Lectic adds an optional `intent` string to non-native tool schemas.
+Models can use it to briefly explain why they are making a call. Lectic
+removes this metadata before executing the tool and stores it on the
+call’s XML element:
+
+``` xml
+<tool-call with="search" intent="Find the current API documentation">
+```
+
+Editors can show this intent while leaving the full arguments and
+results folded. Provider-native tools do not support this field because
+their schemas are controlled by the provider. If a tool already defines
+its own `intent` parameter, Lectic leaves that parameter unchanged and
+does not treat it as call metadata.
+
 ### Example
 
 Configuration:
@@ -6327,7 +6398,9 @@ field:
 - `LECTIC_STATE`: Lectic state directory.
 - `LECTIC_TEMP`: Lectic temporary directory.
 
-Tool `env` values override these defaults when keys overlap.
+The active interlocutor’s `env` map is also inherited. Tool `env` values
+normally override the interlocutor map. Runtime identity values such as
+`LECTIC_INTERLOCUTOR` remain authoritative.
 
 ## Safety and trust
 
