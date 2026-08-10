@@ -419,7 +419,8 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
 
       const { interactions } = msg.parseAssistantContent()
       for (const interaction of interactions) {
-        if (interaction.attachments.some(inlineReset)) {
+        const resetsContext = interaction.attachments.some(inlineReset)
+        if (resetsContext) {
           results = []
           reset = true
         }
@@ -438,6 +439,8 @@ export class GeminiBackend extends Backend<Content, GeminiFinal> {
             results.push({ role: "user", parts: attParts })
           }
         }
+
+        if (resetsContext) continue
 
         const modelParts: Part[] = []
         const userParts: Part[] = []

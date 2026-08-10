@@ -289,7 +289,8 @@ export class OpenAIResponsesBackend extends Backend<
 
       const { interactions } = msg.parseAssistantContent()
       for (const interaction of interactions) {
-        if (interaction.attachments.some(inlineReset)) {
+        const resetsContext = interaction.attachments.some(inlineReset)
+        if (resetsContext) {
           results.length = 0
           reset = true
         }
@@ -308,6 +309,8 @@ export class OpenAIResponsesBackend extends Backend<
             results.push({ role: "user", content: attContent })
           }
         }
+
+        if (resetsContext) continue
 
         const thoughts = [...interaction.thoughts].sort(
           (a, b) => (a.order ?? 0) - (b.order ?? 0)

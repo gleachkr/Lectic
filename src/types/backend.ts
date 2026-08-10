@@ -856,8 +856,15 @@ export abstract class Backend<TMessage, TFinal> {
         trailingSep = true
       }
 
+      const hookAttachments = pendingHookRes
+        .map(getProviderInlineAttachment)
+        .filter((a): a is InlineAttachment => a !== null)
+      const resetRequested = hookAttachments.some(inlineReset)
+      const effectiveToolCalls = hasToolCalls && !resetRequested
+
       const needsFollowUp =
-        hasToolCalls || pendingHookRes.some((a) => inlineRecordNotFinal(a))
+        effectiveToolCalls
+        || pendingHookRes.some((a) => inlineRecordNotFinal(a))
 
       if (!needsFollowUp) return
 
@@ -869,18 +876,15 @@ export abstract class Backend<TMessage, TFinal> {
         return
       }
 
-      const hookAttachments = pendingHookRes
-        .map(getProviderInlineAttachment)
-        .filter((a): a is InlineAttachment => a !== null)
-
-      const resetAttachments = hookAttachments.filter(inlineReset)
-      if (resetAttachments.length > 0) {
-        this.applyReset(messages, resetAttachments)
+      if (resetRequested) {
+        this.applyReset(messages, hookAttachments)
+      } else {
+        this.appendAssistantMessage(messages, reply, lectic)
       }
 
-      this.appendAssistantMessage(messages, reply, lectic)
-
-      const entries = this.getToolCallEntries(reply, registry)
+      const entries = resetRequested
+        ? []
+        : this.getToolCallEntries(reply, registry)
 
       const realized = await resolveToolCalls(entries, registry, {
         limitExceeded: loopCount > maxToolUse,
@@ -901,7 +905,7 @@ export abstract class Backend<TMessage, TFinal> {
         messages,
         final: reply,
         realized,
-        hookAttachments: hookAttachments.filter((a) => !inlineReset(a)),
+        hookAttachments: resetRequested ? [] : hookAttachments,
         lectic,
       })
     }

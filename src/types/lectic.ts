@@ -386,7 +386,8 @@ export class Lectic {
                 await message.expandMacros(this.header.macros, { 
                     MESSAGE_TEXT: message.raw,
                     MESSAGE_INDEX : idx + 1,
-                    MESSAGES_LENGTH : this.body.messages.length
+                    MESSAGES_LENGTH : this.body.messages.length,
+                    LECTIC_INTERLOCUTOR: this.header.interlocutor.name,
                 })
                 for (const effect of message.macroSideEffects) {
                     switch (effect.kind) {

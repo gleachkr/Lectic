@@ -17,6 +17,7 @@ export type MacroMessageEnv = {
   MESSAGE_TEXT: string
   MESSAGE_INDEX: number
   MESSAGES_LENGTH: number
+  LECTIC_INTERLOCUTOR?: string
 }
 
 function isFinalMessage(messageEnv?: MacroMessageEnv): boolean {
@@ -89,6 +90,9 @@ function messageEnvToEnv(messageEnv?: MacroMessageEnv): Record<string, string> {
     MESSAGE_TEXT: String(messageEnv.MESSAGE_TEXT),
     MESSAGE_INDEX: String(messageEnv.MESSAGE_INDEX),
     MESSAGES_LENGTH: String(messageEnv.MESSAGES_LENGTH),
+    ...(messageEnv.LECTIC_INTERLOCUTOR
+      ? { LECTIC_INTERLOCUTOR: messageEnv.LECTIC_INTERLOCUTOR }
+      : {}),
   }
 }
 

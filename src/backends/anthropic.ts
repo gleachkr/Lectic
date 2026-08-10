@@ -275,7 +275,8 @@ export class AnthropicBackend extends Backend<
 
       const { interactions } = msg.parseAssistantContent()
       for (const interaction of interactions) {
-        if (interaction.attachments.some(inlineReset)) {
+        const resetsContext = interaction.attachments.some(inlineReset)
+        if (resetsContext) {
           results.length = 0
           reset = true
         }
@@ -294,6 +295,8 @@ export class AnthropicBackend extends Backend<
             results.push({ role: "user", content: attContent })
           }
         }
+
+        if (resetsContext) continue
 
         const modelParts: Anthropic.Messages.ContentBlockParam[] = []
         const userParts: Anthropic.Messages.ContentBlockParam[] = []

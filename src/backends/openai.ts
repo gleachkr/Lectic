@@ -182,7 +182,8 @@ export class OpenAIBackend extends Backend<
 
       const { interactions } = msg.parseAssistantContent()
       for (const interaction of interactions) {
-        if (interaction.attachments.some(inlineReset)) {
+        const resetsContext = interaction.attachments.some(inlineReset)
+        if (resetsContext) {
           results = []
           reset = true
         }
@@ -201,6 +202,8 @@ export class OpenAIBackend extends Backend<
             results.push({ role: "user", content: attContent })
           }
         }
+
+        if (resetsContext) continue
 
         const modelParts: OpenAI.Chat.Completions.ChatCompletionContentPartText[] = []
         const toolCalls: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = []

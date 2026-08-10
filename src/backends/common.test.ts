@@ -511,7 +511,7 @@ echo "USAGE:\${TOKEN_USAGE_INPUT}:\${TOKEN_USAGE_CACHED}:\${TOKEN_USAGE_OUTPUT}:
     })
 })
 
-describe("comment-mode inline hooks during evaluate", () => {
+describe("inline hooks during evaluate", () => {
     class MockLoopBackend extends Backend<
         { role: string, text: string, inlineAttachments?: InlineAttachment[] },
         { text: string }
@@ -581,6 +581,122 @@ describe("comment-mode inline hooks during evaluate", () => {
             throw new Error("unexpected tool results")
         }
     }
+
+    it("replaces the triggering reply when an assistant hook resets", async () => {
+        class ResetLoopBackend extends Backend<
+            { role: string, text: string },
+            { text: string, hasTools: boolean }
+        > {
+            provider = LLMProvider.Anthropic
+            defaultModel = "mock-model"
+            createCalls = 0
+            completionMessages: Array<Array<{ role: string, text: string }>> = []
+            requestedEntriesForDiscardedTools = false
+
+            async listModels(): Promise<string[]> {
+                return []
+            }
+
+            protected async handleMessage(msg: any) {
+                return {
+                    messages: [{ role: msg.role, text: msg.content }],
+                    reset: false,
+                }
+            }
+
+            protected async createCompletion(opt: {
+                messages: Array<{ role: string, text: string }>
+            }) {
+                this.completionMessages.push(structuredClone(opt.messages))
+                const hasTools = this.createCalls++ === 0
+                const text = hasTools ? "discard this response" : "successor"
+                return {
+                    chunks: (async function* () {
+                        yield { kind: "text" as const, text }
+                    })(),
+                    final: Promise.resolve({ text, hasTools }),
+                }
+            }
+
+            protected finalHasToolCalls(final: { hasTools: boolean }): boolean {
+                return final.hasTools
+            }
+
+            protected finalUsage() {
+                return undefined
+            }
+
+            protected applyReset(
+                messages: Array<{ role: string, text: string }>,
+                attachments: InlineAttachment[],
+            ): void {
+                messages.length = 0
+                messages.push({
+                    role: "user",
+                    text: attachments.map(item => item.content).join("\n"),
+                })
+            }
+
+            protected appendAssistantMessage(
+                messages: Array<{ role: string, text: string }>,
+                final: { text: string },
+            ): void {
+                messages.push({ role: "assistant", text: final.text })
+            }
+
+            protected getToolCallEntries(final: { hasTools: boolean }) {
+                if (final.hasTools) {
+                    this.requestedEntriesForDiscardedTools = true
+                }
+                return []
+            }
+
+            protected async appendToolResults(): Promise<void> {
+                // No tool results are expected in this reset flow.
+            }
+        }
+
+        const hook = new Hook({
+            on: "assistant_message",
+            inline: true,
+            do: [
+                "#!/usr/bin/env bash",
+                'if [[ "$LOOP_COUNT" == "0" ]]; then',
+                '  echo "LECTIC:reset"',
+                '  echo "replacement context"',
+                "else",
+                '  echo "LECTIC:final"',
+                '  echo "stop"',
+                "fi",
+            ].join("\n"),
+        })
+        const backend = new ResetLoopBackend()
+        const lectic = {
+            header: {
+                hooks: [hook],
+                interlocutor: {
+                    name: "TestBot",
+                    prompt: "",
+                    model: "mock-model",
+                    registry: {},
+                },
+            },
+            body: {
+                messages: [new UserMessage({ content: "hi" })],
+                snapshot: () => "snapshot",
+            },
+        } as any
+
+        for await (const _chunk of backend.evaluate(lectic)) {
+            // Drain the iterator.
+        }
+
+        expect(backend.createCalls).toBe(2)
+        expect(backend.completionMessages[1]).toEqual([
+            { role: "user", text: "replacement context\n" },
+        ])
+        expect(backend.requestedEntriesForDiscardedTools).toBe(false)
+    })
 
     it("does not pass user-message comment hooks to the provider", async () => {
         const hook = new Hook({

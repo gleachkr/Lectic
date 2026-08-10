@@ -1,0 +1,81 @@
+# Lectic persistent-goal plugin config
+#
+# Import this file, then add goal_kit to each interlocutor that should be
+# able to complete or hand off persistent goals.
+
+kits:
+  - name: goal_kit
+    description: Complete or hand off the active persistent goal.
+    tools:
+      - name: goal_handoff
+        boilerplate: false
+        usage: |
+          Hand off the active persistent goal to a fresh session.
+
+          Call this only after bringing the workspace to a coherent
+          stopping point. BRIEFING must be a standalone briefing for
+          the successor. Include work completed, decisions and
+          constraints, files changed, checks and their results,
+          unresolved problems or risks, and the next concrete action.
+
+          This must be your final tool call in the current session.
+        exec: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec "$GOAL_PLUGIN_ROOT/lectic-goal.ts" \
+            handoff \
+            --briefing "$BRIEFING" \
+            --json
+        env:
+          GOAL_PLUGIN_ROOT: local:./
+        schema:
+          BRIEFING:
+            type: string
+            description: Standalone briefing for the successor session.
+
+      - name: goal_complete
+        boilerplate: false
+        usage: |
+          Mark the entire persistent goal complete.
+
+          Call this only after every requested deliverable is finished
+          and relevant verification has passed. SUMMARY must record the
+          outcome and the verification performed.
+        exec: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec "$GOAL_PLUGIN_ROOT/lectic-goal.ts" \
+            complete \
+            --summary "$SUMMARY" \
+            --json
+        env:
+          GOAL_PLUGIN_ROOT: local:./
+        schema:
+          SUMMARY:
+            type: string
+            description: Completion summary and verification evidence.
+
+macros:
+  - name: goal
+    description: Set a persistent goal for the active interlocutor.
+    env:
+      GOAL_PLUGIN_ROOT: local:./
+    expansion: |
+      exec:#!/usr/bin/env bash
+      set -euo pipefail
+      exec "$GOAL_PLUGIN_ROOT/lectic-goal.ts" set --goal "$ARG"
+
+hooks:
+  - name: goal_resume
+    on: user_first
+    inline: true
+    env:
+      GOAL_PLUGIN_PATH: local:./lectic-goal.ts
+    do: '"$GOAL_PLUGIN_PATH" resume'
+
+  - name: goal_final
+    on: assistant_final
+    inline: true
+    env:
+      GOAL_PLUGIN_PATH: local:./lectic-goal.ts
+    do: '"$GOAL_PLUGIN_PATH" final'

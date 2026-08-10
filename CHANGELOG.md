@@ -18,6 +18,9 @@ for a tag and publish them on the corresponding GitHub Release.
   the transcript without being sent back to the model.
 - A new `lectic-undo` plugin that snapshots git state and records restore
   commands when an assistant run leaves repository changes behind.
+- A new `lectic-goal` plugin for persistent goals, explicit completion,
+  and context-reset handoffs backed by per-interlocutor YAML state.
+- `LECTIC_INTERLOCUTOR` in the macro expansion environment.
 
 ### Changed
 
@@ -34,6 +37,9 @@ for a tag and publish them on the corresponding GitHub Release.
 
 ### Fixed
 
+- Reset hook output now replaces the triggering assistant response across
+  providers and transcript replay instead of preserving that response after
+  the replacement context.
 - Flaky Codex API handling.
 
 ## v0.0.3 - 2026-03-31

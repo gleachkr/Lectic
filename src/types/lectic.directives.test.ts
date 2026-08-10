@@ -11,6 +11,35 @@ describe("Lectic Process Messages", () => {
     },
   };
 
+  it("passes the active interlocutor to macro expansions", async () => {
+    const header = new LecticHeader({
+      interlocutors: [
+        {
+          name: "Assistant",
+          prompt: "You are a helpful assistant.",
+        },
+        {
+          name: "Critic",
+          prompt: "You are a critic.",
+        },
+      ],
+      macros: [
+        {
+          name: "speaker",
+          expansion: 'exec:printf "$LECTIC_INTERLOCUTOR"',
+        },
+      ],
+    });
+    header.setSpeaker("Critic");
+    const message = new UserMessage({ content: ":speaker[]" });
+    const body = new LecticBody({ messages: [message], raw: "" });
+    const lectic = new Lectic({ header, body });
+
+    await lectic.processMessages();
+
+    expect(message.content).toBe("Critic");
+  });
+
   it("should process :merge_yaml directive and update header permanently", async () => {
     const header = new LecticHeader(baseSpec);
     const body = new LecticBody({

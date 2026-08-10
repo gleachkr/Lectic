@@ -271,12 +271,13 @@ These are meaningful for attachment-mode inline hooks:
 - `final`: When an inline hook generates output, Lectic normally continues the
   tool calling loop so that the assistant can see and respond to the new
   information. If the `final` header is present, Lectic prevents this extra
-  pass, allowing the conversation turn to end immediately (unless the assistant
-  explicitly called a tool).
-- `reset`: When present, this header clears the conversation context up to the
-  current message. The accumulated history sent to the provider is discarded,
-  and the context effectively restarts from the message containing the hook
-  output. This is useful for implementing custom context compaction or
+  pass, allowing the conversation turn to end immediately. An explicit tool
+  call still keeps the loop alive unless a `reset` header cancels that call.
+- `reset`: When present, this header replaces the accumulated provider
+  context with the inline hook output. The assistant response that triggered
+  the hook is retained in the transcript but is not sent in the replacement
+  context. Any tool calls requested by that response are cancelled before
+  execution. This is useful for implementing custom context compaction or
   archival strategies when token limits are reached.
 
 ## Example: A simple logging hook
