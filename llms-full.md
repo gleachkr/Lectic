@@ -1540,6 +1540,7 @@ A few other environment variables are available by default.
 | MESSAGE_INDEX | Index (starting from one) of the message containing the macro |
 | MESSAGES_LENGTH | Total number of messages in the conversation |
 | MESSAGE_TEXT | Raw text of the message containing the macro |
+| LECTIC_INTERLOCUTOR | Name of the active interlocutor |
 
 These might be useful for conditionally running only if the macro is,
 e.g. part of the most recent user message, or for sniffing the context
@@ -1935,11 +1936,13 @@ attachment-mode inline hooks:
   continues the tool calling loop so that the assistant can see and
   respond to the new information. If the `final` header is present,
   Lectic prevents this extra pass, allowing the conversation turn to end
-  immediately (unless the assistant explicitly called a tool).
-- `reset`: When present, this header clears the conversation context up
-  to the current message. The accumulated history sent to the provider
-  is discarded, and the context effectively restarts from the message
-  containing the hook output. This is useful for implementing custom
+  immediately. An explicit tool call still keeps the loop alive unless a
+  `reset` header cancels that call.
+- `reset`: When present, this header replaces the accumulated provider
+  context with the inline hook output. The assistant response that
+  triggered the hook is retained in the transcript but is not sent in
+  the replacement context. Any tool calls requested by that response are
+  cancelled before execution. This is useful for implementing custom
   context compaction or archival strategies when token limits are
   reached.
 
