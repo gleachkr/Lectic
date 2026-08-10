@@ -11,9 +11,12 @@ import * as YAML from "yaml"
 
 import { rewriteLocalInNode } from "../../../src/utils/localPath"
 import {
+  Lectic,
+  LecticBody,
   LecticHeader,
   validateLecticHeaderSpec,
 } from "../../../src/types/lectic"
+import { UserMessage } from "../../../src/types/message"
 
 const repoRoot = resolve(import.meta.dir, "..", "..", "..")
 const scriptPath = resolve(import.meta.dir, "lectic-goal.ts")
@@ -134,6 +137,74 @@ describe("lectic goal plugin", () => {
       expect(goal.handoff_count).toBe(0)
       expect(goal.latest_handoff).toBeNull()
       expect(goal.completion).toBeNull()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test("the goal macro enables the goal kit", async () => {
+    const root = mkdtempSync(join(tmpdir(), "lectic-goal-macro-"))
+    try {
+      const raw = await Bun.file(configPath).text()
+      const parsed = rewriteLocalInNode(
+        YAML.parse(raw),
+        import.meta.dir,
+      ) as any
+      parsed.macros[0].env.LECTIC_GOAL_DIR = root
+
+      const header = new LecticHeader({
+        ...parsed,
+        interlocutor: {
+          name: "Assistant",
+          prompt: "Test prompt",
+        },
+      })
+      const message = new UserMessage({
+        content: ":goal[Implement authenticated exports.]",
+      })
+      const lectic = new Lectic({
+        header,
+        body: new LecticBody({ messages: [message], raw: "" }),
+      })
+
+      await lectic.processMessages()
+      await lectic.header.initialize()
+
+      expect(Object.keys(lectic.header.interlocutor.registry ?? {})).toEqual([
+        "goal_handoff",
+        "goal_complete",
+      ])
+      expect(message.content).toContain("<persistent-goal")
+      expect(readGoal(root).goal).toBe("Implement authenticated exports.")
+
+      const replayHeader = new LecticHeader({
+        ...parsed,
+        interlocutor: {
+          name: "Assistant",
+          prompt: "Test prompt",
+        },
+      })
+      const replay = new Lectic({
+        header: replayHeader,
+        body: new LecticBody({
+          messages: [
+            new UserMessage({
+              content: ":goal[Implement authenticated exports.]",
+            }),
+            new UserMessage({ content: "Continue." }),
+          ],
+          raw: "",
+        }),
+      })
+
+      await replay.processMessages()
+      await replay.header.initialize()
+
+      expect(Object.keys(replay.header.interlocutor.registry ?? {})).toEqual([
+        "goal_handoff",
+        "goal_complete",
+      ])
+      expect(readGoal(root).revision).toBe(1)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

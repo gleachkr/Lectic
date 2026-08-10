@@ -18,8 +18,6 @@ imports:
 interlocutor:
   name: Assistant
   prompt: You are a coding assistant.
-  tools:
-    - kit: goal_kit
 ```
 
 As a discovered plugin:
@@ -31,13 +29,12 @@ imports:
 interlocutor:
   name: Assistant
   prompt: You are a coding assistant.
-  tools:
-    - kit: goal_kit
 ```
 
-Importing the plugin enables the `:goal[]` macro and lifecycle hooks. Adding
-`goal_kit` gives the interlocutor the tools needed to finish or hand off the
-goal.
+Importing the plugin enables the `:goal[]` macro and lifecycle hooks. When
+`:goal[]` starts a goal, it also enables `goal_kit` tools for the active 
+interlocutor. The merge is replayed from the transcript on later runs, so the 
+tools remain available for that conversation.
 
 ## Start a goal
 

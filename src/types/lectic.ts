@@ -155,15 +155,18 @@ export class LecticHeader {
         const idx = new Map<string, ToolKitSpec>()
         for (const b of this.kits) idx.set(b.name, b)
         const seen = new Set<string>()
+        const expanded = new Set<string>()
         const expandOne = (spec: object) => {
             if (spec && "kit" in spec && typeof spec.kit === 'string') {
                 const name = spec.kit
                 if (seen.has(name)) throw Error(Messages.kit.cycle(name))
+                if (expanded.has(name)) return
                 const kit = idx.get(name)
                 if (!kit) throw Error(Messages.kit.unknownReference(name))
                 seen.add(name)
                 for (const inner of kit.tools) expandOne(inner)
                 seen.delete(name)
+                expanded.add(name)
             } else {
                 out.push(spec)
             }

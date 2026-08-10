@@ -543,6 +543,22 @@ describe('LecticHeader', () => {
       expect(reg['eslint']).toBeInstanceOf(ExecTool)
     })
 
+    it('expands repeated references to the same kit once', async () => {
+      const spec = {
+        kits: [
+          { name: 'base', tools: [ { exec: 'date', name: 'date' } ] }
+        ],
+        interlocutor: {
+          name: 'Tester',
+          prompt: 'p',
+          tools: [ { kit: 'base' }, { kit: 'base' } ]
+        }
+      }
+      const header = new LecticHeader(spec as any)
+      await header.initialize()
+      expect(Object.keys(header.interlocutor.registry ?? {})).toEqual(['date'])
+    })
+
     it('supports nested kits', async () => {
       const spec = {
         kits: [

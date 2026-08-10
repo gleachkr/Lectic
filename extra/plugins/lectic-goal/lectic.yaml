@@ -1,7 +1,7 @@
 # Lectic persistent-goal plugin config
 #
-# Import this file, then add goal_kit to each interlocutor that should be
-# able to complete or hand off persistent goals.
+# Import this file to add the persistent-goal lifecycle. The :goal macro
+# enables goal_kit for the active interlocutor when it starts a goal.
 
 kits:
   - name: goal_kit
@@ -60,9 +60,25 @@ macros:
     description: Set a persistent goal for the active interlocutor.
     env:
       GOAL_PLUGIN_ROOT: local:./
-    expansion: |
+    pre: |
       exec:#!/usr/bin/env bash
       set -euo pipefail
+
+      # A merge emitted by a trusted pre macro is applied as a side effect.
+      # Keep it in historical turns so the toolkit remains enabled when the
+      # conversation is loaded again. Goal names reject quotes, backslashes,
+      # and control characters, so this interpolation is valid JSON.
+      printf '%s%s%s\n' \
+        ':merge_yaml[{"interlocutor":{"name":"' \
+        "$LECTIC_INTERLOCUTOR" \
+        '","tools":[{"kit":"goal_kit","name":"goal_kit"}]}}]'
+
+      # Historical :goal calls only replay the configuration side effect.
+      if [[ -n "${MESSAGE_INDEX:-}" \
+        && "$MESSAGE_INDEX" != "${MESSAGES_LENGTH:-}" ]]; then
+        exit 0
+      fi
+
       exec "$GOAL_PLUGIN_ROOT/lectic-goal.ts" set --goal "$ARG"
 
 hooks:
