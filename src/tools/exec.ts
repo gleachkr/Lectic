@@ -3,6 +3,11 @@ import { lecticEnv } from "../utils/xdg";
 import { withTimeout, TimeoutError } from "../utils/timeout";
 import { readStream } from "../utils/stream";
 import {
+    allocateOutputBudgets,
+    BoundedTextCollector,
+    type BoundedTextResult,
+} from "../utils/boundedOutput";
+import {
     cleanupTempScriptAfterProcess,
     parseAndExpandCommand,
     writeTempShebangScriptAsync,
@@ -81,6 +86,51 @@ function sanitizeCliOutput(s: string): string {
     return t
 }
 
+type OutputChannel = "stdout" | "stderr"
+
+function truncationElement(
+    channel: OutputChannel,
+    result: BoundedTextResult,
+): string {
+    const omittedCharacters =
+        result.originalCharacters - result.returnedCharacters
+
+    return `<truncated channel="${channel}" ` +
+        `originalCharacters="${result.originalCharacters}" ` +
+        `returnedCharacters="${result.returnedCharacters}" ` +
+        `omittedCharacters="${omittedCharacters}" ` +
+        `originalLines="${result.originalLines}" ` +
+        `returnedLines="${result.returnedLines}" ` +
+        `headCharacters="${result.headCharacters}" ` +
+        `tailCharacters="${result.tailCharacters}" />`
+}
+
+function formatCollectedOutput(
+    stdout: BoundedTextCollector,
+    stderr: BoundedTextCollector,
+    limit: number,
+): string[] {
+    const budgets = allocateOutputBudgets(limit, stdout.length, stderr.length)
+    const rendered = {
+        stdout: stdout.render(budgets.stdout),
+        stderr: stderr.render(budgets.stderr),
+    }
+    const results: string[] = []
+
+    for (const channel of ["stdout", "stderr"] as const) {
+        const result = rendered[channel]
+        const text = sanitizeCliOutput(result.text)
+        if (text.length > 0) {
+            results.push(`<${channel}>${text}</${channel}>`)
+        }
+        if (result.truncated) {
+            results.push(truncationElement(channel, result))
+        }
+    }
+
+    return results
+}
+
 async function spawnScript(
     script : string,
     args : string[],
@@ -142,7 +192,7 @@ export class ExecTool extends Tool {
     timeoutSeconds?: number
     limit: number
     static count : number = 0
-    static defaultLimit = 100_000
+    static defaultLimit = 40_000
 
     constructor(spec: ExecToolSpec, interlocutor_name : string) {
         super(spec.hooks)
@@ -154,6 +204,9 @@ export class ExecTool extends Tool {
         this.sandbox = spec.sandbox
         this.timeoutSeconds = spec.timeoutSeconds
         this.limit = spec.limit ?? ExecTool.defaultLimit
+        if (!Number.isInteger(this.limit) || this.limit < 0) {
+            throw new Error("exec tool limit must be a non-negative integer")
+        }
 
         if (spec.schema) {
             this.parameters = {}
@@ -230,56 +283,36 @@ export class ExecTool extends Tool {
             proc = spawnCommand(this.exec, args, this.sandbox, env)
         }
 
-        const collected = { stdout: "", stderr: "", truncated: false }
-        let remaining = this.limit
-
-        const appendLimited = (channel: "stdout" | "stderr", chunk: string) => {
-            if (remaining <= 0) {
-                collected.truncated = true
-                return
-            }
-            if (chunk.length <= remaining) {
-                collected[channel] += chunk
-                remaining -= chunk.length
-                return
-            }
-            collected[channel] += chunk.slice(0, remaining)
-            remaining = 0
-            collected.truncated = true
+        const collected = {
+            stdout: new BoundedTextCollector(this.limit),
+            stderr: new BoundedTextCollector(this.limit),
         }
 
         const rslt = Promise.all([
-            readStream(proc.stdout, s => appendLimited("stdout", s)),
-            readStream(proc.stderr, s => appendLimited("stderr", s)),
-        ]).then(() => exited ?? proc.exited).then((code) => {
-            // Clean up CLI output after collection is complete
-            collected.stdout = sanitizeCliOutput(collected.stdout)
-            collected.stderr = sanitizeCliOutput(collected.stderr)
-            return code
-        })
+            readStream(proc.stdout, s => collected.stdout.append(s)),
+            readStream(proc.stderr, s => collected.stderr.append(s)),
+        ]).then(() => exited ?? proc.exited)
 
         try {
             const code = await (this.timeoutSeconds && this.timeoutSeconds > 0
                 ? withTimeout(rslt, this.timeoutSeconds, "command", { onTimeout: proc.kill } )
                 : rslt)
 
-            const results: string[] = []
-            if (collected.stdout.length > 0) results.push(`<stdout>${collected.stdout}</stdout>`)
-            if (collected.stderr.length > 0) results.push(`<stderr>${collected.stderr}</stderr>`)
-            if (collected.truncated) {
-                results.push(`<truncated>output exceeded ${this.limit} characters and was truncated</truncated>`)
-            }
+            const results = formatCollectedOutput(
+                collected.stdout,
+                collected.stderr,
+                this.limit,
+            )
             results.push(`<exitCode>${code}</exitCode>`)
             return ToolCallResults(results, "application/xml")
         } catch (e) {
             if (e instanceof TimeoutError) {
                 // Surface stdout/stderr along with a timeout error indicator.
-                const chunks: string[] = []
-                if (collected.stdout.length > 0) chunks.push(`<stdout>${collected.stdout}</stdout>`)
-                if (collected.stderr.length > 0) chunks.push(`<stderr>${collected.stderr}</stderr>`)
-                if (collected.truncated) {
-                    chunks.push(`<truncated>output exceeded ${this.limit} characters and was truncated</truncated>`)
-                }
+                const chunks = formatCollectedOutput(
+                    collected.stdout,
+                    collected.stderr,
+                    this.limit,
+                )
                 chunks.push(`<error>Killed Process: ${e.message}</error>`)
                 throw new Error(chunks.join(""))
             }

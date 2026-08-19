@@ -263,7 +263,9 @@ Run commands and scripts.
   single-line `exec` commands.
 - `timeoutSeconds`: Seconds to wait before aborting.
 - `limit`: Maximum output characters returned across stdout and stderr.
-  Excess output is truncated. Default: `100000`.
+  Excess output is truncated by retaining each affected channel's beginning
+  and end. Up to one quarter of a contested limit is reserved for stderr;
+  unused capacity is reassigned to the other channel. Default: `40000`.
 - `env`: Environment variables to set for the subprocess.
 
 #### `sqlite` tool keys

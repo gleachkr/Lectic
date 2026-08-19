@@ -200,25 +200,48 @@ describe("ExecTool (async)", () => {
     },
   );
 
-  it("defaults output limit to 100k characters", () => {
+  it("defaults output limit to 40k characters", () => {
     const tool = new ExecTool(
       { exec: "/bin/echo", name: "echo-default-limit" },
       "Interlocutor_Name",
     );
-    expect(tool.limit).toBe(100_000);
+    expect(tool.limit).toBe(40_000);
   });
 
-  it("truncates large output when limit is set", async () => {
+  it("retains the head and tail when output is truncated", async () => {
     const tool = new ExecTool(
       { exec: "/bin/echo", name: "echo-limited", limit: 5 },
       "Interlocutor_Name",
     );
     const res = await tool.call({ argv: ["abcdefghij"] });
     const out = texts(res).join("\n");
-    expect(out).toContain("<stdout>abcde</stdout>");
+    expect(out).toContain("<stdout>abcj\n</stdout>");
     expect(out).toContain(
-      "<truncated>output exceeded 5 characters and was truncated</truncated>",
+      '<truncated channel="stdout" originalCharacters="11"',
     );
+    expect(out).toContain('returnedCharacters="5"');
+    expect(out).toContain('omittedCharacters="6"');
+    expect(out).toContain('headCharacters="3" tailCharacters="2" />');
+  });
+
+  it("preserves stderr regardless of stream scheduling", async () => {
+    const script =
+      "#!/bin/bash\n" +
+      "printf 'abcdefghij'\n" +
+      "printf 'E!' >&2\n";
+    const tool = new ExecTool(
+      { exec: script, name: "limited-io", limit: 8 },
+      "Interlocutor_Name",
+    );
+
+    const res = await tool.call({ argv: [] });
+    const out = texts(res).join("\n");
+    expect(out).toContain("<stdout>abchij</stdout>");
+    expect(out).toContain("<stderr>E!</stderr>");
+    expect(out).toContain(
+      '<truncated channel="stdout" originalCharacters="10"',
+    );
+    expect(out).not.toContain('<truncated channel="stderr"');
   });
 
   it("sandbox with arguments wraps execution", async () => {

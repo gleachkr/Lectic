@@ -61,7 +61,9 @@ tools:
   or top-level sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
 - `limit`: Maximum number of output characters returned across stdout and
-  stderr. Output beyond this is truncated. Default: `100000`.
+  stderr. When output exceeds the limit, Lectic retains its beginning and end.
+  Stderr is reserved up to one quarter of a contested limit, and unused space
+  is reassigned to the other channel. Default: `40000`.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description or JSON Schema. When
   present, the tool takes named parameters (exposed as env vars). When
@@ -102,8 +104,15 @@ serialized inside the tool call results as XML tags like <stdout>,
 <stderr>, and <exitCode>.
 
 To avoid flooding context, exec output is capped by `limit` (default
-`100000` characters). When truncation happens, results include a
-`<truncated>...</truncated>` marker.
+`40000` characters). The limit is shared deterministically between stdout
+and stderr. Lectic reserves up to one quarter for stderr, then gives unused
+capacity to the other channel.
+
+When a channel is truncated, Lectic preserves both its beginning and end. It
+also emits a self-closing `<truncated>` element with the channel name, original
+and returned character and line counts, and the number of characters retained
+from the head and tail. This makes the omitted range explicit and keeps errors
+at the end of build logs visible.
 
 If a timeout occurs, Lectic kills the subprocess and throws an error that
 includes any partial stdout and stderr collected so far.
