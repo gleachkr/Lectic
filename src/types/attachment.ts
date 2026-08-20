@@ -3,7 +3,7 @@ import type { MessageLink } from "./link"
 import type { BunFile } from "bun"
 import { Glob } from "bun"
 import { MCPTool } from "../tools/mcp.ts"
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js"
+import type { ReadResourceResult } from "@modelcontextprotocol/client"
 import { detectMimetypeFromBytes } from "../parsing/mimetype"
 
 type MessagePartOpts = {

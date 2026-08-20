@@ -27,9 +27,8 @@ an interlocutor with a valid prompt and model configuration. See
 [Getting Started](../02_getting_started.qmd) for a full header
 example.
 
-You can connect to an MCP server in three ways: by running a local server as
-a command, or by connecting to a remote server over WebSockets or Streamable
-HTTP.
+You can connect to an MCP server in two ways: by running a local server as
+a command, or by connecting to a remote server over Streamable HTTP.
 
 ### Local MCP Server (`mcp_command`)
 
@@ -54,10 +53,8 @@ managed by Lectic for the duration of the session.
 
 ### Remote MCP Servers
 
-You can also connect to running MCP servers.
-
-- `mcp_ws`: The URL for a remote server using a WebSocket connection.
-- `mcp_shttp`: The URL for a remote server using Streamable HTTP.
+You can also connect to a running MCP server with `mcp_shttp`, the URL of
+its Streamable HTTP endpoint.
 
 For example:
 ```yaml
@@ -65,6 +62,34 @@ tools:
   - name: documentation_search 
     mcp_shttp: https://mcp.context7.com/mcp
 ```
+
+### Protocol negotiation
+
+Lectic supports the MCP `2026-07-28` revision and older 2025-era revisions.
+By default it uses automatic negotiation: it probes for the modern revision
+and falls back to the legacy initialization handshake when necessary.
+
+Use `mcp_protocol` to override this behavior:
+
+- `auto`: Negotiate the newest supported revision, with legacy fallback.
+- `legacy`: Skip the probe and use the 2025-era initialization handshake.
+- `2026-07-28`: Require that exact modern revision, without fallback.
+
+For example, to require a modern server:
+
+```yaml
+tools:
+  - name: documentation_search
+    mcp_shttp: https://mcp.context7.com/mcp
+    mcp_protocol: 2026-07-28
+    mcp_probe_timeout_ms: 5000
+```
+
+`mcp_probe_timeout_ms` is an optional positive integer that limits the
+negotiation probe. Local `mcp_command` servers default to a three-second
+probe timeout so a legacy server that ignores pre-initialization requests
+does not stall Lectic. Remote servers use the SDK request timeout unless
+you set this option.
 
 #### Authentication for Streamable HTTP
 
@@ -85,7 +110,7 @@ tools:
 If a server requires OAuth 2.0 and supports the MCP OAuth flow, Lectic will
 automatically handle the authorization process. When an unauthorized request
 is made, Lectic will open your default browser to complete the login, and
-then securely persist the resulting tokens in your data directory.
+then persist the resulting tokens in your data directory.
 
 ### Server Resources and Content References
 
@@ -107,7 +132,7 @@ under `exclude`.
 ```yaml
 tools:
   - name: github
-    mcp_ws: wss://example.org/mcp
+    mcp_shttp: https://example.org/mcp
     exclude:
       - dangerous_tool
       - low_value_tool
@@ -119,13 +144,14 @@ listing their names under `only`.
 ```yaml
 tools:
   - name: github
-    mcp_ws: wss://example.org/mcp
+    mcp_shttp: https://example.org/mcp
     only:
       - safe_tool
       - high_value_tool
 ```
 
-If you specify both options at once, you'll get exactly the tools from the `only` list that aren't also excluded.
+If you specify both options at once, you'll get exactly the tools from the
+`only` list that aren't also excluded.
 
 ## Safety and trust
 

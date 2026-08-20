@@ -293,11 +293,16 @@ Call another interlocutor as a tool.
 
 Connect to Model Context Protocol servers.
 
-- One of: `mcp_command`, `mcp_ws`, or `mcp_shttp`.
+- One of: `mcp_command` or `mcp_shttp`.
 - `args`: Arguments for `mcp_command`.
 - `env`: Environment variables for `mcp_command`.
 - `headers`: A map of custom headers for `mcp_shttp`. Values support
   `file:` and `exec:`.
+- `mcp_protocol`: Protocol negotiation mode. One of `auto` (the default),
+  `legacy`, or `2026-07-28`.
+- `mcp_probe_timeout_ms`: Optional positive integer timeout for protocol
+  negotiation. Local servers default to 3000 ms; remote servers use the SDK
+  request timeout when this is omitted.
 - `sandbox`: Optional wrapper command to isolate `mcp_command` servers.
   Single-line sandbox strings use the same tokenization rules as
   single-line `exec` commands.

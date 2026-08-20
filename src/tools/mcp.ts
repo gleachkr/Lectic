@@ -1,11 +1,15 @@
 import { parseAndExpandCommand } from "../utils/execHelpers";
 import { ToolCallResults, Tool, type ToolCallResult } from "../types/tool"
 import type { JSONSchema, ObjectSchema } from "../types/schema"
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport, getDefaultEnvironment } from "@modelcontextprotocol/sdk/client/stdio.js"
-import { WebSocketClientTransport} from "@modelcontextprotocol/sdk/client/websocket.js"
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import { ListRootsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
+import {
+    Client,
+    StreamableHTTPClientTransport,
+    type VersionNegotiationOptions,
+} from "@modelcontextprotocol/client"
+import {
+    StdioClientTransport,
+    getDefaultEnvironment,
+} from "@modelcontextprotocol/client/stdio"
 import { createFetchWithHeaderSources }
   from "../utils/fetchWithHeaders";
 import { isHookSpecList, type HookSpec } from "../types/hook";
@@ -25,9 +29,9 @@ type MCPSpecStreamableHTTP = {
     headers?: Record<string, string>
 }
 
-type MCPSpecWebsocket = {
-    mcp_ws: string
-}
+const MCP_PROTOCOLS = ["legacy", "auto", "2026-07-28"] as const
+
+type MCPProtocol = typeof MCP_PROTOCOLS[number]
 
 type MCPRoot = {
     uri: string
@@ -48,13 +52,15 @@ function validateRoot(root : MCPRoot) {
     }
 }
 
-type MCPSpec = (MCPSpecSTDIO | MCPSpecWebsocket | MCPSpecStreamableHTTP) & { 
+type MCPSpec = (MCPSpecSTDIO | MCPSpecStreamableHTTP) & {
     name?: string
     icon?: string
     roots?: MCPRoot[]
     exclude?: string[]
     only?: string[]
     hooks? : HookSpec[]
+    mcp_protocol?: MCPProtocol
+    mcp_probe_timeout_ms?: number
 }
 
 type MCPToolSpec = {
@@ -83,13 +89,6 @@ function isMCPSpecSTDIO(raw : unknown) : raw is MCPSpecSTDIO {
          )
 }
 
-function isMCPSpecWebsocket(raw : unknown) : raw is MCPSpecWebsocket {
-    return raw !== null &&
-        typeof raw === "object" &&
-        "mcp_ws" in raw && 
-        typeof raw.mcp_ws === "string" 
-}
-
 function isMCPSpecStreamableHttp(raw : unknown) : raw is MCPSpecStreamableHTTP {
     return raw !== null &&
         typeof raw === "object" &&
@@ -102,15 +101,46 @@ function isMCPSpecStreamableHttp(raw : unknown) : raw is MCPSpecStreamableHTTP {
         )
 }
 
+function isMCPProtocol(raw: unknown): raw is MCPProtocol {
+    return typeof raw === "string" &&
+        MCP_PROTOCOLS.includes(raw as MCPProtocol)
+}
+
 export function isMCPSpec(raw : unknown) : raw is MCPSpec {
-    return (isMCPSpecSTDIO(raw) || 
-            isMCPSpecWebsocket(raw) || 
-            isMCPSpecStreamableHttp(raw)) && 
+    return (isMCPSpecSTDIO(raw) || isMCPSpecStreamableHttp(raw)) &&
            ("name" in raw ? typeof raw.name === "string" : true) &&
            ("icon" in raw ? typeof raw.icon === "string" : true) &&
            ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true) &&
            ("only" in raw ? Array.isArray(raw.only) && raw.only.every(s => typeof s === "string") : true) &&
-           ("hooks" in raw ? isHookSpecList(raw.hooks) : true)
+           ("hooks" in raw ? isHookSpecList(raw.hooks) : true) &&
+           ("mcp_protocol" in raw
+               ? isMCPProtocol(raw.mcp_protocol)
+               : true) &&
+           ("mcp_probe_timeout_ms" in raw
+               ? typeof raw.mcp_probe_timeout_ms === "number" &&
+                 Number.isSafeInteger(raw.mcp_probe_timeout_ms) &&
+                 raw.mcp_probe_timeout_ms > 0
+               : true)
+}
+
+export function mcpNegotiationOptions(
+    spec: MCPSpec,
+): VersionNegotiationOptions {
+    const configured = spec.mcp_protocol ?? "auto"
+    const mode: VersionNegotiationOptions["mode"] =
+        configured === "2026-07-28"
+            ? { pin: configured }
+            : configured
+
+    if (mode === "legacy") return { mode }
+
+    const timeoutMs = spec.mcp_probe_timeout_ms ??
+        ("mcp_command" in spec ? 3000 : undefined)
+
+    return {
+        mode,
+        ...(timeoutMs === undefined ? {} : { probe: { timeoutMs } }),
+    }
 }
 
 function isTextContent(raw : unknown) : raw is { type: "text", text: string } {
@@ -313,13 +343,11 @@ export class MCPTool extends Tool {
 
     static async fromSpec(spec : MCPSpec) : Promise<Tool[]> {
 
-        const ident = [spec.roots, "mcp_sse" in spec 
-            ? spec.mcp_sse
-            : "mcp_shttp" in spec
+        const negotiation = mcpNegotiationOptions(spec)
+        const transportIdent = "mcp_shttp" in spec
             ? [spec.mcp_shttp, spec.headers]
-            : "mcp_ws" in spec
-            ? spec.mcp_ws
-            : [spec.mcp_command, spec.args, spec.env, spec.sandbox]]
+            : [spec.mcp_command, spec.args, spec.env, spec.sandbox]
+        const ident = [spec.roots, negotiation, transportIdent]
 
         let prefix
         if (spec.name) {
@@ -347,7 +375,8 @@ export class MCPTool extends Tool {
             }, {
                 capabilities: {
                     ...spec.roots ? {roots: {}} : {}
-                }
+                },
+                versionNegotiation: negotiation,
             })
 
             MCPTool.clientByHash[hash] = client
@@ -376,8 +405,6 @@ export class MCPTool extends Tool {
                     })
                 }
             }
-            else if ("mcp_ws" in spec)
-                transport = new WebSocketClientTransport(new URL(spec.mcp_ws))
             else {
                 const callbackPort = 8090;
                 const callbackUrl = `http://localhost:${callbackPort}/callback`;
@@ -404,12 +431,11 @@ export class MCPTool extends Tool {
                 })
             }
 
-            if (spec.roots) {
-                spec.roots.map(validateRoot)
-                client.setRequestHandler(ListRootsRequestSchema, (_request, _extra) => {
-                    return {
-                        roots: spec.roots,
-                    }
+            const roots = spec.roots
+            if (roots) {
+                roots.map(validateRoot)
+                client.setRequestHandler("roots/list", (_request, _extra) => {
+                    return { roots }
                 })
             }
 

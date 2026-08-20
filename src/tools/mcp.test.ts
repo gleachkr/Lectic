@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "bun:test";
-import { MCPTool } from "./mcp";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import {
+  isMCPSpec,
+  mcpNegotiationOptions,
+  MCPTool,
+} from "./mcp";
+import { Client } from "@modelcontextprotocol/client";
 
 // Save originals to restore after tests
 const origConnect = Client.prototype.connect as any;
@@ -45,6 +49,51 @@ afterAll(() => {
 beforeEach(() => {
   resetStatics();
   (MCPTool as any).count = 0;
+});
+
+describe("MCP protocol negotiation", () => {
+  it("defaults remote servers to automatic negotiation", () => {
+    expect(mcpNegotiationOptions({
+      mcp_shttp: "http://example.com",
+    })).toEqual({ mode: "auto" });
+  });
+
+  it("bounds the default stdio probe timeout", () => {
+    expect(mcpNegotiationOptions({
+      mcp_command: "server",
+    })).toEqual({
+      mode: "auto",
+      probe: { timeoutMs: 3000 },
+    });
+  });
+
+  it("supports legacy mode and a pinned modern revision", () => {
+    expect(mcpNegotiationOptions({
+      mcp_command: "server",
+      mcp_protocol: "legacy",
+    })).toEqual({ mode: "legacy" });
+
+    expect(mcpNegotiationOptions({
+      mcp_shttp: "http://example.com",
+      mcp_protocol: "2026-07-28",
+      mcp_probe_timeout_ms: 1200,
+    })).toEqual({
+      mode: { pin: "2026-07-28" },
+      probe: { timeoutMs: 1200 },
+    });
+  });
+
+  it("rejects removed and invalid protocol settings", () => {
+    expect(isMCPSpec({ mcp_ws: "wss://example.com" })).toBeFalse();
+    expect(isMCPSpec({
+      mcp_shttp: "http://example.com",
+      mcp_protocol: "future",
+    })).toBeFalse();
+    expect(isMCPSpec({
+      mcp_command: "server",
+      mcp_probe_timeout_ms: 0,
+    })).toBeFalse();
+  });
 });
 
 describe("MCPTool.fromSpec registration and namespacing", () => {
@@ -107,7 +156,26 @@ describe("MCPTool.fromSpec registration and namespacing", () => {
   });
 });
 
-describe("Identity keys include roots and sandbox", () => {
+describe("Identity keys include roots, sandbox, and negotiation", () => {
+  it("different protocol modes use different clients", async () => {
+    const automatic = await MCPTool.fromSpec({
+      mcp_shttp: "http://example.com",
+      name: "automatic",
+    } as any);
+    const legacy = await MCPTool.fromSpec({
+      mcp_shttp: "http://example.com",
+      name: "legacy",
+      mcp_protocol: "legacy",
+    } as any);
+    const automaticClient = (automatic.find(
+      (t: any) => t.name === "automatic_search"
+    ) as any).client;
+    const legacyClient = (legacy.find(
+      (t: any) => t.name === "legacy_search"
+    ) as any).client;
+    expect(automaticClient).not.toBe(legacyClient);
+  });
+
   it("different roots => different clients for same URL", async () => {
     const a = await MCPTool.fromSpec({
       mcp_shttp: "http://example.com",

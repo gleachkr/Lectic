@@ -1,9 +1,13 @@
 import { join } from "path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { lecticDataDir } from "../utils/xdg";
-import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
+import {
+    type OAuthClientInformationMixed,
+    type OAuthClientMetadata,
+    type OAuthClientProvider,
+    type OAuthTokens,
+} from "@modelcontextprotocol/client"
 import open from "open";
-import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 
 export class FilePersistedOAuthClientProvider implements OAuthClientProvider {
     private _clientInformation?: OAuthClientInformationMixed;
