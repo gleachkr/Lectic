@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fbc5b4e29cc3cf7a21410927c5af7b66.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-03a0d00fd5ba774dd8e50f606f192499.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -494,7 +494,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>usage</code>: A string with instructions for the LLM. It also accepts <code>file:</code> and <code>exec:</code> sources. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for semantics.</li>
 <li><code>sandbox</code>: A command string to wrap execution (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>). See safety below. Overrides any interlocutor-level or top-level sandbox.</li>
 <li><code>timeoutSeconds</code>: Seconds to wait before aborting a long‑running call.</li>
-<li><code>limit</code>: Maximum number of output characters returned across stdout and stderr. Output beyond this is truncated. Default: <code>100000</code>.</li>
+<li><code>limit</code>: Maximum number of output characters returned across stdout and stderr. When output exceeds the limit, Lectic retains its beginning and end. Stderr is reserved up to one quarter of a contested limit, and unused space is reassigned to the other channel. Default: <code>40000</code>.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
 <li><code>schema</code>: A map of parameter name → description or JSON Schema. When present, the tool takes named parameters (exposed as env vars). When absent, the tool instead takes a required <code>argv</code> array of strings.</li>
 </ul>
@@ -521,7 +521,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="stdout-stderr-and-exit-codes" class="level3">
 <h3 class="anchored" data-anchor-id="stdout-stderr-and-exit-codes">Stdout, stderr, and exit codes</h3>
 <p>Lectic captures stdout and stderr separately and returns both to the model. It also always includes the numeric exit code. You will see these serialized inside the tool call results as XML tags like <stdout>, <stderr>, and <exitcode>.</exitcode></stderr></stdout></p>
-<p>To avoid flooding context, exec output is capped by <code>limit</code> (default <code>100000</code> characters). When truncation happens, results include a <code>&lt;truncated&gt;...&lt;/truncated&gt;</code> marker.</p>
+<p>To avoid flooding context, exec output is capped by <code>limit</code> (default <code>40000</code> characters). The limit is shared deterministically between stdout and stderr. Lectic reserves up to one quarter for stderr, then gives unused capacity to the other channel.</p>
+<p>When a channel is truncated, Lectic preserves both its beginning and end. It also emits a self-closing <code>&lt;truncated&gt;</code> element with the channel name, original and returned character and line counts, and the number of characters retained from the head and tail. This makes the omitted range explicit and keeps errors at the end of build logs visible.</p>
 <p>If a timeout occurs, Lectic kills the subprocess and throws an error that includes any partial stdout and stderr collected so far.</p>
 </section>
 <section id="named-parameters-with-schema" class="level3">

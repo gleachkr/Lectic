@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fbc5b4e29cc3cf7a21410927c5af7b66.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-03a0d00fd5ba774dd8e50f606f192499.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -434,6 +434,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#local-mcp-server-mcp_command" id="toc-local-mcp-server-mcp_command" class="nav-link" data-scroll-target="#local-mcp-server-mcp_command">Local MCP Server (<code>mcp_command</code>)</a></li>
   <li><a href="#remote-mcp-servers" id="toc-remote-mcp-servers" class="nav-link" data-scroll-target="#remote-mcp-servers">Remote MCP Servers</a></li>
+  <li><a href="#protocol-negotiation" id="toc-protocol-negotiation" class="nav-link" data-scroll-target="#protocol-negotiation">Protocol negotiation</a></li>
   <li><a href="#server-resources-and-content-references" id="toc-server-resources-and-content-references" class="nav-link" data-scroll-target="#server-resources-and-content-references">Server Resources and Content References</a></li>
   <li><a href="#blacklisting-and-whitelisting-server-tools" id="toc-blacklisting-and-whitelisting-server-tools" class="nav-link" data-scroll-target="#blacklisting-and-whitelisting-server-tools">Blacklisting and whitelisting server tools</a></li>
   </ul></li>
@@ -468,7 +469,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="configuration" class="level2">
 <h2 class="anchored" data-anchor-id="configuration">Configuration</h2>
 <p>Note: The snippets below show only the tool definition. They assume you have an interlocutor with a valid prompt and model configuration. See <a href="../02_getting_started.html">Getting Started</a> for a full header example.</p>
-<p>You can connect to an MCP server in three ways: by running a local server as a command, or by connecting to a remote server over WebSockets or Streamable HTTP.</p>
+<p>You can connect to an MCP server in two ways: by running a local server as a command, or by connecting to a remote server over Streamable HTTP.</p>
 <section id="local-mcp-server-mcp_command" class="level3">
 <h3 class="anchored" data-anchor-id="local-mcp-server-mcp_command">Local MCP Server (<code>mcp_command</code>)</h3>
 <p>This is the most common way to run an MCP server. You provide the command to start the server, and Lectic manages its lifecycle.</p>
@@ -481,30 +482,47 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">env</span><span class="kw">:</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">BRAVE_API_KEY</span><span class="kw">:</span><span class="at"> </span><span class="st">"your_key_here"</span></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">roots</span><span class="kw">:</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> /home/user/research-docs/</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">uri</span><span class="kw">:</span><span class="at"> file:///home/user/research-docs/</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">name</span><span class="kw">:</span><span class="at"> research documents</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Local MCP servers are started on demand for the active interlocutor and managed by Lectic for the duration of the session.</p>
 </section>
 <section id="remote-mcp-servers" class="level3">
 <h3 class="anchored" data-anchor-id="remote-mcp-servers">Remote MCP Servers</h3>
-<p>You can also connect to running MCP servers.</p>
-<ul>
-<li><code>mcp_ws</code>: The URL for a remote server using a WebSocket connection.</li>
-<li><code>mcp_shttp</code>: The URL for a remote server using Streamable HTTP.</li>
-</ul>
+<p>You can also connect to a running MCP server with <code>mcp_shttp</code>, the URL of its Streamable HTTP endpoint.</p>
 <p>For example:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> documentation_search </span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://mcp.context7.com/mcp</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="protocol-negotiation" class="level3">
+<h3 class="anchored" data-anchor-id="protocol-negotiation">Protocol negotiation</h3>
+<p>Lectic supports the MCP <code>2026-07-28</code> revision and older 2025-era revisions. By default it uses automatic negotiation: it probes for the modern revision and falls back to the legacy initialization handshake when necessary.</p>
+<p>Use <code>mcp_protocol</code> to override this behavior:</p>
+<ul>
+<li><code>auto</code>: Negotiate the newest supported revision, with legacy fallback.</li>
+<li><code>legacy</code>: Skip the probe and use the 2025-era initialization handshake.</li>
+<li><code>2026-07-28</code>: Require that exact modern revision, without fallback.</li>
+</ul>
+<p>For example, to require a modern server:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> documentation_search</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://mcp.context7.com/mcp</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_protocol</span><span class="kw">:</span><span class="at"> 2026-07-28</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_probe_timeout_ms</span><span class="kw">:</span><span class="at"> </span><span class="dv">5000</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><code>mcp_probe_timeout_ms</code> is an optional positive integer that limits the negotiation probe. Local <code>mcp_command</code> servers default to a three-second probe timeout so a legacy server that ignores pre-initialization requests does not stall Lectic. Remote servers use the SDK request timeout unless you set this option.</p>
 <section id="authentication-for-streamable-http" class="level4">
 <h4 class="anchored" data-anchor-id="authentication-for-streamable-http">Authentication for Streamable HTTP</h4>
 <p>The <code>mcp_shttp</code> transport supports both custom headers and dynamic OAuth 2.0.</p>
 <p>Custom headers can be provided using the <code>headers</code> key. Header values support <code>file:</code> and <code>exec:</code> sources, which is useful for securely loading tokens or computing authentication headers on the fly.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github_mcp</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://api.githubcopilot.com/mcp</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">headers</span><span class="kw">:</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">Authorization</span><span class="kw">:</span><span class="at"> exec:bash -c 'echo "Bearer $(pass github_token)"'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>If a server requires OAuth 2.0 and supports the MCP OAuth flow, Lectic will automatically handle the authorization process. When an unauthorized request is made, Lectic will open your default browser to complete the login, and then securely persist the resulting tokens in your data directory.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github_mcp</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://api.githubcopilot.com/mcp</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">headers</span><span class="kw">:</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">Authorization</span><span class="kw">:</span><span class="at"> exec:bash -c 'echo "Bearer $(pass github_token)"'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>If a server requires OAuth 2.0 and supports the MCP OAuth flow, Lectic will automatically handle the authorization process. When an unauthorized request is made, Lectic will open your default browser to complete the login, and then persist the resulting tokens in your data directory.</p>
+<p>Lectic starts an IPv4 loopback callback listener on an available ephemeral port before opening the browser. The authorization attempt waits up to five minutes for a response. Closing the browser without completing authorization will therefore produce a timeout rather than leaving Lectic waiting forever.</p>
+<p>Lectic validates the callback’s OAuth <code>state</code> before accepting it and passes the authorization-response <code>iss</code> value to the MCP SDK for RFC 9207 issuer validation. It also persists OAuth discovery data and issuer bindings so the SDK can keep credentials isolated by authorization server. Credential files are also separated by MCP server URL and configured headers.</p>
+<p>The OAuth state file is ordinary JSON, not encrypted storage. On platforms with POSIX file permissions, Lectic creates it with mode <code>0600</code> and updates it atomically. Protect your Lectic data directory and account accordingly.</p>
 </section>
 </section>
 <section id="server-resources-and-content-references" class="level3">
@@ -512,23 +530,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>If you give an MCP tool a <code>name</code> (e.g., <code>name: brave</code>), you can access any <a href="https://modelcontextprotocol.io/docs/concepts/resources">resources</a> it provides using a special content reference syntax. The scheme is the server’s name plus the resource type.</p>
 <p>For example, to access a <code>repo</code> resource from a server named <code>github</code>: <code>[README](github+repo://gleachkr/Lectic/contents/README.md)</code></p>
 <p>The LLM is also given a tool to list the available resources from the server.</p>
+<p>MCP tool responses may contain both ordinary content blocks and structured JSON output. Lectic preserves both forms when a server returns them.</p>
 </section>
 <section id="blacklisting-and-whitelisting-server-tools" class="level3">
 <h3 class="anchored" data-anchor-id="blacklisting-and-whitelisting-server-tools">Blacklisting and whitelisting server tools</h3>
 <p>You can hide specific tools that a server exposes by listing their names under <code>exclude</code>.</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_ws</span><span class="kw">:</span><span class="at"> wss://example.org/mcp</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exclude</span><span class="kw">:</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> dangerous_tool</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> low_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>You can also limit access to a specific set of tools that a server exposes by listing their names under <code>only</code>.</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_ws</span><span class="kw">:</span><span class="at"> wss://example.org/mcp</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">only</span><span class="kw">:</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> safe_tool</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> high_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://example.org/mcp</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">exclude</span><span class="kw">:</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> dangerous_tool</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> low_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>You can also limit access to a specific set of tools that a server exposes by listing their names under <code>only</code>.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tools</span><span class="kw">:</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> github</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">mcp_shttp</span><span class="kw">:</span><span class="at"> https://example.org/mcp</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">only</span><span class="kw">:</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> safe_tool</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> high_value_tool</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>If you specify both options at once, you’ll get exactly the tools from the <code>only</code> list that aren’t also excluded.</p>
 </section>
 </section>

@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-fbc5b4e29cc3cf7a21410927c5af7b66.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-03a0d00fd5ba774dd8e50f606f192499.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -616,7 +616,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>schema</code>: A map of parameter name → description or JSON Schema. When present, the tool takes named parameters (exposed as env vars). When absent, the tool takes a required <code>argv</code> array of strings.</li>
 <li><code>sandbox</code>: Command string to wrap execution. Arguments supported. Single-line sandbox strings use the same tokenization rules as single-line <code>exec</code> commands.</li>
 <li><code>timeoutSeconds</code>: Seconds to wait before aborting.</li>
-<li><code>limit</code>: Maximum output characters returned across stdout and stderr. Excess output is truncated. Default: <code>100000</code>.</li>
+<li><code>limit</code>: Maximum output characters returned across stdout and stderr. Excess output is truncated by retaining each affected channel’s beginning and end. Up to one quarter of a contested limit is reserved for stderr; unused capacity is reassigned to the other channel. Default: <code>40000</code>.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
 </ul>
 </section>
@@ -644,10 +644,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="anchored" data-anchor-id="mcp-tool-keys">MCP tool keys</h4>
 <p>Connect to Model Context Protocol servers.</p>
 <ul>
-<li>One of: <code>mcp_command</code>, <code>mcp_ws</code>, or <code>mcp_shttp</code>.</li>
+<li>Exactly one of: <code>mcp_command</code> or <code>mcp_shttp</code>.</li>
 <li><code>args</code>: Arguments for <code>mcp_command</code>.</li>
 <li><code>env</code>: Environment variables for <code>mcp_command</code>.</li>
 <li><code>headers</code>: A map of custom headers for <code>mcp_shttp</code>. Values support <code>file:</code> and <code>exec:</code>.</li>
+<li><code>mcp_protocol</code>: Protocol negotiation mode. One of <code>auto</code> (the default), <code>legacy</code>, or <code>2026-07-28</code>.</li>
+<li><code>mcp_probe_timeout_ms</code>: Optional positive integer timeout for protocol negotiation. Local servers default to 3000 ms; remote servers use the SDK request timeout when this is omitted.</li>
 <li><code>sandbox</code>: Optional wrapper command to isolate <code>mcp_command</code> servers. Single-line sandbox strings use the same tokenization rules as single-line <code>exec</code> commands.</li>
 <li><code>roots</code>: Optional list of root objects for file access (each with <code>uri</code> and optional <code>name</code>).</li>
 <li><code>exclude</code>: Optional list of server tool names to blacklist.</li>

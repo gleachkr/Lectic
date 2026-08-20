@@ -5109,7 +5109,10 @@ Run commands and scripts.
   single-line `exec` commands.
 - `timeoutSeconds`: Seconds to wait before aborting.
 - `limit`: Maximum output characters returned across stdout and stderr.
-  Excess output is truncated. Default: `100000`.
+  Excess output is truncated by retaining each affected channel’s
+  beginning and end. Up to one quarter of a contested limit is reserved
+  for stderr; unused capacity is reassigned to the other channel.
+  Default: `40000`.
 - `env`: Environment variables to set for the subprocess.
 
 #### `sqlite` tool keys
@@ -5137,11 +5140,16 @@ Call another interlocutor as a tool.
 
 Connect to Model Context Protocol servers.
 
-- One of: `mcp_command`, `mcp_ws`, or `mcp_shttp`.
+- Exactly one of: `mcp_command` or `mcp_shttp`.
 - `args`: Arguments for `mcp_command`.
 - `env`: Environment variables for `mcp_command`.
 - `headers`: A map of custom headers for `mcp_shttp`. Values support
   `file:` and `exec:`.
+- `mcp_protocol`: Protocol negotiation mode. One of `auto` (the
+  default), `legacy`, or `2026-07-28`.
+- `mcp_probe_timeout_ms`: Optional positive integer timeout for protocol
+  negotiation. Local servers default to 3000 ms; remote servers use the
+  SDK request timeout when this is omitted.
 - `sandbox`: Optional wrapper command to isolate `mcp_command` servers.
   Single-line sandbox strings use the same tokenization rules as
   single-line `exec` commands.
@@ -6273,7 +6281,10 @@ tools:
   Overrides any interlocutor-level or top-level sandbox.
 - `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
 - `limit`: Maximum number of output characters returned across stdout
-  and stderr. Output beyond this is truncated. Default: `100000`.
+  and stderr. When output exceeds the limit, Lectic retains its
+  beginning and end. Stderr is reserved up to one quarter of a contested
+  limit, and unused space is reassigned to the other channel. Default:
+  `40000`.
 - `env`: Environment variables to set for the subprocess.
 - `schema`: A map of parameter name → description or JSON Schema. When
   present, the tool takes named parameters (exposed as env vars). When
@@ -6314,8 +6325,15 @@ model. It also always includes the numeric exit code. You will see these
 serialized inside the tool call results as XML tags like , , and .
 
 To avoid flooding context, exec output is capped by `limit` (default
-`100000` characters). When truncation happens, results include a
-`<truncated>...</truncated>` marker.
+`40000` characters). The limit is shared deterministically between
+stdout and stderr. Lectic reserves up to one quarter for stderr, then
+gives unused capacity to the other channel.
+
+When a channel is truncated, Lectic preserves both its beginning and
+end. It also emits a self-closing `<truncated>` element with the channel
+name, original and returned character and line counts, and the number of
+characters retained from the head and tail. This makes the omitted range
+explicit and keeps errors at the end of build logs visible.
 
 If a timeout occurs, Lectic kills the subprocess and throws an error
 that includes any partial stdout and stderr collected so far.
@@ -6649,9 +6667,8 @@ Note: The snippets below show only the tool definition. They assume you
 have an interlocutor with a valid prompt and model configuration. See
 [Getting Started](../02_getting_started.qmd) for a full header example.
 
-You can connect to an MCP server in three ways: by running a local
-server as a command, or by connecting to a remote server over WebSockets
-or Streamable HTTP.
+You can connect to an MCP server in two ways: by running a local server
+as a command, or by connecting to a remote server over Streamable HTTP.
 
 ### Local MCP Server (`mcp_command`)
 
@@ -6668,7 +6685,8 @@ tools:
     env:
       BRAVE_API_KEY: "your_key_here"
     roots:
-      - /home/user/research-docs/
+      - uri: file:///home/user/research-docs/
+        name: research documents
 ```
 
 Local MCP servers are started on demand for the active interlocutor and
@@ -6676,10 +6694,8 @@ managed by Lectic for the duration of the session.
 
 ### Remote MCP Servers
 
-You can also connect to running MCP servers.
-
-- `mcp_ws`: The URL for a remote server using a WebSocket connection.
-- `mcp_shttp`: The URL for a remote server using Streamable HTTP.
+You can also connect to a running MCP server with `mcp_shttp`, the URL
+of its Streamable HTTP endpoint.
 
 For example:
 
@@ -6688,6 +6704,36 @@ tools:
   - name: documentation_search 
     mcp_shttp: https://mcp.context7.com/mcp
 ```
+
+### Protocol negotiation
+
+Lectic supports the MCP `2026-07-28` revision and older 2025-era
+revisions. By default it uses automatic negotiation: it probes for the
+modern revision and falls back to the legacy initialization handshake
+when necessary.
+
+Use `mcp_protocol` to override this behavior:
+
+- `auto`: Negotiate the newest supported revision, with legacy fallback.
+- `legacy`: Skip the probe and use the 2025-era initialization
+  handshake.
+- `2026-07-28`: Require that exact modern revision, without fallback.
+
+For example, to require a modern server:
+
+``` yaml
+tools:
+  - name: documentation_search
+    mcp_shttp: https://mcp.context7.com/mcp
+    mcp_protocol: 2026-07-28
+    mcp_probe_timeout_ms: 5000
+```
+
+`mcp_probe_timeout_ms` is an optional positive integer that limits the
+negotiation probe. Local `mcp_command` servers default to a three-second
+probe timeout so a legacy server that ignores pre-initialization
+requests does not stall Lectic. Remote servers use the SDK request
+timeout unless you set this option.
 
 #### Authentication for Streamable HTTP
 
@@ -6709,8 +6755,26 @@ tools:
 If a server requires OAuth 2.0 and supports the MCP OAuth flow, Lectic
 will automatically handle the authorization process. When an
 unauthorized request is made, Lectic will open your default browser to
-complete the login, and then securely persist the resulting tokens in
-your data directory.
+complete the login, and then persist the resulting tokens in your data
+directory.
+
+Lectic starts an IPv4 loopback callback listener on an available
+ephemeral port before opening the browser. The authorization attempt
+waits up to five minutes for a response. Closing the browser without
+completing authorization will therefore produce a timeout rather than
+leaving Lectic waiting forever.
+
+Lectic validates the callback’s OAuth `state` before accepting it and
+passes the authorization-response `iss` value to the MCP SDK for RFC
+9207 issuer validation. It also persists OAuth discovery data and issuer
+bindings so the SDK can keep credentials isolated by authorization
+server. Credential files are also separated by MCP server URL and
+configured headers.
+
+The OAuth state file is ordinary JSON, not encrypted storage. On
+platforms with POSIX file permissions, Lectic creates it with mode
+`0600` and updates it atomically. Protect your Lectic data directory and
+account accordingly.
 
 ### Server Resources and Content References
 
@@ -6725,6 +6789,10 @@ For example, to access a `repo` resource from a server named `github`:
 The LLM is also given a tool to list the available resources from the
 server.
 
+MCP tool responses may contain both ordinary content blocks and
+structured JSON output. Lectic preserves both forms when a server
+returns them.
+
 ### Blacklisting and whitelisting server tools
 
 You can hide specific tools that a server exposes by listing their names
@@ -6733,7 +6801,7 @@ under `exclude`.
 ``` yaml
 tools:
   - name: github
-    mcp_ws: wss://example.org/mcp
+    mcp_shttp: https://example.org/mcp
     exclude:
       - dangerous_tool
       - low_value_tool
@@ -6745,7 +6813,7 @@ exposes by listing their names under `only`.
 ``` yaml
 tools:
   - name: github
-    mcp_ws: wss://example.org/mcp
+    mcp_shttp: https://example.org/mcp
     only:
       - safe_tool
       - high_value_tool
