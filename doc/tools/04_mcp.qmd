@@ -45,7 +45,8 @@ tools:
     env:
       BRAVE_API_KEY: "your_key_here"
     roots:
-      - /home/user/research-docs/
+      - uri: file:///home/user/research-docs/
+        name: research documents
 ```
 
 Local MCP servers are started on demand for the active interlocutor and
@@ -112,6 +113,21 @@ automatically handle the authorization process. When an unauthorized request
 is made, Lectic will open your default browser to complete the login, and
 then persist the resulting tokens in your data directory.
 
+Lectic starts an IPv4 loopback callback listener on an available ephemeral
+port before opening the browser. The authorization attempt waits up to five
+minutes for a response. Closing the browser without completing authorization
+will therefore produce a timeout rather than leaving Lectic waiting forever.
+
+Lectic validates the callback's OAuth `state` before accepting it and passes
+the authorization-response `iss` value to the MCP SDK for RFC 9207 issuer
+validation. It also persists OAuth discovery data and issuer bindings so the
+SDK can keep credentials isolated by authorization server. Credential files
+are also separated by MCP server URL and configured headers.
+
+The OAuth state file is ordinary JSON, not encrypted storage. On platforms
+with POSIX file permissions, Lectic creates it with mode `0600` and updates it
+atomically. Protect your Lectic data directory and account accordingly.
+
 ### Server Resources and Content References
 
 If you give an MCP tool a `name` (e.g., `name: brave`), you can access any
@@ -123,6 +139,9 @@ For example, to access a `repo` resource from a server named `github`:
 `[README](github+repo://gleachkr/Lectic/contents/README.md)`
 
 The LLM is also given a tool to list the available resources from the server.
+
+MCP tool responses may contain both ordinary content blocks and structured
+JSON output. Lectic preserves both forms when a server returns them.
 
 ### Blacklisting and whitelisting server tools
 
@@ -167,8 +186,9 @@ LLM, not attacks from a hostile server.
 
 ### Confirmation via hooks
 
-Just like with the `exec` tool, you can use the `tool_use_pre` hook to implement
-confirmation dialogs or logic. See [Hooks](../automation/02_hooks.qmd) for examples.
+Just like with the `exec` tool, you can use the `tool_use_pre` hook to
+implement confirmation dialogs or logic. See
+[Hooks](../automation/02_hooks.qmd) for examples.
 
 ### Sandboxing (`sandbox`)
 

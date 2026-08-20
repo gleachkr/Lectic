@@ -293,7 +293,7 @@ Call another interlocutor as a tool.
 
 Connect to Model Context Protocol servers.
 
-- One of: `mcp_command` or `mcp_shttp`.
+- Exactly one of: `mcp_command` or `mcp_shttp`.
 - `args`: Arguments for `mcp_command`.
 - `env`: Environment variables for `mcp_command`.
 - `headers`: A map of custom headers for `mcp_shttp`. Values support

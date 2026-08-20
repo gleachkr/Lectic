@@ -4,6 +4,7 @@ import type { JSONSchema, ObjectSchema } from "../types/schema"
 import {
     Client,
     StreamableHTTPClientTransport,
+    UnauthorizedError,
     type VersionNegotiationOptions,
 } from "@modelcontextprotocol/client"
 import {
@@ -13,8 +14,11 @@ import {
 import { createFetchWithHeaderSources }
   from "../utils/fetchWithHeaders";
 import { isHookSpecList, type HookSpec } from "../types/hook";
-import { FilePersistedOAuthClientProvider, waitForOAuthCallback }
-  from "./mcpOAuth";
+import {
+    FilePersistedOAuthClientProvider,
+    startOAuthCallbackListener,
+    type OAuthCallbackListener,
+} from "./mcpOAuth";
 import { version as lecticVersion } from "../../package.json";
 
 type MCPSpecSTDIO = {
@@ -38,17 +42,29 @@ type MCPRoot = {
     name?: string
 }
 
-function validateRoot(root : MCPRoot) {
+function isMCPRoot(raw: unknown): raw is MCPRoot {
+    if (
+        raw === null ||
+        typeof raw !== "object" ||
+        !("uri" in raw) ||
+        typeof raw.uri !== "string" ||
+        ("name" in raw && typeof raw.name !== "string")
+    ) {
+        return false
+    }
+
     try {
-        if ((new URL(root.uri)).protocol !== "file:") {
-            throw new Error("Root URIs must be of the form 'file://…'")
-        }
-    } catch (e : unknown) {
-        if (e instanceof Error) {
-            throw new Error(`Something went wrong with the root ${JSON.stringify(root)}. Here's the Error: ${e.message}`)
-        } else {
-            throw new Error(`Something went wrong with the root ${JSON.stringify(root)}.`)
-        }
+        return new URL(raw.uri).protocol === "file:"
+    } catch {
+        return false
+    }
+}
+
+function validateRoot(root: MCPRoot): void {
+    if (!isMCPRoot(root)) {
+        throw new Error(
+            "MCP roots must contain a file: URI and an optional name",
+        )
     }
 }
 
@@ -107,12 +123,20 @@ function isMCPProtocol(raw: unknown): raw is MCPProtocol {
 }
 
 export function isMCPSpec(raw : unknown) : raw is MCPSpec {
-    return (isMCPSpecSTDIO(raw) || isMCPSpecStreamableHttp(raw)) &&
-           ("name" in raw ? typeof raw.name === "string" : true) &&
+    const isStdio = isMCPSpecSTDIO(raw)
+    const isHttp = isMCPSpecStreamableHttp(raw)
+    if (isStdio === isHttp) return false
+    if (raw === null || typeof raw !== "object") return false
+
+    return ("name" in raw ? typeof raw.name === "string" : true) &&
            ("icon" in raw ? typeof raw.icon === "string" : true) &&
            ("exclude" in raw ? Array.isArray(raw.exclude) && raw.exclude.every(s => typeof s === "string") : true) &&
            ("only" in raw ? Array.isArray(raw.only) && raw.only.every(s => typeof s === "string") : true) &&
            ("hooks" in raw ? isHookSpecList(raw.hooks) : true) &&
+           ("roots" in raw
+               ? Array.isArray(raw.roots) &&
+                 raw.roots.every(isMCPRoot)
+               : true) &&
            ("mcp_protocol" in raw
                ? isMCPProtocol(raw.mcp_protocol)
                : true) &&
@@ -121,6 +145,17 @@ export function isMCPSpec(raw : unknown) : raw is MCPSpec {
                  Number.isSafeInteger(raw.mcp_probe_timeout_ms) &&
                  raw.mcp_probe_timeout_ms > 0
                : true)
+}
+
+function mcpOAuthStorageId(
+    spec: MCPSpecStreamableHTTP,
+): string {
+    if (!spec.headers) return spec.mcp_shttp
+
+    const headers = Object.entries(spec.headers)
+        .map(([name, value]) => [name.toLowerCase(), value])
+        .sort(([left], [right]) => left.localeCompare(right))
+    return JSON.stringify([spec.mcp_shttp, headers])
 }
 
 export function mcpNegotiationOptions(
@@ -306,10 +341,17 @@ export class MCPTool extends Tool {
 
         const response = await this.client.callTool({ name: this.server_tool_name, arguments: args })
         const content = response.content
+        const structuredContent = response.structuredContent
 
-        if (!Array.isArray(content) || content.length === 0) {
-            throw Error(`<error>Unexpected MCP server tool call response: ${JSON.stringify(content)}</error>`)
-        } 
+        if (
+            !Array.isArray(content) ||
+            (content.length === 0 && structuredContent === undefined)
+        ) {
+            throw Error(
+                "<error>Unexpected MCP server tool call response: " +
+                `${JSON.stringify(response)}</error>`,
+            )
+        }
 
         const results = [] as ToolCallResult[]
         for (const block of content) {
@@ -337,6 +379,14 @@ export class MCPTool extends Tool {
                 throw Error(`Unsupported content block type! Got ${JSON.stringify(content)}`)
             }
         }
+
+        if (structuredContent !== undefined) {
+            results.push(...ToolCallResults(
+                JSON.stringify(structuredContent),
+                "application/json",
+            ))
+        }
+
         return results
     }
 
@@ -369,6 +419,13 @@ export class MCPTool extends Tool {
                 throw Error(`MCP server name ${prefix} is duplicated. Servers need distinct names.`)
             }
         } else {
+            if (prefix in MCPTool.clientByName) {
+                throw Error(
+                    `MCP server name ${prefix} is duplicated. ` +
+                    "Servers need distinct names.",
+                )
+            }
+
             client = new Client({
                 name: "Lectic",
                 version: lecticVersion,
@@ -379,80 +436,143 @@ export class MCPTool extends Tool {
                 versionNegotiation: negotiation,
             })
 
-            MCPTool.clientByHash[hash] = client
-            MCPTool.clientByName[prefix] = client
-
             let transport
-            if ("mcp_command" in spec) {
-                 if (spec.sandbox) {
-                    const sandboxParts = parseAndExpandCommand(
-                        spec.sandbox,
-                        spec.env
-                    )
-                    if (sandboxParts.length === 0) {
-                        throw new Error("Sandbox command cannot be empty")
-                    }
-                    transport = new StdioClientTransport({
-                        command: sandboxParts[0], 
-                        args: [...sandboxParts.slice(1), spec.mcp_command, ...(spec.args || []) ],
-                        env: {...getDefaultEnvironment(), ...spec.env}
-                    })
-                 } else { 
-                    transport = new StdioClientTransport({ 
-                        command: spec.mcp_command, 
-                        args: spec.args,
-                        env: {...getDefaultEnvironment(), ...spec.env}
-                    })
-                }
-            }
-            else {
-                const callbackPort = 8090;
-                const callbackUrl = `http://localhost:${callbackPort}/callback`;
-                
-                const clientMetadata = {
-                    client_name: 'Lectic MCP Client',
-                    redirect_uris: [callbackUrl],
-                    grant_types: ['authorization_code', 'refresh_token'],
-                    response_types: ['code'],
-                    token_endpoint_auth_method: 'client_secret_post'
-                };
-                
-                const authProvider = new FilePersistedOAuthClientProvider(
-                    callbackUrl,
-                    clientMetadata,
-                    spec.mcp_shttp // use URL as storage ID
-                );
-
-                transport = new StreamableHTTPClientTransport(new URL(spec.mcp_shttp), { 
-                    authProvider,
-                    fetch: "headers" in spec && spec.headers
-                      ? createFetchWithHeaderSources(spec.headers)
-                      : undefined,
-                })
-            }
-
-            const roots = spec.roots
-            if (roots) {
-                roots.map(validateRoot)
-                client.setRequestHandler("roots/list", (_request, _extra) => {
-                    return { roots }
-                })
-            }
+            let authProvider: FilePersistedOAuthClientProvider |
+                undefined
+            let callbackListener: OAuthCallbackListener | undefined
+            let createHttpTransport: (() =>
+                StreamableHTTPClientTransport) | undefined
 
             try {
-                await client.connect(transport)
-            } catch (e) {
-                const err = e as Error;
-                if ((err.name === "UnauthorizedError" || e?.constructor?.name === "UnauthorizedError") 
-                    && transport instanceof StreamableHTTPClientTransport
-                   ) {
-                    const code = await waitForOAuthCallback(8090);
-                    await transport.finishAuth(code);
-                    await client.connect(transport);
+                if ("mcp_command" in spec) {
+                    if (spec.sandbox) {
+                        const sandboxParts = parseAndExpandCommand(
+                            spec.sandbox,
+                            spec.env,
+                        )
+                        if (sandboxParts.length === 0) {
+                            throw new Error(
+                                "Sandbox command cannot be empty",
+                            )
+                        }
+                        transport = new StdioClientTransport({
+                            command: sandboxParts[0],
+                            args: [
+                                ...sandboxParts.slice(1),
+                                spec.mcp_command,
+                                ...(spec.args || []),
+                            ],
+                            env: {
+                                ...getDefaultEnvironment(),
+                                ...spec.env,
+                            },
+                        })
+                    } else {
+                        transport = new StdioClientTransport({
+                            command: spec.mcp_command,
+                            args: spec.args,
+                            env: {
+                                ...getDefaultEnvironment(),
+                                ...spec.env,
+                            },
+                        })
+                    }
                 } else {
-                    throw e;
+                    const serverUrl = new URL(spec.mcp_shttp)
+                    callbackListener =
+                        startOAuthCallbackListener(() => {
+                            if (!authProvider) {
+                                throw new Error(
+                                    "OAuth provider is not initialized",
+                                )
+                            }
+                            return authProvider.expectedState()
+                        })
+                    const clientMetadata = {
+                        client_name: "Lectic MCP Client",
+                        redirect_uris: [
+                            callbackListener.callbackUrl,
+                        ],
+                        grant_types: [
+                            "authorization_code",
+                            "refresh_token",
+                        ],
+                        response_types: ["code"],
+                        token_endpoint_auth_method: "none",
+                    }
+
+                    authProvider =
+                        new FilePersistedOAuthClientProvider(
+                            callbackListener.callbackUrl,
+                            clientMetadata,
+                            mcpOAuthStorageId(spec),
+                        )
+                    const fetchWithHeaders = spec.headers
+                        ? createFetchWithHeaderSources(
+                            spec.headers,
+                        )
+                        : undefined
+
+                    createHttpTransport = () =>
+                        new StreamableHTTPClientTransport(
+                            new URL(serverUrl),
+                            {
+                                authProvider,
+                                fetch: fetchWithHeaders,
+                            },
+                        )
+                    transport = createHttpTransport()
                 }
+
+                const roots = spec.roots
+                if (roots) {
+                    roots.forEach(validateRoot)
+                    client.setRequestHandler(
+                        "roots/list",
+                        (_request, _extra) => ({ roots }),
+                    )
+                }
+
+                try {
+                    await client.connect(transport)
+                } catch (error) {
+                    if (
+                        error instanceof UnauthorizedError &&
+                        transport instanceof
+                            StreamableHTTPClientTransport &&
+                        authProvider &&
+                        callbackListener &&
+                        createHttpTransport
+                    ) {
+                        try {
+                            const callbackParams =
+                                await callbackListener
+                                    .waitForCallback()
+                            await transport.finishAuth(
+                                callbackParams,
+                            )
+                        } finally {
+                            try {
+                                authProvider.completeAuthorization()
+                            } finally {
+                                await transport.close()
+                            }
+                        }
+
+                        await client.connect(
+                            createHttpTransport(),
+                        )
+                    } else {
+                        await transport.close().catch(() => {})
+                        throw error
+                    }
+                }
+            } finally {
+                await callbackListener?.close()
             }
+
+            MCPTool.clientByHash[hash] = client
+            MCPTool.clientByName[prefix] = client
         }
 
         const associated_tools : Tool[] = (await client.listTools()).tools

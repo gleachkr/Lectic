@@ -1,18 +1,36 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "bun:test";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import {
   isMCPSpec,
   mcpNegotiationOptions,
   MCPTool,
 } from "./mcp";
-import { Client } from "@modelcontextprotocol/client";
+import {
+  Client,
+  StreamableHTTPClientTransport,
+  UnauthorizedError,
+} from "@modelcontextprotocol/client";
 
 // Save originals to restore after tests
 const origConnect = Client.prototype.connect as any;
 const origListTools = (Client.prototype as any).listTools;
 const origCallTool = (Client.prototype as any).callTool;
+const origFinishAuth =
+  StreamableHTTPClientTransport.prototype.finishAuth;
 const origSpawnSync = Bun.spawnSync;
+const originalDataDir = process.env["LECTIC_DATA"];
 
 let lastTransport: any = undefined;
+let mcpDataDir: string;
 
 function stubClient(toolNames: string[]) {
   (Client.prototype as any).connect = async (transport: any) => {
@@ -30,12 +48,31 @@ function stubClient(toolNames: string[]) {
   });
 }
 
+async function rejectedError(
+  promise: Promise<unknown>,
+): Promise<Error> {
+  let rejection: unknown
+  try {
+    await promise
+  } catch (error) {
+    rejection = error
+  }
+  if (!(rejection instanceof Error)) {
+    throw new Error("Expected promise to reject with an Error")
+  }
+  return rejection
+}
+
 function resetStatics() {
   (MCPTool as any).clientByHash = {};
   (MCPTool as any).clientByName = {};
 }
 
 beforeAll(() => {
+  mcpDataDir = mkdtempSync(
+    join(tmpdir(), "lectic-mcp-test-"),
+  );
+  process.env["LECTIC_DATA"] = mcpDataDir;
   stubClient(["search"]);
 });
 
@@ -43,7 +80,19 @@ afterAll(() => {
   (Client.prototype as any).connect = origConnect;
   (Client.prototype as any).listTools = origListTools;
   (Client.prototype as any).callTool = origCallTool;
+  StreamableHTTPClientTransport.prototype.finishAuth =
+    origFinishAuth;
   (Bun as any).spawnSync = origSpawnSync;
+
+  if (originalDataDir === undefined) {
+    delete process.env["LECTIC_DATA"];
+  } else {
+    process.env["LECTIC_DATA"] = originalDataDir;
+  }
+  rmSync(mcpDataDir, {
+    recursive: true,
+    force: true,
+  });
 });
 
 beforeEach(() => {
@@ -86,12 +135,28 @@ describe("MCP protocol negotiation", () => {
   it("rejects removed and invalid protocol settings", () => {
     expect(isMCPSpec({ mcp_ws: "wss://example.com" })).toBeFalse();
     expect(isMCPSpec({
+      mcp_command: "server",
+      mcp_shttp: "https://example.com/mcp",
+    })).toBeFalse();
+    expect(isMCPSpec({
       mcp_shttp: "http://example.com",
       mcp_protocol: "future",
     })).toBeFalse();
     expect(isMCPSpec({
       mcp_command: "server",
       mcp_probe_timeout_ms: 0,
+    })).toBeFalse();
+    expect(isMCPSpec({
+      mcp_command: "server",
+      roots: ["/tmp"],
+    })).toBeFalse();
+    expect(isMCPSpec({
+      mcp_command: "server",
+      roots: [{ uri: "https://example.com" }],
+    })).toBeFalse();
+    expect(isMCPSpec({
+      mcp_command: "server",
+      roots: [{ uri: "file:///tmp", name: 42 }],
     })).toBeFalse();
   });
 });
@@ -270,6 +335,36 @@ describe("Identity keys include roots, sandbox, and negotiation", () => {
     expect(clientA).not.toBe(clientB);
   });
 
+  it("partitions OAuth state by configured headers", async () => {
+    const transports: StreamableHTTPClientTransport[] = [];
+    (Client.prototype as any).connect = async (
+      transport: StreamableHTTPClientTransport,
+    ) => {
+      transports.push(transport);
+    };
+
+    try {
+      await MCPTool.fromSpec({
+        mcp_shttp: "http://example.com",
+        name: "first",
+        headers: { "X-Tenant": "one" },
+      });
+      await MCPTool.fromSpec({
+        mcp_shttp: "http://example.com",
+        name: "second",
+        headers: { "X-Tenant": "two" },
+      });
+
+      const first = (transports[0] as any)._oauthProvider;
+      const second = (transports[1] as any)._oauthProvider;
+      expect(first.storagePath).not.toBe(
+        second.storagePath,
+      );
+    } finally {
+      stubClient(["search"]);
+    }
+  });
+
   it("different headers => different clients for same URL", async () => {
     const a = await MCPTool.fromSpec({
       mcp_shttp: "http://example.com",
@@ -330,7 +425,118 @@ describe("Identity keys include roots, sandbox, and negotiation", () => {
 
 
 
+describe("OAuth connection lifecycle", () => {
+  it("finishes the callback and reconnects a fresh transport", async () => {
+    const transports: StreamableHTTPClientTransport[] = [];
+    let callbackParams: URLSearchParams | undefined;
+    let callbackResponseStatus: number | undefined;
+
+    (Client.prototype as any).connect = async (
+      transport: StreamableHTTPClientTransport,
+    ) => {
+      transports.push(transport);
+      if (transports.length !== 1) return;
+
+      const provider = (transport as any)._oauthProvider;
+      const state = provider.state();
+      provider.saveCodeVerifier("verifier");
+      const query = new URLSearchParams({
+        code: "authorization-code",
+        state,
+        iss: "https://auth.example.com",
+      });
+
+      const callbackUrl = String(provider.redirectUrl);
+      const response = await fetch(
+        `${callbackUrl}?${query}`,
+      );
+      callbackResponseStatus = response.status;
+
+      throw new UnauthorizedError();
+    };
+    (StreamableHTTPClientTransport.prototype as any).finishAuth =
+      async function (params: URLSearchParams) {
+        callbackParams = params;
+      };
+
+    try {
+      const tools = await MCPTool.fromSpec({
+        mcp_shttp: "https://oauth.example.com/mcp",
+        name: "oauth",
+      } as any);
+
+      expect(tools.map((tool: any) => tool.name)).toContain(
+        "oauth_search",
+      );
+      expect(transports).toHaveLength(2);
+      expect(transports[0]).not.toBe(transports[1]);
+      expect(callbackParams?.get("code")).toBe(
+        "authorization-code",
+      );
+      expect(callbackParams?.get("iss")).toBe(
+        "https://auth.example.com",
+      );
+      expect(callbackResponseStatus).toBe(200);
+
+      const provider = (transports[0] as any)._oauthProvider;
+      expect(String(provider.redirectUrl)).toStartWith(
+        "http://127.0.0.1:",
+      );
+      expect(provider.clientMetadata
+        .token_endpoint_auth_method).toBe("none");
+      expect(() => provider.expectedState()).toThrow(
+        "No OAuth authorization is pending",
+      );
+      expect(() => provider.codeVerifier()).toThrow(
+        "No code verifier saved",
+      );
+    } finally {
+      StreamableHTTPClientTransport.prototype.finishAuth =
+        origFinishAuth;
+      stubClient(["search"]);
+    }
+  });
+});
+
+
 describe("Client reuse", () => {
+  it("does not cache a client whose connection failed", async () => {
+    let attempts = 0;
+    (Client.prototype as any).connect = async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        throw new Error("connection failed");
+      }
+    };
+
+    const spec: any = {
+      mcp_shttp: "http://retry.example.com",
+      name: "retry",
+    };
+
+    try {
+      const connectionError = await rejectedError(
+        MCPTool.fromSpec(spec),
+      );
+      expect(connectionError.message).toContain(
+        "connection failed",
+      );
+      expect(Object.keys(
+        (MCPTool as any).clientByHash,
+      )).toHaveLength(0);
+      expect((MCPTool as any).clientByName.retry)
+        .toBeUndefined();
+
+      const tools = await MCPTool.fromSpec(spec);
+      expect(tools.map((tool: any) => tool.name)).toContain(
+        "retry_search",
+      );
+      expect(attempts).toBe(2);
+    } finally {
+      stubClient(["search"]);
+    }
+  });
+
   it("same spec initializes one client and reuses it", async () => {
     // Count connect calls to ensure we only connect once
     let connects = 0;
@@ -348,6 +554,86 @@ describe("Client reuse", () => {
     expect(connects).toBe(1);
     const hashes = Object.keys((MCPTool as any).clientByHash);
     expect(hashes.length).toBe(1);
+  });
+});
+
+describe("MCP structured output", () => {
+  it("preserves every structured JSON root type", async () => {
+    const values = [
+      { answer: 42 },
+      ["a", "b"],
+      "value",
+      7,
+      true,
+      null,
+    ];
+
+    for (const value of values) {
+      const fakeClient: any = {
+        callTool: async () => ({
+          content: [],
+          structuredContent: value,
+        }),
+      };
+      const tool = new MCPTool({
+        name: "ns_structured",
+        server_tool_name: "structured",
+        server_name: "ns",
+        description: "",
+        schema: {
+          type: "object",
+          properties: {},
+        } as any,
+        client: fakeClient,
+      });
+
+      const results = await tool.call({});
+      expect(results).toHaveLength(1);
+      expect(results[0].mimetype).toBe("application/json");
+      expect(results[0].text).toBe(JSON.stringify(value));
+    }
+  });
+
+  it("keeps textual and structured output when both exist", async () => {
+    const fakeClient: any = {
+      callTool: async () => ({
+        content: [{ type: "text", text: "display text" }],
+        structuredContent: { answer: 42 },
+      }),
+    };
+    const tool = new MCPTool({
+      name: "ns_structured",
+      server_tool_name: "structured",
+      server_name: "ns",
+      description: "",
+      schema: { type: "object", properties: {} } as any,
+      client: fakeClient,
+    });
+
+    const results = await tool.call({});
+    expect(results.map((result) => result.text)).toEqual([
+      "display text",
+      "{\"answer\":42}",
+    ]);
+  });
+
+  it("still rejects a result with no content", async () => {
+    const fakeClient: any = {
+      callTool: async () => ({ content: [] }),
+    };
+    const tool = new MCPTool({
+      name: "ns_empty",
+      server_tool_name: "empty",
+      server_name: "ns",
+      description: "",
+      schema: { type: "object", properties: {} } as any,
+      client: fakeClient,
+    });
+
+    const error = await rejectedError(tool.call({}));
+    expect(error.message).toContain(
+      "Unexpected MCP server tool call response",
+    );
   });
 });
 
