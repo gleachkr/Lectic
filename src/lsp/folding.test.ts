@@ -409,7 +409,7 @@ describe("folding ranges (collapsedText)", () => {
 
   test("tool-call falls back to default icon when XML has no icon", () => {
     process.env["NERD_FONT"] = "1"
-    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n\n<tool-call with="remote" kind="a2a">\n<results>\n</results>\n</tool-call>\n:::\n`
+    const text = `---\ninterlocutor:\n  name: Assistant\n---\n:::Assistant\n\n<tool-call with="remote" kind="exec">\n<results>\n</results>\n</tool-call>\n:::\n`
     const ranges = buildFoldingRanges(text)
     expect(ranges[0].collapsedText).toEndWith(" remote")
   })

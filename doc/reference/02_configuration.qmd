@@ -123,10 +123,6 @@ An interlocutor object defines a single LLM "personality" or configuration.
   validated as a JSON Schema. This is forwarded to backends that support
   structured outputs. See [Structured Outputs](./04_structured_outputs.qmd)
   for the supported schema subset and provider notes.
-- `a2a`: Optional object for configuring this interlocutor as an A2A
-  agent when using `lectic a2a`. Fields:
-  - `id`: Custom agent ID (defaults to the interlocutor name).
-  - `description`: Agent description exposed in the A2A agent card.
 
 ### Model Configuration
 

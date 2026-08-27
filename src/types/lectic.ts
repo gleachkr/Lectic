@@ -15,7 +15,6 @@ import { isExecToolSpec, ExecTool, type ExecToolSpec } from "../tools/exec"
 import { isSQLiteToolSpec, SQLiteTool, type SQLiteToolSpec } from "../tools/sqlite"
 import { isMCPSpec, MCPTool } from "../tools/mcp"
 import { isAgentToolSpec, AgentTool, type AgentToolSpec } from "../tools/agent"
-import { isA2AToolSpec, A2ATool, type A2AToolSpec } from "../tools/a2a"
 import { isNativeTool } from "../tools/native"
 import { loadFrom } from "../utils/loader"
 import { mergeValues } from "../utils/merge"
@@ -244,13 +243,6 @@ export class LecticHeader {
                 const loadedSpec: AgentToolSpec = { ...spec }
                 loadedSpec.usage = await loadFrom(spec.usage, interlocutorEnv)
                 register(new AgentTool(loadedSpec, this.interlocutors))
-            } else if (isA2AToolSpec(spec)) {
-                const loadedSpec: A2AToolSpec = { ...spec }
-                loadedSpec.usage = await loadFrom(spec.usage, interlocutorEnv)
-
-                const tool = new A2ATool(loadedSpec)
-                await tool.init()
-                register(tool)
             } else if (isMCPSpec(spec)) {
                 const loadedSpec = { ...spec }
                 if ("mcp_command" in loadedSpec) {

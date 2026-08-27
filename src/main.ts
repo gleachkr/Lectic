@@ -15,7 +15,6 @@ import { listModels } from "./modelCmd"
 import { parseCmd } from "./parseCmd"
 import { tryRunSubcommand } from "./subcommandCmd"
 import { scriptCmd } from "./scriptCmd"
-import { a2aCmd } from "./a2a/a2aCmd"
 
 program
 .name('lectic')
@@ -70,23 +69,5 @@ program
 .option('--yaml', 'Emit output as YAML instead of JSON')
 .option('--reverse', 'Reconstruct lectic file from JSON/YAML input')
 .action(parseCmd)
-
-program
-.command('a2a')
-.description('Start an A2A (JSON-RPC + SSE) server for configured agents')
-.requiredOption('--root <path>', 'Workspace root (process.chdir to this path)')
-.option('--host <host>', 'Bind host', '127.0.0.1')
-.option('--port <port>', 'Bind port', (v) => parseInt(v, 10), 41240)
-.option(
-    '--token <token>',
-    'Require Authorization: Bearer <token> for JSON-RPC requests'
-)
-.option(
-    '--max-tasks-per-context <n>',
-    'Maximum number of tasks to keep per contextId (default 50)',
-    (v) => parseInt(v, 10),
-    50,
-)
-.action(a2aCmd)
 
 await program.parseAsync()

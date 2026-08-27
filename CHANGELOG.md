@@ -32,6 +32,7 @@ for a tag and publish them on the corresponding GitHub Release.
 
 ### Removed
 
+- The A2A server, client tool, monitor, configuration, and SDK dependency.
 - Deprecated CLI aliases `-s`/`--short`, `-S`/`--Short`, and `-q`/`--quiet`.
   Use `--format block`, `--format raw`, and `--format none` instead.
 

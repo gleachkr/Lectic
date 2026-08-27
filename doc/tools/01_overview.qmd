@@ -11,7 +11,6 @@ command, query a database, call another agent, or reach out to a service.
 | [`sqlite`](./03_sqlite.qmd) | Query SQLite databases | `sqlite: ./data.db` |
 | [`mcp`](./04_mcp.qmd) | Connect to MCP servers | `mcp_command: npx ...` |
 | [`agent`](./05_agent.qmd) | Call another interlocutor | `agent: OtherName` |
-| [`a2a`](./06_a2a.qmd) | Call a remote A2A agent | `a2a: http://.../agents/<id>` |
 | [`native`](./07_other_tools.qmd#native-tools) | Provider built-ins (search, code) | `native: search` |
 
 ## How Tool Calls Work
@@ -160,9 +159,6 @@ Each tool type has its own detailed guide:
 
 - **[Agent](./05_agent.qmd)**: Multi-LLM workflows. One interlocutor can
   delegate to another, enabling specialized agents.
-
-- **[A2A](./06_a2a.qmd)**: Talk to remote agents using the
-  Agent2Agent (A2A) protocol.
 
 - **[Native](./07_other_tools.qmd)**: `native` for provider built-ins like
   web search.

@@ -43,8 +43,6 @@ website:
             href: ./tools/04_mcp.qmd
           - text: Agent
             href: ./tools/05_agent.qmd
-          - text: A2A
-            href: ./tools/06_a2a.qmd
           - text: Native
             href: ./tools/07_other_tools.qmd
       - section: Automation
@@ -87,8 +85,6 @@ website:
             href: ./reference/03_lsp.qmd
           - text: Structured Outputs
             href: ./reference/04_structured_outputs.qmd
-          - text: A2A Server
-            href: ./reference/05_a2a_server.qmd
 
 format:
   html:

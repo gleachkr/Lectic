@@ -12,11 +12,6 @@ import { isVerbosity, type Verbosity } from "./verbosity"
 import { isServiceTier, type ServiceTier } from "./serviceTier"
 import * as YAML from "yaml"
 
-export type A2AAgentConfig = {
-    id?: string
-    description?: string
-}
-
 // TODO Possibly this should be a union type over per-backend interfaces.
 export type Interlocutor = {
     prompt : string
@@ -41,9 +36,6 @@ export type Interlocutor = {
 
     // Constrain the assistant's output to a structured JSON response.
     output_schema?: JSONSchema
-
-    // Optional agent configuration (used by `lectic a2a`).
-    a2a?: A2AAgentConfig
 }
 
 export type InterlocutorSpec = Omit<Interlocutor, "output_schema"> & {

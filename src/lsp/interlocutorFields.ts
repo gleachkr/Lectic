@@ -17,7 +17,6 @@ export const INTERLOCUTOR_KEYS = [
   "sandbox",
   "env",
   "output_schema",
-  "a2a",
 ] as const
 
 export type InterlocutorKey = typeof INTERLOCUTOR_KEYS[number]

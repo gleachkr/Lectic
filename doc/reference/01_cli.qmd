@@ -66,48 +66,6 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   console.log("Hello from a lectic script!")
   ```
 
-- `lectic a2a`
-  Start an A2A (JSON-RPC + SSE) server exposing configured agents.
-  See [A2A Server](./05_a2a_server.qmd) for an overview of the
-  protocol surface, agent card, and task lifecycle.
-
-  Options:
-  - `--root <path>`: Workspace root (process.chdir to this path).
-  - `--host <host>`: Bind host. Default: `127.0.0.1`.
-  - `--port <port>`: Bind port. Default: `41240`.
-  - `--token <token>`: If set, require `Authorization: Bearer <token>`.
-  - `--max-tasks-per-context <n>`: Maximum number of task snapshots to
-    keep in memory per contextId. Default: `50`.
-
-  Monitoring endpoints (HTTP):
-
-  Cross-agent:
-
-  - `GET /monitor/agents`
-    - Lists configured agents.
-  - `GET /monitor/tasks`
-    - Returns recent task snapshots across all agents.
-    - Optional query: `?agentId=<id>&contextId=<id>`.
-  - `GET /monitor/tasks/<taskId>`
-    - Returns a single task snapshot, searching across all agents.
-  - `GET /monitor/events`
-    - Server-Sent Events stream of task lifecycle events.
-    - Optional query: `?agentId=<id>&contextId=<id>`.
-
-  Per-agent:
-
-  - `GET /monitor/agents/<id>/tasks`
-    - Returns recent task snapshots.
-    - Optional query: `?contextId=<id>`.
-  - `GET /monitor/agents/<id>/tasks/<taskId>`
-    - Returns a single task snapshot.
-  - `GET /monitor/agents/<id>/events`
-    - Server-Sent Events stream of task lifecycle events.
-    - Optional query: `?contextId=<id>`.
-
-  If `--token` is set, the monitoring endpoints require
-  `Authorization: Bearer <token>`.
-
 ## Custom Subcommands
 
 Lectic supports git-style custom subcommands. If you invoke
