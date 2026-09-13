@@ -99,6 +99,54 @@ describe("ExecTool (async)", () => {
     },
   );
 
+  it("accepts a per-call timeoutSeconds override", async () => {
+    const script = `#!/bin/bash\n` + `sleep 0.5\n` + `echo "done"\n`;
+    const tool = new ExecTool(
+      { exec: script, name: "call-timeout", timeoutSeconds: 10 },
+      "Interlocutor_Name",
+    );
+    expect(tool.parameters["timeoutSeconds"]).toBeDefined();
+    expect(tool.required).not.toContain("timeoutSeconds");
+    try {
+      await tool.call({ argv: [], timeoutSeconds: 0.05 });
+      throw new Error("expected timeout");
+    } catch (e) {
+      expect((e as Error).message).toMatch(/timeout occurred after 0.05 seconds/);
+    }
+  });
+
+  it("per-call timeoutSeconds of 0 disables the configured timeout", async () => {
+    const script = `#!/bin/bash\n` + `sleep 0.1\n` + `echo "done"\n`;
+    const tool = new ExecTool(
+      { exec: script, name: "call-timeout-zero", timeoutSeconds: 0.01 },
+      "Interlocutor_Name",
+    );
+    const res = await tool.call({ argv: [], timeoutSeconds: 0 });
+    expect(texts(res).join("\n")).toContain("<stdout>done\n</stdout>");
+  });
+
+  it("does not leak timeoutSeconds into env in schema mode", async () => {
+    const script = `#!/bin/bash\n` + `echo "$FOO [$timeoutSeconds]"\n`;
+    const tool = new ExecTool(
+      { exec: script, name: "env-timeout", schema: { FOO: "first" } },
+      "Interlocutor_Name",
+    );
+    expect(tool.required).toEqual(["FOO"]);
+    const res = await tool.call({ FOO: "hello", timeoutSeconds: 5 });
+    expect(texts(res).join("\n")).toContain("<stdout>hello []\n</stdout>");
+  });
+
+  it("lets a user schema key named timeoutSeconds win", async () => {
+    const script = `#!/bin/bash\n` + `echo "[$timeoutSeconds]"\n`;
+    const tool = new ExecTool(
+      { exec: script, name: "user-timeout", schema: { timeoutSeconds: "mine" } },
+      "Interlocutor_Name",
+    );
+    expect(tool.parameters["timeoutSeconds"]?.description).toBe("mine");
+    const res = await tool.call({ timeoutSeconds: "abc" });
+    expect(texts(res).join("\n")).toContain("<stdout>[abc]\n</stdout>");
+  });
+
   it("schema populates env for scripts", async () => {
     const script = `#!/bin/bash\n` + `echo "$FOO $BAR"\n`;
     const tool = new ExecTool(

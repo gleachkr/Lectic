@@ -190,9 +190,11 @@ export class ExecTool extends Tool {
     description: string
     env: Record<string, string>
     timeoutSeconds?: number
+    hasTimeoutParam = false
     limit: number
     static count : number = 0
     static defaultLimit = 40_000
+    static timeoutParam = "timeoutSeconds"
 
     constructor(spec: ExecToolSpec, interlocutor_name : string) {
         super(spec.hooks)
@@ -219,6 +221,22 @@ export class ExecTool extends Tool {
             }
             this.required = Object.keys(this.parameters)
         } 
+
+        // Expose a per-call timeout unless a user-defined schema key has
+        // already claimed the name, in which case the user's parameter wins
+        // and is passed through to the command as an ordinary env var.
+        if (!(ExecTool.timeoutParam in this.parameters)) {
+            this.parameters[ExecTool.timeoutParam] = {
+                type: "number",
+                minimum: 0,
+                description: "Optional. Seconds to wait before killing the process. " +
+                    (this.timeoutSeconds && this.timeoutSeconds > 0
+                        ? `Defaults to ${this.timeoutSeconds}. `
+                        : "By default there is no timeout. ") +
+                    "Use 0 to wait indefinitely.",
+            }
+            this.hasTimeoutParam = true
+        }
 
         if (spec.boilerplate === false && spec.usage) {
             this.description = spec.usage
@@ -261,6 +279,14 @@ export class ExecTool extends Tool {
     async call(params: { argv : string[] } | Record<string,unknown> ) : Promise<ToolCallResult[]> {
         this.validateArguments(params);
 
+        let timeoutSeconds = this.timeoutSeconds
+        if (this.hasTimeoutParam) {
+            const { [ExecTool.timeoutParam]: requested, ...rest } =
+                params as Record<string, unknown>
+            if (typeof requested === "number") timeoutSeconds = requested
+            params = rest
+        }
+
         const args = Array.isArray(params.argv) ? params.argv : []
         const env = Array.isArray(params.argv) 
             ? this.env 
@@ -294,8 +320,8 @@ export class ExecTool extends Tool {
         ]).then(() => exited ?? proc.exited)
 
         try {
-            const code = await (this.timeoutSeconds && this.timeoutSeconds > 0
-                ? withTimeout(rslt, this.timeoutSeconds, "command", { onTimeout: proc.kill } )
+            const code = await (timeoutSeconds && timeoutSeconds > 0
+                ? withTimeout(rslt, timeoutSeconds, "command", { onTimeout: proc.kill } )
                 : rslt)
 
             const results = formatCollectedOutput(

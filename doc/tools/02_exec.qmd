@@ -59,7 +59,11 @@ tools:
 - `sandbox`: A command string to wrap execution (e.g. `/path/to/script.sh`
   or `wrapper.sh arg1`). See safety below. Overrides any interlocutor-level
   or top-level sandbox.
-- `timeoutSeconds`: Seconds to wait before aborting a long‑running call.
+- `timeoutSeconds`: Default number of seconds to wait before aborting a
+  long‑running call. The model can override this per call with an optional
+  `timeoutSeconds` argument (`0` waits indefinitely). If your `schema`
+  defines a key named `timeoutSeconds`, that key takes precedence and the
+  per-call override is not exposed.
 - `limit`: Maximum number of output characters returned across stdout and
   stderr. When output exceeds the limit, Lectic retains its beginning and end.
   Stderr is reserved up to one quarter of a contested limit, and unused space
