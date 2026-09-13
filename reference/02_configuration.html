@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-03a0d00fd5ba774dd8e50f606f192499.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-56a7063a21dd4c20fbc96590a1db8d87.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -264,12 +264,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/06_a2a.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">A2A</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Native</span></a>
   </div>
@@ -409,12 +403,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/05_a2a_server.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">A2A Server</span></a>
-  </div>
-</li>
       </ul>
   </li>
     </ul>
@@ -537,11 +525,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>sandbox</code>: A command string (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>) to wrap execution for all <code>exec</code> tools and local <code>mcp_command</code> tools used by this interlocutor, unless overridden by the tool’s own <code>sandbox</code> setting. This overrides any top-level <code>sandbox</code> setting. Single-line sandbox strings use the same tokenization rules as single-line <code>exec</code> commands.</li>
 <li><code>env</code>: An environment variable map inherited by commands associated with this interlocutor. This includes global and interlocutor hooks, <code>exec</code> tools, local <code>mcp_command</code> servers, SQLite path expansion, and <code>exec:</code> or <code>file:</code> sources loaded for the interlocutor and its tools. Tool- and hook-level <code>env</code> values override this map. Runtime event values such as <code>LECTIC_INTERLOCUTOR</code>, <code>USER_MESSAGE</code>, and <code>TOOL_ARGS</code> remain authoritative. The value may also be an <code>{ use: name }</code> reference to an <code>env_defs</code> entry.</li>
 <li><code>output_schema</code>: Optional JSON Schema that constrains the assistant’s output to valid JSON. You can define it inline, or load it from <code>file:</code> or <code>exec:</code> (including <code>file:local:...</code>). Loaded text is parsed as YAML and then validated as a JSON Schema. This is forwarded to backends that support structured outputs. See <a href="../reference/04_structured_outputs.html">Structured Outputs</a> for the supported schema subset and provider notes.</li>
-<li><code>a2a</code>: Optional object for configuring this interlocutor as an A2A agent when using <code>lectic a2a</code>. Fields:
-<ul>
-<li><code>id</code>: Custom agent ID (defaults to the interlocutor name).</li>
-<li><code>description</code>: Agent description exposed in the A2A agent card.</li>
-</ul></li>
 </ul>
 <section id="model-configuration" class="level3">
 <h3 class="anchored" data-anchor-id="model-configuration">Model Configuration</h3>
@@ -615,7 +598,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>boilerplate</code>: Boolean. If <code>true</code> (default), Lectic prepends the standard exec-tool description before <code>usage</code>. If <code>false</code>, <code>usage</code> must be a complete standalone description.</li>
 <li><code>schema</code>: A map of parameter name → description or JSON Schema. When present, the tool takes named parameters (exposed as env vars). When absent, the tool takes a required <code>argv</code> array of strings.</li>
 <li><code>sandbox</code>: Command string to wrap execution. Arguments supported. Single-line sandbox strings use the same tokenization rules as single-line <code>exec</code> commands.</li>
-<li><code>timeoutSeconds</code>: Seconds to wait before aborting.</li>
+<li><code>timeoutSeconds</code>: Default seconds to wait before aborting. The model can override this per call via an optional <code>timeoutSeconds</code> argument.</li>
 <li><code>limit</code>: Maximum output characters returned across stdout and stderr. Excess output is truncated by retaining each affected channel’s beginning and end. Up to one quarter of a contested limit is reserved for stderr; unused capacity is reassigned to the other channel. Default: <code>40000</code>.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
 </ul>

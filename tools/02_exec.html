@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-03a0d00fd5ba774dd8e50f606f192499.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-56a7063a21dd4c20fbc96590a1db8d87.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -264,12 +264,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/06_a2a.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">A2A</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Native</span></a>
   </div>
@@ -409,12 +403,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/05_a2a_server.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">A2A Server</span></a>
-  </div>
-</li>
       </ul>
   </li>
     </ul>
@@ -493,7 +481,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>boilerplate</code>: Whether to include the standard exec-tool description before the <code>usage</code> string. If <code>false</code>, then <code>usage</code> must be a complete standalone description. If <code>true</code> (the default), Lectic prepends the standard exec guidance and then appends <code>usage</code>.</li>
 <li><code>usage</code>: A string with instructions for the LLM. It also accepts <code>file:</code> and <code>exec:</code> sources. See <a href="../context_management/03_external_prompts.html">External Prompts</a> for semantics.</li>
 <li><code>sandbox</code>: A command string to wrap execution (e.g.&nbsp;<code>/path/to/script.sh</code> or <code>wrapper.sh arg1</code>). See safety below. Overrides any interlocutor-level or top-level sandbox.</li>
-<li><code>timeoutSeconds</code>: Seconds to wait before aborting a long‑running call.</li>
+<li><code>timeoutSeconds</code>: Default number of seconds to wait before aborting a long‑running call. The model can override this per call with an optional <code>timeoutSeconds</code> argument (<code>0</code> waits indefinitely). If your <code>schema</code> defines a key named <code>timeoutSeconds</code>, that key takes precedence and the per-call override is not exposed.</li>
 <li><code>limit</code>: Maximum number of output characters returned across stdout and stderr. When output exceeds the limit, Lectic retains its beginning and end. Stderr is reserved up to one quarter of a contested limit, and unused space is reassigned to the other channel. Default: <code>40000</code>.</li>
 <li><code>env</code>: Environment variables to set for the subprocess.</li>
 <li><code>schema</code>: A map of parameter name → description or JSON Schema. When present, the tool takes named parameters (exposed as env vars). When absent, the tool instead takes a required <code>argv</code> array of strings.</li>

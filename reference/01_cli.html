@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-03a0d00fd5ba774dd8e50f606f192499.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-56a7063a21dd4c20fbc96590a1db8d87.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -264,12 +264,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../tools/06_a2a.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">A2A</span></a>
-  </div>
-</li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
   <a href="../tools/07_other_tools.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Native</span></a>
   </div>
@@ -409,12 +403,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
  <span class="menu-text">Structured Outputs</span></a>
   </div>
 </li>
-          <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="../reference/05_a2a_server.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">A2A Server</span></a>
-  </div>
-</li>
       </ul>
   </li>
     </ul>
@@ -476,55 +464,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>For example:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/env -S lectic script</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">console.log</span><span class="er">(</span><span class="st">"Hello from a lectic script!"</span><span class="kw">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div></li>
-<li><p><code>lectic a2a</code> Start an A2A (JSON-RPC + SSE) server exposing configured agents. See <a href="../reference/05_a2a_server.html">A2A Server</a> for an overview of the protocol surface, agent card, and task lifecycle.</p>
-<p>Options:</p>
-<ul>
-<li><code>--root &lt;path&gt;</code>: Workspace root (process.chdir to this path).</li>
-<li><code>--host &lt;host&gt;</code>: Bind host. Default: <code>127.0.0.1</code>.</li>
-<li><code>--port &lt;port&gt;</code>: Bind port. Default: <code>41240</code>.</li>
-<li><code>--token &lt;token&gt;</code>: If set, require <code>Authorization: Bearer &lt;token&gt;</code>.</li>
-<li><code>--max-tasks-per-context &lt;n&gt;</code>: Maximum number of task snapshots to keep in memory per contextId. Default: <code>50</code>.</li>
-</ul>
-<p>Monitoring endpoints (HTTP):</p>
-<p>Cross-agent:</p>
-<ul>
-<li><code>GET /monitor/agents</code>
-<ul>
-<li>Lists configured agents.</li>
-</ul></li>
-<li><code>GET /monitor/tasks</code>
-<ul>
-<li>Returns recent task snapshots across all agents.</li>
-<li>Optional query: <code>?agentId=&lt;id&gt;&amp;contextId=&lt;id&gt;</code>.</li>
-</ul></li>
-<li><code>GET /monitor/tasks/&lt;taskId&gt;</code>
-<ul>
-<li>Returns a single task snapshot, searching across all agents.</li>
-</ul></li>
-<li><code>GET /monitor/events</code>
-<ul>
-<li>Server-Sent Events stream of task lifecycle events.</li>
-<li>Optional query: <code>?agentId=&lt;id&gt;&amp;contextId=&lt;id&gt;</code>.</li>
-</ul></li>
-</ul>
-<p>Per-agent:</p>
-<ul>
-<li><code>GET /monitor/agents/&lt;id&gt;/tasks</code>
-<ul>
-<li>Returns recent task snapshots.</li>
-<li>Optional query: <code>?contextId=&lt;id&gt;</code>.</li>
-</ul></li>
-<li><code>GET /monitor/agents/&lt;id&gt;/tasks/&lt;taskId&gt;</code>
-<ul>
-<li>Returns a single task snapshot.</li>
-</ul></li>
-<li><code>GET /monitor/agents/&lt;id&gt;/events</code>
-<ul>
-<li>Server-Sent Events stream of task lifecycle events.</li>
-<li>Optional query: <code>?contextId=&lt;id&gt;</code>.</li>
-</ul></li>
-</ul>
-<p>If <code>--token</code> is set, the monitoring endpoints require <code>Authorization: Bearer &lt;token&gt;</code>.</p></li>
 </ul>
 </section>
 <section id="custom-subcommands" class="level2">
