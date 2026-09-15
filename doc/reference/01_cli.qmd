@@ -23,6 +23,10 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   - `-f`, `--file <PATH>`: Path to the `.lec` file to parse. If omitted,
     reads from standard input.
   - `--yaml`: Emit YAML instead of JSON.
+  - `--effective-header`: Report merged system, workspace, imported, and
+    document configuration in `header`, rather than the raw document
+    header. Does not initialize tools, execute loaders, or expand macros.
+    Output can contain configured secrets. Cannot be used with `--reverse`.
   - `--reverse`: Ingest JSON (or YAML) output and reconstruct the original
     lectic file.
 

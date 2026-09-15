@@ -1,0 +1,33 @@
+[
+  {
+    "type": "session.input_transcript.delta",
+    "event_id": "event_transcript_1",
+    "delta": "What is",
+    "start_ms": 1000,
+    "end_ms": 1200
+  },
+  {
+    "type": "session.output_transcript.delta",
+    "event_id": "event_transcript_2",
+    "delta": " Let me check.",
+    "start_ms": 1100,
+    "end_ms": 1400
+  },
+  {
+    "type": "session.input_transcript.delta",
+    "event_id": "event_transcript_3",
+    "delta": " the answer?",
+    "start_ms": 1200,
+    "end_ms": 1500
+  },
+  {
+    "type": "session.delegation.created",
+    "event_id": "event_delegation",
+    "offset_ms": 1400,
+    "delegation": {
+      "id": "opaque/id:☃",
+      "type": "delegation",
+      "target": "client"
+    }
+  }
+]

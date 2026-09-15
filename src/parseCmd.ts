@@ -61,11 +61,14 @@ function isThoughtBlockNode(node: unknown): node is ThoughtBlockNode {
         typeof node["value"] === 'string'
 }
 
-type ParseOpts = OptionValues & { yaml?: boolean, reverse?: boolean }
+type ParseOpts = OptionValues & {
+    yaml?: boolean, reverse?: boolean, effectiveHeader?: boolean
+}
 
 type ParseCmdOpts = Partial<OptionValues> & {
     yaml?: boolean
     reverse?: boolean
+    effectiveHeader?: boolean
 }
 
 export async function parseCmd(cmdOpts: ParseCmdOpts = {}) {
@@ -73,6 +76,9 @@ export async function parseCmd(cmdOpts: ParseCmdOpts = {}) {
     // Merge options, prioritizing command options
     const opts = { ...globalOpts, ...cmdOpts } as ParseOpts
 
+    if (opts.reverse && opts.effectiveHeader) {
+        throw new Error("--effective-header cannot be used with --reverse")
+    }
     if (opts.reverse) {
         await handleReverse(opts)
     } else {
@@ -130,7 +136,7 @@ async function handleParse(opts: ParseOpts) {
     }
     
     const output: ParsedLectic = {
-        header: header,
+        header: opts.effectiveHeader ? lectic.header.spec : header,
         messages: messages
     }
     

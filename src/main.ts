@@ -67,6 +67,7 @@ program
 .description('Parse a lectic file into JSON/YAML structure, or reverse the process')
 .option('-f, --file <lectic>', 'Lectic to read from')
 .option('--yaml', 'Emit output as YAML instead of JSON')
+.option('--effective-header', 'Emit resolved configuration, without loading it')
 .option('--reverse', 'Reconstruct lectic file from JSON/YAML input')
 .action(parseCmd)
 
