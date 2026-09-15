@@ -347,3 +347,36 @@ test("retained findings and unresolved history are bounded", async () => {
   expect(contexts.at(-1).backendHistory[0].requestContext)
     .toContain("truncated")
 })
+
+test("cancelled runs remain uncertain context, never automatic retries",
+  async () => {
+    const contexts: any[] = []
+    const c = new Coordinator("s", async (context, signal) => {
+      contexts.push(context)
+      if (contexts.length === 1) {
+        await new Promise<void>(resolve => {
+          signal.addEventListener("abort", () => resolve(), { once: true })
+        })
+        throw new Error("cancelled after possible write")
+      }
+      return { status: "completed", summary: "Checked actual state." }
+    }, async () => {}, 1)
+    c.receive(speech("Write A"))
+    c.receive(delegation())
+    await until(() => contexts.length === 1)
+    c.cancel()
+    await c.idle()
+    expect(c.runs).toBe(1)
+    expect(c.status).toContain("actions may already have happened")
+    expect(c.historyContext().tasks[0].outcome).toBe("cancelled")
+    c.receive(speech("Check whether A was written"))
+    c.receive(delegation("d2"))
+    await c.idle()
+    expect(contexts[1].backendHistory[0]).toMatchObject({
+      outcome: "cancelled", delivery: "not_sent",
+      runId: contexts[0].runId,
+    })
+    expect(contexts[1].backendHistory[0].requestContext).toContain("Write A")
+    expect(contexts[1].backendHistory[0].summary)
+      .toContain("Check actual state before retrying")
+  })

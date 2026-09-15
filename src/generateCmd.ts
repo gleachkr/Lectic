@@ -93,7 +93,9 @@ function addUsage(
   return next
 }
 
-async function parseAndInitializeLectic(lecticString: string): Promise<Lectic> {
+async function parseAndInitializeLectic(
+  lecticString: string, macros: boolean,
+): Promise<Lectic> {
   const rawHeaderYaml = getYaml(lecticString)
   const docDir = lecticEnv["LECTIC_FILE"]
     ? dirname(lecticEnv["LECTIC_FILE"])
@@ -102,7 +104,7 @@ async function parseAndInitializeLectic(lecticString: string): Promise<Lectic> {
   const includes = await getIncludes(rawHeaderYaml, docDir, docDir)
   const lectic = await parseLectic(lecticString, includes)
 
-  await lectic.processMessages()
+  if (macros) await lectic.processMessages()
   await lectic.header.initialize()
 
   return lectic
@@ -226,7 +228,9 @@ export async function generate() {
   }
 
   try {
-    lectic = await parseAndInitializeLectic(lecticString)
+    lectic = await parseAndInitializeLectic(
+      lecticString, opts["macros"] !== false,
+    )
 
     const backend = getBackend(lectic.header.interlocutor)
     const header = `:::${lectic.header.interlocutor.name}\n\n`

@@ -25,6 +25,7 @@ test("creation denies all frontend commands and uses object selectors",
     expect(request.session.client.data_channel.allowed_server_events)
       .toContainEqual({ type: "session.delegation.created" })
     expect(request.session).not.toHaveProperty("audio")
+    expect(request.session).not.toHaveProperty("input")
     expect(decodeCreated({
       session: { id: "opaque/session" },
       transport: { type: "webrtc", sdp: "answer" },

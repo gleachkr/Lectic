@@ -266,7 +266,7 @@ _lectic_complete() {
   if [[ -z "${subcmd_idx}" ]]; then
     # No subcommand yet. Offer global options and known subcommands.
     local global_opts
-    global_opts="--format -f --file "
+    global_opts="--no-macros --format -f --file "
     global_opts+="-i --inplace -l --log -v --version -h --help"
 
     if [[ "${cur}" == -* ]]; then

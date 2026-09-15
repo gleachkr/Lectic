@@ -28,7 +28,9 @@ export type ChildOptions = {
 
 export function runChild(options: ChildOptions): Promise<string> {
   if (process.platform === "win32") {
-    return Promise.reject(new Error("Spike requires POSIX process groups"))
+    return Promise.reject(
+      new Error("Lectic Live requires POSIX process groups"),
+    )
   }
   options.signal?.throwIfAborted()
   const [executable, ...prefix] = options.command
@@ -159,7 +161,7 @@ export async function runLectic(
     // No --inplace. Keep both config discovery and LECTIC_FILE tied to seed.
     const completed = await runChild({
       ...common, cwd: options.cwd,
-      args: ["-f", seed, "--format", "full"], input,
+      args: ["-f", seed, "--no-macros", "--format", "full"], input,
     })
     if (!completed.startsWith(prefix)
       || !completed.slice(prefix.length).startsWith(":::")) {

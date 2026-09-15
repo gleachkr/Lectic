@@ -120,6 +120,15 @@ guide for details.
     used when replaying one interlocutor's prior assistant turn to another.
   - `none`: print nothing
 
+- `--no-macros`
+  Skip all user-message macro evaluation, including built-in directives
+  such as `:cmd`, `:fetch`, `:env`, `:merge_yaml`, `:ask`, and `:reset`.
+  Directive syntax stays literal in both prior messages and new input.
+  Configured tools, hooks, executable configuration sources, and ordinary
+  Markdown attachment loading are unaffected. This is not a sandbox.
+  The flag applies to this generation only; it is not saved in the file.
+  `lectic live` always supplies it for delegated backend runs.
+
 - `-l`, `--log <PATH>`
   Write detailed debug logs to the given file.
 

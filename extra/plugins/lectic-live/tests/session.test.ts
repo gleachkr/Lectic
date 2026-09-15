@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test"
-import { describeFailure, liveConnector } from "../session"
+import {
+  CreationRejected, describeFailure, liveConnector, SessionFailure,
+} from "../session"
+import { startServer } from "../server"
 import type { LiveEvent } from "../protocol"
 
 class Socket extends EventTarget {
@@ -53,9 +56,16 @@ test("creates once, attaches with local key, appends and closes gracefully",
       },
     })
     const session = await connect("offer", e => events.push(e),
-      () => { lost++ }, new AbortController().signal)
+      () => { lost++ }, new AbortController().signal, {
+        version: 1, conversationId: crypto.randomUUID(), incomplete: false,
+        fragments: [{ sessionId: "old", sequence: 1, speaker: "user",
+          text: "Remember the A lookup" }], tasks: [],
+      })
     expect(calls).toHaveLength(1)
     const body = JSON.parse(calls[0].init.body)
+    expect(body.session.store).toBe(false)
+    expect(body.session.input).toEqual([{ type: "message", role: "user",
+      content: [{ type: "input_text", text: "Remember the A lookup" }] }])
     expect(body.session.audio).toEqual({ output: { voice: "marin" } })
     expect(body.session.client.data_channel.allowed_client_events).toEqual([])
     expect(body.transport).toEqual({ type: "webrtc", sdp: "offer" })
@@ -216,3 +226,121 @@ test("failed close sends never falsely finalize", async () => {
     new AbortController().signal)
   expect(await session.close()).toBe(false)
 })
+
+for (const status of [400, 401, 403, 404, 422, 429, 408, 500, 503]) {
+  test(`creation HTTP ${status} has explicit rejection classification`,
+    async () => {
+      let calls = 0
+      const connect = liveConnector("key", undefined, {
+        fetch: (async () => {
+          calls++
+          return Response.json({ error: {
+            code: "invalid_value", type: "invalid_request_error",
+            param: "session.input[0].content[0].type",
+            message: "private transcript",
+          } }, { status })
+        }) as unknown as typeof fetch,
+        socket: () => { throw new Error("must not attach") },
+      })
+      const error = await connect("offer", () => {}, () => {},
+        new AbortController().signal).catch(error => error)
+      expect(error).toBeInstanceOf(SessionFailure)
+      expect(error instanceof CreationRejected)
+        .toBe(![408, 500, 503].includes(status))
+      expect(error.message).toContain("session.input[0].content[0].type")
+      expect(error.message).not.toContain("private transcript")
+      expect(calls).toBe(1)
+    })
+}
+
+test("diagnostics fall back to known type and reject arbitrary field paths",
+  () => {
+    for (const param of [
+      "private transcript", "session.input[0].private_secret",
+      "session.input[0].content[0].type\nprivate", "session.input[999999]",
+      "session.input[0].content[0].type\n",
+    ]) {
+      expect(describeFailure(JSON.stringify({ error: {
+        code: "unrecognized", type: "invalid_request_error", param,
+        message: "private transcript",
+      } }))).toBe(": invalid_request_error")
+    }
+    expect(describeFailure(JSON.stringify({ error: {
+      code: "unrecognized", type: "invalid_request_error",
+      param: "session.input[1].role",
+    } }))).toBe(": invalid_request_error; param=session.input[1].role")
+  })
+
+test("rejection survives an unreadable diagnostic body", async () => {
+  const connect = liveConnector("key", undefined, {
+    fetch: (async () => new Response(new ReadableStream({
+      start(controller) { controller.error(new Error("body lost")) },
+    }), { status: 400 })) as unknown as typeof fetch,
+    socket: () => { throw new Error("must not attach") },
+  })
+  await expect(connect("offer", () => {}, () => {},
+    new AbortController().signal)).rejects.toBeInstanceOf(CreationRejected)
+})
+
+// Exercise the actual server -> history -> HTTP adapter boundary. The
+// provider stub accepts only the documented role-specific message format.
+test("idle wake creates a fresh session with valid transcript history",
+  async () => {
+    const requests: any[] = []
+    let socket: Socket | undefined
+    const connect = liveConnector("key", undefined, {
+      fetch: (async (_url, init) => {
+        const body = JSON.parse(init!.body as string)
+        requests.push(body)
+        const valid = (body.session.input ?? []).every((m: any) =>
+          m.type === "message" && m.content.length === 1
+          && m.content[0].type === (m.role === "user"
+            ? "input_text" : "output_text"))
+        if (!valid) return Response.json({ error: {
+          code: "invalid_value", param: "session.input",
+        } }, { status: 400 })
+        return Response.json({ session: { id: "opaque/session" },
+          transport: { type: "webrtc", sdp: "answer" } })
+      }) as typeof fetch,
+      socket: () => {
+        socket = new Socket()
+        return socket as unknown as WebSocket
+      },
+    })
+    const server = startServer({ connect, idleTimeout: 1,
+      backend: async () => { throw new Error("must not delegate") } })
+    const request = (path: string, body = {}) => fetch(server.origin + path, {
+      method: "POST", body: JSON.stringify(body), headers: {
+        Origin: server.origin, Authorization: `Bearer ${server.secret}`,
+        "Content-Type": "application/json",
+      },
+    })
+    try {
+      expect((await request("/start", { sdp: "first offer" })).status)
+        .toBe(200)
+      await request("/ready", { events: [JSON.stringify({
+        type: "session.started", session: { id: "opaque/session" },
+      })] })
+      socket!.event({ type: "session.input_transcript.delta",
+        delta: "Where is A?", start_ms: 0, end_ms: 1 })
+      socket!.event({ type: "session.output_transcript.delta",
+        delta: "In a.ts", start_ms: 1, end_ms: 2 })
+      await Bun.sleep(1050)
+      expect(await (await request("/idle", {
+        sessionId: "opaque/session",
+      })).json()).toEqual({ idle: true })
+      expect((await request("/start", { sdp: "wake offer" })).status)
+        .toBe(200)
+      expect(requests).toHaveLength(2)
+      expect(requests[0].session).not.toHaveProperty("input")
+      expect(requests[1].session.input).toEqual([
+        { type: "message", role: "user",
+          content: [{ type: "input_text", text: "Where is A?" }] },
+        { type: "message", role: "assistant",
+          content: [{ type: "output_text", text: "In a.ts" }] },
+      ])
+      expect(requests[1].session.store).toBe(false)
+      expect(requests[1].transport.sdp).toBe("wake offer")
+      expect((await (await request("/state")).json()).runs).toBe(0)
+    } finally { await server.stop() }
+  })

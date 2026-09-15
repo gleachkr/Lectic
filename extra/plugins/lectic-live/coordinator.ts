@@ -153,7 +153,7 @@ export class Coordinator {
     this.active?.abort()
     this.journal.add("cancelled")
     this.status = "Backend cancelled — "
-      + "already-sent results cannot be recalled"
+      + "actions may already have happened; results cannot be recalled"
   }
 
   clearContext() {
@@ -166,7 +166,7 @@ export class Coordinator {
     this.contextLost = false
     this.previousSession = undefined
     this.journal.add("context_cleared")
-    this.status = "Context cleared — restate the next lookup in full"
+    this.status = "Context cleared — restate the next request in full"
   }
 
   stop() {
@@ -174,6 +174,8 @@ export class Coordinator {
     this.stopped = true
     this.cancel()
   }
+
+  get busy() { return this.draining || this.queue.length > 0 }
 
   async idle() {
     while (this.draining) await Bun.sleep(10)
@@ -193,7 +195,7 @@ export class Coordinator {
     for (const task of retained) {
       if (task.received < cutoff
         || retained.indexOf(task) < retained.length - 8) {
-        if (task.delivery === "withheld") this.contextLost = true
+        this.contextLost = true
         delete task.result
         delete task.context
       }
@@ -248,11 +250,16 @@ export class Coordinator {
           context.taskRevision = task.revision
           context.contextRevision = task.contextRevision
           context.runId = task.runId = randomUUID()
-          context.backendHistory = this.tasks.filter(t => t.result)
+          context.backendHistory = this.tasks.filter(t =>
+            t !== task && (t.result || (t.runId && t.context)))
             .slice(this.previousSession ? -4 : -8).map(t => ({
               delegationId: t.delegationId, runId: t.runId,
               revision: t.revision, contextRevision: t.contextRevision,
-              summary: t.result!.summary, status: t.result!.status,
+              summary: t.result?.summary
+                ?? "No confirmed result; actions may already have happened. "
+                  + "Check actual state before retrying.",
+              status: t.result?.status ?? "failed",
+              outcome: t.outcome,
               delivery: t.delivery, reason: t.reason,
               requestContext: t.context,
             }))
@@ -269,7 +276,7 @@ export class Coordinator {
             context.contextIncomplete = true
           }
           serializeContext(context)
-          this.status = "Running read-only Lectic lookup"
+          this.status = "Running Lectic"
           task.outcome = "running"
           this.journal.add("backend_started", task.revision)
           this.runs++
@@ -285,14 +292,14 @@ export class Coordinator {
         } catch (error) {
           const missing = task.outcome !== "running"
           if (!missing && !controller.signal.aborted) {
-            console.error("lectic live: backend lookup:", error)
+            console.error("lectic live: backend task:", error)
           }
           result = {
             status: missing ? "clarification" : "failed",
             summary: missing
-              ? "Please clarify the lookup; no user context is available."
-              : "The backend could not complete this lookup. "
-                + "Please check the local setup or clarify the question.",
+              ? "Please clarify the request; no user context is available."
+              : "No confirmed backend result. Actions may already have "
+                + "happened; check actual state before retrying.",
           }
           this.journal.add(missing
             ? this.contextLost ? "context_lost" : "context_missing"
@@ -314,7 +321,7 @@ export class Coordinator {
             ? "new_delegation" : "context_changed"
           this.journal.add("result_withheld", task.revision)
           this.status = "Result withheld: context changed. "
-            + "Ask again to reconcile the completed lookup."
+            + "Actions may have happened; reconcile before retrying."
           continue
         }
         this.status = "Result sent — awaiting acknowledgment"

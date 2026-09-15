@@ -5,7 +5,7 @@ import {
 } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { record, text } from "./protocol"
+import { record, text, type InitialMessage } from "./protocol"
 import type { Task } from "./state"
 
 // This is context for a new conversation, never a queue to execute.
@@ -110,17 +110,9 @@ export class History {
   checkpoint(context: HistoryContext, reset = false) {
     // Model-window eviction must not erase the saved resume checkpoint.
     // Only explicit Clear resets it; disk context has its own size bound.
-    if (this.lastContext && !reset) {
-      const old: HistoryContext = JSON.parse(this.lastContext)
-      context = { ...context,
-        incomplete: context.incomplete || old.incomplete,
-        fragments: merge(old.fragments, context.fragments,
-          f => JSON.stringify([f.sessionId, f.sequence])),
-        tasks: merge(old.tasks, context.tasks,
-          t => JSON.stringify([t.sessionId, t.delegationId])),
-      }
-    }
-    const json = JSON.stringify(boundHistory(context))
+    const old = this.lastContext && !reset
+      ? JSON.parse(this.lastContext) as HistoryContext : undefined
+    const json = JSON.stringify(mergeHistory(old, context))
     if (json === this.lastContext) return
     this.write(() => {
       const temporary = join(this.dir, "context.json.tmp")
@@ -144,4 +136,42 @@ function merge<T>(old: T[], current: T[], key: (item: T) => string): T[] {
     items.set(id, value)
   }
   return [...items.values()]
+}
+
+// Shared by disk checkpoints, CLI resume, and in-memory idle reconnects.
+export function mergeHistory(
+  old: HistoryContext | undefined, context: HistoryContext,
+): HistoryContext {
+  if (!old) return boundHistory(context)
+  return boundHistory({ ...context,
+    incomplete: context.incomplete || old.incomplete,
+    fragments: merge(old.fragments, context.fragments,
+      f => JSON.stringify([f.sessionId, f.sequence])),
+    tasks: merge(old.tasks, context.tasks,
+      t => JSON.stringify([t.sessionId, t.delegationId])),
+  })
+}
+
+// History remains data, never developer instructions or an execution queue.
+// Exact deltas concatenate only across adjacent fragments of one speaker.
+export function voiceHistory(context?: HistoryContext): InitialMessage[] {
+  if (!context) return []
+  const messages: InitialMessage[] = []
+  for (const f of boundHistory(context).fragments) {
+    if (f.speaker !== "user" && f.speaker !== "assistant") continue
+    const last = messages.at(-1)
+    if (last?.role === f.speaker) last.content[0].text += f.text
+    else messages.push(f.speaker === "user"
+      ? { type: "message", role: "user",
+        content: [{ type: "input_text", text: f.text }] }
+      : { type: "message", role: "assistant",
+        content: [{ type: "output_text", text: f.text }] })
+  }
+  // The byte bound is conservative for the API's 8,192-token input limit.
+  const result = messages.filter(m => m.content[0].text.trim())
+  while (result.length > 128
+    || Buffer.byteLength(JSON.stringify(result)) > historyLimit) {
+    result.shift()
+  }
+  return result
 }

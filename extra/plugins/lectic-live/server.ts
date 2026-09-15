@@ -1,11 +1,12 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto"
 import { Coordinator, type Backend } from "./coordinator"
 import { decodeEvent, record, text, type LiveEvent } from "./protocol"
-import { SessionFailure, type Connect, type SessionConnection }
-  from "./session"
+import {
+  CreationRejected, SessionFailure, type Connect, type SessionConnection,
+} from "./session"
 import { html, browserScript, style } from "./web"
 import { Journal, Usage } from "./state"
-import type { History, HistoryContext } from "./history"
+import { mergeHistory, type History, type HistoryContext } from "./history"
 
 export type ServerOptions = {
   port?: number
@@ -13,6 +14,7 @@ export type ServerOptions = {
   backend: Backend
   maxSessionSeconds?: number
   contextSeconds?: number
+  idleTimeout?: number
   heartbeatMs?: number
   watchdogMs?: number
   history?: History
@@ -20,6 +22,9 @@ export type ServerOptions = {
 }
 
 export function startServer(options: ServerOptions) {
+  const idleTimeout = options.idleTimeout ?? 30
+  if (!Number.isInteger(idleTimeout) || idleTimeout < 1
+    || idleTimeout > 3600) throw new Error("Invalid idle timeout")
   const secret = randomBytes(32).toString("hex")
   const startup = new AbortController()
   let phase = "Ready — no paid session started"
@@ -28,6 +33,13 @@ export function startServer(options: ServerOptions) {
   let confirmed = false
   let ready = false
   let lost = false
+  let sleeping = false
+  let idling = false
+  let generation = 0
+  let idlePromise: Promise<boolean> | undefined
+  let completedRuns = 0
+  let completedElapsed = 0
+  let lastSpeech = 0
   let session: SessionConnection | undefined
   let coordinator: Coordinator | undefined
   let creation: Promise<void> | undefined
@@ -36,6 +48,7 @@ export function startServer(options: ServerOptions) {
   let began = 0
   const usage = new Usage()
   let previousSession = options.previousSession
+  let retained = options.previousSession
   const journal = new Journal(options.previousSession?.conversationId, () => {
     const event = journal.snapshot().at(-1)
     options.history?.append("lifecycle", event)
@@ -43,12 +56,13 @@ export function startServer(options: ServerOptions) {
   })
 
   function checkpoint(reset = false) {
-    if (!options.history) return
-    options.history.checkpoint(coordinator?.historyContext()
+    const current = coordinator?.historyContext()
       ?? previousSession ?? {
         version: 1, conversationId: journal.conversationId,
         incomplete: false, fragments: [], tasks: [],
-      }, reset)
+      }
+    retained = mergeHistory(reset ? undefined : retained, current)
+    options.history?.checkpoint(retained, reset)
   }
   checkpoint()
   const contextMs = (options.contextSeconds ?? 300) * 1000
@@ -100,6 +114,7 @@ export function startServer(options: ServerOptions) {
     if (event.type !== "error") options.history?.append("event", event)
     if (!ending && (event.type === "session.input_transcript.delta"
       || event.type === "session.output_transcript.delta")) {
+      lastSpeech = Date.now()
       captions.push({
         sequence: ++sequence,
         speaker: event.type === "session.input_transcript.delta"
@@ -113,29 +128,78 @@ export function startServer(options: ServerOptions) {
     } else if (event.type === "session.usage.updated"
       || event.type === "session.closed") {
       usage.update(event.usage.seconds, event.type === "session.closed")
-      if (usage.seconds >= maxSeconds && !ending) {
+      if (usage.snapshot(used).estimatedBillableSeconds >= maxSeconds
+        && !ending) {
         journal.add("budget_reached")
         void end()
       }
       if (event.type === "session.closed") {
         confirmed = true
-        void end()
+        if (!idling) void end()
       }
     } else if (event.type === "error") {
       journal.add("live_error")
       phase = "Live reported an error; ending session"
       void end()
     }
-    if (!ending && !lost) coordinator?.receive(event)
+    // Drain final transcripts, but never launch work during an idle close.
+    if (!ending && !lost && (!idling
+      || event.type === "session.input_transcript.delta"
+      || event.type === "session.output_transcript.delta")) {
+      coordinator?.receive(event)
+    }
   }
 
   function disconnected() {
-    if (lost || confirmed) return
+    if (lost || confirmed || idling || sleeping) return
     lost = true
     journal.add("sideband_lost")
     phase = "Sideband lost — no new work; ending session"
     coordinator?.stop()
     void end()
+  }
+
+  function elapsed() {
+    return completedElapsed + (began ? (Date.now() - began) / 1000 : 0)
+  }
+
+  async function sleep() {
+    if (idlePromise) return idlePromise
+    idling = true
+    ready = false
+    phase = "Disconnecting idle session"
+    idlePromise = (async () => {
+      try {
+        confirmed = await session!.close() || confirmed
+        if (!confirmed || ending) {
+          if (!confirmed) journal.add("finalization_uncertain")
+          void end()
+          return false
+        }
+        coordinator?.stop()
+        await coordinator?.idle()
+        if (ending) return false
+        checkpoint()
+        previousSession = retained
+        completedRuns += coordinator?.runs ?? 0
+        completedElapsed = elapsed()
+        began = 0
+        // Retire callbacks before dropping the old owner and bootstrap IDs.
+        generation++
+        coordinator = undefined
+        session = undefined
+        creation = undefined
+        sleeping = true
+        journal.add("idle_disconnected")
+        phase = "Idle — disconnected; microphone wake detection is local"
+        return true
+      } catch {
+        journal.add("finalization_uncertain")
+        void end()
+        return false
+      } finally { idling = false }
+    })()
+    return idlePromise
   }
 
   async function end() {
@@ -150,6 +214,8 @@ export function startServer(options: ServerOptions) {
         if (session) confirmed = await session.close() || confirmed
       } catch { journal.add("finalization_uncertain") }
       await coordinator?.idle()
+      completedElapsed = elapsed()
+      began = 0
       journal.add(confirmed || !used ? "ended" : "finalization_uncertain")
       phase = confirmed ? "Ended — final usage confirmed"
         : used ? "Ended — session finalization/usage unconfirmed"
@@ -214,27 +280,63 @@ export function startServer(options: ServerOptions) {
             return reply({
               phase, used, ending, ready, confirmed, seconds: usage.seconds,
               usage: usage.snapshot(used),
-              elapsed: began ? (Date.now() - began) / 1000 : 0,
+              elapsed: elapsed(), sleeping, idling, idleTimeout,
+              busy: coordinator?.busy ?? false,
               backend: coordinator?.status ?? "Idle",
-              runs: coordinator?.runs ?? 0, captions,
+              runs: completedRuns + (coordinator?.runs ?? 0), captions,
               tasks: coordinator?.diagnostics() ?? [],
               diagnostics: journal.snapshot(),
             })
           case "/start": {
-            if (used || ending) {
+            if ((used && !sleeping) || idling || ending) {
               return reply({ error: "Already started" }, 409)
             }
             const sdp = text(body["sdp"])
             if (!sdp || Buffer.byteLength(sdp) > 64 * 1024) {
               return reply({ error: "Invalid offer" }, 400)
             }
+            if (used) {
+              if (Math.max(elapsed(),
+                usage.snapshot(true).estimatedBillableSeconds)
+                + 15 > maxSeconds) {
+                journal.add("budget_reached")
+                void end()
+                return reply({ error: "Session budget exhausted" }, 409)
+              }
+              usage.nextSession()
+              journal.add("idle_resumed")
+            }
             used = true
+            sleeping = false
+            confirmed = false
+            ready = false
+            idlePromise = undefined
+            clearOnAttach = false
+            cancelOnAttach = false
+            seen.clear()
+            buffered.splice(0)
+            const ownerGeneration = ++generation
             began = Date.now()
+            lastSpeech = 0
             phase = "Creating paid session and attaching sideband"
             creation = (async () => {
               session = await options.connect(
-                sdp, receive, disconnected, startup.signal,
-              )
+                sdp,
+                event => {
+                  if (generation === ownerGeneration) receive(event)
+                },
+                () => {
+                  if (generation === ownerGeneration) disconnected()
+                },
+                startup.signal, previousSession,
+              ).catch(error => {
+                // Settle accounting before End's wait on creation resolves.
+                if (error instanceof CreationRejected) {
+                  confirmed = true
+                  usage.rejectCreation()
+                }
+                throw error
+              })
               const owner = session
               coordinator = new Coordinator(owner.id, options.backend,
                 (id, content) => owner.client.append(
@@ -252,8 +354,10 @@ export function startServer(options: ServerOptions) {
               } else if (cancelOnAttach) coordinator.cancel()
             })()
             try { await creation } catch (error) {
-              phase = "Startup failed — do not blindly retry; "
-                + "session finalization may be unconfirmed"
+              phase = error instanceof CreationRejected
+                ? "Startup rejected — no new session created"
+                : "Startup failed — do not blindly retry; "
+                  + "session finalization may be unconfirmed"
               journal.add("startup_failed")
               const detail = error instanceof SessionFailure
                 ? error.message : "Connection or protocol failure"
@@ -265,10 +369,11 @@ export function startServer(options: ServerOptions) {
               return reply({ error: "Startup cancelled" }, 409)
             }
             phase = "Sideband attached — waiting for browser media"
-            return reply({ sdp: session!.sdp })
+            return reply({ sdp: session!.sdp,
+              sessionId: session!.id, idleTimeout })
           }
           case "/ready": {
-            if (!session || ready || ending) {
+            if (!session || ready || ending || idling || sleeping) {
               return reply({ error: "Not awaiting bootstrap" }, 409)
             }
             const events = body["events"]
@@ -281,10 +386,24 @@ export function startServer(options: ServerOptions) {
               throw new Error("Missing session.started")
             }
             for (const event of decoded) if (event) receive(event)
+            if (ending || lost) {
+              return reply({ error: "Startup cancelled" }, 409)
+            }
             ready = true
             phase = "Connected — microphone enabled in browser"
             return reply({ ok: true })
           }
+          case "/idle":
+            if (ending || !session || body["sessionId"] !== session.id) {
+              return reply({ error: "Not an active session" }, 409)
+            }
+            if (idling) return reply({ idle: await idlePromise })
+            if (!ready) return reply({ error: "Not ready" }, 409)
+            if (coordinator?.busy || (lastSpeech
+              && Date.now() - lastSpeech < idleTimeout * 1000)) {
+              return reply({ idle: false })
+            }
+            return reply({ idle: await sleep() })
           case "/clear":
             if (creation && !coordinator) clearOnAttach = true
             previousSession = undefined
@@ -311,9 +430,12 @@ export function startServer(options: ServerOptions) {
   const watchdog = setInterval(() => {
     prune()
     if (!used || ending) return
+    if (began) usage.update((Date.now() - began) / 1000)
     const reason = Date.now() - heartbeat > (options.heartbeatMs ?? 10_000)
-      ? "browser_lost" : Date.now() - began > maxSeconds * 1000
-        ? "budget_reached" : !ready && Date.now() - began > 35_000
+      ? "browser_lost" : Math.max(elapsed(),
+        usage.snapshot(true).estimatedBillableSeconds) >= maxSeconds
+        ? "budget_reached" : began && !ready && !idling
+          && Date.now() - began > 35_000
           ? "startup_timeout" : undefined
     if (reason) { journal.add(reason); void end() }
   }, options.watchdogMs ?? 500)

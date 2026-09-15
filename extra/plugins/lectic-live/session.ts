@@ -1,9 +1,13 @@
+import { voiceHistory, type HistoryContext } from "./history"
 import {
   createRequest, decodeCreated, record, type LiveEvent,
 } from "./protocol"
 import { LiveClient } from "./live-client"
 
 export class SessionFailure extends Error {}
+
+// Explicit request rejection, unlike a timeout or failed attachment.
+export class CreationRejected extends SessionFailure {}
 
 export interface SessionConnection {
   id: string
@@ -16,6 +20,7 @@ export type Connect = (
   receive: (event: LiveEvent) => void,
   lost: () => void,
   signal: AbortSignal,
+  previousSession?: HistoryContext,
 ) => Promise<SessionConnection>
 
 type SocketFactory = (
@@ -31,16 +36,34 @@ const defaultSocket: SocketFactory = (url, options) => {
 }
 
 // Provider bodies and socket reasons can echo prompts, credentials or proxy
-// headers. Only classify known machine codes; never log body excerpts.
+// headers. Expose only known codes and schema paths, never body excerpts.
 export function describeFailure(body: string): string {
   const known = new Set([
     "model_not_found", "invalid_api_key", "insufficient_quota",
     "rate_limit_exceeded", "permission_denied", "invalid_request_error",
+    "invalid_value", "invalid_type", "missing_required_parameter",
+    "unknown_parameter", "unsupported_value",
   ])
   try {
     const error = record(record(JSON.parse(body))["error"])
-    const code = error["code"] ?? error["type"]
-    if (typeof code === "string" && known.has(code)) return `: ${code}`
+    // An unfamiliar code must not hide a recognized error type.
+    const code = [error["code"], error["type"]].find(
+      value => typeof value === "string" && known.has(value),
+    )
+    const param = error["param"]
+    // Only known schema paths, never arbitrary provider-controlled text.
+    const inputPath = new RegExp(
+      "^session\\.input(?:\\[\\d{1,3}\\])?"
+      + "(?:\\.(?:type|role|content(?:\\[0\\])?"
+      + "(?:\\.(?:type|text))?))?$",
+    )
+    const field = typeof param === "string" && (
+      ["session", "session.model", "session.instructions", "session.store",
+        "transport", "transport.type", "transport.sdp"].includes(param)
+      || inputPath.exec(param)?.[0] === param
+    ) ? `param=${param}` : undefined
+    const details = [code, field].filter(value => value !== undefined)
+    return details.length ? `: ${details.join("; ")}` : ""
   } catch { /* Unknown bodies are intentionally not diagnostic content. */ }
   return ""
 }
@@ -74,24 +97,30 @@ export function liveConnector(
     fetch: globalThis.fetch, socket: defaultSocket,
   },
 ): Connect {
-  return async (sdp, receive, lost, signal) => {
+  return async (sdp, receive, lost, signal, previousSession) => {
     const endpoint = "https://api.openai.com/v1/live/sessions"
     const response = await io.fetch(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`, "Content-Type": "application/json",
       },
-      body: JSON.stringify(createRequest(sdp, voice)),
+      body: JSON.stringify(createRequest(
+        sdp, voice, voiceHistory(previousSession),
+      )),
       signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
     })
-    const body = await boundedBody(response)
     if (!response.ok) {
-      throw new SessionFailure(
+      // Do not turn explicit rejection into uncertainty if its body fails.
+      const body = await boundedBody(response).catch(() => "")
+      // Timeouts, server errors and unfamiliar statuses remain uncertain.
+      const Failure = [400, 401, 403, 404, 422, 429].includes(response.status)
+        ? CreationRejected : SessionFailure
+      throw new Failure(
         `Live creation failed (HTTP ${response.status})`
         + describeFailure(body),
       )
     }
-    const created = decodeCreated(JSON.parse(body))
+    const created = decodeCreated(JSON.parse(await boundedBody(response)))
     let closed = false
     let releasing = false
     let lossReported = false

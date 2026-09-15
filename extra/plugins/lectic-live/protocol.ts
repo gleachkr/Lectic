@@ -131,13 +131,24 @@ export function decodeEvent(raw: string): LiveEvent | null {
 
 // All browser commands go through the authenticated local controller.
 // Include delegation metadata for the later bounded bootstrap handoff.
-export function createRequest(sdp: string, voice?: string) {
+export type InitialMessage = { type: "message" } & ({
+  role: "user"
+  content: [{ type: "input_text"; text: string }]
+} | {
+  role: "assistant"
+  content: [{ type: "output_text"; text: string }]
+})
+
+export function createRequest(
+  sdp: string, voice?: string, input: InitialMessage[] = [],
+) {
   if (!sdp || Buffer.byteLength(sdp) > MAX_EVENT_BYTES) {
     throw new Error("Invalid SDP offer")
   }
   return {
     session: {
       instructions: voicePrompt,
+      ...(input.length ? { input } : {}),
       ...(voice ? { audio: { output: { voice } } } : {}),
       model: "gpt-live-1", delegation: { type: "client" }, store: false,
       client: { data_channel: {

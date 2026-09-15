@@ -11,9 +11,12 @@ function deferred<T>() {
 
 // Run the actual embedded script with deterministic browser/transport fakes.
 // This tests lifecycle and drawing inputs, not real browser autoplay policy.
-function browser(options: { token?: string; blocked?: boolean } = {}) {
+function browser(options: {
+  token?: string; blocked?: boolean; idleTimeout?: number
+} = {}) {
   const permission = deferred<any>()
-  const ready = deferred<any>()
+  let ready = deferred<any>()
+  const sleeping = deferred<any>()
   const ending = deferred<any>()
   const requests: { path: string; init: RequestInit }[] = []
   const logs: any[][] = []
@@ -26,6 +29,9 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
   let plays = 0
   let blocked = options.blocked ?? false
   let frequency = 0
+  let now = 0
+  let micLevel = 0
+  let agentLevel = 0
   const peers: Peer[] = []
   const contexts: Context[] = []
   let analysisStream: unknown
@@ -33,10 +39,19 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
   let sourceDisconnected = false
   const track = { enabled: true, stopped: false,
     stop() { this.stopped = true } }
-  const media = { getTracks: () => [track], getAudioTracks: () => [track] }
+  const clones: (typeof track)[] = []
+  const media = {
+    getTracks: () => [track], getAudioTracks: () => [track],
+    clone() {
+      const copy = { ...track }
+      clones.push(copy)
+      return { getTracks: () => [copy], getAudioTracks: () => [copy] }
+    },
+  }
   const remote = { remote: true }
   const state = { phase: "Connected", backend: "Idle", runs: 0,
-    tasks: [], captions: [], diagnostics: [], ending: false, usage: {} }
+    busy: false, tasks: [], captions: [], diagnostics: [],
+    ending: false, usage: {} }
   const audio = { srcObject: null, paused: true,
     async play() {
       plays++
@@ -61,6 +76,11 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
     constructor() { contexts.push(this) }
     createAnalyser() {
       return {
+        stream: undefined as unknown,
+        getFloatTimeDomainData(data: Float32Array) {
+          data.fill(this.stream === media ? micLevel
+            : this.stream === remote ? agentLevel : 0)
+        },
         getByteFrequencyData(data: Uint8Array) { data.fill(frequency) },
         disconnect() {},
       }
@@ -68,7 +88,10 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
     createMediaStreamSource(stream: unknown) {
       analysisStream = stream
       return {
-        connect() { connections++ },
+        connect(analyser: { stream: unknown }) {
+          analyser.stream = stream
+          connections++
+        },
         disconnect() { sourceDisconnected = true },
       }
     }
@@ -82,14 +105,17 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
     ontrack?: (event: any) => void
     onconnectionstatechange?: () => void
     constructor() { peers.push(this) }
-    addTrack() { expect(track.enabled).toBe(false) }
+    addTrack(sent: typeof track) {
+      expect(sent).not.toBe(track)
+      expect(sent.enabled).toBe(false)
+    }
     createDataChannel() { return this.channel }
     async createOffer() { return { sdp: "offer" } }
     async setLocalDescription() {}
     async setRemoteDescription() {
       this.ontrack?.({ streams: [remote] })
       this.channel.onmessage({ data: JSON.stringify({
-        type: "session.started", session: { id: "s1" },
+        type: "session.started", session: { id: `s${peers.length}` },
       }) })
     }
     close() { this.closed = true; this.channel.onclose?.() }
@@ -113,12 +139,15 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
       return permission.promise
     } } },
     RTCPeerConnection: Peer, AudioContext: Context,
-    devicePixelRatio: 2, AbortSignal,
+    devicePixelRatio: 2, AbortSignal, performance: { now: () => now },
     console: { log: (...args: any[]) => logs.push(args) },
     async fetch(path: string, init: RequestInit) {
       requests.push({ path, init })
       const value = path === "/state" ? state
-        : path === "/start" ? { sdp: "answer" }
+        : path === "/start" ? { sdp: "answer",
+          sessionId: `s${peers.length}`,
+          idleTimeout: options.idleTimeout ?? 30 }
+          : path === "/idle" ? await sleeping.promise
           : path === "/ready" ? await ready.promise
             : await ending.promise
       return { ok: true, json: async () => value }
@@ -137,9 +166,12 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
   }
   return {
     requests, logs, track, audio, remote, canvas, drawing, lines, state,
-    permission, ready, ending, timers, frames, location, flush,
-    captures: () => captures, plays: () => plays, peer: () => peers[0],
-    context: () => contexts[0], analysisStream: () => analysisStream,
+    permission, get ready() { return ready }, sleeping,
+    ending, timers, frames, location, flush, clones,
+    holdReady() { ready = deferred<any>() },
+    captures: () => captures, plays: () => plays, peer: () => peers.at(-1)!,
+    contexts, context: () => contexts[0],
+    analysisStream: () => analysisStream,
     connections: () => connections,
     sourceDisconnected: () => sourceDisconnected,
     paths: () => requests.map(r => r.path),
@@ -150,6 +182,19 @@ function browser(options: { token?: string; blocked?: boolean } = {}) {
       const pending = [...frames.values()]
       frames.clear()
       pending.forEach(fn => fn())
+    },
+    async advance(ms: number, mic = 0, agent = 0) {
+      micLevel = mic
+      agentLevel = agent
+      for (let elapsed = 0; elapsed < ms; elapsed += 50) {
+        now += Math.min(50, ms - elapsed)
+        for (const [id, timer] of [...timers]) {
+          if (timer.ms !== 50) continue
+          timers.delete(id)
+          timer.fn()
+        }
+        await flush()
+      }
     },
     async permit() { permission.resolve(media); await flush() },
     async poll() {
@@ -305,4 +350,193 @@ test("server shutdown silences immediately and retains peer until handshake",
     expect(JSON.stringify(b.logs)).toContain("final usage")
     expect(b.paths().filter(p => p === "/end")).toHaveLength(1)
     expect(b.timers.size).toBe(0)
+  })
+
+test("idle closes before wake reconnects; microphone stays local throughout",
+  async () => {
+    const b = browser()
+    await b.permit()
+    b.ready.resolve({ ok: true })
+    await b.flush()
+    const oldPeer = b.peer()
+    const sent = b.clones[0]
+    expect(sent.enabled).toBe(true)
+    await b.advance(15_000)
+    b.frame(0)
+    expect(b.drawing.strokeStyle).toBe("#000")
+    await b.advance(7500)
+    b.frame(0)
+    expect(b.drawing.strokeStyle).toBe("rgb(85, 85, 85)")
+    await b.advance(7500)
+    b.frame(0)
+    expect(b.drawing.strokeStyle).toBe("rgb(170, 170, 170)")
+    expect(b.paths().filter(p => p === "/idle")).toHaveLength(1)
+    expect(b.requests.find(r => r.path === "/idle")?.init.body)
+      .toBe(JSON.stringify({ sessionId: "s1" }))
+    expect(sent.enabled).toBe(false)
+    expect(b.track.enabled).toBe(true)
+    expect(b.track.stopped).toBe(false)
+    expect(oldPeer.closed).toBe(false)
+    expect(b.audio.paused).toBe(true)
+    b.event("click")
+    await b.flush()
+    expect(b.audio.paused).toBe(true)
+    // Noise while close is pending must not overlap two paid sessions.
+    await b.advance(50, .1)
+    expect(b.paths().filter(p => p === "/start")).toHaveLength(1)
+    b.holdReady()
+    b.sleeping.resolve({ idle: true })
+    await b.flush()
+    expect(oldPeer.closed).toBe(true)
+    expect(sent.stopped).toBe(true)
+    expect(b.paths().filter(p => p === "/start")).toHaveLength(2)
+    expect(b.captures()).toBe(1)
+    expect(b.clones[1].enabled).toBe(false)
+    oldPeer.channel.onmessage({ data: JSON.stringify({
+      type: "session.started", session: { id: "s1" },
+    }) })
+    oldPeer.channel.onclose()
+    oldPeer.onconnectionstatechange?.()
+    expect(b.paths()).not.toContain("/end")
+    b.ready.resolve({ ok: true })
+    await b.flush()
+    expect(b.clones[1].enabled).toBe(true)
+    const bootstraps = b.requests.filter(r => r.path === "/ready")
+    expect(bootstraps.at(-1)?.init.body).not.toContain("s1")
+    expect(b.paths().filter(p => p === "/ready")).toHaveLength(2)
+    await b.advance(50)
+    b.frame(0)
+    expect(b.drawing.strokeStyle).toBe("#000")
+    b.event("pagehide")
+    expect(b.clones.every(t => t.stopped)).toBe(true)
+    expect(b.contexts.every(c => c.closed)).toBe(true)
+    expect(b.timers.size).toBe(0)
+  })
+
+test("configured timeout allows repeated sleep/wake without extra captures",
+  async () => {
+    const b = browser({ idleTimeout: 2 })
+    await b.permit()
+    b.ready.resolve({ ok: true })
+    b.sleeping.resolve({ idle: true })
+    await b.flush()
+    for (let cycle = 0; cycle < 3; cycle++) {
+      await b.advance(3000)
+      expect(b.peer().closed).toBe(true)
+      expect(b.paths().filter(p => p === "/start"))
+        .toHaveLength(cycle + 1)
+      b.event("click")
+      await b.advance(5000)
+      expect(b.paths().filter(p => p === "/start"))
+        .toHaveLength(cycle + 1)
+      await b.advance(50, .2)
+      expect(b.paths().filter(p => p === "/start"))
+        .toHaveLength(cycle + 2)
+      expect(b.clones.at(-1)?.enabled).toBe(true)
+    }
+    expect(b.captures()).toBe(1)
+    b.event("pagehide")
+  })
+
+test("agent audio and pending backend work prevent browser idle requests",
+  async () => {
+    const b = browser({ idleTimeout: 1 })
+    await b.permit()
+    b.ready.resolve({ ok: true })
+    await b.flush()
+    await b.advance(2000, 0, .1)
+    expect(b.paths()).not.toContain("/idle")
+    b.state.busy = true
+    await b.poll()
+    await b.advance(2000)
+    expect(b.paths()).not.toContain("/idle")
+    b.state.busy = false
+    await b.poll()
+    await b.advance(1000)
+    expect(b.paths()).toContain("/idle")
+    b.event("pagehide")
+    b.sleeping.resolve({ idle: true })
+    await b.flush()
+    expect(b.paths().filter(p => p === "/start")).toHaveLength(1)
+    expect(b.timers.size).toBe(0)
+  })
+
+test("idle rejection restores media without reconnecting", async () => {
+  const b = browser({ idleTimeout: 1 })
+  await b.permit()
+  b.ready.resolve({ ok: true })
+  b.sleeping.resolve({ idle: false })
+  await b.flush()
+  await b.advance(1000)
+  expect(b.paths()).toContain("/idle")
+  expect(b.clones[0].enabled).toBe(true)
+  expect(b.peer().closed).toBe(false)
+  expect(b.audio.paused).toBe(false)
+  expect(b.paths().filter(p => p === "/start")).toHaveLength(1)
+  b.event("pagehide")
+})
+
+test("uncertain idle close stops without reconnecting", async () => {
+  const b = browser({ idleTimeout: 1 })
+  await b.permit()
+  b.ready.resolve({ ok: true })
+  b.ending.resolve({ confirmed: false })
+  await b.flush()
+  await b.advance(1000)
+  b.sleeping.reject(new Error("Controller unavailable"))
+  await b.flush()
+  await b.advance(1000, .5)
+  expect(b.paths().filter(p => p === "/start")).toHaveLength(1)
+  expect(b.track.stopped).toBe(true)
+  expect(b.timers.size).toBe(0)
+})
+
+test("suspended microphone analysis does not cause sleep or false wakes",
+  async () => {
+    const b = browser({ idleTimeout: 1 })
+    await b.permit()
+    b.ready.resolve({ ok: true })
+    b.sleeping.resolve({ idle: true })
+    await b.flush()
+    const monitor = b.contexts.at(-1)!
+    monitor.state = "suspended"
+    await b.advance(3000)
+    expect(b.paths()).not.toContain("/idle")
+    b.event("click")
+    await b.advance(1000)
+    expect(b.paths()).toContain("/idle")
+    expect(b.peer().closed).toBe(true)
+    monitor.state = "suspended"
+    await b.advance(3000, .2)
+    b.event("click")
+    await b.advance(1000, .2)
+    expect(b.paths().filter(p => p === "/start")).toHaveLength(1)
+    await b.advance(50, .01)
+    expect(b.paths().filter(p => p === "/start")).toHaveLength(2)
+    b.event("pagehide")
+  })
+
+test("closing during wake bootstrap prevents late microphone enable",
+  async () => {
+    const b = browser({ idleTimeout: 1 })
+    await b.permit()
+    b.ready.resolve({ ok: true })
+    b.sleeping.resolve({ idle: true })
+    await b.flush()
+    await b.advance(1000)
+    b.holdReady()
+    await b.advance(50, .2)
+    await b.advance(50, .2)
+    b.frame(0)
+    expect(b.drawing.strokeStyle).toBe("rgb(170, 170, 170)")
+    expect(b.clones[1].enabled).toBe(false)
+    b.event("pagehide")
+    b.ready.resolve({ ok: true })
+    await b.flush()
+    expect(b.clones[1].enabled).toBe(false)
+    expect(b.clones.every(t => t.stopped)).toBe(true)
+    expect(b.track.stopped).toBe(true)
+    expect(b.contexts.every(c => c.closed)).toBe(true)
+    expect(b.timers.size).toBe(0)
+    expect(b.frames.size).toBe(0)
   })

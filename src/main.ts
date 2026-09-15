@@ -20,6 +20,7 @@ program
 .name('lectic')
 .enablePositionalOptions()
 .passThroughOptions()
+.option('--no-macros', 'Leave macros and built-in directives unevaluated')
 .option('--format <mode>', 'Output format: full|block|raw|clean|none')
 .option('-f, --file <lectic>',  'Lectic to read from')
 .option('-i, --inplace', 'Update the file in place (requires --file)')

@@ -1,177 +1,192 @@
-# Live wire contract: stage 1 evidence
+# Lectic Live adapter contract
 
-Rechecked against OpenAI's published guides and API reference on
-2026-09-14. This is a small adapter for the `/v1/live` wire API, not a
-Live SDK dependency. The installed OpenAI SDK is not used. The reference
-publishes no more specific wire revision to pin; the date and offline
-fixtures identify this snapshot. Contract discovery and automated tests
-made no authenticated or paid calls. After slice 2 integration, the user
-reported successful browser use, including backend delegation. This is
-not a comprehensive live security or lifecycle acceptance test.
+Technical reference for the plugin's `/v1/live` wire adapter and Lectic CLI
+boundary. For installation, operation, permissions, and retention, see the
+[README](README.md).
 
-## Sources
+## Session and browser transport
 
-Reference pages (the create page also exposes `index.md`):
+Create with `POST https://api.openai.com/v1/live/sessions`, using:
 
-- [Session creation][create]
-- [Sideband events and commands][sideband]
-- [Fork lifecycle][fork]
+- `session`: `model: "gpt-live-1"`, `delegation: {type: "client"}`, and
+  `store: false`.
+- `transport`: `{type: "webrtc", sdp: offer}`.
 
-[create]:
-  https://developers.openai.com/api/reference/resources/live/methods/create
-[sideband]:
-https://developers.openai.com/api/reference/resources/live/sideband-websocket
-[fork]:
-  https://developers.openai.com/api/reference/resources/live/fork-websocket
+The response supplies `session.id` and `transport.sdp`. WebRTC negotiates
+audio format; omit `audio.format`. Create the `oai-events` data channel
+before the SDP offer, apply the answer, and await `session.started`. Do not
+send `session.start` on WebRTC or the sideband.
 
-Guides:
-
-- https://developers.openai.com/api/docs/guides/live-delegation
-- https://developers.openai.com/api/docs/guides/live-conversations
-- https://developers.openai.com/api/docs/guides/voice-webrtc?api=live
-- https://developers.openai.com/api/docs/guides/voice-server-controls?api=live
-
-## Confirmed shapes
-
-Creation is `POST https://api.openai.com/v1/live/sessions` with a JSON
-`session` plus `transport: {type: "webrtc", sdp: offer}`. The response has
-`session.id` and `transport: {type: "webrtc", sdp: answer}`. Configure
-`model: "gpt-live-1"`, `delegation: {type: "client"}`, and `store: false`.
-WebRTC negotiates audio format: omit `audio.format`.
-
-Create `oai-events` before the SDP offer, apply the answer, and wait for
-`session.started`. Do not send `session.start` over WebRTC or on the
-attached sideband. The trusted sideband attaches with project-key
-authentication at:
+The controller attaches using the local project API key at:
 
 ```text
 wss://api.openai.com/v1/live/sessions/{session_id}/attach
 ```
 
-Transcript events are `session.input_transcript.delta` and
-`session.output_transcript.delta`, with exact `delta`, `start_ms`, and
-`end_ms`. Intervals may overlap across speakers. There is no transcript
-item ID or authoritative turn-completed event.
+The sideband attaches before the SDP answer reaches the browser. Transmitted
+microphone tracks stay disabled until the authenticated `session.started`
+handoff. Bootstrap accepts at most 128 browser event copies, deduplicates
+against the sideband, and ignores subsequent browser copies for execution.
 
-`session.delegation.created` has event-level `offset_ms` and a nested
-`delegation: {id, type: "delegation", target: "client" | "responses"}`.
-The target can be Responses even though this plugin only handles client
-work. IDs are opaque; reference examples themselves use different
-prefixes. There is no task text or `request` field.
-
-The adapter supports thinking, commentary, and instructions appends.
-Each command has `type`, `event_id`, `delegation_id`, and plain-string
-`content`. General context uses an explicit `delegation_id: null`.
-The matching `session.<kind>.appended` acknowledgment has optional
-`client_event_id`, plus timeline fields. Command rejection instead uses
-nested `error.client_event_id`; `error.code` can be null. Missing
-correlation IDs cannot resolve a pending append. No retry is automatic.
-Acknowledgment does not establish speech, playback, or action completion.
-
-`session.usage.updated` contains cumulative `usage.seconds`, not an
-increment. `session.closed` includes final `usage.seconds`, a session
-snapshot, and `reason`. A transport closing without this event leaves
-final usage unconfirmed. Slice 2 tracks cumulative usage, requests close,
-and waits up to three seconds for a terminal event before cleanup.
-Acknowledged appends still do not establish playback.
-
-The validators deliberately project only fields consumed by the plugin,
-not every optional field in the Live reference. Extra fields and unknown
-event types are inert; malformed supported fields throw. Reflected audio
-is ignored. This is not a general-purpose Live SDK validator.
-
-## Frontend permissions: explicit, not inferred
-
-Creation supports startup-only:
+Creation fixes `session.client.data_channel` to:
 
 ```json
 {
-  "session": {
-    "client": {
-      "data_channel": {
-        "allowed_client_events": [],
-        "allowed_server_events": [
-          { "type": "session.started" },
-          { "type": "session.closed" },
-          { "type": "session.usage.updated" },
-          { "type": "session.input_transcript.delta" },
-          { "type": "session.output_transcript.delta" },
-          { "type": "session.delegation.created" },
-          { "type": "error" }
-        ]
-      }
-    }
-  }
+  "allowed_client_events": [],
+  "allowed_server_events": [
+    { "type": "session.started" },
+    { "type": "session.closed" },
+    { "type": "session.usage.updated" },
+    { "type": "session.input_transcript.delta" },
+    { "type": "session.output_transcript.delta" },
+    { "type": "session.delegation.created" },
+    { "type": "error" }
+  ]
 }
 ```
 
-Both fields also accept `"all"`. Omission preserves allow-all behavior;
-an empty array allows none. Server event selectors are objects, not
-strings. A `response.event` selector additionally requires a nested
-`response_event`; that field is forbidden for other event types.
-Trusted sideband connections are unaffected by these restrictions.
+These are provider-enforced data-channel restrictions, not tool permissions.
+The trusted sideband is unaffected. Local lifecycle requests require the
+controller's per-launch bearer secret, with Host/Origin checks and bounded
+requests. Browser delegation metadata is not independent authorization.
+Session snapshots can expose configuration; the sideband is not a privacy
+boundary.
 
-`createRequest` fixes the above policy. The browser cannot send appends,
-update instructions, or close the session on its data channel. Browser UI
-controls go through the authenticated local controller. Delegation
-metadata is allowed to the browser only for display/bootstrap buffering;
-it must never independently authorize execution. Session snapshots can
-still expose configuration; the sideband is not a privacy boundary.
+## Transcripts and delegation
 
-Slice 2 implements sideband-before-capture startup, authenticated
-control, and a bounded, deduplicated bootstrap handoff. The sideband is
-attached before the SDP answer is returned; microphone tracks are enabled
-only after the authenticated handoff of `session.started`. Browser copies
-after that handoff are ignored by the controller. These allowlists are
-documented API behavior, not a claim of adversarially live-tested
-enforcement.
+`session.input_transcript.delta` and `session.output_transcript.delta`
+carry `delta`, `start_ms`, and `end_ms`. Preserve text exactly, including
+spaces. Speakers can overlap; there is no transcript item ID or
+authoritative turn-completed event.
 
-## Result size
+`session.delegation.created` contains event-level `offset_ms` and nested
+`delegation: {id, type: "delegation", target: "client" | "responses"}`.
+The adapter handles only client delegations. IDs are opaque. There is no
+task text or `request` field: the adapter assembles context from transcripts
+and prior backend outcomes.
 
-Appends have a documented 500-token content limit. The spike uses a
-conservative 400 UTF-8 byte ceiling, not a character-count estimate. A
-byte-level BPE encoding starts with bytes and merges them, so its token
-count cannot exceed the byte count. Tests cover multibyte Unicode and
-boundary rejection. No truncation or blind resend occurs.
+Delegations settle for 750 ms before serialized execution. The queue holds
+at most four requests; queued requests expire after 60 seconds. Each session
+retains at most 256 delegation IDs, including rejected/cancelled work.
+Context clearing does not remove these execution tombstones.
 
-This is intentionally restrictive and is not an exact GPT-Live token
-counter. Recheck this assumption if the API changes tokenization; live
-acceptance must still exercise server-side oversize rejection. The
-backend should return short public findings, not split tool dumps across
-multiple appends. Thinking appends are not private storage.
+Working context holds up to 96 fragments within 16,000 serialized bytes
+and eight findings with bounded request excerpts and task/delivery state.
+`--context-seconds` bounds fragment and task receipt age. The final envelope
+is capped at 32 KiB; evictions mark incomplete context for clarification.
+Task revisions are independent of transcript revisions. New nonblank user
+speech or delegation during work withholds delivery, not execution.
+Subsequent delegations receive recent outcomes for reconciliation, including
+uncertain failed/cancelled work. Semantic reuse depends on the backend;
+deduplication is not an exactly-once action guarantee.
 
-## Slice 3 lifecycle boundary
+## Lectic input and results
 
-Task outcome and delivery are independent local state. A completed lookup
-can be withheld, acknowledged, or uncertain without becoming a new lookup.
-Task revisions do not advance merely because captions change. The next
-client delegation carries prior request excerpts and findings to Lectic
-for correction reconciliation. The plugin does not invent a Live task
-completion event, semantically cancel from timing, or replay an old run.
+Generation uses `lectic -f SEED --no-macros --format full`, with the adapter
+prompt and context on stdin, followed by EOF. The seed is not overwritten.
+The invocation directory and seed configuration base are preserved, including
+relative imports and `LECTIC_FILE`. Configuration is not flattened or
+capability-filtered.
 
-Session close is idempotent and accepts terminal confirmation only from the
-attached session's ID. Nonterminal usage cannot replace final usage. After
-transport loss, local execution is blocked. A relaunch creates a new Live
-session. Explicit `--resume ID` restores bounded backend context under the
-same application conversation ID, never an execution queue or transport.
-Opening the private URL automatically requests microphone permission, then
-starts the paid session. The browser displays only an agent-audio spectrum;
-status, transcript fragments, and diagnostics are console-only. Automatic
-shutdown stops capture/playback immediately, retaining the peer until bounded
-controller finalization. Closing/reloading the page releases the peer at once
-and sends authenticated keepalive `/end`; the heartbeat watchdog covers lost
-unload requests and browser crashes. Browser autoplay may require a click or
-key press anywhere on the page; this never retries session creation.
+Generated context is JSON inside a fence longer than any backtick run in
+its payload. Macro suppression leaves all user-message directives literal;
+it does not disable tools, hooks, executable sources, or attachment loads.
 
-Browser lifecycle diagnostics are metadata-only. Terminal setup/backend
-errors and opt-in archives can contain detailed local data; they are for
-the trusted machine owner and should be reviewed before sharing. Raw errors
-and full backend records never become voice results. Local history does not
-change Live's `store: false` setting or erase provider-side context.
+The completed record is parsed on stdin from the seed directory, not with
+`-f` pointing into managed state. Parsing does not initialize tools or
+execute loaders. Only a terminal structured answer after successful child
+completion is eligible for delivery:
 
-`--keep-history` archives observed transcripts, checkpoints, and backend
-records. `--resume` supplies a bounded context checkpoint as inert data to
-Lectic on a new delegation. It does not fork/reconnect the old Live session,
-restore unfinished tasks, or resend results. Read-only lookup resumption
-needs context, not a transactional action journal. Future write recovery
-still needs operation-state reconciliation before any retry.
+````text
+```lectic-live-result
+{"status":"completed","summary":"The answer is 42."}
+```
+````
+
+The object has exactly `status` and `summary`. Status is `completed`,
+`clarification`, or `failed`; summary is nonempty public text of at most
+400 UTF-8 bytes. Malformed results never fall back to raw stdout,
+intermediate prose, thought blocks, or tool records. No model-authored
+progress is automatically forwarded.
+
+Generation output/diagnostics are capped at 1 MiB, parsed records at 4 MiB,
+and the seed at 512 KiB. Backend timeouts apply per subprocess phase.
+Children use process groups with bounded TERM/KILL cleanup; tools escaping
+those groups require their own containment.
+
+## Appends and acknowledgment
+
+The adapter supports `session.thinking.append`, `session.commentary.append`,
+and `session.instructions.append`. Each carries `event_id`, `delegation_id`,
+and plain-string `content`. General context uses `delegation_id: null`;
+backend commentary uses the original delegation ID.
+
+Appends have a 500-token API limit. The adapter's conservative 400-byte
+ceiling assumes byte-level BPE and is not an exact GPT-Live token counter.
+Recheck that assumption if tokenization changes. Oversize content is rejected,
+not truncated or split into tool dumps. Thinking appends are not private.
+
+Match `session.<kind>.appended.client_event_id` to the outgoing `event_id`.
+Rejections instead use `error.client_event_id`; `error.code` may be null.
+Missing correlation IDs cannot resolve an append. Appends time out after
+five seconds, with no blind resend. Task outcome and delivery state are
+independent: acknowledgment proves neither playback nor action completion.
+
+Validators project only consumed fields. Unknown events and extra fields
+are inert; malformed supported fields throw. Reflected audio is ignored.
+
+## Close, idle replacement, and resume
+
+Send `session.close` and wait up to three seconds for `session.closed`.
+Close is idempotent; terminal confirmation must match the attached session.
+`session.usage.updated.usage.seconds` is cumulative, not incremental.
+`session.closed` supplies final usage, a session snapshot, and `reason`.
+Final usage overrides provisional usage; later updates cannot replace it.
+Transport loss without terminal confirmation leaves finalization uncertain
+and blocks new work. Explicit creation rejections (HTTP 400, 401, 403,
+404, 422, or 429) remove the new speculative minimum and preserve prior
+confirmed usage. Timeouts, server errors, and attachment failures remain
+uncertain. Neither class of startup failure is automatically retried.
+Diagnostics expose only allowlisted error codes/types and schema paths,
+never raw provider messages.
+
+Authenticated `/idle` is session-bound, rejects pending work/recent speech,
+and requires confirmed close before replacement. Only cloned microphone
+tracks enter WebRTC; local RMS analysis remains active while idle. Wake
+waits for close to finish and creates a fresh coordinator and bootstrap.
+Retired callbacks cannot affect the new owner. Page close, heartbeat loss,
+startup failure, and unexpected transport loss are terminal, not wake paths.
+
+Idle wake and CLI resume share bounded checkpoints, never an execution queue.
+Creation's `session.input` accepts up to 128 messages and 8,192 rendered
+tokens, with one content part per message. The adapter emits
+`type: "message"` items with user `input_text` or assistant `output_text`
+content parts. It joins adjacent same-speaker deltas without changing their
+text and caps serialized input at 8 KiB.
+History is not developer instructions or pending work. Task outcomes go to
+Lectic on new delegation; no prior job or result is automatically replayed.
+Provider-native recording/forking is not enabled.
+
+Usage sums sessions and their separate 15-second minimums. The budget
+excludes disconnected idle time, not startup/close time; each wake requires
+room for its minimum. Terminal snapshots remain authoritative per session.
+
+## API references
+
+- [Session creation][create]
+- [Sideband events and commands][sideband]
+- [Client delegation][delegation]
+- [Conversation history][conversations]
+- [WebRTC][webrtc]
+- [Server controls][controls]
+
+[create]:
+  https://developers.openai.com/api/reference/resources/live/methods/create
+[sideband]:
+https://developers.openai.com/api/reference/resources/live/sideband-websocket
+[delegation]: https://developers.openai.com/api/docs/guides/live-delegation
+[conversations]:
+  https://developers.openai.com/api/docs/guides/live-conversations
+[webrtc]: https://developers.openai.com/api/docs/guides/voice-webrtc?api=live
+[controls]:
+  https://developers.openai.com/api/docs/guides/voice-server-controls?api=live

@@ -39,3 +39,49 @@ test("context retention CLI defaults and bounds", () => {
       .toThrow("Invalid value")
   }
 })
+
+test("idle timeout CLI defaults and bounds", () => {
+  expect(parseArgs(["-f", "seed"]).idleTimeout).toBe(30)
+  expect(parseArgs(["-f", "seed", "--idle-timeout", "60"]).idleTimeout)
+    .toBe(60)
+  for (const value of ["0", "-1", "3601", "NaN", "1.5", "Infinity"]) {
+    expect(() => parseArgs(["-f", "seed", "--idle-timeout", value]))
+      .toThrow("Invalid value")
+  }
+  expect(() => parseArgs(["-f", "seed", "--idle-timeout"]))
+    .toThrow("Missing value")
+})
+
+test("usage accumulates with a minimum charge per wake", () => {
+  const usage = new Usage()
+  usage.update(30, true)
+  usage.nextSession()
+  expect(usage.snapshot(true)).toMatchObject({
+    seconds: 30, final: false, estimatedBillableSeconds: 45,
+  })
+  usage.update(2, true)
+  expect(usage.seconds).toBe(32)
+  usage.nextSession()
+  usage.update(20)
+  usage.update(19)
+  expect(usage.snapshot(true).estimatedBillableSeconds).toBe(65)
+  usage.update(18, true)
+  expect(usage.snapshot(true)).toMatchObject({
+    seconds: 50, final: true, finalSeconds: 50,
+    estimatedBillableSeconds: 63,
+  })
+})
+
+test("rejected creation removes only the new speculative minimum", () => {
+  const usage = new Usage()
+  usage.update(2, true)
+  usage.nextSession()
+  usage.update(91.122, true)
+  usage.nextSession()
+  usage.rejectCreation()
+  usage.update(999)
+  expect(usage.snapshot(true)).toMatchObject({
+    seconds: 93.122, final: true, finalSeconds: 93.122,
+    estimatedBillableSeconds: 106.122,
+  })
+})

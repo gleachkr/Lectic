@@ -4,8 +4,10 @@ import { History, historyRoot, loadHistory } from "../history"
 import { workspace } from "./helpers"
 import { expect, test } from "bun:test"
 import { startServer, type ServerOptions } from "../server"
+import { CreationRejected } from "../session"
 import { LiveClient } from "../live-client"
 import type { LiveEvent } from "../protocol"
+import type { HistoryContext } from "../history"
 
 function fixture(options: Partial<ServerOptions> = {}) {
   let receive: ((e: LiveEvent) => void) | undefined
@@ -13,24 +15,43 @@ function fixture(options: Partial<ServerOptions> = {}) {
   let creates = 0
   let closes = 0
   const sent: any[] = []
-  const client = new LiveClient({ send: raw => {
+  const previous: (HistoryContext | undefined)[] = []
+  const connections: { receive: (e: LiveEvent) => void; lose(): void }[] = []
+  const makeClient = () => {
+    const client = new LiveClient({ send: raw => {
     const event = JSON.parse(raw)
     sent.push(event)
     queueMicrotask(() => client.receive(JSON.stringify({
       type: "session.commentary.appended", client_event_id: event.event_id,
     })))
   } })
+    return client
+  }
   const server = startServer({
     backend: async () => ({
       status: "completed", summary: "Grounded answer",
     }),
-    connect: async (_sdp, onEvent, onLost) => {
+    connect: async (_sdp, onEvent, onLost, _signal, history) => {
       creates++
       receive = onEvent
       lose = onLost
+      previous.push(history)
+      connections.push({ receive: onEvent, lose: onLost })
+      const client = makeClient()
+      const id = `s${creates}`
+      let closed = false
       return {
-        id: "s1", sdp: "answer", client,
-        close: async () => { closes++; client.disconnect(); return true },
+        id, sdp: "answer", client,
+        close: async () => {
+          if (!closed) {
+            closed = true
+            closes++
+            onEvent({ type: "session.closed", session: { id },
+              usage: { seconds: 30 }, reason: "client_request" })
+            client.disconnect()
+          }
+          return true
+        },
       }
     },
     ...options,
@@ -45,7 +66,7 @@ function fixture(options: Partial<ServerOptions> = {}) {
     },
   )
   return {
-    server, request, sent,
+    server, request, sent, previous, connections,
     receive: (e: LiveEvent) => receive!(e), lose: () => lose!(),
     creates: () => creates, closes: () => closes,
   }
@@ -326,3 +347,277 @@ test("Clear before Start discards loaded context and the new checkpoint",
       await ws.cleanup()
     }
   })
+
+async function ready(f: ReturnType<typeof fixture>, id = "s1") {
+  const started = await f.request("/start", { sdp: "offer" })
+  expect(started.status).toBe(200)
+  expect(await started.json()).toMatchObject({ sessionId: id })
+  expect((await f.request("/ready", { events: [JSON.stringify({
+    type: "session.started", session: { id },
+  })] })).status).toBe(200)
+}
+
+test("idle reconnect reuses bounded CLI history without disk or job replay",
+  async () => {
+    const f = fixture({ idleTimeout: 1 })
+    try {
+      await ready(f)
+      f.receive({ type: "session.input_transcript.delta", delta: "inspect A",
+        start_ms: 0, end_ms: 10 })
+      f.receive({ type: "session.delegation.created", offset_ms: 10,
+        delegation: { id: "d1", type: "delegation", target: "client" } })
+      expect(await (await f.request("/idle", { sessionId: "s1" })).json())
+        .toEqual({ idle: false })
+      await Bun.sleep(1100)
+      expect(await (await f.request("/idle", { sessionId: "s1" })).json())
+        .toEqual({ idle: true })
+      const state = await (await f.request("/state")).json()
+      expect(state).toMatchObject({
+        sleeping: true, ending: false, confirmed: true, ready: false,
+        runs: 1, idleTimeout: 1,
+      })
+      expect(state.usage).toMatchObject({ seconds: 30, final: true })
+      expect(f.closes()).toBe(1)
+      // Delayed old callbacks cannot contaminate the next owner or end it.
+      const old = f.connections[0]
+      old.receive({ type: "session.input_transcript.delta", delta: "stale",
+        start_ms: 10, end_ms: 11 })
+      old.lose()
+      await ready(f, "s2")
+      expect(f.previous[1]?.fragments.map(f => f.text)).toEqual(["inspect A"])
+      expect(f.previous[1]?.tasks[0]).toMatchObject({
+        sessionId: "s1", outcome: "completed", delivery: "acknowledged",
+      })
+      expect(f.sent).toHaveLength(1)
+      old.receive({ type: "session.closed", session: { id: "s1" },
+        usage: { seconds: 999 }, reason: "client_request" })
+      old.lose()
+      expect((await f.request("/idle", { sessionId: "s1" })).status)
+        .toBe(409)
+      expect(await (await f.request("/idle", { sessionId: "s2" })).json())
+        .toEqual({ idle: true })
+      await ready(f, "s3")
+      expect(f.previous[2]?.fragments.map(f => f.text)).toEqual(["inspect A"])
+      expect(f.previous[2]?.tasks).toHaveLength(1)
+      expect((await (await f.request("/state")).json()).usage)
+        .toMatchObject({ seconds: 60, estimatedBillableSeconds: 75 })
+      expect(f.sent).toHaveLength(1)
+      await f.request("/end")
+      expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+    } finally { await f.server.stop() }
+  })
+
+test("idle close is serialized; unconfirmed shutdown never permits wake",
+  async () => {
+    let close!: (confirmed: boolean) => void
+    let creates = 0
+    const closing = new Promise<boolean>(resolve => { close = resolve })
+    const f = fixture({ connect: async () => {
+      creates++
+      return { id: "s1", sdp: "answer",
+        client: new LiveClient({ send() {} }),
+        close: () => closing,
+      }
+    } })
+    try {
+      await ready(f)
+      const idle = f.request("/idle", { sessionId: "s1" })
+      while (!(await (await f.request("/state")).json()).idling) {
+        await Bun.sleep(1)
+      }
+      expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+      close(false)
+      expect(await (await idle).json()).toEqual({ idle: false })
+      await f.request("/end")
+      expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+      expect(creates).toBe(1)
+    } finally { close?.(false); await f.server.stop() }
+  })
+
+test("idle pauses elapsed budget but wake cannot reset accumulated usage",
+  async () => {
+    const f = fixture({ maxSessionSeconds: 46, watchdogMs: 5 })
+    try {
+      await ready(f)
+      await f.request("/idle", { sessionId: "s1" })
+      const elapsed = (await (await f.request("/state")).json()).elapsed
+      await Bun.sleep(40)
+      expect((await (await f.request("/state")).json()).elapsed).toBe(elapsed)
+      await ready(f, "s2")
+      f.receive({ type: "session.usage.updated", usage: { seconds: 16 } })
+      await Bun.sleep(20)
+      const state = await (await f.request("/state")).json()
+      expect(state.ending).toBe(true)
+      expect(state.diagnostics.some((e: any) => e.code === "budget_reached"))
+        .toBe(true)
+      expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+    } finally { await f.server.stop() }
+  })
+
+test("heartbeat loss and End are terminal even while idle", async () => {
+  const f = fixture({ heartbeatMs: 30, watchdogMs: 5 })
+  try {
+    await ready(f)
+    await f.request("/idle", { sessionId: "s1" })
+    await Bun.sleep(60)
+    expect((await (await f.request("/state")).json()).ending).toBe(true)
+    expect(f.closes()).toBe(1)
+    expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+  } finally { await f.server.stop() }
+})
+
+test("End during idle close cannot later transition back to sleeping",
+  async () => {
+    let complete!: () => void
+    let receive!: (event: LiveEvent) => void
+    const closing = new Promise<boolean>(resolve => {
+      complete = () => {
+        receive({ type: "session.closed", session: { id: "s1" },
+          usage: { seconds: 30 }, reason: "client_request" })
+        resolve(true)
+      }
+    })
+    const f = fixture({ connect: async (_sdp, onEvent) => {
+      receive = onEvent
+      return { id: "s1", sdp: "answer",
+        client: new LiveClient({ send() {} }), close: () => closing }
+    } })
+    try {
+      await ready(f)
+      const idle = f.request("/idle", { sessionId: "s1" })
+      while (!(await (await f.request("/state")).json()).idling) {
+        await Bun.sleep(1)
+      }
+      const end = f.request("/end")
+      while (!(await (await f.request("/state")).json()).ending) {
+        await Bun.sleep(1)
+      }
+      complete()
+      await end
+      expect(await (await idle).json()).toEqual({ idle: false })
+      const state = await (await f.request("/state")).json()
+      expect(state).toMatchObject({ ending: true, sleeping: false })
+      expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+    } finally { complete(); await f.server.stop() }
+  })
+
+for (const rejected of [false, true]) {
+  test(`idle startup failure is terminal; explicit rejection: ${rejected}`,
+  async () => {
+    let calls = 0
+    const f = fixture({ connect: async (_sdp, onEvent) => {
+      if (++calls > 1) {
+        throw rejected ? new CreationRejected("HTTP 400")
+          : new Error("Wake startup failed")
+      }
+      return { id: "s1", sdp: "answer",
+        client: new LiveClient({ send() {} }),
+        close: async () => {
+          onEvent({ type: "session.closed", session: { id: "s1" },
+            usage: { seconds: 30 }, reason: "client_request" })
+          return true
+        },
+      }
+    } })
+    try {
+      await ready(f)
+      await f.request("/idle", { sessionId: "s1" })
+      expect((await f.request("/ready", { events: [] })).status).toBe(409)
+      expect((await f.request("/start", { sdp: "offer" })).status).toBe(502)
+      expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+      const state = await (await f.request("/state")).json()
+      expect(state.usage).toMatchObject({
+        seconds: 30, estimatedBillableSeconds: rejected ? 30 : 45,
+        final: rejected,
+      })
+      expect(state.confirmed).toBe(rejected)
+      expect(state.diagnostics.some((e: any) =>
+        e.code === "finalization_uncertain")).toBe(!rejected)
+      expect(calls).toBe(2)
+    } finally { await f.server.stop() }
+  })
+}
+
+test("terminal bootstrap cannot mark a closed session ready", async () => {
+  const f = fixture()
+  try {
+    await f.request("/start", { sdp: "offer" })
+    const result = await f.request("/ready", { events: [
+      { type: "session.started", session: { id: "s1" } },
+      { type: "session.closed", session: { id: "s1" },
+        usage: { seconds: 1 }, reason: "client_request" },
+    ].map(e => JSON.stringify(e)) })
+    expect(result.status).toBe(409)
+    expect((await (await f.request("/state")).json()).ready).toBe(false)
+  } finally { await f.server.stop() }
+})
+
+test("Clear during idle resets the checkpoint before wake", async () => {
+  const previous: HistoryContext = {
+    version: 1, conversationId: crypto.randomUUID(), incomplete: false,
+    fragments: [{ sessionId: "old", sequence: 1, speaker: "user",
+      text: "forget this" }], tasks: [],
+  }
+  const f = fixture({ previousSession: previous })
+  try {
+    await ready(f)
+    expect(f.previous[0]).toEqual(previous)
+    await f.request("/idle", { sessionId: "s1" })
+    await f.request("/clear")
+    await ready(f, "s2")
+    expect(f.previous[1]).toBeUndefined()
+    await f.request("/idle", { sessionId: "s2" })
+    await ready(f, "s3")
+    expect(f.previous[2]?.fragments).toEqual([])
+  } finally { await f.server.stop() }
+})
+
+test("wake requires budget for a new minimum charge", async () => {
+  const f = fixture({ maxSessionSeconds: 40 })
+  try {
+    await ready(f)
+    await f.request("/idle", { sessionId: "s1" })
+    expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+    expect(f.creates()).toBe(1)
+    expect(f.closes()).toBe(1)
+    expect((await (await f.request("/state")).json()).usage)
+      .toMatchObject({ seconds: 30, estimatedBillableSeconds: 30 })
+  } finally { await f.server.stop() }
+})
+
+for (const endDuringCreation of [false, true]) {
+  test(`creation rejection settles usage; early End: ${endDuringCreation}`,
+    async () => {
+      let reject!: (error: Error) => void
+      const f = fixture({ connect: () => new Promise((_resolve, fail) => {
+        reject = fail
+      }) })
+      try {
+        const starting = f.request("/start", { sdp: "offer" })
+        while (!reject) await Bun.sleep(1)
+        const ending = endDuringCreation ? f.request("/end") : undefined
+        if (endDuringCreation) {
+          while (!(await (await f.request("/state")).json()).ending) {
+            await Bun.sleep(1)
+          }
+        }
+        reject(new CreationRejected("Live creation failed (HTTP 400)"))
+        const response = await starting
+        expect(response.status).toBe(502)
+        expect((await response.json()).error)
+          .toContain("Startup rejected — no new session created")
+        await ending
+        expect(await (await f.request("/end")).json())
+          .toEqual({ ok: true, confirmed: true })
+        const state = await (await f.request("/state")).json()
+        expect(state.usage).toMatchObject({
+          seconds: 0, final: true, finalSeconds: 0,
+          estimatedBillableSeconds: 0, estimatedVoiceCost: 0,
+        })
+        expect(state.diagnostics.some((e: any) =>
+          e.code === "finalization_uncertain")).toBe(false)
+        expect((await f.request("/start", { sdp: "retry" })).status)
+          .toBe(409)
+      } finally { await f.server.stop() }
+    })
+}

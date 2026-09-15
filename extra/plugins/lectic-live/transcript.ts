@@ -20,6 +20,7 @@ export type ContextEnvelope = {
     revision?: number
     contextRevision?: number
     status?: "completed" | "clarification" | "failed"
+    outcome?: Task["outcome"]
     delivery?: Delivery
     reason?: Task["reason"]
     requestContext?: string

@@ -29,5 +29,6 @@ doc/_site/
 .worktrees/
 
 *.lec
+!extra/plugins/lectic-live/examples/voice-backend.lec
 *.lectic
 CLAUDE.md

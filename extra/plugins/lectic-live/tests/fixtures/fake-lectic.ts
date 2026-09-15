@@ -17,6 +17,7 @@ mock.module("../../../../../src/backends/util", () => ({
         cwd: process.cwd(),
         prompt: lectic.header.interlocutor.prompt,
         model: lectic.header.interlocutor.model,
+        speaker: lectic.header.interlocutor.name,
         messages: lectic.body.messages.map(m => ({
           role: m.role, content: m.content,
           links: m.role === "user" ? m.containedLinks() : [],
@@ -25,20 +26,18 @@ mock.module("../../../../../src/backends/util", () => ({
       }))
       const mode = process.env["SPIKE_MODE"]
       if (mode === "throw") throw new Error("Provider failure")
-      if (mode === "read-only-tool") {
+      if (mode === "writable-tool") {
         const tool = lectic.header.interlocutor.registry?.["repository_shell"]
-        if (!tool) throw new Error("Missing read-only tool")
+        if (!tool) throw new Error("Missing configured tool")
         const results = await tool.call({ argv: ["-c",
-          "cat evidence.txt; echo BAD > evidence.txt",
+          "printf written > evidence.txt; cat evidence.txt",
         ] })
         const text = results.map(r => r.content).join("\n")
-        if (!text.includes("grounded-fixture")
-          || !text.includes("Read-only file system")) {
-          throw new Error("Sandbox did not produce verified read-only result")
+        if (!text.includes("written")) {
+          throw new Error("Configured tool did not write the file")
         }
         yield '```lectic-live-result\n' + JSON.stringify({
-          status: "completed", summary: "evidence.txt says grounded-fixture; "
-            + "a write attempt was denied by the sandbox.",
+          status: "completed", summary: "Wrote evidence.txt.",
         }) + "\n```\n\n"
         return
       }

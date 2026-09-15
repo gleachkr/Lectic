@@ -26,6 +26,7 @@ export type DiagnosticCode = "delegation_received" | "duplicate"
   | "sideband_lost" | "browser_lost" | "budget_reached"
   | "startup_failed" | "ended" | "finalization_uncertain"
   | "event_limit" | "live_error" | "startup_timeout"
+  | "idle_disconnected" | "idle_resumed"
 
 // Metadata only: no provider errors, transcript, opaque remote IDs, paths,
 // arguments, or summaries. This remains usable regardless of tool policy.
@@ -50,9 +51,32 @@ export class Journal {
 }
 
 export class Usage {
-  seconds = 0
+  private currentSeconds = 0
+  private previousSeconds = 0
+  private previousBillable = 0
+  private rejected = false
   final = false
+
+  get seconds() { return this.previousSeconds + this.currentSeconds }
+
+  // Called only after a confirmed idle close, immediately before creation.
+  nextSession() {
+    this.previousSeconds += this.currentSeconds
+    this.previousBillable += Math.max(15, this.currentSeconds)
+    this.currentSeconds = 0
+    this.final = false
+    this.finalSeconds = undefined
+  }
   private finalSeconds?: number
+
+  // No session was created. Preserve prior confirmed sessions, but remove
+  // the speculative minimum reserved for this creation attempt.
+  rejectCreation() {
+    this.rejected = true
+    this.currentSeconds = 0
+    this.final = true
+    this.finalSeconds = this.previousSeconds
+  }
 
   update(seconds: number, final = false) {
     // Delayed cumulative snapshots must not reduce elapsed usage. A terminal
@@ -60,13 +84,16 @@ export class Usage {
     if (this.final) return
     if (final) {
       this.final = true
-      this.finalSeconds = seconds
+      this.finalSeconds = this.previousSeconds + seconds
     }
-    this.seconds = final ? seconds : Math.max(this.seconds, seconds)
+    this.currentSeconds = final ? seconds
+      : Math.max(this.currentSeconds, seconds)
   }
 
   snapshot(attempted: boolean) {
-    const billable = attempted ? Math.max(15, this.seconds) : 0
+    const billable = this.previousBillable
+      + (attempted && !this.rejected
+        ? Math.max(15, this.currentSeconds) : 0)
     return {
       seconds: this.seconds, final: this.final,
       finalSeconds: this.finalSeconds,

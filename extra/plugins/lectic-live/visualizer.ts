@@ -32,6 +32,7 @@ export function createVisualizer(canvas: HTMLCanvasElement) {
   const frequencies = new Uint8Array(512)
   let frame = 0
   let stopped = false
+  let dim = 0
 
   function draw() {
     if (!ctx) return
@@ -48,7 +49,8 @@ export function createVisualizer(canvas: HTMLCanvasElement) {
     if (!stopped && audioContext?.state === "running") {
       analyser?.getByteFrequencyData(frequencies)
     }
-    ctx.strokeStyle = "#000"
+    const gray = Math.round(dim * 170)
+    ctx.strokeStyle = dim === 0 ? "#000" : `rgb(${gray}, ${gray}, ${gray})`
     ctx.lineWidth = 2
     ctx.lineCap = "round"
     ctx.beginPath()
@@ -79,6 +81,14 @@ export function createVisualizer(canvas: HTMLCanvasElement) {
   window.addEventListener("resize", draw)
   animate()
   return {
+    dim(value: number) { dim = Math.max(0, Math.min(1, value)) },
+    detach() {
+      source?.disconnect()
+      analyser?.disconnect()
+      source = undefined
+      analyser = undefined
+      draw()
+    },
     attach(stream: MediaStream) {
       if (stopped) return
       try {
