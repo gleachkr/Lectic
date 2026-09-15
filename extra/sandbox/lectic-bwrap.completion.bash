@@ -27,13 +27,19 @@ _lectic_complete_bwrap() {
       COMPREPLY=( $(compgen -d -- "${cur}") )
       return 0
       ;;
+    -n|--name)
+      local names=""
+      [[ -d /tmp/lectic ]] && names=$(command ls -1 /tmp/lectic 2>/dev/null)
+      COMPREPLY=( $(compgen -W "${names}" -- "${cur}") )
+      return 0
+      ;;
     --bwrap-extra)
       return 0
       ;;
   esac
 
   if [[ "${cur}" == -* ]]; then
-    local opts="-d --dir --bwrap-extra -h --help --"
+    local opts="-d --dir -n --name --bwrap-extra -h --help --"
     COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
     return 0
   fi
