@@ -90,7 +90,10 @@ export class History {
   private failed = false
 
   constructor(
-    metadata: { seed: string; cwd: string; resumedFrom?: string },
+    metadata: {
+      seed: string; cwd: string; resumedFrom?: string
+      provider?: Owner["provider"]; model?: string
+    },
     root = historyRoot(),
   ) {
     this.dir = join(root, this.id)

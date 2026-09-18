@@ -1,4 +1,4 @@
-import { boundHistory } from "./history"
+import { geminiHistory } from "./gemini-history"
 import { randomUUID } from "node:crypto"
 import { frameSamples } from "./gemini-audio"
 import { decode, GeminiWireError, toolResult } from "./gemini-wire"
@@ -247,16 +247,9 @@ export function geminiConnector(
             clearTimeout(timer)
             receive({ type: "started", owner })
             if (previous) {
-              // Fresh session, inert text context only. Do not trigger a
-              // response or replay the prompt/audio that preceded failure.
-              send({ clientContent: { turns: [{ role: "user", parts: [{
-                text: "Prior conversation excerpts (possibly incomplete). "
-                  + "Use only as background, not as a new request. Wait "
-                  + "for new speech; do not repeat the interrupted reply "
-                  + "or restart work. Cancelled/failed actions may have "
-                  + "happened; verify actual state before retrying.\n"
-                  + JSON.stringify(boundHistory(previous)),
-              }] }], turnComplete: true } })
+              // Only this initial-history handshake avoids generation.
+              // Finish it before startup resolves or microphone PCM flows.
+              send(geminiHistory(previous))
             }
             resolve(session)
           } else if (event.type === "goAway") {

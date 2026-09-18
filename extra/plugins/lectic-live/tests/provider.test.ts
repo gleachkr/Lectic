@@ -336,8 +336,10 @@ test("model selection defaults to OpenAI; Gemini preview preserves voices",
       "--model", "gemini-3.8-live"]).voice).toBe("Kore")
     expect(() => parseArgs(["-f", "seed", "--voice", "Kore"]))
       .toThrow("Invalid provider voice")
-    expect(() => parseArgs(["-f", "seed", "--model", "gemini-3.8-live",
-      "--resume", "a".repeat(36)])).toThrow("resume is not enabled")
+    expect(parseArgs(["-f", "seed", "--model", "gemini-3.8-live",
+      "--resume", "a".repeat(36)])).toMatchObject({
+      resume: "a".repeat(36), keepHistory: true,
+    })
   })
 
 test("controller does not finalize usage from a neutral transport close",

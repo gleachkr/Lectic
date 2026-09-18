@@ -6,8 +6,8 @@ boundary. For installation, operation, permissions, and retention, see the
 a production PCM transport and delegation; see the
 [transport notes](GEMINI_TRANSPORT.md) and
 [delegation contract](GEMINI_DELEGATION.md) for bounds and limitations.
-Saved-history CLI resume remains a future stage. Gemini now
-supports local microphone wake after confirmed transport closure, with
+[History/lifecycle policy](GEMINI_LIFECYCLE.md) covers saved-context CLI
+resume and local microphone wake after confirmed transport closure, with
 remote finality and usage explicitly unknown. The checked wire contract
 is in [GEMINI_CONTRACT.md](GEMINI_CONTRACT.md). The isolated stage 1 harness
 is in [GEMINI_SPIKE.md](GEMINI_SPIKE.md).
@@ -185,6 +185,42 @@ Provider-native recording/forking is not enabled.
 Usage sums sessions and their separate 15-second minimums. The budget
 excludes disconnected idle time, not startup/close time; each wake requires
 room for its minimum. Terminal snapshots remain authoritative per session.
+
+## Gemini history, replacement, and accounting
+
+CLI `--resume` and microphone wake use the same v1 text checkpoint. Gemini
+sets `historyConfig.initialHistoryInClientContent: true`, waits for
+`setupComplete`, sends one text-only `clientContent` batch with
+`turnComplete: true`, and only then permits microphone PCM. The special
+history handshake is documented not to trigger generation. Ordinary
+`clientContent` updates do not have that guarantee and are not used here.
+
+The encoded history message is capped at 8 KiB and 128 turns. Only user and
+assistant fragments become user/model turns; exact adjacent deltas from
+one owner are joined. Task outcomes/findings are inert JSON text, never wire
+function calls or responses. Old speech is dropped before task context;
+omissions are marked. History is untrusted, not new instructions or work.
+There is no separate provider history-accepted acknowledgment.
+
+Normal idle requires no pending execution or completion notification.
+Recovery aborts local work and awaits cleanup and confirmed transport closure
+before allowing a new owner. GoAway/provider loss never automatically creates
+that owner. Explicit End, page/heartbeat loss, time limits, startup failure,
+invalid local protocol and unconfirmed closure are terminal. Retired event
+and audio callbacks cannot affect a replacement. Local closure/cancellation
+does not establish remote finality, action rollback or final usage.
+
+Gemini reports latest partial token counters, not a cross-session total or
+cost estimate. Up to 64 prior connection reports are retained separately.
+The cumulative connection-time cap includes startup/shutdown and local
+cleanup, excludes parked time, and survives wakes within the launch. It
+applies no OpenAI minimum. A new CLI launch has a fresh budget; this is not
+a strict spending cap. See the lifecycle runbook for acceptance checks.
+
+Archives remain v1 and old checkpoints remain readable. New `session.json`
+metadata identifies the chosen provider/model but never chooses startup
+credentials or configuration. Cross-provider resume creates a fresh session;
+no job, result, audio, native resumption handle or connection is replayed.
 
 ## API references
 

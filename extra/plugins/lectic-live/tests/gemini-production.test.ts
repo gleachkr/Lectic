@@ -1,3 +1,8 @@
+import { readFile } from "node:fs/promises"
+import { join } from "node:path"
+import { History, loadHistory, type HistoryContext } from "../history"
+import { workspace } from "./helpers"
+import type { ContextEnvelope } from "../transcript"
 import { MAX_RESULT_BYTES } from "../result"
 import { expect, test } from "bun:test"
 import { connect as netConnect } from "node:net"
@@ -721,5 +726,228 @@ for (const failure of ["goAway", "pageClose"] as const) {
           })).status).toBe(409)
         }
       } finally { await h.server.stop() }
+    })
+}
+
+for (const provider of ["openai", "gemini"] as const) {
+  test(`Gemini resumes a ${provider} archive as history, not execution`,
+    async () => {
+      const ws = await workspace()
+      const old = new History(ws, ws.dir)
+      const saved: HistoryContext = {
+        version: 1, conversationId: crypto.randomUUID(), incomplete: true,
+        fragments: [{ sessionId: "old", sequence: 1, speaker: "user",
+          text: "Write A once", ...(provider === "gemini" ? {
+            provider, sessionIdSource: "local" as const,
+          } : {}) }, { sessionId: "old", sequence: 2,
+          speaker: "assistant", text: "Checking A" }],
+        tasks: [{ sessionId: "old", delegationId: "unfinished",
+          revision: 1, received: 0, outcome: "running", delivery: "pending",
+          context: "Write A once" }],
+      }
+      old.checkpoint(saved)
+      const original = await readFile(join(old.dir, "context.json"), "utf8")
+      const history = new History({ ...ws, provider: "gemini",
+        model: "gemini-3.8-live", resumedFrom: old.id }, ws.dir)
+      const contexts: ContextEnvelope[] = []
+      const h = controller({ history,
+        previousSession: loadHistory(old.id, ws.dir),
+        backend: async context => {
+          contexts.push(context)
+          return { status: "completed", summary: "A already exists" }
+        },
+      })
+      try {
+        expect(h.connects()).toBe(0)
+        const b = await h.ready()
+        expect(h.wires).toHaveLength(2)
+        expect(h.wires[0].setup.historyConfig)
+          .toEqual({ initialHistoryInClientContent: true })
+        expect(h.wires[1].clientContent.turns.slice(1)).toEqual([
+          { role: "user", parts: [{ text: "Write A once" }] },
+          { role: "model", parts: [{ text: "Checking A" }] },
+        ])
+        expect(JSON.stringify(h.wires[1])).toContain("unfinished")
+        expect(h.wires[1].clientContent.turnComplete).toBe(true)
+        expect(contexts).toEqual([])
+        b.ws.send(new Uint8Array(1920))
+        await until(() => h.wires.length === 3)
+        expect(h.wires[2]).toHaveProperty("realtimeInput")
+        expect(contexts).toEqual([])
+        h.message({ toolCall: { functionCalls: [{ id: "new",
+          name: "delegate", args: { task: "Check A without writing it" },
+        }] } })
+        await until(() => h.wires.some(w => w.toolResponse))
+        expect(contexts).toHaveLength(1)
+        expect(contexts[0].previousSession).toEqual(saved)
+        expect(contexts[0].conversationId).toBe(saved.conversationId)
+        expect(contexts[0].sessionId).not.toBe("old")
+        await h.post("/end")
+        const restored = loadHistory(history.id, ws.dir)
+        expect(restored.tasks).toHaveLength(2)
+        expect(restored.tasks[0].outcome).toBe("running")
+        expect(restored.tasks[1]).toMatchObject({ provider: "gemini",
+          sessionIdSource: "local", delivery: "sent" })
+        expect(await readFile(join(old.dir, "context.json"), "utf8"))
+          .toBe(original)
+      } finally { await h.server.stop(); await ws.cleanup() }
+    })
+}
+
+for (const mode of ["throw", "goAway", "close"] as const) {
+  test(`Gemini loss during result send (${mode}) checkpoints without retry`,
+    async () => {
+      const ws = await workspace()
+      const history = new History(ws, ws.dir)
+      const h = controller({ history, backend: async () => ({
+        status: "completed", summary: "A was written once",
+      }) })
+      try {
+        await h.ready()
+        const send = h.socket.send
+        h.socket.send = raw => {
+          send(raw)
+          if (!JSON.parse(raw).toolResponse) return
+          if (mode === "throw") throw new Error("private send failure")
+          if (mode === "goAway") h.message({ goAway: {} })
+          if (mode === "close") h.socket.onclose!()
+        }
+        h.message({ toolCall: { functionCalls: [{ id: "write",
+          name: "delegate", args: { task: "Write A once" },
+        }] } })
+        await until(() => h.closes() === 1)
+        await Bun.sleep(30)
+        expect((await h.state()).sleeping).toBe(true)
+        const task = loadHistory(history.id, ws.dir).tasks[0]
+        expect(task).toMatchObject({ outcome: "completed",
+          delivery: mode === "throw" ? "uncertain" : "sent",
+          result: { summary: "A was written once" } })
+        expect(h.connects()).toBe(1)
+        await h.browser()
+        const pending = h.post("/start", { rate: 48000 })
+        await until(() => h.connects() === 2)
+        h.socket.onopen!()
+        h.message({ setupComplete: {} })
+        expect((await pending).status).toBe(200)
+        await h.post("/ready", { events: [] })
+        expect(h.wires.filter(w => w.toolResponse)).toHaveLength(1)
+        const seed = JSON.stringify(h.wires.find(w => w.clientContent))
+        expect(seed).toContain("A was written once")
+        expect(seed).toContain(mode === "throw" ? "uncertain" : "sent")
+        expect(JSON.stringify(await h.state())).not.toContain("private")
+      } finally { await h.server.stop(); await ws.cleanup() }
+    })
+}
+
+for (const terminal of [false, true]) {
+  test(`recovery waits for backend cleanup; End wins the race (${terminal})`,
+    async () => {
+      let release!: () => void
+      let signal: AbortSignal | undefined
+      const h = controller({ backend: async (_context, abort) => {
+        signal = abort
+        await new Promise<void>(done => { release = done })
+        return { status: "completed", summary: "Late action finding" }
+      } })
+      try {
+        const b = await h.ready()
+        h.message({ toolCall: { functionCalls: [{ id: "a",
+          name: "delegate", args: { task: "Write A once" },
+        }] } })
+        await until(() => !!signal)
+        h.message({ goAway: {} })
+        await until(() => signal!.aborted)
+        const stopping = terminal ? h.post("/end") : undefined
+        expect((await h.state()).idling).toBe(true)
+        expect((await h.browser()).ws.readyState).not.toBe(1)
+        expect((await h.post("/start", { rate: 48000 })).status).toBe(409)
+        release()
+        await stopping
+        await Bun.sleep(30)
+        const state = await h.state()
+        expect(state.sleeping).toBe(!terminal)
+        expect(state.ending).toBe(terminal)
+        expect(h.connects()).toBe(1)
+        if (terminal) {
+          expect((await h.post("/recover", {
+            sessionId: b.info.sessionId,
+          })).status).toBe(409)
+        }
+      } finally { release?.(); await h.server.stop() }
+    })
+}
+
+test("retired media callbacks cannot send audio or flush a replacement",
+  async () => {
+    const outputs: ((value: PCMOutput) => void)[] = []
+    let connects = 0
+    const h = controller({ connect: async () => ({
+      owner: { provider: "gemini", sessionId: `s${++connects}`,
+        sessionIdSource: "local" },
+      media: { kind: "pcm", capture() {},
+        attach(sink) { outputs.push(sink) } },
+      bootstrap: () => [],
+      complete: async () => ({ transmission: "not_sent",
+        acknowledgment: "unavailable" }),
+      close: async () => ({ transport: "closed", remote: "unknown",
+        usage: "unknown" }),
+    }) })
+    try {
+      await h.browser()
+      const first = await (await h.post("/start", { rate: 48000 })).json()
+      await h.post("/ready", { events: [] })
+      await h.post("/idle", { sessionId: first.sessionId })
+      const next = await h.browser()
+      await h.post("/start", { rate: 48000 })
+      await h.post("/ready", { events: [] })
+      outputs[0](new Uint8Array([1, 2]))
+      outputs[0]("flush")
+      outputs[1](new Uint8Array([3, 4]))
+      await until(() => next.output.length > 0)
+      expect(next.output).toHaveLength(1)
+      expect(new Uint8Array(next.output[0] as ArrayBuffer))
+        .toEqual(new Uint8Array([3, 4]))
+    } finally { await h.server.stop() }
+  })
+
+for (const mode of ["heartbeat", "budget", "pageClose"] as const) {
+  test(`${mode} aborts pending Gemini work and saves uncertainty terminally`,
+    async () => {
+      const ws = await workspace()
+      const history = new History(ws, ws.dir)
+      let signal: AbortSignal | undefined
+      const h = controller({ history, watchdogMs: 5,
+        maxSessionSeconds: mode === "budget" ? 1 : 600,
+        heartbeatMs: mode === "heartbeat" ? 100 : 10000,
+        backend: async (_context, abort) => {
+          signal = abort
+          await new Promise<void>(done => {
+            abort.addEventListener("abort", () => done(), { once: true })
+          })
+          return { status: "completed", summary: "Action may have finished" }
+        },
+      })
+      try {
+        await h.ready()
+        h.message({ toolCall: { functionCalls: [{ id: "a",
+          name: "delegate", args: { task: "Write A once" },
+        }] } })
+        await until(() => !!signal)
+        if (mode === "pageClose") await h.post("/close")
+        await until(() => signal!.aborted)
+        if (mode !== "budget") await h.server.stopped
+        else {
+          await h.post("/end")
+          const state = await h.state()
+          expect(state.sleeping).toBe(false)
+          expect(state.ending).toBe(true)
+          expect((await h.browser()).ws.readyState).not.toBe(1)
+        }
+        const task = loadHistory(history.id, ws.dir).tasks[0]
+        expect(task).toMatchObject({ outcome: "cancelled",
+          result: { summary: "Action may have finished" } })
+        expect(h.connects()).toBe(1)
+        expect(h.wires.some(w => w.toolResponse)).toBe(false)
+      } finally { await h.server.stop(); await ws.cleanup() }
     })
 }

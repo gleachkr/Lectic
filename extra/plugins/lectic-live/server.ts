@@ -30,9 +30,6 @@ export type ServerOptions = {
 
 export function startServer(options: ServerOptions) {
   const pcm = options.provider === "gemini"
-  if (pcm && options.previousSession) {
-    throw new Error("Gemini resume is not enabled yet")
-  }
   const idleTimeout = options.idleTimeout ?? 30
   if (!Number.isInteger(idleTimeout) || idleTimeout < 1
     || idleTimeout > 3600) throw new Error("Invalid idle timeout")
@@ -469,7 +466,7 @@ export function startServer(options: ServerOptions) {
               }
               if (session.media.kind === "pcm" && !ending) {
                 session.media.attach(output => {
-                  if (ending) return
+                  if (ending || generation !== ownerGeneration) return
                   sendPCM(audioOwner, output, ready)
                 })
               }

@@ -62,9 +62,6 @@ export function parseArgs(args: string[]) {
   if (result.voice && !(result.model === "gpt-live-1"
     ? /^[a-z][a-z0-9_-]{0,63}$/ : /^[A-Z][A-Za-z0-9_-]{0,63}$/
   ).test(result.voice)) throw new Error("Invalid provider voice name")
-  if (result.model === "gemini-3.8-live" && result.resume) {
-    throw new Error("Gemini resume is not enabled yet")
-  }
   if (!result.seed) throw new Error("Required: -f ./voice-backend.lec")
   return result
 }
@@ -91,7 +88,7 @@ export default async function main() {
   --context-seconds N        Recent context window (default: 300 seconds)
   --keep-history             Save local transcripts, tasks, and backend runs
   --resume ID                Resume context; implies --keep-history
-Gemini supports delegation and microphone wake; CLI resume is not enabled.
+Both providers support delegation, microphone wake, and saved-context resume.
 Gemini time limits are elapsed connection time, not strict spending caps.
 Requires POSIX and Lectic with --no-macros support.
 Tools and permissions come from your Lectic configuration.
@@ -126,12 +123,11 @@ Opening the private URL starts a paid session after microphone permission.`)
   }
   const history = options.keepHistory ? new History({
     seed: runOptions.seed, cwd, resumedFrom: options.resume,
+    provider: gemini ? "gemini" : "openai", model: options.model,
   }) : undefined
   if (history) {
     console.error(`Local history: ${history.dir}`)
-    if (gemini) console.error("Gemini text is saved; Gemini resume is not "
-      + "enabled yet.")
-    else console.error(`Resume later with --resume ${history.id}`)
+    console.error(`Resume later with --resume ${history.id}`)
   }
   if (previousSession) {
     console.error("Loaded saved conversation context. Opening the URL "

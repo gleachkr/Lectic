@@ -4,9 +4,9 @@ A local speech interface to Lectic. GPT-Live handles the conversation and
 asks your configured Lectic backend for tools, actions, or deeper reasoning.
 Greetings and ordinary conversation do not independently run Lectic. You
 can keep speaking while backend work runs. Gemini is also available with
-**delegation and microphone wake** after idle or recoverable loss. Production
-Gemini delegation is offline-tested; browser acceptance remains pending.
-Saved-history CLI resume for Gemini is not yet enabled.
+**delegation, microphone wake, and saved-context resume**. Idle or recoverable
+loss can park for a fresh microphone wake. Production Gemini is
+offline-tested; remaining browser acceptance is pending.
 
 ## Setup
 
@@ -46,9 +46,10 @@ lectic live -f ./my-assistant.lec --model gemini-3.8-live --voice Kore
 ```
 
 Gemini uses its production transport and the same configured Lectic backend,
-not the isolated spike. It exposes only `delegate`. Gemini `--resume` still
-fails before credential lookup or startup. See the
-[delegation acceptance checklist](GEMINI_DELEGATION.md) before testing.
+not the isolated spike. It exposes only `delegate`. Both providers support
+`--resume ID` as fresh text context, not provider-native resumption. See the
+[delegation checks](GEMINI_DELEGATION.md) and
+[history/lifecycle checks](GEMINI_LIFECYCLE.md) before testing.
 
 The seed is never modified. Its location determines configuration discovery;
 launch from the directory where you want backend tools to work. Live uses
@@ -161,7 +162,7 @@ All duration values are integer seconds from 1 to 3600.
   Size limits also apply. This does not expire disk archives.
 - `--keep-history`: save local transcripts, task context, and backend files.
 - `--resume ID`: restore saved context; implies `--keep-history` and still
-  requires `-f`. Not yet available with Gemini.
+  requires `-f`. Works with either voice provider, including across providers.
 
 ### Cost
 
@@ -178,7 +179,9 @@ Neither is automatically retried.
 Gemini reports elapsed connection time and the latest documented token
 counters, not a summed total or dollar estimate. Closing the socket does
 not make those counters final. Provider limits (`GoAway`) and transport loss
-stop the session; relaunch explicitly. No rotation or automatic retry.
+stop the connection immediately. Confirmed closure permits parking for local
+microphone wake; uncertain closure requires a relaunch. Neither automatically
+creates another session. No rotation or automatic retry.
 
 ## History and privacy
 
@@ -197,11 +200,16 @@ To save context for another launch:
 lectic live -f ./my-assistant.lec --keep-history
 # Use the archive ID printed in the terminal:
 lectic live -f ./my-assistant.lec --resume SAVED-ID
+# Choose Gemini explicitly; the archive does not select the voice model:
+lectic live -f ./my-assistant.lec --model gemini-3.8-live --resume SAVED-ID
 ```
 
 Archives are stored at `$LECTIC_STATE/live/ID`. The default state base is
 `$XDG_STATE_HOME/lectic`, or `~/.local/state/lectic`. Each launch gets a new
-archive; resuming leaves the original unchanged.
+archive; resuming leaves the original unchanged. Provider/model metadata is
+saved for diagnosis only. An old or other-provider archive can supply context,
+but never credentials, a session handle, or an executable queue. A new launch
+has a new time budget; only idle wakes within that launch share its budget.
 
 An archive contains session metadata, observed transcripts and lifecycle
 events, a bounded `context.json` checkpoint, and backend request/output
@@ -212,11 +220,14 @@ encrypted nor redacted**. Transport authorization headers and SDP are not
 archived. Review archives and console/terminal logs before sharing.
 
 Resume and idle wake restore up to 8 KiB of checkpoint context. GPT-Live
-receives bounded user/assistant text history; Lectic receives prior speech,
-findings, and task outcomes on the next new delegation. Neither receives
-the full archive. Older context may be omitted, and stale facts need
-checking. Resume does not restore credentials, permissions, or configuration:
-choose the seed and working directory on each launch.
+receives bounded user/assistant text history. Gemini receives user/model text
+plus inert task outcomes, including uncertain actions/delivery, in its special
+initial-history handshake before microphone input. Both wait for new speech;
+they must not greet, answer an old request, or restart saved work. Lectic
+receives prior speech, findings, and task outcomes on the next new delegation.
+Neither receives the full archive. Older context may be omitted, and stale
+facts need checking. Resume does not restore credentials, permissions, or
+configuration: choose the seed and working directory on each launch.
 
 Archives do not auto-expire. Stop the controller and delete the printed
 archive directory to remove retained history. Disk use grows with the
@@ -293,7 +304,9 @@ failure, once transport closure is confirmed. Speak to wake a fresh session
 with bounded text context; no audio, old response, or work is replayed.
 Explicit stop, startup failure, heartbeat loss, time limits, uncertain close,
 and ambiguous/invalid local protocol failures remain terminal. CLI `--resume`
-is still unsupported. The cumulative connection-time cap survives wakes.
+restores saved text context on a new launch; it does not revive the
+connection. The cumulative connection-time cap survives wakes within one
+launch.
 
 The console now distinguishes browser playback/capture overload, protocol
 validation errors, provider close codes, and known turn rejection reasons.

@@ -1,11 +1,13 @@
+import { History, historyRoot, loadHistory } from "../history"
 import { expect, test } from "bun:test"
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { launchController } from "../launcher"
 import { realCommand, root, workspace } from "./helpers"
 
+for (const model of ["gpt-live-1", "gemini-3.8-live"]) {
 for (const background of [false, true]) {
-  test(`CLI URL output and tab-close exit (background: ${background})`,
+  test(`CLI ${model} resume and tab-close exit (background: ${background})`,
     async () => {
       const ws = await workspace()
       let child: Bun.Subprocess<"ignore", "pipe", "pipe"> | undefined
@@ -23,7 +25,14 @@ for (const background of [false, true]) {
           + realCommand.map(s => JSON.stringify(s)).join(" ")
           + ' "$@"\n', { mode: 0o755 })
         const entry = join(root, "extra/plugins/lectic-live/lectic-live.ts")
-        const args = ["-f", ws.seed, "--keep-history"]
+        const old = new History(ws, historyRoot(ws.env))
+        old.checkpoint({ version: 1, conversationId: crypto.randomUUID(),
+          incomplete: false, fragments: [{ provider: "gemini",
+            sessionIdSource: "local", sessionId: "prior", sequence: 1,
+            speaker: "user", text: "Saved context, not new work" }],
+          tasks: [],
+        })
+        const args = ["-f", ws.seed, "--resume", old.id, "--model", model]
         // Exercise real shell substitution, not just reading a pipe. The
         // launcher must exit before the shell prints the captured URL.
         const command = background ? ["bash", "-c",
@@ -33,7 +42,9 @@ for (const background of [false, true]) {
         child = Bun.spawn(command, {
           cwd: ws.cwd, env: { ...ws.env, PATH: `${bin}:${ws.env.PATH}`,
             LECTIC_RUNTIME: join(root, "extra"),
-            OPENAI_API_KEY: "unused-no-paid-session",
+            ...(model === "gpt-live-1"
+              ? { OPENAI_API_KEY: "unused-no-paid-session" }
+              : { GEMINI_API_KEY: "unused-no-paid-session" }),
           }, stdin: "ignore", stdout: "pipe", stderr: "pipe",
         })
         const stderr = new Response(child.stderr).text()
@@ -52,6 +63,18 @@ for (const background of [false, true]) {
         // EOF on inherited stderr also proves the detached controller exited.
         const diagnostics = await stderr
         expect(diagnostics).toContain("Local history:")
+        expect(diagnostics).toContain("Loaded saved conversation context")
+        expect(diagnostics).toContain("Resume later with --resume")
+        const ids = await readdir(historyRoot(ws.env))
+        expect(ids).toHaveLength(2)
+        const id = ids.find(id => id !== old.id)!
+        expect(loadHistory(id, historyRoot(ws.env)))
+          .toEqual(loadHistory(old.id, historyRoot(ws.env)))
+        const metadata = JSON.parse(await readFile(join(
+          historyRoot(ws.env), id, "session.json",
+        ), "utf8"))
+        expect(metadata).toMatchObject({ model, resumedFrom: old.id,
+          provider: model === "gpt-live-1" ? "openai" : "gemini" })
         expect(diagnostics).not.toContain("unused-no-paid-session")
         await expect(fetch(url)).rejects.toThrow()
       } finally {
@@ -60,6 +83,7 @@ for (const background of [false, true]) {
         await ws.cleanup()
       }
     }, 30_000)
+}
 }
 
 test("launcher rejects failed startup instead of printing a bogus URL",
