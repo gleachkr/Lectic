@@ -1,13 +1,12 @@
-import { voiceHistory, type HistoryContext } from "./history"
+import type { HistoryContext } from "./history"
+import { voiceHistory } from "./openai-history"
 import {
   createRequest, decodeCreated, record, type LiveEvent,
 } from "./protocol"
 import { LiveClient } from "./live-client"
 
-export class SessionFailure extends Error {}
-
-// Explicit request rejection, unlike a timeout or failed attachment.
-export class CreationRejected extends SessionFailure {}
+import { CreationRejected, SessionFailure } from "./provider"
+export { CreationRejected, SessionFailure } from "./provider"
 
 export interface SessionConnection {
   id: string

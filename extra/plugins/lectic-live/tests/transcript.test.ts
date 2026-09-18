@@ -31,7 +31,7 @@ function envelope(text: string): ContextEnvelope {
         received: 0, outcome: "completed", delivery: "withheld",
         result: { status: "completed", summary: text }, context: text }],
     },
-    offsetMs: 7, fragments: [{
+    task: text, offsetMs: 7, fragments: [{
       speaker: "user", text, startMs: 0, endMs: 7, sequence: 0,
     }],
   }

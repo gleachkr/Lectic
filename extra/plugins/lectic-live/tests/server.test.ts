@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { History, historyRoot, loadHistory } from "../history"
 import { workspace } from "./helpers"
 import { expect, test } from "bun:test"
-import { startServer, type ServerOptions } from "../server"
+import { startServer, type ServerOptions } from "./openai-fixture"
 import { CreationRejected } from "../session"
 import { LiveClient } from "../live-client"
 import type { LiveEvent } from "../protocol"
@@ -197,14 +197,12 @@ test("heartbeat loss aborts active work without a replacement",
         delegation: { id: "d", type: "delegation", target: "client" } })
       await Bun.sleep(1100)
       expect(signal?.aborted).toBe(true)
-      const state = await (await f.request("/state")).json()
-      expect(state.ending).toBe(true)
-      expect(state.diagnostics.some((e: any) => e.code === "browser_lost"))
-        .toBe(true)
+      await f.server.stopped
+      await expect(f.request("/state")).rejects.toThrow()
       expect(f.sent).toEqual([])
       expect(f.creates()).toBe(1)
       expect(f.closes()).toBe(1)
-      expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+      await expect(f.request("/start", { sdp: "offer" })).rejects.toThrow()
     } finally { await f.server.stop() }
   })
 
@@ -459,10 +457,10 @@ test("heartbeat loss and End are terminal even while idle", async () => {
   try {
     await ready(f)
     await f.request("/idle", { sessionId: "s1" })
-    await Bun.sleep(60)
-    expect((await (await f.request("/state")).json()).ending).toBe(true)
+    await f.server.stopped
+    await expect(f.request("/state")).rejects.toThrow()
     expect(f.closes()).toBe(1)
-    expect((await f.request("/start", { sdp: "offer" })).status).toBe(409)
+    await expect(f.request("/start", { sdp: "offer" })).rejects.toThrow()
   } finally { await f.server.stop() }
 })
 
@@ -621,3 +619,35 @@ for (const endDuringCreation of [false, true]) {
       } finally { await f.server.stop() }
     })
 }
+
+for (const stage of ["unstarted", "active", "sleeping", "ended"]) {
+  test(`tab close stops listener and settles cleanup while ${stage}`,
+    async () => {
+      const f = fixture()
+      try {
+        // A forged tab-close request must not terminate the controller.
+        expect((await f.request("/close", {}, { Authorization: "bad" }))
+          .status).toBe(403)
+        if (stage !== "unstarted") await ready(f)
+        if (stage === "sleeping") {
+          await f.request("/idle", { sessionId: "s1" })
+        }
+        if (stage === "ended") await f.request("/end")
+        expect((await f.request("/close")).status).toBe(200)
+        await f.server.stopped
+        await expect(f.request("/state")).rejects.toThrow()
+        expect(f.closes()).toBe(stage === "unstarted" ? 0 : 1)
+        await Promise.all([f.server.stop(), f.server.stop()])
+      } finally { await f.server.stop() }
+    })
+}
+
+test("heartbeat expiry stops before paid startup too", async () => {
+  const f = fixture({ heartbeatMs: 30, watchdogMs: 5 })
+  try {
+    await f.request("/state")
+    await f.server.stopped
+    expect(f.creates()).toBe(0)
+    await expect(f.request("/state")).rejects.toThrow()
+  } finally { await f.server.stop() }
+})

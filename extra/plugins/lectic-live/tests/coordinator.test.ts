@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { Coordinator } from "../coordinator"
+import { Coordinator } from "./openai-fixture"
 import type { LiveEvent } from "../protocol"
 
 const speech = (delta: string): LiveEvent => ({
@@ -379,4 +379,28 @@ test("cancelled runs remain uncertain context, never automatic retries",
     expect(contexts[1].backendHistory[0].requestContext).toContain("Write A")
     expect(contexts[1].backendHistory[0].summary)
       .toContain("Check actual state before retrying")
+  })
+
+test("backend errors notify the voice model and allow later requests",
+  async () => {
+    const delivered: string[] = []
+    let fail = true
+    const c = new Coordinator("s", async () => {
+      if (fail) throw new Error("private backend diagnostic")
+      return { status: "completed", summary: "Recovered" }
+    }, async (_id, summary) => { delivered.push(summary) }, 0)
+    c.receive(speech("inspect the workspace"))
+    c.receive(delegation("failure"))
+    await c.idle()
+    expect(delivered).toHaveLength(1)
+    expect(delivered[0]).toContain("backend encountered an error")
+    expect(delivered[0]).toContain("Actions may already have happened")
+    expect(delivered[0]).not.toContain("private backend diagnostic")
+    expect(c.diagnostics()[0]).toMatchObject({ outcome: "failed",
+      delivery: "acknowledged" })
+    fail = false
+    c.receive(delegation("recovery"))
+    await c.idle()
+    expect(delivered[1]).toBe("Recovered")
+    expect(c.runs).toBe(2)
   })

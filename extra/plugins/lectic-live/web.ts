@@ -1,3 +1,7 @@
+import {
+  createOpenAIMedia, createGeminiMedia, type BrowserMedia, type MediaOptions,
+} from "./browser-media"
+import { PCMPlayer } from "./gemini-audio"
 import { createIdleMonitor, createIdleState } from "./idle"
 import { createVisualizer, visualizerLicense } from "./visualizer"
 
@@ -7,15 +11,17 @@ function browserMain(
   makeVisualizer: typeof createVisualizer,
   makeIdleMonitor: typeof createIdleMonitor,
   makeIdleState: typeof createIdleState,
+  makeMedia: (options: MediaOptions) => BrowserMedia,
+  notice: string,
+  recoverable = false,
 ) {
   const audio = document.getElementById("audio") as HTMLAudioElement
   const canvas = document.getElementById("visualizer") as HTMLCanvasElement
   const token = location.hash.slice(1)
   history.replaceState(null, "", "/")
   const visualizer = makeVisualizer(canvas)
-  let peer: RTCPeerConnection | undefined
+  let transport: BrowserMedia | undefined
   let media: MediaStream | undefined
-  let outgoing: MediaStream | undefined
   let idle: ReturnType<typeof createIdleMonitor> | undefined
   let connection: "starting" | "active" | "closing" | "sleeping"
     = "starting"
@@ -24,11 +30,7 @@ function browserMain(
   let ended = false
   let finishing = false
   let leaving = false
-  let disconnectTimer: ReturnType<typeof setTimeout> | undefined
   let pollTimer: ReturnType<typeof setTimeout> | undefined
-  let bootstrapped = false
-  let bootstrap: string[] = []
-  let rejectStarted: ((error: Error) => void) | undefined
 
   async function command(path: string, body: object = {}) {
     const response = await fetch(path, {
@@ -45,23 +47,22 @@ function browserMain(
   function silence() {
     idle?.stop()
     media?.getTracks().forEach(track => track.stop())
-    outgoing?.getTracks().forEach(track => track.stop())
+    transport?.pause()
     audio.pause()
     visualizer.stop()
-    clearTimeout(disconnectTimer)
     clearTimeout(pollTimer)
-    rejectStarted?.(new Error("Session ended during startup"))
     window.removeEventListener("click", unlockAudio)
     window.removeEventListener("keydown", unlockAudio)
   }
   function release() {
     silence()
-    peer?.close()
+    transport?.close()
     audio.srcObject = null
   }
-  async function finish() {
+  async function finish(reason = "controller_ended") {
     if (finishing) return
     finishing = true
+    console.log("Lectic Live: stopping", { reason })
     ended = true
     silence()
     try {
@@ -74,6 +75,10 @@ function browserMain(
     if (!leaving) {
       try {
         const state = await command("/state")
+        reportDiagnostics(state.diagnostics)
+        console.log("Lectic Live: final state", {
+          phase: state.phase, lifecycle: state.lifecycle,
+        })
         console.log("Lectic Live: final usage", state.usage)
       } catch { console.log("Lectic Live: final usage unavailable.") }
     }
@@ -90,19 +95,20 @@ function browserMain(
     if (ended) return
     visualizer.resume()
     idle?.resume()
+    transport?.unlock()
     void playback()
   }
   window.addEventListener("click", unlockAudio)
   window.addEventListener("keydown", unlockAudio)
 
-  async function sleep() {
+  async function sleep(path = "/idle") {
     if (ended || connection !== "active") return
     connection = "closing"
-    clearTimeout(disconnectTimer)
-    outgoing?.getAudioTracks().forEach(track => { track.enabled = false })
+    idle?.mode("sleeping")
+    transport?.pause()
     audio.pause()
     try {
-      const result = await command("/idle", { sessionId })
+      const result = await command(path, { sessionId })
       if (ended) return
       if (!result.idle) {
         // A delegation or transcript may have arrived after the last poll.
@@ -112,22 +118,23 @@ function browserMain(
         connection = "active"
         wakeRequested = false
         idle?.mode("active")
-        outgoing?.getAudioTracks().forEach(track => { track.enabled = true })
+        transport?.resume()
         await playback()
         return
       }
-      peer?.close()
-      peer = undefined
-      outgoing?.getTracks().forEach(track => track.stop())
-      outgoing = undefined
+      transport?.close()
+      transport = undefined
       audio.srcObject = null
       visualizer.detach()
       idle?.attachAgent()
       connection = "sleeping"
-      console.log("Lectic Live: idle; paid session closed. "
-        + "Microphone wake detection remains local.")
+      idle?.mode("sleeping")
+      console.log("Lectic Live: disconnected; microphone wake is local. "
+        + (recoverable ? "Speak to start a fresh, text-seeded session. "
+          + "Final provider usage is unconfirmed; no audio is replayed."
+          : "Paid session closed; speak to resume."))
       if (wakeRequested) { wakeRequested = false; void start() }
-    } catch { await finish() }
+    } catch { await finish("disconnect_or_recovery_failed") }
   }
 
   function wake() {
@@ -140,11 +147,7 @@ function browserMain(
     if (ended) return
     connection = "starting"
     idle?.mode("waiting")
-    bootstrapped = false
-    bootstrap = []
-    console.log("Lectic Live: starting automatically. Voice is billable "
-      + "at approximately $0.05/minute with a 15-second minimum; backend "
-      + "costs are separate. Close this tab or use Ctrl-C to stop.")
+    console.log(notice)
     try {
       // Ask for permission before making a billable API request. Tracks stay
       // disabled until both sideband attachment and bootstrap are complete.
@@ -155,81 +158,32 @@ function browserMain(
         media.getAudioTracks().forEach(track => { track.enabled = false })
       }
       if (ended) { release(); return }
-      // Only the clone is transmitted. The original remains available for
-      // local wake detection throughout idle and reconnect startup.
-      outgoing = media.clone()
-      outgoing.getAudioTracks().forEach(track => { track.enabled = false })
-      peer = new RTCPeerConnection()
-      const owner = peer
-      for (const track of outgoing.getTracks()) peer.addTrack(track, outgoing)
-      peer.ontrack = event => {
-        if (ended || peer !== owner || connection === "closing") return
-        const stream = event.streams[0] ?? new MediaStream([event.track])
-        audio.srcObject = stream
-        visualizer.attach(stream)
-        idle?.attachAgent(stream)
-        void playback()
-      }
-      peer.onconnectionstatechange = () => {
-        if (ended || peer !== owner || connection === "closing") return
-        clearTimeout(disconnectTimer)
-        if (peer?.connectionState === "failed") void finish()
-        if (peer?.connectionState === "disconnected") {
-          disconnectTimer = setTimeout(() => { void finish() }, 3000)
-        }
-      }
-      const channel = peer.createDataChannel("oai-events")
-      const channelLost = () => {
-        if (!ended && peer === owner && connection !== "closing") {
-          void finish()
-        }
-      }
-      channel.onclose = channelLost
-      channel.onerror = channelLost
-      const startup = new Promise<void>((resolve, reject) => {
-        const started = resolve
-        channel.onmessage = event => receiveBootstrap(event, started)
-        rejectStarted = reject
+      const next = makeMedia({ token, command,
+        stream(stream) {
+          if (ended || transport !== next || connection === "closing") return
+          audio.srcObject = stream
+          visualizer.attach(stream)
+          idle?.attachAgent(stream)
+          void playback()
+        },
+        lost: reason => {
+          if (transport !== next || ended) return
+          console.log("Lectic Live: transport lost", {
+            reason: reason ?? "media_connection_lost",
+          })
+          if (recoverable && connection === "active") {
+            void sleep("/recover")
+          } else if (connection !== "closing" && connection !== "sleeping") {
+            void finish(reason ?? "media_connection_lost")
+          }
+        },
       })
-      // Avoid an unhandled rejection while HTTP session creation is pending.
-      void startup.catch(() => {})
-      function receiveBootstrap(
-        event: MessageEvent, started: () => void,
-      ) {
-        if (ended || peer !== owner || bootstrapped
-          || connection === "closing" || typeof event.data !== "string") {
-          return
-        }
-        if (event.data.length > 64 * 1024 || bootstrap.length >= 128) {
-          rejectStarted?.(new Error("Bootstrap event limit exceeded"))
-          void finish()
-          return
-        }
-        bootstrap.push(event.data)
-        try {
-          if (JSON.parse(event.data).type === "session.started") started?.()
-        } catch { rejectStarted?.(new Error("Invalid Live event")) }
-      }
-      const offer = await peer.createOffer()
-      if (ended) return
-      await peer.setLocalDescription(offer)
-      if (ended) return
-      const response = await command("/start", { sdp: offer.sdp })
+      transport = next
+      const response = await next.start(media)
       if (ended) { release(); return }
       sessionId = response.sessionId
-      await peer.setRemoteDescription({ type: "answer", sdp: response.sdp })
-      if (ended) return
-      const timer = setTimeout(() => rejectStarted?.(
-        new Error("Timed out waiting for session.started"),
-      ), 10_000)
-      try { await startup } finally { clearTimeout(timer) }
-      if (ended) return
-      await command("/ready", { events: bootstrap })
-      bootstrap = []
-      bootstrapped = true
-      if (ended) { release(); return }
       media.getAudioTracks().forEach(track => { track.enabled = true })
-      outgoing.getAudioTracks().forEach(track => { track.enabled = true })
+      transport.resume()
       if (!idle) {
         idle = makeIdleMonitor(makeIdleState, response.idleTimeout, {
           dim: value => visualizer.dim(value),
@@ -244,7 +198,7 @@ function browserMain(
       if (!ended) {
         console.log("Lectic Live:", error instanceof Error ? error.message
           : "Unable to start voice session")
-        await finish()
+        await finish("startup_failed")
       }
     }
   }
@@ -256,7 +210,7 @@ function browserMain(
     if (!token) return
     // Authenticated keepalive, not an unauthenticated beacon endpoint.
     // The heartbeat watchdog covers crashes where pagehide never fires.
-    void fetch("/end", {
+    void fetch("/close", {
       method: "POST", keepalive: true,
       headers: {
         Authorization: `Bearer ${token}`, "Content-Type": "application/json",
@@ -267,6 +221,13 @@ function browserMain(
   let lastStatus = ""
   let lastCaption = 0
   let lastDiagnostic = 0
+  function reportDiagnostics(events: { sequence: number }[]) {
+    for (const event of events) {
+      if (event.sequence <= lastDiagnostic) continue
+      console.log("Lectic Live: lifecycle", event)
+      lastDiagnostic = event.sequence
+    }
+  }
   async function poll() {
     if (ended) return
     try {
@@ -287,16 +248,16 @@ function browserMain(
         console.log(`${caption.speaker}:`, caption.text)
         lastCaption = caption.sequence
       }
-      for (const event of state.diagnostics) {
-        if (event.sequence <= lastDiagnostic) continue
-        console.log("Lectic Live: lifecycle", event)
-        lastDiagnostic = event.sequence
-      }
+      reportDiagnostics(state.diagnostics)
       if (state.ending) { await finish(); return }
+      if (recoverable && state.sleeping && connection === "active"
+        && state.sessionId === sessionId) {
+        await sleep("/recover")
+      }
     } catch {
       if (ended) return
       console.log("Lectic Live: local controller unavailable; stopping.")
-      await finish()
+      await finish("controller_unavailable")
     }
     if (!ended) pollTimer = setTimeout(() => { void poll() }, 500)
   }
@@ -311,12 +272,25 @@ function browserMain(
   }
 }
 
-export const browserScript = visualizerLicense
-  + `\n(${browserMain.toString()})(
+function script(factory: string, notice: string, recoverable = false) {
+  return visualizerLicense + `\n(${browserMain.toString()})(
     ${createVisualizer.toString()},
     ${createIdleMonitor.toString()},
-    ${createIdleState.toString()}
+    ${createIdleState.toString()},
+    ${factory}, ${JSON.stringify(notice)}, ${recoverable}
   );`
+}
+export const browserScript = script(createOpenAIMedia.toString(),
+  "Lectic Live: starting automatically. Voice is billable at approximately "
+  + "$0.05/minute with a 15-second minimum; backend costs are separate. "
+  + "Close this tab or use Ctrl-C to stop.")
+export const geminiBrowserScript = script(
+  `(options) => (${createGeminiMedia.toString()})(
+    options, ${PCMPlayer.toString()})`,
+  "Lectic Live: Gemini audio-only preview. No delegation. "
+  + "After idle or connection loss, speak to start a text-seeded session. "
+  + "Voice is billable; elapsed time is not a spending cap. "
+  + "Close this tab or Ctrl-C to stop.", true)
 export const html = `<!doctype html>
 <html lang="en">
 <head>

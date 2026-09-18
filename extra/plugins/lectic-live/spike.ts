@@ -1,4 +1,6 @@
-import { decodeEvent, type TranscriptEvent } from "./protocol"
+import { decodeEvent } from "./protocol"
+import { openAIObservation } from "./openai"
+import type { TranscriptObservation } from "./provider"
 import { snapshot } from "./transcript"
 import { runLectic, type RunOptions } from "./lectic-runner"
 import type { BackendResult } from "./result"
@@ -11,22 +13,21 @@ export async function replaySpike(
   options: RunOptions,
 ): Promise<{ delegationId: string; result: BackendResult }[]> {
   if (events.length > 256) throw new Error("Spike event limit exceeded")
-  const transcripts: TranscriptEvent[] = []
+  const transcripts: TranscriptObservation[] = []
   const seen = new Set<string>()
   const results: { delegationId: string; result: BackendResult }[] = []
   for (const raw of events) {
-    const event = decodeEvent(raw)
+    const decoded = decodeEvent(raw)
+    const event = decoded && openAIObservation(sessionId, decoded)
     if (!event) continue
-    if (event.type === "session.input_transcript.delta"
-      || event.type === "session.output_transcript.delta") {
+    if (event.type === "transcript") {
       transcripts.push(event)
-    } else if (event.type === "session.delegation.created"
-      && event.delegation.target === "client") {
-      if (seen.has(event.delegation.id)) continue
-      seen.add(event.delegation.id)
+    } else if (event.type === "request") {
+      if (seen.has(event.requestId)) continue
+      seen.add(event.requestId)
       const context = snapshot("offline-spike", sessionId, event, transcripts)
       results.push({
-        delegationId: event.delegation.id,
+        delegationId: event.requestId,
         result: await runLectic(context, options),
       })
     }

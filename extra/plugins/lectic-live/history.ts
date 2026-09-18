@@ -5,18 +5,26 @@ import {
 } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { record, text, type InitialMessage } from "./protocol"
+import { record, text } from "./validation"
+import type { Owner } from "./provider"
 import type { Task } from "./state"
+
+// Optional v1 metadata: omission means an OpenAI provider-owned ID.
+type HistoryOwner = {
+  provider?: Owner["provider"]
+  sessionIdSource?: Owner["sessionIdSource"]
+  sessionId: string
+}
 
 // This is context for a new conversation, never a queue to execute.
 export type HistoryContext = {
   version: 1
   conversationId: string
   incomplete: boolean
-  fragments: {
-    sessionId: string; sequence: number; speaker: string; text: string
-  }[]
-  tasks: (Task & { sessionId: string })[]
+  fragments: (HistoryOwner & {
+    sequence: number; speaker: string; text: string
+  })[]
+  tasks: (Task & HistoryOwner)[]
 }
 
 export const historyLimit = 8192
@@ -146,32 +154,13 @@ export function mergeHistory(
   return boundHistory({ ...context,
     incomplete: context.incomplete || old.incomplete,
     fragments: merge(old.fragments, context.fragments,
-      f => JSON.stringify([f.sessionId, f.sequence])),
+      f => JSON.stringify([...ownerKey(f), f.sequence])),
     tasks: merge(old.tasks, context.tasks,
-      t => JSON.stringify([t.sessionId, t.delegationId])),
+      t => JSON.stringify([...ownerKey(t), t.delegationId])),
   })
 }
 
-// History remains data, never developer instructions or an execution queue.
-// Exact deltas concatenate only across adjacent fragments of one speaker.
-export function voiceHistory(context?: HistoryContext): InitialMessage[] {
-  if (!context) return []
-  const messages: InitialMessage[] = []
-  for (const f of boundHistory(context).fragments) {
-    if (f.speaker !== "user" && f.speaker !== "assistant") continue
-    const last = messages.at(-1)
-    if (last?.role === f.speaker) last.content[0].text += f.text
-    else messages.push(f.speaker === "user"
-      ? { type: "message", role: "user",
-        content: [{ type: "input_text", text: f.text }] }
-      : { type: "message", role: "assistant",
-        content: [{ type: "output_text", text: f.text }] })
-  }
-  // The byte bound is conservative for the API's 8,192-token input limit.
-  const result = messages.filter(m => m.content[0].text.trim())
-  while (result.length > 128
-    || Buffer.byteLength(JSON.stringify(result)) > historyLimit) {
-    result.shift()
-  }
-  return result
+function ownerKey(value: HistoryOwner) {
+  return [value.provider ?? "openai", value.sessionIdSource ?? "provider",
+    value.sessionId]
 }

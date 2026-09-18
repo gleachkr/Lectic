@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { extractResult } from "../result"
+import { extractResult, MAX_RESULT_BYTES } from "../result"
 
 const terminal = {
   type: "code", lang: "lectic-live-result",
@@ -35,7 +35,8 @@ test("incomplete, error-bearing, and malformed output fails closed", () => {
       status: "completed", summary: "x", private: "secret",
     }) }]),
     parsed([{ ...terminal, value: JSON.stringify({
-      status: "completed", summary: "雪".repeat(200),
+      status: "completed",
+      summary: "雪".repeat(Math.ceil(MAX_RESULT_BYTES / 3)),
     }) }]),
     { messages: [{ role: "user", content: [terminal] }] },
   ]) expect(() => extractResult(value)).toThrow()
@@ -48,3 +49,12 @@ test("clarification and explicit failure remain distinct outcomes", () => {
     }) }])).status).toBe(status)
   }
 })
+
+for (const summary of ["a".repeat(MAX_RESULT_BYTES), "雪🙂".repeat(2000)]) {
+  test(`public results accept ${Buffer.byteLength(summary)} UTF-8 bytes`,
+    () => {
+      expect(extractResult(parsed([{ ...terminal, value: JSON.stringify({
+        status: "completed", summary,
+      }) }]))).toEqual({ status: "completed", summary })
+    })
+}

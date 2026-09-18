@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { BackendResult } from "./result"
+import type { Completion, ProviderDiagnostic } from "./provider"
 
 export type Outcome = "received" | "awaiting_context" | "running"
   | BackendResult["status"] | "cancelled" | "expired" | "rejected"
@@ -13,20 +14,25 @@ export type Task = {
   received: number
   outcome: Outcome
   delivery: Delivery
+  resolution?: { outcome: Completion["outcome"]; delivery: Delivery }
+  providerCancelled?: boolean
   result?: BackendResult
   context?: string
   reason?: "context_changed" | "new_delegation" | "context_lost"
 }
 
 export type DiagnosticCode = "delegation_received" | "duplicate"
-  | "queue_full" | "queue_expired" | "context_missing" | "context_lost"
+  | "request_invalid" | "queue_full" | "queue_expired"
+  | "context_missing" | "context_lost"
   | "backend_started" | "backend_completed" | "backend_failed"
   | "result_withheld" | "result_sent" | "result_acknowledged"
   | "delivery_uncertain" | "cancelled" | "context_cleared"
   | "sideband_lost" | "browser_lost" | "budget_reached"
   | "startup_failed" | "ended" | "finalization_uncertain"
+  | "provider_diagnostic"
   | "event_limit" | "live_error" | "startup_timeout"
-  | "idle_disconnected" | "idle_resumed"
+  | "idle_disconnected" | "idle_resumed" | "idle_terminal"
+  | "invalid_local_audio_or_overload" | "provider_limit" | "transport_lost"
 
 // Metadata only: no provider errors, transcript, opaque remote IDs, paths,
 // arguments, or summaries. This remains usable regardless of tool policy.
@@ -37,12 +43,14 @@ export class Journal {
   ) {}
   private sequence = 0
   private events: {
-    sequence: number; at: number; code: DiagnosticCode; revision?: number
+    sequence: number; at: number; code: DiagnosticCode
+    revision?: number; detail?: ProviderDiagnostic
   }[] = []
 
-  add(code: DiagnosticCode, revision?: number) {
+  add(code: DiagnosticCode, revision?: number,
+    detail?: ProviderDiagnostic) {
     this.events.push({ sequence: ++this.sequence, at: Date.now(),
-      code, revision })
+      code, revision, ...(detail ? { detail } : {}) })
     if (this.events.length > 256) this.events.shift()
     this.changed?.()
   }

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import {
   CreationRejected, describeFailure, liveConnector, SessionFailure,
 } from "../session"
-import { startServer } from "../server"
+import { startServer } from "./openai-fixture"
 import type { LiveEvent } from "../protocol"
 
 class Socket extends EventTarget {

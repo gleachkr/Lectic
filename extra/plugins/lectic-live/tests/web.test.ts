@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { runInNewContext } from "node:vm"
-import { browserScript, html, style } from "../web"
+import { createGeminiMedia, type MediaOptions } from "../browser-media"
+import { browserScript, geminiBrowserScript, html, style } from "../web"
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -12,7 +13,7 @@ function deferred<T>() {
 // Run the actual embedded script with deterministic browser/transport fakes.
 // This tests lifecycle and drawing inputs, not real browser autoplay policy.
 function browser(options: {
-  token?: string; blocked?: boolean; idleTimeout?: number
+  token?: string; blocked?: boolean; idleTimeout?: number; gemini?: boolean
 } = {}) {
   const permission = deferred<any>()
   let ready = deferred<any>()
@@ -51,7 +52,7 @@ function browser(options: {
   const remote = { remote: true }
   const state = { phase: "Connected", backend: "Idle", runs: 0,
     busy: false, tasks: [], captions: [], diagnostics: [],
-    ending: false, usage: {} }
+    ending: false, sleeping: false, sessionId: "s1", usage: {} }
   const audio = { srcObject: null, paused: true,
     async play() {
       plays++
@@ -121,7 +122,26 @@ function browser(options: {
     close() { this.closed = true; this.channel.onclose?.() }
   }
   const location = { hash: options.token === "" ? "" : "#private-token" }
+  const pcm: {
+    paused: boolean; closed: boolean; lost: MediaOptions["lost"]
+  }[] = []
   const sandbox = {
+    makeFakeMedia(options: MediaOptions) {
+      const state = { paused: true, closed: false, lost: options.lost }
+      pcm.push(state)
+      return {
+        async start() {
+          const response = await options.command("/start")
+          options.stream(remote as unknown as MediaStream)
+          await options.command("/ready")
+          return response
+        },
+        pause() { state.paused = true },
+        resume() { state.paused = false },
+        unlock() {},
+        close() { state.closed = true },
+      }
+    },
     document: { getElementById: (id: string) =>
       id === "audio" ? audio : canvas },
     location, history: { replaceState() { location.hash = "" } },
@@ -145,9 +165,9 @@ function browser(options: {
       requests.push({ path, init })
       const value = path === "/state" ? state
         : path === "/start" ? { sdp: "answer",
-          sessionId: `s${peers.length}`,
+          sessionId: `s${options.gemini ? pcm.length : peers.length}`,
           idleTimeout: options.idleTimeout ?? 30 }
-          : path === "/idle" ? await sleeping.promise
+          : ["/idle", "/recover"].includes(path) ? await sleeping.promise
           : path === "/ready" ? await ready.promise
             : await ending.promise
       return { ok: true, json: async () => value }
@@ -160,12 +180,14 @@ function browser(options: {
     requestAnimationFrame(fn: () => void) { frames.set(++id, fn); return id },
     cancelAnimationFrame(id: number) { frames.delete(id) },
   }
-  runInNewContext(browserScript, sandbox)
+  runInNewContext(options.gemini ? geminiBrowserScript.replace(
+    createGeminiMedia.toString(), "makeFakeMedia",
+  ) : browserScript, sandbox)
   const flush = async () => {
     for (let i = 0; i < 40; i++) await Promise.resolve()
   }
   return {
-    requests, logs, track, audio, remote, canvas, drawing, lines, state,
+    pcm, requests, logs, track, audio, remote, canvas, drawing, lines, state,
     permission, get ready() { return ready }, sleeping,
     ending, timers, frames, location, flush, clones,
     holdReady() { ready = deferred<any>() },
@@ -286,7 +308,7 @@ test("pagehide releases media and sends authenticated keepalive immediately",
     expect(b.peer().closed).toBe(true)
     expect(b.audio.srcObject).toBeNull()
     expect(b.audio.paused).toBe(true)
-    expect(b.requests.at(-1)).toMatchObject({ path: "/end", init: {
+    expect(b.requests.at(-1)).toMatchObject({ path: "/close", init: {
       method: "POST", keepalive: true,
       headers: { Authorization: "Bearer private-token" },
     } })
@@ -539,4 +561,81 @@ test("closing during wake bootstrap prevents late microphone enable",
     expect(b.contexts.every(c => c.closed)).toBe(true)
     expect(b.timers.size).toBe(0)
     expect(b.frames.size).toBe(0)
+  })
+
+for (const trigger of ["playback", "provider", "idle"]) {
+  test(`Gemini page ${trigger} disconnect waits for mic wake, not a click`,
+    async () => {
+      const b = browser({ gemini: true, idleTimeout: 1 })
+      await b.permit()
+      b.ready.resolve({ ok: true })
+      await b.flush()
+      await b.advance(50)
+      if (trigger === "playback") b.pcm[0].lost("playback_overload")
+      if (trigger === "provider") {
+        b.state.sleeping = true
+        await b.poll()
+      }
+      if (trigger === "idle") await b.advance(1000)
+      expect(b.pcm[0].paused).toBe(true)
+      expect(b.track.stopped).toBe(false)
+      expect(b.paths()).toContain(trigger === "idle" ? "/idle" : "/recover")
+      b.sleeping.resolve({ idle: true })
+      await b.flush()
+      expect(b.pcm[0].closed).toBe(true)
+      b.event("click")
+      await b.advance(1000)
+      expect(b.pcm).toHaveLength(1)
+      expect(b.paths()).not.toContain("/end")
+      b.holdReady()
+      await b.advance(50, .2)
+      expect(b.pcm).toHaveLength(2)
+      expect(b.pcm[1].paused).toBe(true)
+      b.ready.resolve({ ok: true })
+      await b.flush()
+      expect(b.pcm[1].paused).toBe(false)
+      expect(b.captures()).toBe(1)
+      // Retired callbacks and old polls cannot close the replacement.
+      b.pcm[0].lost("retired_callback")
+      await b.poll()
+      expect(b.pcm[1].paused).toBe(false)
+      b.event("pagehide")
+      expect(b.track.stopped).toBe(true)
+      expect(b.pcm[1].closed).toBe(true)
+    })
+}
+
+test("Gemini wake during close waits; explicit end wins over pending wake",
+  async () => {
+    const b = browser({ gemini: true })
+    await b.permit()
+    b.ready.resolve({ ok: true })
+    await b.flush()
+    await b.advance(50)
+    b.pcm[0].lost("playback_overload")
+    await b.advance(50, .2)
+    expect(b.pcm).toHaveLength(1)
+    b.event("pagehide")
+    b.sleeping.resolve({ idle: true })
+    await b.flush()
+    expect(b.pcm).toHaveLength(1)
+    expect(b.track.stopped).toBe(true)
+    expect(b.timers.size).toBe(0)
+  })
+
+test("Gemini final diagnostics are logged even if media loss beats polling",
+  async () => {
+    const b = browser({ gemini: true })
+    await b.permit()
+    // Startup is not ready: no recovery or automatic paid retry.
+    b.state.diagnostics = [{ sequence: 1, code: "startup_failed" }] as any
+    b.pcm[0].lost("local_socket_closed")
+    b.ending.resolve({ confirmed: false })
+    b.ready.resolve({ ok: true })
+    await b.flush()
+    expect(JSON.stringify(b.logs)).toContain("startup_failed")
+    expect(JSON.stringify(b.logs)).toContain("local_socket_closed")
+    expect(b.paths()).not.toContain("/recover")
+    expect(b.pcm).toHaveLength(1)
+    expect(b.track.stopped).toBe(true)
   })

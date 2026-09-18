@@ -1,4 +1,7 @@
-import { record, text } from "./protocol"
+import { record, text } from "./validation"
+
+// Shared public-result limit, independent of provider wire-message limits.
+export const MAX_RESULT_BYTES = 16 * 1024
 
 export type BackendResult = {
   status: "completed" | "clarification" | "failed"
@@ -37,8 +40,8 @@ export function extractResult(parsed: unknown): BackendResult {
     throw new Error("Malformed terminal result envelope")
   }
   const summary = text(value["summary"])
-  if (!summary.trim() || Buffer.byteLength(summary) > 400) {
-    throw new Error("Terminal result exceeds conservative append bound")
+  if (!summary.trim() || Buffer.byteLength(summary) > MAX_RESULT_BYTES) {
+    throw new Error("Terminal result is empty or exceeds 16 KiB")
   }
   return { status, summary }
 }

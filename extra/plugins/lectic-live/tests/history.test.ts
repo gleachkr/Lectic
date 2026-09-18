@@ -1,12 +1,13 @@
+import { voiceHistory } from "../openai-history"
 import { expect, test } from "bun:test"
 import { randomUUID } from "node:crypto"
 import { readFile, readdir, stat, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import {
   boundHistory, History, historyRoot, loadHistory, type HistoryContext,
-  mergeHistory, voiceHistory,
+  mergeHistory,
 } from "../history"
-import { Coordinator } from "../coordinator"
+import { Coordinator } from "./openai-fixture"
 import { parseArgs } from "../lectic-live"
 import { replaySpike } from "../spike"
 import { fakeCommand, workspace } from "./helpers"

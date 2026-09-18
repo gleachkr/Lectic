@@ -1,0 +1,775 @@
+{
+  "provenance": "Synthetic; documentation checked 2026-09-16.",
+  "client": [
+    {
+      "id": "setup-history",
+      "wire": {
+        "setup": {
+          "model": "models/gemini-3.8-live",
+          "generationConfig": {
+            "responseModalities": [
+              "AUDIO"
+            ],
+            "speechConfig": {
+              "voiceConfig": {
+                "prebuiltVoiceConfig": {
+                  "voiceName": "Kore"
+                }
+              }
+            }
+          },
+          "inputAudioTranscription": {},
+          "outputAudioTranscription": {},
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "Voice assistant instructions"
+              }
+            ]
+          },
+          "historyConfig": {
+            "initialHistoryInClientContent": true
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "delegate",
+                  "description": "Delegate a task to the configured backend.",
+                  "behavior": "NON_BLOCKING",
+                  "parameters": {
+                    "type": "OBJECT",
+                    "properties": {
+                      "task": {
+                        "type": "STRING"
+                      }
+                    },
+                    "required": [
+                      "task"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-final",
+      "wire": {
+        "clientContent": {
+          "turns": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "An old question."
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "An old answer."
+                }
+              ]
+            }
+          ],
+          "turnComplete": true
+        }
+      }
+    },
+    {
+      "id": "input-44100",
+      "wire": {
+        "realtimeInput": {
+          "audio": {
+            "mimeType": "audio/pcm;rate=44100",
+            "data": "AACA/w=="
+          }
+        }
+      }
+    },
+    {
+      "id": "input-48000",
+      "wire": {
+        "realtimeInput": {
+          "audio": {
+            "mimeType": "audio/pcm;rate=48000",
+            "data": "AACA/w=="
+          }
+        }
+      }
+    },
+    {
+      "id": "audio-stream-end",
+      "wire": {
+        "realtimeInput": {
+          "audioStreamEnd": true
+        }
+      }
+    },
+    {
+      "id": "result-when-idle",
+      "wire": {
+        "toolResponse": {
+          "functionResponses": [
+            {
+              "id": "call-1",
+              "name": "delegate",
+              "response": {
+                "result": "A bounded public summary."
+              },
+              "scheduling": "WHEN_IDLE",
+              "willContinue": false
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "server": [
+    {
+      "id": "setup-complete",
+      "wire": {
+        "setupComplete": {}
+      }
+    },
+    {
+      "id": "input-text",
+      "wire": {
+        "serverContent": {
+          "inputTranscription": {
+            "text": "Check the example status.",
+            "languageCode": "en"
+          }
+        }
+      }
+    },
+    {
+      "id": "input-repeat",
+      "wire": {
+        "serverContent": {
+          "inputTranscription": {
+            "text": " no no"
+          }
+        }
+      }
+    },
+    {
+      "id": "output-text",
+      "wire": {
+        "serverContent": {
+          "outputTranscription": {
+            "text": "Checking"
+          }
+        }
+      }
+    },
+    {
+      "id": "output-leading-space",
+      "wire": {
+        "serverContent": {
+          "outputTranscription": {
+            "text": " now."
+          }
+        }
+      }
+    },
+    {
+      "id": "audio",
+      "wire": {
+        "serverContent": {
+          "modelTurn": {
+            "role": "model",
+            "parts": [
+              {
+                "inlineData": {
+                  "mimeType": "audio/pcm;rate=24000",
+                  "data": "AACA/w=="
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "generation-complete",
+      "wire": {
+        "serverContent": {
+          "generationComplete": true
+        }
+      }
+    },
+    {
+      "id": "turn-complete",
+      "wire": {
+        "serverContent": {
+          "turnComplete": true
+        }
+      }
+    },
+    {
+      "id": "interrupted",
+      "wire": {
+        "serverContent": {
+          "interrupted": true
+        }
+      }
+    },
+    {
+      "id": "call",
+      "wire": {
+        "toolCall": {
+          "functionCalls": [
+            {
+              "id": "call-1",
+              "name": "delegate",
+              "args": {
+                "task": "Check the example status."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "multiple-calls",
+      "wire": {
+        "toolCall": {
+          "functionCalls": [
+            {
+              "id": "call-2",
+              "name": "delegate",
+              "args": {
+                "task": "Check the example status."
+              }
+            },
+            {
+              "id": "opaque/id:☃",
+              "name": "delegate",
+              "args": {
+                "task": "Explain the example status."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "cancel",
+      "wire": {
+        "toolCallCancellation": {
+          "ids": [
+            "call-1"
+          ]
+        }
+      }
+    },
+    {
+      "id": "go-away",
+      "wire": {
+        "goAway": {
+          "timeLeft": "30s"
+        }
+      }
+    },
+    {
+      "id": "go-away-no-duration",
+      "wire": {
+        "goAway": {}
+      }
+    },
+    {
+      "id": "usage-with-turn",
+      "wire": {
+        "serverContent": {
+          "turnComplete": true
+        },
+        "usageMetadata": {
+          "promptTokenCount": 120,
+          "cachedContentTokenCount": 0,
+          "responseTokenCount": 20,
+          "toolUsePromptTokenCount": 0,
+          "thoughtsTokenCount": 0,
+          "totalTokenCount": 140,
+          "promptTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 120
+            }
+          ],
+          "responseTokensDetails": [
+            {
+              "modality": "AUDIO",
+              "tokenCount": 20
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "usage-missing-counters",
+      "wire": {
+        "serverContent": {},
+        "usageMetadata": {}
+      }
+    },
+    {
+      "id": "combined-content",
+      "wire": {
+        "serverContent": {
+          "outputTranscription": {
+            "text": " now."
+          },
+          "modelTurn": {
+            "role": "model",
+            "parts": [
+              {
+                "inlineData": {
+                  "mimeType": "audio/pcm;rate=24000",
+                  "data": "AACA/w=="
+                }
+              }
+            ]
+          },
+          "generationComplete": true
+        }
+      }
+    },
+    {
+      "id": "inert-optional-fields",
+      "wire": {
+        "serverContent": {
+          "inputTranscription": {
+            "text": " no no",
+            "finished": true,
+            "futureField": [
+              7
+            ]
+          },
+          "interimInputTranscription": {
+            "text": 42
+          },
+          "futureField": {
+            "value": "ignored"
+          }
+        }
+      }
+    },
+    {
+      "id": "empty-transcription",
+      "wire": {
+        "serverContent": {
+          "inputTranscription": {}
+        }
+      }
+    },
+    {
+      "id": "unknown-envelope",
+      "wire": {
+        "futureEvent": {
+          "value": "ignored"
+        }
+      }
+    }
+  ],
+  "malformed": [
+    {
+      "id": "non-object",
+      "direction": "server",
+      "path": "$",
+      "wire": null
+    },
+    {
+      "id": "array-envelope",
+      "direction": "server",
+      "path": "$",
+      "wire": []
+    },
+    {
+      "id": "two-message-types",
+      "direction": "server",
+      "path": "$",
+      "wire": {
+        "setupComplete": {},
+        "toolCall": {}
+      }
+    },
+    {
+      "id": "bad-setup-complete",
+      "direction": "server",
+      "path": "setupComplete",
+      "wire": {
+        "setupComplete": true
+      }
+    },
+    {
+      "id": "bad-content",
+      "direction": "server",
+      "path": "serverContent",
+      "wire": {
+        "serverContent": "invalid"
+      }
+    },
+    {
+      "id": "bad-input-text",
+      "direction": "server",
+      "path": "serverContent.inputTranscription.text",
+      "wire": {
+        "serverContent": {
+          "inputTranscription": {
+            "text": 42
+          }
+        }
+      }
+    },
+    {
+      "id": "bad-output-text",
+      "direction": "server",
+      "path": "serverContent.outputTranscription.text",
+      "wire": {
+        "serverContent": {
+          "outputTranscription": {
+            "text": [
+              "invalid"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "bad-interrupted",
+      "direction": "server",
+      "path": "serverContent.interrupted",
+      "wire": {
+        "serverContent": {
+          "interrupted": "true"
+        }
+      }
+    },
+    {
+      "id": "bad-turnComplete",
+      "direction": "server",
+      "path": "serverContent.turnComplete",
+      "wire": {
+        "serverContent": {
+          "turnComplete": "true"
+        }
+      }
+    },
+    {
+      "id": "bad-generationComplete",
+      "direction": "server",
+      "path": "serverContent.generationComplete",
+      "wire": {
+        "serverContent": {
+          "generationComplete": "true"
+        }
+      }
+    },
+    {
+      "id": "bad-base64",
+      "direction": "server",
+      "path": "serverContent.modelTurn.parts[0].inlineData.data",
+      "wire": {
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "inlineData": {
+                  "mimeType": "audio/pcm;rate=24000",
+                  "data": "?!"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "odd-pcm",
+      "direction": "server",
+      "path": "serverContent.modelTurn.parts[0].inlineData.data",
+      "wire": {
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "inlineData": {
+                  "mimeType": "audio/pcm;rate=24000",
+                  "data": "AA=="
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "bad-output-rate",
+      "direction": "server",
+      "path": "serverContent.modelTurn.parts[0].inlineData.mimeType",
+      "wire": {
+        "serverContent": {
+          "modelTurn": {
+            "parts": [
+              {
+                "inlineData": {
+                  "mimeType": "audio/pcm;rate=0",
+                  "data": "AACA/w=="
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "bad-parts",
+      "direction": "server",
+      "path": "serverContent.modelTurn.parts",
+      "wire": {
+        "serverContent": {
+          "modelTurn": {
+            "parts": {}
+          }
+        }
+      }
+    },
+    {
+      "id": "bad-call-list",
+      "direction": "server",
+      "path": "toolCall.functionCalls",
+      "wire": {
+        "toolCall": {
+          "functionCalls": {}
+        }
+      }
+    },
+    {
+      "id": "missing-call-id",
+      "direction": "server",
+      "path": "toolCall.functionCalls[0].id",
+      "wire": {
+        "toolCall": {
+          "functionCalls": [
+            {
+              "name": "delegate",
+              "args": {
+                "task": "Example."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "unsupported-function",
+      "direction": "server",
+      "path": "toolCall.functionCalls[0].name",
+      "wire": {
+        "toolCall": {
+          "functionCalls": [
+            {
+              "id": "call-1",
+              "name": "exec",
+              "args": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bad-args",
+      "direction": "server",
+      "path": "toolCall.functionCalls[0].args",
+      "wire": {
+        "toolCall": {
+          "functionCalls": [
+            {
+              "id": "call-1",
+              "name": "delegate",
+              "args": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bad-task",
+      "direction": "server",
+      "path": "toolCall.functionCalls[0].args.task",
+      "wire": {
+        "toolCall": {
+          "functionCalls": [
+            {
+              "id": "call-1",
+              "name": "delegate",
+              "args": {
+                "task": 42
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bad-cancel-ids",
+      "direction": "server",
+      "path": "toolCallCancellation.ids[0]",
+      "wire": {
+        "toolCallCancellation": {
+          "ids": [
+            42
+          ]
+        }
+      }
+    },
+    {
+      "id": "bad-go-away",
+      "direction": "server",
+      "path": "goAway.timeLeft",
+      "wire": {
+        "goAway": {
+          "timeLeft": 30
+        }
+      }
+    },
+    {
+      "id": "bad-usage",
+      "direction": "server",
+      "path": "usageMetadata.totalTokenCount",
+      "wire": {
+        "serverContent": {},
+        "usageMetadata": {
+          "totalTokenCount": -1
+        }
+      }
+    },
+    {
+      "id": "string-usage",
+      "direction": "server",
+      "path": "usageMetadata.responseTokenCount",
+      "wire": {
+        "serverContent": {},
+        "usageMetadata": {
+          "responseTokenCount": "20"
+        }
+      }
+    },
+    {
+      "id": "nested-scheduling",
+      "direction": "client",
+      "path": "toolResponse.functionResponses[0].response.scheduling",
+      "wire": {
+        "toolResponse": {
+          "functionResponses": [
+            {
+              "id": "call-1",
+              "name": "delegate",
+              "response": {
+                "result": "Example.",
+                "scheduling": "WHEN_IDLE"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wrong-scheduling-enum",
+      "direction": "client",
+      "path": "toolResponse.functionResponses[0].scheduling",
+      "wire": {
+        "toolResponse": {
+          "functionResponses": [
+            {
+              "id": "call-1",
+              "name": "delegate",
+              "response": {
+                "result": "A bounded public summary."
+              },
+              "scheduling": "INTERRUPTED",
+              "willContinue": false
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "sequences": [
+    {
+      "id": "history-before-audio",
+      "events": [
+        "setup-history",
+        "setup-complete",
+        "history-final",
+        "input-48000"
+      ],
+      "expectation": "History must not generate a reply or replay work."
+    },
+    {
+      "id": "delayed-input-and-duplicate-call",
+      "events": [
+        "call",
+        "output-text",
+        "input-text",
+        "call",
+        "result-when-idle",
+        "turn-complete"
+      ],
+      "expectation": "Execute once; turn completion is not a result ack."
+    },
+    {
+      "id": "cancel-before-result",
+      "events": [
+        "call",
+        "cancel"
+      ],
+      "expectation": "Clean up local work; suppress the cancelled result."
+    },
+    {
+      "id": "cancel-after-send",
+      "events": [
+        "call",
+        "result-when-idle",
+        "cancel"
+      ],
+      "expectation": "Delivery remains uncertain; do not resend or undo."
+    },
+    {
+      "id": "interrupted-output",
+      "events": [
+        "output-text",
+        "audio",
+        "interrupted",
+        "turn-complete"
+      ],
+      "expectation": "Flush playback without requiring generationComplete."
+    },
+    {
+      "id": "go-away-during-work",
+      "events": [
+        "call",
+        "go-away"
+      ],
+      "expectation": "Terminal cleanup, not reconnect or idle wake."
+    },
+    {
+      "id": "repeated-transcript",
+      "events": [
+        "input-repeat",
+        "input-repeat",
+        "output-text",
+        "output-leading-space",
+        "generation-complete",
+        "turn-complete"
+      ],
+      "expectation": "Retain exact text; equal strings are not duplicate IDs."
+    }
+  ]
+}

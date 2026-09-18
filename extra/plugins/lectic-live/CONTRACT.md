@@ -2,7 +2,15 @@
 
 Technical reference for the plugin's `/v1/live` wire adapter and Lectic CLI
 boundary. For installation, operation, permissions, and retention, see the
-[README](README.md).
+[README](README.md). OpenAI details below remain unchanged. Gemini now has
+a production PCM transport and delegation; see the
+[transport notes](GEMINI_TRANSPORT.md) and
+[delegation contract](GEMINI_DELEGATION.md) for bounds and limitations.
+Saved-history CLI resume remains a future stage. Gemini now
+supports local microphone wake after confirmed transport closure, with
+remote finality and usage explicitly unknown. The checked wire contract
+is in [GEMINI_CONTRACT.md](GEMINI_CONTRACT.md). The isolated stage 1 harness
+is in [GEMINI_SPIKE.md](GEMINI_SPIKE.md).
 
 ## Session and browser transport
 
@@ -105,7 +113,7 @@ completion is eligible for delivery:
 
 The object has exactly `status` and `summary`. Status is `completed`,
 `clarification`, or `failed`; summary is nonempty public text of at most
-400 UTF-8 bytes. Malformed results never fall back to raw stdout,
+16 KiB of UTF-8 text. Malformed results never fall back to raw stdout,
 intermediate prose, thought blocks, or tool records. No model-authored
 progress is automatically forwarded.
 
@@ -121,10 +129,17 @@ and `session.instructions.append`. Each carries `event_id`, `delegation_id`,
 and plain-string `content`. General context uses `delegation_id: null`;
 backend commentary uses the original delegation ID.
 
-Appends have a 500-token API limit. The adapter's conservative 400-byte
-ceiling assumes byte-level BPE and is not an exact GPT-Live token counter.
-Recheck that assumption if tokenization changes. Oversize content is rejected,
-not truncated or split into tool dumps. Thinking appends are not private.
+OpenAI appends have a 500-token API limit. The per-append conservative
+400-byte ceiling assumes byte-level BPE, not an exact GPT-Live token count.
+Recheck that assumption if tokenization changes. Public results longer than
+400 bytes are split at Unicode code-point boundaries into numbered parts,
+with at most 340 bytes of content plus the part label. Each part is sent once
+and acknowledged before the next; failure stops delivery without retries.
+Only the validated public summary is split, never raw output or tool dumps.
+The voice prompt asks for the final part before explaining the result.
+Gemini sends the entire public result in one function response. Its wire
+bound permits the shared 16 KiB result plus the adapter's status prefix.
+Thinking appends are not private.
 
 Match `session.<kind>.appended.client_event_id` to the outgoing `event_id`.
 Rejections instead use `error.client_event_id`; `error.code` may be null.
@@ -135,7 +150,7 @@ independent: acknowledgment proves neither playback nor action completion.
 Validators project only consumed fields. Unknown events and extra fields
 are inert; malformed supported fields throw. Reflected audio is ignored.
 
-## Close, idle replacement, and resume
+## Close, idle replacement, and resume (OpenAI)
 
 Send `session.close` and wait up to three seconds for `session.closed`.
 Close is idempotent; terminal confirmation must match the attached session.
@@ -190,3 +205,18 @@ https://developers.openai.com/api/reference/resources/live/sideband-websocket
 [webrtc]: https://developers.openai.com/api/docs/guides/voice-webrtc?api=live
 [controls]:
   https://developers.openai.com/api/docs/guides/voice-server-controls?api=live
+
+## Controller lifetime and launch output
+
+A launch prints only its private URL on stdout and never opens a browser.
+Diagnostics go to stderr. Redirected stdout uses a detached controller and
+a short-lived launcher so shell command substitution completes immediately.
+Interactive launches remain in the foreground for Ctrl-C.
+
+Authenticated `/close` ends the session and stops the listener after cleanup;
+pagehide uses a keepalive request to that endpoint. Missing heartbeats also
+stop the listener and controller, even before paid startup or while idle.
+`/end` still permits final diagnostics until tab close or heartbeat expiry.
+No browser attachment means the controller stays ready without paid usage.
+Backend exceptions are converted into safe failure results for the voice
+model. They do not terminate the controller or automatically retry work.
