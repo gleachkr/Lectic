@@ -22,44 +22,20 @@ import { mkdirSync, watch } from "node:fs"
 import { basename, dirname, resolve } from "node:path"
 
 import { createTaskWithEditor, editTaskWithEditor } from "./taskEditor.ts"
-
-type Status =
-  | "not_started"
-  | "researching"
-  | "researched"
-  | "planning"
-  | "planned"
-  | "implementing"
-  | "completed"
-  | "partial"
-  | "blocked"
-  | "abandoned"
-
-type Language =
-  | "general"
-  | "neovim"
-  | "latex"
-  | "typst"
-  | "meta"
-  | "markdown"
-
-type Priority = "low" | "medium" | "high" | "critical"
-
-type TaskRow = {
-  id: number
-  title: string
-  description: string
-  status: Status
-  language: Language
-  priority: Priority
-  effort_hours: number | null
-  parent_id: number | null
-  created_at: string
-  updated_at: string
-  started_at: string | null
-  completed_at: string | null
-  archived_at: string | null
-}
+import { defaultDbPath, projectIdentity } from "./project.ts"
+import type { ProjectIdentity } from "./project.ts"
+import {
+  PRIORITY_ORDER_SQL,
+  TERMINAL_STATUSES,
+  TRANSITIONS,
+  TaskError,
+  archiveTask as coreArchiveTask,
+  defaultActor,
+  defaultSession,
+  getTask,
+  transitionTask as coreTransitionTask,
+} from "./taskCore.ts"
+import type { Actor, Status, TaskRow } from "./taskCore.ts"
 
 type InputMode = "normal" | "filter"
 
@@ -96,44 +72,8 @@ const TRANSITION_HOTKEYS: TransitionHotkey[] = [
   { key: "A", to: "abandoned", label: "abandoned" },
 ]
 
-const TRANSITIONS: Record<Status, Set<Status>> = {
-  not_started: new Set(["researching", "planning", "abandoned", "blocked"]),
-  researching: new Set(["researched", "partial", "blocked", "abandoned"]),
-  researched: new Set(["planning", "implementing", "abandoned", "blocked"]),
-  planning: new Set(["planned", "partial", "blocked", "abandoned"]),
-  planned: new Set(["implementing", "partial", "blocked", "abandoned"]),
-  implementing: new Set(["completed", "partial", "blocked", "abandoned"]),
-  partial: new Set([
-    "researching",
-    "planning",
-    "implementing",
-    "blocked",
-    "abandoned",
-  ]),
-  blocked: new Set([
-    "not_started",
-    "researching",
-    "planning",
-    "implementing",
-    "abandoned",
-  ]),
-  completed: new Set(),
-  abandoned: new Set(),
-}
-
-const ARCHIVEABLE_STATUSES: ReadonlySet<Status> = new Set([
-  "completed",
-  "abandoned",
-])
-
-function defaultActor(): string {
-  return process.env["LECTIC_INTERLOCUTOR"]
-    ?? process.env["USER"]
-    ?? "taskboard"
-}
-
-function defaultSession(): string | null {
-  return process.env["RUN_ID"] ?? null
+function who(): Actor {
+  return { actor: defaultActor(), session: defaultSession() }
 }
 
 function availableTransitionHotkeys(task: TaskRow | null): TransitionHotkey[] {
@@ -152,19 +92,25 @@ function formatTransitionHints(task: TaskRow | null): string {
   return entries.map((entry) => `${entry.key} ${entry.label}`).join(" • ")
 }
 
-function parseArgs(argv: string[]): { dbPath: string } {
-  const defaultData = process.env["LECTIC_DATA"]
-    ?? `${process.env["HOME"] ?? "."}/.local/share/lectic`
-  let dbPath = process.env["LECTIC_TASK_DB"] ?? `${defaultData}/task.sqlite3`
+type BoardScope = {
+  project: ProjectIdentity
+  allProjects: boolean
+}
+
+function parseArgs(argv: string[]): { dbPath: string; scope: BoardScope } {
+  let dbPath = defaultDbPath()
+  let projectOverride = process.env["LECTIC_TASK_PROJECT"]
+  let allProjects = false
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
-    if (arg === "--db") {
+    if (arg === "--db" || arg === "--project") {
       const value = argv[i + 1]
       if (!value) {
-        throw new Error("missing value for --db")
+        throw new Error(`missing value for ${arg}`)
       }
-      dbPath = value
+      if (arg === "--db") dbPath = value
+      else projectOverride = value
       i++
       continue
     }
@@ -174,13 +120,28 @@ function parseArgs(argv: string[]): { dbPath: string } {
       continue
     }
 
+    if (arg.startsWith("--project=")) {
+      projectOverride = arg.slice("--project=".length)
+      continue
+    }
+
+    if (arg === "--all-projects") {
+      allProjects = true
+      continue
+    }
+
     if (arg === "-h" || arg === "--help") {
-      console.log("Usage: lectic taskboard [--db PATH]")
+      console.log(
+        "Usage: lectic taskboard [--db PATH] [--project KEY] [--all-projects]",
+      )
       process.exit(0)
     }
   }
 
-  return { dbPath: resolve(dbPath) }
+  return {
+    dbPath: resolve(dbPath),
+    scope: { project: projectIdentity(projectOverride), allProjects },
+  }
 }
 
 async function initDb(dbPath: string): Promise<Database> {
@@ -193,25 +154,34 @@ async function initDb(dbPath: string): Promise<Database> {
   return db
 }
 
-function loadTasks(db: Database): TaskRow[] {
+function loadTasks(db: Database, scope: BoardScope): TaskRow[] {
+  const where = ["archived_at IS NULL"]
+  const values: string[] = []
+  if (!scope.allProjects) {
+    where.push("project_key = ?")
+    values.push(scope.project.key)
+  }
+
   return db
     .query(
-      `SELECT id, title, description, status, language, priority,
-              effort_hours, parent_id, created_at, updated_at,
-              started_at, completed_at, archived_at
+      `SELECT *
        FROM tasks
-       WHERE archived_at IS NULL
-       ORDER BY
-         CASE priority
-           WHEN 'critical' THEN 0
-           WHEN 'high' THEN 1
-           WHEN 'medium' THEN 2
-           ELSE 3
-         END ASC,
-         updated_at DESC,
-         id DESC`
+       WHERE ${where.join(" AND ")}
+       ORDER BY ${PRIORITY_ORDER_SQL} ASC, updated_at DESC, id DESC`
     )
-    .all() as TaskRow[]
+    .all(...values) as TaskRow[]
+}
+
+// Hand the terminal to a child process. Ink stops listening when it unmounts,
+// but it never pauses process.stdin, and under Bun the stream keeps reading
+// the tty in the background, so an editor spawned with an inherited stdin
+// only sees the keystrokes the parent doesn't win. Bun's stdin releases its
+// reader on the "pause" event, but Readable.pause() only emits that event
+// when the stream is flowing, and Ink reads in paused ("readable") mode, so
+// emit it directly. Ink re-acquires the reader on its next "readable" listener.
+function releaseTerminalInput(): void {
+  process.stdin.pause()
+  process.stdin.emit("pause")
 }
 
 function isDbRelatedFile(dbFileName: string, candidate: string): boolean {
@@ -247,136 +217,53 @@ function transitionTask(
   task: TaskRow,
   toStatus: Status,
 ): { ok: boolean; message: string } {
-  if (task.status === toStatus) {
-    return { ok: false, message: `Task #${task.id} is already ${toStatus}` }
-  }
-
-  if (!TRANSITIONS[task.status].has(toStatus)) {
+  try {
+    coreTransitionTask(db, task, toStatus, who(), {
+      payload: { source: "taskboard" },
+    })
     return {
-      ok: false,
-      message: `Invalid transition ${task.status} -> ${toStatus}`,
+      ok: true,
+      message: `Task #${task.id}: ${task.status} -> ${toStatus}`,
     }
-  }
-
-  const ts = new Date().toISOString()
-  const actor = defaultActor()
-  const session = defaultSession()
-
-  const startedAt =
-    task.status === "not_started"
-    && (toStatus === "researching"
-      || toStatus === "planning"
-      || toStatus === "implementing")
-      ? ts
-      : null
-
-  const completedAt = toStatus === "completed" ? ts : null
-
-  const tx = db.transaction(() => {
-    if (startedAt) {
-      db
-        .query(
-          `UPDATE tasks
-           SET status = ?, updated_at = ?, started_at = ?
-           WHERE id = ?`
-        )
-        .run(toStatus, ts, startedAt, task.id)
-    } else if (completedAt) {
-      db
-        .query(
-          `UPDATE tasks
-           SET status = ?, updated_at = ?, completed_at = ?
-           WHERE id = ?`
-        )
-        .run(toStatus, ts, completedAt, task.id)
-    } else {
-      db
-        .query("UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?")
-        .run(toStatus, ts, task.id)
-    }
-
-    db
-      .query(
-        `INSERT INTO task_events (
-          task_id, event, from_status, to_status, actor,
-          session_id, payload_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        task.id,
-        "transition",
-        task.status,
-        toStatus,
-        actor,
-        session,
-        JSON.stringify({ source: "taskboard" }),
-        ts,
-      )
-  })
-
-  tx()
-
-  return {
-    ok: true,
-    message: `Task #${task.id}: ${task.status} -> ${toStatus}`,
+  } catch (error) {
+    if (error instanceof TaskError) return { ok: false, message: error.message }
+    throw error
   }
 }
 
+// The board only archives finished tasks, as a guard against a stray
+// keypress; the CLI is deliberately more permissive.
 function archiveTask(db: Database, task: TaskRow): { ok: boolean; message: string } {
-  if (!ARCHIVEABLE_STATUSES.has(task.status)) {
+  if (!TERMINAL_STATUSES.has(task.status)) {
     return {
       ok: false,
       message: "Only completed or abandoned tasks can be archived",
     }
   }
 
-  const archivedAt = new Date().toISOString()
-  const actor = defaultActor()
-  const session = defaultSession()
-
-  const tx = db.transaction(() => {
-    db
-      .query("UPDATE tasks SET archived_at = ?, updated_at = ? WHERE id = ?")
-      .run(archivedAt, archivedAt, task.id)
-
-    db
-      .query(
-        `INSERT INTO task_events (
-          task_id, event, from_status, to_status, actor,
-          session_id, payload_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        task.id,
-        "archived",
-        task.status,
-        task.status,
-        actor,
-        session,
-        JSON.stringify({
-          archived_at: archivedAt,
-          source: "taskboard",
-        }),
-        archivedAt,
-      )
-  })
-
-  tx()
-
-  return {
-    ok: true,
-    message: `Archived task #${task.id}: ${task.title}`,
+  try {
+    coreArchiveTask(db, task, who(), { source: "taskboard" })
+    return {
+      ok: true,
+      message: `Archived task #${task.id}: ${task.title}`,
+    }
+  } catch (error) {
+    if (error instanceof TaskError) return { ok: false, message: error.message }
+    throw error
   }
 }
 
 function TaskboardApp(props: {
   db: Database
   dbPath: string
+  scope: BoardScope
   initialStatusMessage: string
   onExitAction: (action: TaskboardExitAction) => void
 }) {
   const { exit } = useApp()
-  const [tasks, setTasks] = useState<TaskRow[]>(() => loadTasks(props.db))
+  const [tasks, setTasks] = useState<TaskRow[]>(
+    () => loadTasks(props.db, props.scope),
+  )
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null)
@@ -385,7 +272,7 @@ function TaskboardApp(props: {
 
   const reload = useCallback((note?: string) => {
     try {
-      setTasks(loadTasks(props.db))
+      setTasks(loadTasks(props.db, props.scope))
       if (note) {
         setStatusMessage(note)
       }
@@ -393,7 +280,7 @@ function TaskboardApp(props: {
       const message = error instanceof Error ? error.message : String(error)
       setStatusMessage(`Refresh failed: ${message}`)
     }
-  }, [props.db])
+  }, [props.db, props.scope])
 
   useEffect(() => {
     const dbDir = dirname(props.dbPath)
@@ -444,7 +331,7 @@ function TaskboardApp(props: {
 
     const scored = tasks
       .map((task) => {
-        const text = `${task.id} ${task.title} ${task.status} ${task.language}`
+        const text = `${task.id} ${task.title} ${task.status}`
         const score = fuzzyScore(text, query)
         return { task, score }
       })
@@ -620,6 +507,11 @@ function TaskboardApp(props: {
     <Box flexDirection="column">
       <Text bold>Lectic Taskboard</Text>
       <Text color="gray">
+        Project: {props.scope.allProjects
+          ? "(all projects)"
+          : `${props.scope.project.label} (${props.scope.project.source})`}
+      </Text>
+      <Text color="gray">
         Query: {query || "(all)"}{inputMode === "filter" ? " [FILTER]" : ""}
       </Text>
       {statusMessage ? <Text color="gray">{statusMessage}</Text> : null}
@@ -647,8 +539,10 @@ function TaskboardApp(props: {
           ) : (
             <>
               <Text>#{selected.id} {selected.title}</Text>
+              {props.scope.allProjects
+                ? <Text>Project: {selected.project_key}</Text>
+                : null}
               <Text>Status: {selected.status}</Text>
-              <Text>Lang: {selected.language}</Text>
               <Text>Priority: {selected.priority}</Text>
               <Text>
                 Effort: {selected.effort_hours === null ? "-" : `${selected.effort_hours}h`}
@@ -675,7 +569,7 @@ function TaskboardApp(props: {
 async function main(): Promise<void> {
   let db: Database | null = null
   try {
-    const { dbPath } = parseArgs(process.argv.slice(2))
+    const { dbPath, scope } = parseArgs(process.argv.slice(2))
     db = await initDb(dbPath)
 
     let statusMessage = ""
@@ -683,19 +577,25 @@ async function main(): Promise<void> {
     while (true) {
       let exitAction: TaskboardExitAction = { kind: "quit" }
 
-      const { waitUntilExit } = render(
+      // Ink leaves its last frame on screen when it unmounts. That is what
+      // we want on quit, but before an editor round erase the board so the
+      // next render lands where the old one was instead of below it.
+      const board = render(
         <TaskboardApp
           db={db}
           dbPath={dbPath}
+          scope={scope}
           initialStatusMessage={statusMessage}
           onExitAction={(action) => {
             exitAction = action
+            if (action.kind !== "quit") board.clear()
           }}
         />,
         { exitOnCtrlC: false },
       )
 
-      await waitUntilExit()
+      await board.waitUntilExit()
+      releaseTerminalInput()
       statusMessage = ""
 
       if (exitAction.kind === "quit") {
@@ -705,17 +605,15 @@ async function main(): Promise<void> {
       try {
         if (exitAction.kind === "create") {
           const result = await createTaskWithEditor(db, {
-            actor: defaultActor(),
-            session: defaultSession(),
+            projectKey: scope.project.key,
+            who: who(),
             source: "taskboard",
           })
           statusMessage = result.message
           continue
         }
 
-        const task = db
-          .query("SELECT * FROM tasks WHERE id = ?")
-          .get(exitAction.taskId) as TaskRow | null
+        const task = getTask(db, exitAction.taskId)
 
         if (!task) {
           statusMessage = `Task #${exitAction.taskId} no longer exists.`
@@ -723,8 +621,7 @@ async function main(): Promise<void> {
         }
 
         const result = await editTaskWithEditor(db, task, {
-          actor: defaultActor(),
-          session: defaultSession(),
+          who: who(),
           source: "taskboard",
         })
         statusMessage = result.message

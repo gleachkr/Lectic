@@ -7,76 +7,35 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 
 import { createTaskWithEditor, editTaskWithEditor } from "./taskEditor.ts"
-
-type Status =
-  | "not_started"
-  | "researching"
-  | "researched"
-  | "planning"
-  | "planned"
-  | "implementing"
-  | "completed"
-  | "partial"
-  | "blocked"
-  | "abandoned"
-
-type Language =
-  | "general"
-  | "neovim"
-  | "latex"
-  | "typst"
-  | "meta"
-  | "markdown"
-
-type Priority = "low" | "medium" | "high" | "critical"
-
-type ArtifactKind = "report" | "plan" | "summary" | "code" | "doc" | "other"
-
-type TaskRow = {
-  id: number
-  title: string
-  description: string
-  status: Status
-  language: Language
-  priority: Priority
-  effort_hours: number | null
-  parent_id: number | null
-  created_at: string
-  updated_at: string
-  started_at: string | null
-  completed_at: string | null
-  archived_at: string | null
-}
-
-type TaskEventRow = {
-  id: number
-  task_id: number
-  event: string
-  from_status: string | null
-  to_status: string | null
-  actor: string
-  session_id: string | null
-  payload_json: string
-  created_at: string
-}
-
-type ArtifactRow = {
-  id: number
-  task_id: number
-  kind: string
-  path: string
-  summary: string
-  created_at: string
-}
-
-type NoteRow = {
-  id: number
-  task_id: number
-  note: string
-  actor: string
-  session_id: string | null
-  created_at: string
-}
+import { defaultDbPath, projectIdentity } from "./project.ts"
+import type { ProjectIdentity } from "./project.ts"
+import {
+  ALL_PRIORITIES,
+  ALL_STATUSES,
+  PRIORITY_ORDER_SQL,
+  TRANSITIONS,
+  TaskError,
+  addNote,
+  archiveTask,
+  attachArtifact,
+  createTask,
+  defaultActor,
+  defaultSession,
+  ensureTaskExists,
+  isArtifactKind,
+  isPriority,
+  isStatus,
+  likePattern,
+  transitionTask,
+} from "./taskCore.ts"
+import type {
+  Actor,
+  ArtifactRow,
+  NoteRow,
+  Status,
+  TaskEventRow,
+  TaskRow,
+} from "./taskCore.ts"
 
 type CommandResponse = {
   ok: true
@@ -94,22 +53,21 @@ type ErrorResponse = {
   }
 }
 
-class CliError extends Error {
-  code: string
-  details?: unknown
-
-  constructor(code: string, message: string, details?: unknown) {
-    super(message)
-    this.code = code
-    this.details = details
-  }
-}
+const CliError = TaskError
+type CliError = TaskError
 
 type ParsedGlobalArgs = {
   dbPath: string
+  projectOverride?: string
   json: boolean
   help: boolean
   argv: string[]
+}
+
+type Context = {
+  db: Database
+  dbPath: string
+  project: ProjectIdentity
 }
 
 type ParsedFlags = {
@@ -118,74 +76,11 @@ type ParsedFlags = {
   booleans: Set<string>
 }
 
-const ALL_STATUSES: readonly Status[] = [
-  "not_started",
-  "researching",
-  "researched",
-  "planning",
-  "planned",
-  "implementing",
-  "completed",
-  "partial",
-  "blocked",
-  "abandoned",
-] as const
-
-const ALL_LANGUAGES: readonly Language[] = [
-  "general",
-  "neovim",
-  "latex",
-  "typst",
-  "meta",
-  "markdown",
-] as const
-
-const ALL_PRIORITIES: readonly Priority[] = [
-  "low",
-  "medium",
-  "high",
-  "critical",
-] as const
-
-const ALL_ARTIFACT_KINDS: readonly ArtifactKind[] = [
-  "report",
-  "plan",
-  "summary",
-  "code",
-  "doc",
-  "other",
-] as const
-
-const TRANSITIONS: Record<Status, Set<Status>> = {
-  not_started: new Set(["researching", "planning", "abandoned", "blocked"]),
-  researching: new Set(["researched", "partial", "blocked", "abandoned"]),
-  researched: new Set(["planning", "implementing", "abandoned", "blocked"]),
-  planning: new Set(["planned", "partial", "blocked", "abandoned"]),
-  planned: new Set(["implementing", "partial", "blocked", "abandoned"]),
-  implementing: new Set(["completed", "partial", "blocked", "abandoned"]),
-  partial: new Set([
-    "researching",
-    "planning",
-    "implementing",
-    "blocked",
-    "abandoned",
-  ]),
-  blocked: new Set([
-    "not_started",
-    "researching",
-    "planning",
-    "implementing",
-    "abandoned",
-  ]),
-  completed: new Set(),
-  abandoned: new Set(),
-}
-
 
 function usage(): string {
   return [
     "Usage:",
-    "  lectic task [--db PATH] <command> [args...] [--json]",
+    "  lectic task [--db PATH] [--project KEY] <command> [args...] [--json]",
     "",
     "Commands:",
     "  create        Create a task",
@@ -198,8 +93,14 @@ function usage(): string {
     "  next          Show next actionable task",
     "  archive       Archive a task",
     "  render-todo   Render markdown task list",
+    "  status        Show storage and project information",
     "  doctor        Check database integrity",
     "  complete      Emit YAML completions for macro argument LSP",
+    "",
+    "",
+    "Tasks are scoped to the current project (derived from the Git origin,",
+    "or the working directory). Override with --project or",
+    "LECTIC_TASK_PROJECT. Listing commands accept --all-projects.",
     "",
     "Run 'lectic task <command> --help' for command-specific options.",
   ].join("\n")
@@ -215,7 +116,6 @@ function commandUsage(command: string): string {
         "",
         "Options:",
         "  --desc TEXT",
-        "  --lang general|neovim|latex|typst|meta|markdown",
         "  --priority low|medium|high|critical",
         "  --effort HOURS",
         "  --parent ID",
@@ -239,12 +139,12 @@ function commandUsage(command: string): string {
         "",
         "Options:",
         "  --status STATUS[,STATUS...]",
-        "  --lang LANG[,LANG...]",
         "  --priority PRIORITY[,PRIORITY...]",
         "  --query TEXT",
         "  --limit N",
         "  --offset N",
         "  --sort updated|created|priority",
+        "  --all-projects",
       ].join("\n")
     case "show":
       return [
@@ -286,7 +186,7 @@ function commandUsage(command: string): string {
     case "next":
       return [
         "Usage:",
-        "  lectic task next [--lang LANG]",
+        "  lectic task next [--all-projects]",
       ].join("\n")
     case "archive":
       return [
@@ -300,7 +200,12 @@ function commandUsage(command: string): string {
     case "render-todo":
       return [
         "Usage:",
-        "  lectic task render-todo [--out PATH]",
+        "  lectic task render-todo [--out PATH] [--all-projects]",
+      ].join("\n")
+    case "status":
+      return [
+        "Usage:",
+        "  lectic task status",
       ].join("\n")
     case "doctor":
       return [
@@ -314,8 +219,8 @@ function commandUsage(command: string): string {
         "",
         "Options:",
         "  --status STATUS[,STATUS...]",
-        "  --lang LANG[,LANG...]",
         "  --limit N",
+        "  --all-projects",
       ].join("\n")
     default:
       return usage()
@@ -324,29 +229,31 @@ function commandUsage(command: string): string {
 
 function parseGlobalArgs(rawArgv: string[]): ParsedGlobalArgs {
   const argv: string[] = []
-  let dbPath = process.env["LECTIC_TASK_DB"]
+  let dbPath = defaultDbPath()
+  let projectOverride = process.env["LECTIC_TASK_PROJECT"]
   let json = false
   let help = false
 
-  const defaultData = process.env["LECTIC_DATA"]
-    ?? `${process.env["HOME"] ?? "."}/.local/share/lectic`
-
-  dbPath ??= `${defaultData}/task.sqlite3`
-
   for (let i = 0; i < rawArgv.length; i++) {
     const arg = rawArgv[i]
-    if (arg === "--db") {
+    if (arg === "--db" || arg === "--project") {
       const value = rawArgv[i + 1]
       if (!value) {
-        throw new CliError("INVALID_ARGUMENT", "missing value for --db")
+        throw new CliError("INVALID_ARGUMENT", `missing value for ${arg}`)
       }
-      dbPath = value
+      if (arg === "--db") dbPath = value
+      else projectOverride = value
       i++
       continue
     }
 
     if (arg.startsWith("--db=")) {
       dbPath = arg.slice("--db=".length)
+      continue
+    }
+
+    if (arg.startsWith("--project=")) {
+      projectOverride = arg.slice("--project=".length)
       continue
     }
 
@@ -366,6 +273,7 @@ function parseGlobalArgs(rawArgv: string[]): ParsedGlobalArgs {
 
   return {
     dbPath: resolve(dbPath),
+    projectOverride,
     json,
     help,
     argv,
@@ -471,14 +379,6 @@ function parseCsv<T extends string>(
   return parsed
 }
 
-function isStatus(value: string): value is Status {
-  return (ALL_STATUSES as readonly string[]).includes(value)
-}
-
-function nowIso(): string {
-  return new Date().toISOString()
-}
-
 async function createDb(dbPath: string): Promise<Database> {
   mkdirSync(dirname(dbPath), { recursive: true })
   const db = new Database(dbPath)
@@ -491,29 +391,26 @@ async function createDb(dbPath: string): Promise<Database> {
   return db
 }
 
-function defaultActor(): string {
-  return process.env["LECTIC_INTERLOCUTOR"]
-    ?? process.env["USER"]
-    ?? process.env["USERNAME"]
-    ?? "assistant"
+// Listing commands are scoped to the current project unless --all-projects
+// is passed. Id-addressed commands (show, transition, ...) are not scoped:
+// ids are global, so a task can be referenced from anywhere.
+function projectFilter(
+  ctx: Context,
+  parsed: ParsedFlags,
+  where: string[],
+  values: (string | number)[],
+): boolean {
+  if (parsed.booleans.has("all-projects")) return true
+  where.push("project_key = ?")
+  values.push(ctx.project.key)
+  return false
 }
 
-function defaultSession(): string | undefined {
-  return process.env["RUN_ID"]
-    ?? process.env["LECTIC_SESSION"]
-    ?? undefined
-}
-
-function ensureTaskExists(db: Database, taskId: number): TaskRow {
-  const task = db
-    .query("SELECT * FROM tasks WHERE id = ?")
-    .get(taskId) as TaskRow | null
-
-  if (!task) {
-    throw new CliError("TASK_NOT_FOUND", `task not found: ${taskId}`)
+function actorFromFlags(parsed: ParsedFlags): Actor {
+  return {
+    actor: flagValue(parsed, "actor") ?? defaultActor(),
+    session: flagValue(parsed, "session") ?? defaultSession(),
   }
-
-  return task
 }
 
 function toResponse(command: string, data: unknown, warnings: string[] = []): CommandResponse {
@@ -547,7 +444,7 @@ function toError(error: unknown): ErrorResponse {
   }
 }
 
-function humanList(tasks: TaskRow[]): string {
+function humanList(tasks: TaskRow[], showProject = false): string {
   if (tasks.length === 0) {
     return "No tasks found."
   }
@@ -555,7 +452,8 @@ function humanList(tasks: TaskRow[]): string {
   return tasks
     .map((task) => {
       const effort = task.effort_hours === null ? "-" : `${task.effort_hours}h`
-      return `#${task.id} [${task.status}] (${task.priority}/${task.language}) ${task.title} [effort: ${effort}]`
+      const project = showProject ? ` {${task.project_key}}` : ""
+      return `#${task.id} [${task.status}] (${task.priority}) ${task.title} [effort: ${effort}]${project}`
     })
     .join("\n")
 }
@@ -569,8 +467,8 @@ function taskDetailsMarkdown(
   const lines: string[] = []
   lines.push(`# Task #${task.id}: ${task.title}`)
   lines.push("")
+  lines.push(`- Project: ${task.project_key}`)
   lines.push(`- Status: ${task.status}`)
-  lines.push(`- Language: ${task.language}`)
   lines.push(`- Priority: ${task.priority}`)
   if (task.effort_hours !== null) {
     lines.push(`- Effort (hours): ${task.effort_hours}`)
@@ -650,8 +548,6 @@ function renderTodo(tasks: TaskRow[]): string {
   const lines: string[] = []
   lines.push("# Tasks")
   lines.push("")
-  lines.push(`_Generated: ${nowIso()}_`)
-  lines.push("")
 
   for (const status of ALL_STATUSES) {
     const bucket = grouped.get(status) ?? []
@@ -663,7 +559,6 @@ function renderTodo(tasks: TaskRow[]): string {
     for (const task of bucket) {
       lines.push(`### ${task.id}. ${task.title}`)
       lines.push(`- **Status**: [${task.status.toUpperCase()}]`)
-      lines.push(`- **Language**: ${task.language}`)
       lines.push(`- **Priority**: ${task.priority}`)
       if (task.effort_hours !== null) {
         lines.push(`- **Effort**: ${task.effort_hours}h`)
@@ -675,23 +570,6 @@ function renderTodo(tasks: TaskRow[]): string {
   }
 
   return lines.join("\n")
-}
-
-function checkTransition(fromStatus: Status, toStatus: Status): void {
-  if (fromStatus === toStatus) {
-    throw new CliError(
-      "INVALID_TRANSITION",
-      `task is already in status '${toStatus}'`,
-    )
-  }
-
-  const allowed = TRANSITIONS[fromStatus]
-  if (!allowed.has(toStatus)) {
-    throw new CliError(
-      "INVALID_TRANSITION",
-      `cannot transition ${fromStatus} -> ${toStatus}`,
-    )
-  }
 }
 
 function toTaskRows(rows: unknown[]): TaskRow[] {
@@ -710,7 +588,8 @@ function toEventRows(rows: unknown[]): TaskEventRow[] {
   return rows as TaskEventRow[]
 }
 
-async function executeCreate(db: Database, args: string[]): Promise<CommandResponse> {
+async function executeCreate(ctx: Context, args: string[]): Promise<CommandResponse> {
+  const { db } = ctx
   const parsed = parseFlags(args)
   if (parsed.booleans.has("help")) {
     throw new CliError("SHOW_HELP", commandUsage("create"))
@@ -718,35 +597,29 @@ async function executeCreate(db: Database, args: string[]): Promise<CommandRespo
 
   const title = flagValue(parsed, "title")
   const desc = flagValue(parsed, "desc") ?? ""
-  const langRaw = flagValue(parsed, "lang") ?? "general"
   const priorityRaw = flagValue(parsed, "priority") ?? "medium"
 
-  if (!(ALL_LANGUAGES as readonly string[]).includes(langRaw)) {
-    throw new CliError("INVALID_ARGUMENT", `invalid language: ${langRaw}`)
-  }
-  if (!(ALL_PRIORITIES as readonly string[]).includes(priorityRaw)) {
+  if (!isPriority(priorityRaw)) {
     throw new CliError("INVALID_ARGUMENT", `invalid priority: ${priorityRaw}`)
   }
 
   const effort = parseNumber(flagValue(parsed, "effort"), "effort")
   const parentRaw = flagValue(parsed, "parent")
-  const parentId = parentRaw ? parseId(parentRaw) : undefined
-  const actor = flagValue(parsed, "actor") ?? defaultActor()
-  const session = flagValue(parsed, "session") ?? defaultSession()
+  const parentId = parentRaw ? parseId(parentRaw) : null
+  const who = actorFromFlags(parsed)
 
   if (parsed.booleans.has("editor")) {
     try {
       const result = await createTaskWithEditor(db, {
-        actor,
-        session: session ?? null,
+        projectKey: ctx.project.key,
+        who,
         source: "task-cli",
         initial: {
           title: title?.trim() ?? "",
           description: desc,
-          language: langRaw,
           priority: priorityRaw,
           effort_hours: effort ?? null,
-          parent_id: parentId ?? null,
+          parent_id: parentId,
         },
       })
 
@@ -756,8 +629,7 @@ async function executeCreate(db: Database, args: string[]): Promise<CommandRespo
         message: result.message,
       })
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      throw new CliError("INVALID_ARGUMENT", message)
+      throw editorError(error)
     }
   }
 
@@ -765,67 +637,24 @@ async function executeCreate(db: Database, args: string[]): Promise<CommandRespo
     throw new CliError("INVALID_ARGUMENT", "--title is required")
   }
 
-  const createdAt = nowIso()
-  let createdTask: TaskRow | null = null
+  const task = createTask(db, ctx.project.key, {
+    title,
+    description: desc,
+    status: "not_started",
+    priority: priorityRaw,
+    effort_hours: effort ?? null,
+    parent_id: parentId,
+  }, who)
 
-  const tx = db.transaction(() => {
-    if (parentId !== undefined) {
-      ensureTaskExists(db, parentId)
-    }
+  return toResponse("create", { task, cancelled: false })
+}
 
-    const insertResult = db
-      .query(
-        `INSERT INTO tasks (
-          title, description, status, language, priority,
-          effort_hours, parent_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        title.trim(),
-        desc,
-        "not_started",
-        langRaw,
-        priorityRaw,
-        effort ?? null,
-        parentId ?? null,
-        createdAt,
-        createdAt,
-      )
-
-    const taskId = Number(insertResult.lastInsertRowid)
-
-    db
-      .query(
-        `INSERT INTO task_events (
-          task_id, event, from_status, to_status, actor,
-          session_id, payload_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        taskId,
-        "created",
-        null,
-        "not_started",
-        actor,
-        session ?? null,
-        JSON.stringify({
-          title: title.trim(),
-          language: langRaw,
-          priority: priorityRaw,
-        }),
-        createdAt,
-      )
-
-    createdTask = ensureTaskExists(db, taskId)
-  })
-
-  tx()
-
-  if (!createdTask) {
-    throw new CliError("DB_ERROR", "failed to create task")
-  }
-
-  return toResponse("create", { task: createdTask, cancelled: false })
+// The editor flow reports validation problems as plain Errors; keep core
+// errors (with their codes) intact and wrap everything else.
+function editorError(error: unknown): CliError {
+  if (error instanceof TaskError) return error
+  const message = error instanceof Error ? error.message : String(error)
+  return new CliError("INVALID_ARGUMENT", message)
 }
 
 async function executeEdit(db: Database, args: string[]): Promise<CommandResponse> {
@@ -839,15 +668,11 @@ async function executeEdit(db: Database, args: string[]): Promise<CommandRespons
     throw new CliError("INVALID_ARGUMENT", "edit requires <id>")
   }
 
-  const taskId = parseId(idRaw)
-  const actor = flagValue(parsed, "actor") ?? defaultActor()
-  const session = flagValue(parsed, "session") ?? defaultSession()
-  const task = ensureTaskExists(db, taskId)
+  const task = ensureTaskExists(db, parseId(idRaw))
 
   try {
     const result = await editTaskWithEditor(db, task, {
-      actor,
-      session: session ?? null,
+      who: actorFromFlags(parsed),
       source: "task-cli",
     })
 
@@ -858,19 +683,18 @@ async function executeEdit(db: Database, args: string[]): Promise<CommandRespons
       message: result.message,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new CliError("INVALID_ARGUMENT", message)
+    throw editorError(error)
   }
 }
 
-function executeList(db: Database, args: string[]): CommandResponse {
+function executeList(ctx: Context, args: string[]): CommandResponse {
+  const { db } = ctx
   const parsed = parseFlags(args)
   if (parsed.booleans.has("help")) {
     throw new CliError("SHOW_HELP", commandUsage("list"))
   }
 
   const statuses = parseCsv(flagValue(parsed, "status"), ALL_STATUSES, "status")
-  const languages = parseCsv(flagValue(parsed, "lang"), ALL_LANGUAGES, "lang")
   const priorities = parseCsv(
     flagValue(parsed, "priority"),
     ALL_PRIORITIES,
@@ -891,15 +715,11 @@ function executeList(db: Database, args: string[]): CommandResponse {
 
   const where: string[] = ["archived_at IS NULL"]
   const values: (string | number)[] = []
+  const allProjects = projectFilter(ctx, parsed, where, values)
 
   if (statuses && statuses.length > 0) {
     where.push(`status IN (${statuses.map(() => "?").join(",")})`)
     values.push(...statuses)
-  }
-
-  if (languages && languages.length > 0) {
-    where.push(`language IN (${languages.map(() => "?").join(",")})`)
-    values.push(...languages)
   }
 
   if (priorities && priorities.length > 0) {
@@ -908,8 +728,12 @@ function executeList(db: Database, args: string[]): CommandResponse {
   }
 
   if (query && query.trim().length > 0) {
-    where.push("(title LIKE ? OR description LIKE ? OR CAST(id AS TEXT) LIKE ?)")
-    const like = `%${query.trim()}%`
+    where.push(
+      `(title LIKE ? ESCAPE '\\'
+        OR description LIKE ? ESCAPE '\\'
+        OR CAST(id AS TEXT) LIKE ? ESCAPE '\\')`,
+    )
+    const like = likePattern(query.trim())
     values.push(like, like, like)
   }
 
@@ -917,16 +741,7 @@ function executeList(db: Database, args: string[]): CommandResponse {
   if (sort === "created") {
     orderBy = "created_at DESC, id DESC"
   } else if (sort === "priority") {
-    orderBy = `
-      CASE priority
-        WHEN 'critical' THEN 0
-        WHEN 'high' THEN 1
-        WHEN 'medium' THEN 2
-        ELSE 3
-      END ASC,
-      updated_at DESC,
-      id DESC
-    `
+    orderBy = `${PRIORITY_ORDER_SQL} ASC, updated_at DESC, id DESC`
   } else if (sort !== "updated") {
     throw new CliError("INVALID_ARGUMENT", `invalid sort field: ${sort}`)
   }
@@ -947,12 +762,12 @@ function executeList(db: Database, args: string[]): CommandResponse {
     tasks,
     filters: {
       statuses,
-      languages,
       priorities,
       query: query ?? null,
       limit,
       offset,
       sort,
+      all_projects: allProjects,
     },
   })
 }
@@ -1012,88 +827,21 @@ function executeTransition(db: Database, args: string[]): CommandResponse {
     )
   }
 
-  const taskId = parseId(idRaw)
   if (!isStatus(toStatusRaw)) {
     throw new CliError("INVALID_STATUS", `invalid status: ${toStatusRaw}`)
   }
-  const toStatus = toStatusRaw
 
-  const note = flagValue(parsed, "note")
-  const actor = flagValue(parsed, "actor") ?? defaultActor()
-  const session = flagValue(parsed, "session") ?? defaultSession()
-
-  const current = ensureTaskExists(db, taskId)
-  if (current.archived_at) {
-    throw new CliError("NOT_ALLOWED", "cannot transition an archived task")
-  }
-
-  checkTransition(current.status, toStatus)
-
-  const updatedAt = nowIso()
-  const shouldStart =
-    toStatus === "researching"
-    || toStatus === "planning"
-    || toStatus === "implementing"
-
-  const startedAt = current.started_at ?? (shouldStart ? updatedAt : null)
-  const completedAt = toStatus === "completed" ? updatedAt : current.completed_at
-
-  let updatedTask: TaskRow | null = null
-
-  const tx = db.transaction(() => {
-    db
-      .query(
-        `UPDATE tasks
-         SET status = ?,
-             updated_at = ?,
-             started_at = ?,
-             completed_at = ?
-         WHERE id = ?`
-      )
-      .run(toStatus, updatedAt, startedAt, completedAt, taskId)
-
-    db
-      .query(
-        `INSERT INTO task_events (
-          task_id, event, from_status, to_status, actor,
-          session_id, payload_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        taskId,
-        "transition",
-        current.status,
-        toStatus,
-        actor,
-        session ?? null,
-        JSON.stringify({ note: note ?? null }),
-        updatedAt,
-      )
-
-    if (note && note.trim().length > 0) {
-      db
-        .query(
-          `INSERT INTO task_notes (
-            task_id, note, actor, session_id, created_at
-          ) VALUES (?, ?, ?, ?, ?)`
-        )
-        .run(taskId, note.trim(), actor, session ?? null, updatedAt)
-    }
-
-    updatedTask = ensureTaskExists(db, taskId)
+  const note = flagValue(parsed, "note")?.trim() || null
+  const current = ensureTaskExists(db, parseId(idRaw))
+  const task = transitionTask(db, current, toStatusRaw, actorFromFlags(parsed), {
+    note,
   })
-
-  tx()
-
-  if (!updatedTask) {
-    throw new CliError("DB_ERROR", "failed to transition task")
-  }
 
   return toResponse("transition", {
     from: current.status,
-    to: toStatus,
-    task: updatedTask,
-    note: note ?? null,
+    to: toStatusRaw,
+    task,
+    note,
   })
 }
 
@@ -1114,41 +862,11 @@ function executeNote(db: Database, args: string[]): CommandResponse {
     throw new CliError("INVALID_ARGUMENT", "--text is required")
   }
 
-  const actor = flagValue(parsed, "actor") ?? defaultActor()
-  const session = flagValue(parsed, "session") ?? defaultSession()
-  const createdAt = nowIso()
-
-  ensureTaskExists(db, taskId)
-
-  db
-    .query(
-      `INSERT INTO task_notes (
-        task_id, note, actor, session_id, created_at
-      ) VALUES (?, ?, ?, ?, ?)`
-    )
-    .run(taskId, text.trim(), actor, session ?? null, createdAt)
-
-  db
-    .query(
-      `INSERT INTO task_events (
-        task_id, event, from_status, to_status, actor,
-        session_id, payload_json, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      taskId,
-      "noted",
-      null,
-      null,
-      actor,
-      session ?? null,
-      JSON.stringify({ note: text.trim() }),
-      createdAt,
-    )
+  const note = addNote(db, taskId, text, actorFromFlags(parsed))
 
   return toResponse("note", {
     task_id: taskId,
-    note: text.trim(),
+    note,
   })
 }
 
@@ -1170,42 +888,12 @@ function executeAttach(db: Database, args: string[]): CommandResponse {
     throw new CliError("INVALID_ARGUMENT", "--kind and --path are required")
   }
 
-  if (!(ALL_ARTIFACT_KINDS as readonly string[]).includes(kindRaw)) {
+  if (!isArtifactKind(kindRaw)) {
     throw new CliError("INVALID_ARGUMENT", `invalid artifact kind: ${kindRaw}`)
   }
 
   const summary = flagValue(parsed, "summary") ?? ""
-  const actor = flagValue(parsed, "actor") ?? defaultActor()
-  const session = flagValue(parsed, "session") ?? defaultSession()
-  const createdAt = nowIso()
-
-  ensureTaskExists(db, taskId)
-
-  db
-    .query(
-      `INSERT INTO artifacts (
-        task_id, kind, path, summary, created_at
-      ) VALUES (?, ?, ?, ?, ?)`
-    )
-    .run(taskId, kindRaw, pathRaw, summary, createdAt)
-
-  db
-    .query(
-      `INSERT INTO task_events (
-        task_id, event, from_status, to_status, actor,
-        session_id, payload_json, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      taskId,
-      "artifact_attached",
-      null,
-      null,
-      actor,
-      session ?? null,
-      JSON.stringify({ kind: kindRaw, path: pathRaw }),
-      createdAt,
-    )
+  attachArtifact(db, taskId, kindRaw, pathRaw, summary, actorFromFlags(parsed))
 
   return toResponse("attach", {
     task_id: taskId,
@@ -1215,27 +903,19 @@ function executeAttach(db: Database, args: string[]): CommandResponse {
   })
 }
 
-function executeNext(db: Database, args: string[]): CommandResponse {
+function executeNext(ctx: Context, args: string[]): CommandResponse {
+  const { db } = ctx
   const parsed = parseFlags(args)
   if (parsed.booleans.has("help")) {
     throw new CliError("SHOW_HELP", commandUsage("next"))
-  }
-
-  const langRaw = flagValue(parsed, "lang")
-  if (langRaw && !(ALL_LANGUAGES as readonly string[]).includes(langRaw)) {
-    throw new CliError("INVALID_ARGUMENT", `invalid language: ${langRaw}`)
   }
 
   const where = [
     "archived_at IS NULL",
     "status NOT IN ('completed', 'abandoned')",
   ]
-  const values: string[] = []
-
-  if (langRaw) {
-    where.push("language = ?")
-    values.push(langRaw)
-  }
+  const values: (string | number)[] = []
+  projectFilter(ctx, parsed, where, values)
 
   const nextTask = db
     .query(
@@ -1243,12 +923,7 @@ function executeNext(db: Database, args: string[]): CommandResponse {
        FROM tasks
        WHERE ${where.join(" AND ")}
        ORDER BY
-         CASE priority
-           WHEN 'critical' THEN 0
-           WHEN 'high' THEN 1
-           WHEN 'medium' THEN 2
-           ELSE 3
-         END ASC,
+         ${PRIORITY_ORDER_SQL} ASC,
          CASE status
            WHEN 'implementing' THEN 0
            WHEN 'partial' THEN 1
@@ -1282,45 +957,15 @@ function executeArchive(db: Database, args: string[]): CommandResponse {
     throw new CliError("INVALID_ARGUMENT", "archive requires <id>")
   }
 
-  const taskId = parseId(idRaw)
-  const actor = flagValue(parsed, "actor") ?? defaultActor()
-  const session = flagValue(parsed, "session") ?? defaultSession()
-  const archivedAt = nowIso()
-
-  const task = ensureTaskExists(db, taskId)
-  if (task.archived_at !== null) {
-    throw new CliError("NOT_ALLOWED", `task ${taskId} is already archived`)
-  }
-
-  db
-    .query("UPDATE tasks SET archived_at = ?, updated_at = ? WHERE id = ?")
-    .run(archivedAt, archivedAt, taskId)
-
-  db
-    .query(
-      `INSERT INTO task_events (
-        task_id, event, from_status, to_status, actor,
-        session_id, payload_json, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      taskId,
-      "archived",
-      task.status,
-      task.status,
-      actor,
-      session ?? null,
-      JSON.stringify({ archived_at: archivedAt }),
-      archivedAt,
-    )
-
-  const updated = ensureTaskExists(db, taskId)
+  const task = ensureTaskExists(db, parseId(idRaw))
+  const updated = archiveTask(db, task, actorFromFlags(parsed))
   return toResponse("archive", {
     task: updated,
   })
 }
 
-function executeRenderTodo(db: Database, args: string[]): CommandResponse {
+function executeRenderTodo(ctx: Context, args: string[]): CommandResponse {
+  const { db } = ctx
   const parsed = parseFlags(args)
   if (parsed.booleans.has("help")) {
     throw new CliError("SHOW_HELP", commandUsage("render-todo"))
@@ -1329,23 +974,19 @@ function executeRenderTodo(db: Database, args: string[]): CommandResponse {
   const outPathRaw = flagValue(parsed, "out")
   const outPath = outPathRaw ? resolve(outPathRaw) : undefined
 
+  const where: string[] = ["archived_at IS NULL"]
+  const values: (string | number)[] = []
+  projectFilter(ctx, parsed, where, values)
+
   const tasks = toTaskRows(
     db
       .query(
         `SELECT *
          FROM tasks
-         WHERE archived_at IS NULL
-         ORDER BY
-           CASE priority
-             WHEN 'critical' THEN 0
-             WHEN 'high' THEN 1
-             WHEN 'medium' THEN 2
-             ELSE 3
-           END ASC,
-           updated_at DESC,
-           id DESC`
+         WHERE ${where.join(" AND ")}
+         ORDER BY ${PRIORITY_ORDER_SQL} ASC, updated_at DESC, id DESC`
       )
-      .all(),
+      .all(...values),
   )
 
   const markdown = renderTodo(tasks)
@@ -1367,14 +1008,14 @@ function yamlScalar(value: string): string {
     .replaceAll("\n", "\\n")}"`
 }
 
-function executeComplete(db: Database, args: string[]): CommandResponse {
+function executeComplete(ctx: Context, args: string[]): CommandResponse {
+  const { db } = ctx
   const parsed = parseFlags(args)
   if (parsed.booleans.has("help")) {
     throw new CliError("SHOW_HELP", commandUsage("complete"))
   }
 
   const statuses = parseCsv(flagValue(parsed, "status"), ALL_STATUSES, "status")
-  const languages = parseCsv(flagValue(parsed, "lang"), ALL_LANGUAGES, "lang")
   const limit = parseNumber(flagValue(parsed, "limit"), "limit") ?? 40
 
   if (limit <= 0 || limit > 200) {
@@ -1383,15 +1024,11 @@ function executeComplete(db: Database, args: string[]): CommandResponse {
 
   const where: string[] = ["archived_at IS NULL"]
   const values: (string | number)[] = []
+  projectFilter(ctx, parsed, where, values)
 
   if (statuses && statuses.length > 0) {
     where.push(`status IN (${statuses.map(() => "?").join(",")})`)
     values.push(...statuses)
-  }
-
-  if (languages && languages.length > 0) {
-    where.push(`language IN (${languages.map(() => "?").join(",")})`)
-    values.push(...languages)
   }
 
   values.push(limit)
@@ -1399,17 +1036,10 @@ function executeComplete(db: Database, args: string[]): CommandResponse {
   const rows = toTaskRows(
     db
       .query(
-        `SELECT id, title, status, language, priority, updated_at
+        `SELECT id, title, status, priority, updated_at
          FROM tasks
          WHERE ${where.join(" AND ")}
-         ORDER BY
-           CASE priority
-             WHEN 'critical' THEN 0
-             WHEN 'high' THEN 1
-             WHEN 'medium' THEN 2
-             ELSE 3
-           END ASC,
-           updated_at DESC
+         ORDER BY ${PRIORITY_ORDER_SQL} ASC, updated_at DESC
          LIMIT ?`
       )
       .all(...values),
@@ -1417,7 +1047,7 @@ function executeComplete(db: Database, args: string[]): CommandResponse {
 
   const completions = rows.map((task) => ({
     completion: String(task.id),
-    detail: `[${task.status}] ${task.priority}/${task.language}`,
+    detail: `[${task.status}] ${task.priority}`,
     documentation: task.title,
   }))
 
@@ -1435,7 +1065,38 @@ function executeComplete(db: Database, args: string[]): CommandResponse {
   })
 }
 
-function executeDoctor(db: Database, args: string[]): CommandResponse {
+function executeStatus(ctx: Context, args: string[]): CommandResponse {
+  const parsed = parseFlags(args)
+  if (parsed.booleans.has("help")) {
+    throw new CliError("SHOW_HELP", commandUsage("status"))
+  }
+
+  const projectTasks = ctx.db
+    .query(
+      `SELECT count(*) AS count FROM tasks
+       WHERE project_key = ? AND archived_at IS NULL`
+    )
+    .get(ctx.project.key) as { count: number }
+  const allTasks = ctx.db
+    .query("SELECT count(*) AS count FROM tasks WHERE archived_at IS NULL")
+    .get() as { count: number }
+  const projects = ctx.db
+    .query("SELECT count(DISTINCT project_key) AS count FROM tasks")
+    .get() as { count: number }
+
+  return toResponse("status", {
+    database: ctx.dbPath,
+    project: ctx.project.label,
+    project_key: ctx.project.key,
+    project_key_source: ctx.project.source,
+    project_tasks: projectTasks.count,
+    total_tasks: allTasks.count,
+    projects: projects.count,
+  })
+}
+
+function executeDoctor(ctx: Context, args: string[]): CommandResponse {
+  const { db } = ctx
   const parsed = parseFlags(args)
   if (parsed.booleans.has("help")) {
     throw new CliError("SHOW_HELP", commandUsage("doctor"))
@@ -1457,6 +1118,14 @@ function executeDoctor(db: Database, args: string[]): CommandResponse {
     }
   }
 
+  const emptyProjectRows = db
+    .query("SELECT id FROM tasks WHERE trim(project_key) = ''")
+    .all() as Array<{ id: number }>
+
+  for (const row of emptyProjectRows) {
+    issues.push(`task #${row.id} has an empty project key`)
+  }
+
   const invalidStatusRows = db
     .query(
       `SELECT id, status FROM tasks
@@ -1466,17 +1135,6 @@ function executeDoctor(db: Database, args: string[]): CommandResponse {
 
   for (const row of invalidStatusRows) {
     issues.push(`task #${row.id} has invalid status: ${row.status}`)
-  }
-
-  const invalidLanguageRows = db
-    .query(
-      `SELECT id, language FROM tasks
-       WHERE language NOT IN (${ALL_LANGUAGES.map(() => "?").join(",")})`
-    )
-    .all(...ALL_LANGUAGES) as Array<{ id: number; language: string }>
-
-  for (const row of invalidLanguageRows) {
-    issues.push(`task #${row.id} has invalid language: ${row.language}`)
   }
 
   const invalidPriorityRows = db
@@ -1566,7 +1224,6 @@ function printHuman(command: string, response: CommandResponse): void {
       }
       console.log(`Created task #${task.id}: ${task.title}`)
       console.log(`Status: ${task.status}`)
-      console.log(`Language: ${task.language}`)
       console.log(`Priority: ${task.priority}`)
       return
     }
@@ -1580,14 +1237,14 @@ function printHuman(command: string, response: CommandResponse): void {
       }
       console.log(`Updated task #${task.id}: ${task.title}`)
       console.log(`Status: ${task.status}`)
-      console.log(`Language: ${task.language}`)
       console.log(`Priority: ${task.priority}`)
       return
     }
 
     case "list": {
       const tasks = data.tasks as TaskRow[]
-      console.log(humanList(tasks))
+      const filters = data.filters as { all_projects: boolean }
+      console.log(humanList(tasks, filters.all_projects))
       return
     }
 
@@ -1653,6 +1310,18 @@ function printHuman(command: string, response: CommandResponse): void {
       return
     }
 
+    case "status": {
+      console.log(`Database: ${String(data.database)}`)
+      console.log(
+        `Project: ${String(data.project)} [${String(data.project_key)}] (${String(data.project_key_source)})`,
+      )
+      console.log(`Active tasks in project: ${String(data.project_tasks)}`)
+      console.log(
+        `Active tasks total: ${String(data.total_tasks)} across ${String(data.projects)} project(s)`,
+      )
+      return
+    }
+
     case "doctor": {
       const healthy = data.healthy as boolean
       const issues = data.issues as string[]
@@ -1679,17 +1348,18 @@ function printHuman(command: string, response: CommandResponse): void {
 }
 
 async function dispatch(
-  db: Database,
+  ctx: Context,
   command: string,
   args: string[],
 ): Promise<CommandResponse> {
+  const { db } = ctx
   switch (command) {
     case "create":
-      return executeCreate(db, args)
+      return executeCreate(ctx, args)
     case "edit":
       return executeEdit(db, args)
     case "list":
-      return executeList(db, args)
+      return executeList(ctx, args)
     case "show":
       return executeShow(db, args)
     case "transition":
@@ -1699,15 +1369,17 @@ async function dispatch(
     case "attach":
       return executeAttach(db, args)
     case "next":
-      return executeNext(db, args)
+      return executeNext(ctx, args)
     case "archive":
       return executeArchive(db, args)
     case "render-todo":
-      return executeRenderTodo(db, args)
+      return executeRenderTodo(ctx, args)
+    case "status":
+      return executeStatus(ctx, args)
     case "doctor":
-      return executeDoctor(db, args)
+      return executeDoctor(ctx, args)
     case "complete":
-      return executeComplete(db, args)
+      return executeComplete(ctx, args)
     default:
       throw new CliError("INVALID_ARGUMENT", `unknown command: ${command}`)
   }
@@ -1730,8 +1402,12 @@ async function main(): Promise<void> {
   const rest = parsedGlobal.argv.slice(1)
 
   try {
-    const db = await createDb(parsedGlobal.dbPath)
-    const response = await dispatch(db, command, rest)
+    const ctx: Context = {
+      db: await createDb(parsedGlobal.dbPath),
+      dbPath: parsedGlobal.dbPath,
+      project: projectIdentity(parsedGlobal.projectOverride),
+    }
+    const response = await dispatch(ctx, command, rest)
 
     if (parsedGlobal.json) {
       console.log(JSON.stringify(response, null, 2))

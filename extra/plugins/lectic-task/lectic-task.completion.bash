@@ -29,8 +29,8 @@ __lectic_task_find_cmd() {
   for (( i=start+1; i < ${#COMP_WORDS[@]}; i++ )); do
     word="${COMP_WORDS[i]}"
     case "$word" in
-      --db) ((i++)) ;;   # skip --db value
-      --db=*|--json) ;;
+      --db|--project) ((i++)) ;;   # skip flag value
+      --db=*|--project=*|--json) ;;
       -*) ;;
       *)
         __lectic_task_cmd="$word"
@@ -46,9 +46,8 @@ __lectic_task_find_cmd() {
 
 # --- Constants ---
 
-__LECTIC_TASK_SUBCOMMANDS="create edit list show transition note attach next archive render-todo doctor complete"
+__LECTIC_TASK_SUBCOMMANDS="create edit list show transition note attach next archive render-todo status doctor complete"
 __LECTIC_TASK_STATUSES="not_started researching researched planning planned implementing completed partial blocked abandoned"
-__LECTIC_TASK_LANGUAGES="general neovim latex typst meta markdown"
 __LECTIC_TASK_PRIORITIES="low medium high critical"
 __LECTIC_TASK_ARTIFACT_KINDS="report plan summary code doc other"
 __LECTIC_TASK_SORT_FIELDS="updated created priority"
@@ -70,6 +69,10 @@ _lectic_complete_task() {
     COMPREPLY=( $(compgen -f -- "$cur") )
     return 0
   fi
+  # --project takes a free-form key
+  if [[ "$prev" == "--project" ]]; then
+    return 0
+  fi
 
   # Find the task sub-subcommand (create, list, etc.)
   local __lectic_task_cmd __lectic_task_cmd_idx
@@ -78,7 +81,7 @@ _lectic_complete_task() {
   # If no sub-subcommand yet, offer global task flags and subcommands
   if [[ -z "$__lectic_task_cmd" ]]; then
     if [[ "$cur" == -* ]]; then
-      COMPREPLY=( $(compgen -W "--db --json --help -h" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--db --project --json --help -h" -- "$cur") )
     else
       COMPREPLY=( $(compgen -W "$__LECTIC_TASK_SUBCOMMANDS" -- "$cur") )
     fi
@@ -95,10 +98,6 @@ _lectic_complete_task() {
 
   # Helper: complete enum values for the previous flag
   case "$prev" in
-    --lang)
-      COMPREPLY=( $(compgen -W "$__LECTIC_TASK_LANGUAGES" -- "$cur") )
-      return 0
-      ;;
     --priority)
       COMPREPLY=( $(compgen -W "$__LECTIC_TASK_PRIORITIES" -- "$cur") )
       return 0
@@ -130,13 +129,13 @@ _lectic_complete_task() {
     local flags=""
     case "$__lectic_task_cmd" in
       create)
-        flags="--title --desc --lang --priority --effort --parent --editor --actor --session --help -h"
+        flags="--title --desc --priority --effort --parent --editor --actor --session --help -h"
         ;;
       edit)
         flags="--actor --session --help -h"
         ;;
       list)
-        flags="--status --lang --priority --query --limit --offset --sort --help -h"
+        flags="--status --priority --query --limit --offset --sort --all-projects --help -h"
         ;;
       show)
         flags="--help -h"
@@ -151,19 +150,22 @@ _lectic_complete_task() {
         flags="--kind --path --summary --actor --session --help -h"
         ;;
       next)
-        flags="--lang --help -h"
+        flags="--all-projects --help -h"
         ;;
       archive)
         flags="--actor --session --help -h"
         ;;
       render-todo)
-        flags="--out --help -h"
+        flags="--out --all-projects --help -h"
+        ;;
+      status)
+        flags="--help -h"
         ;;
       doctor)
         flags="--help -h"
         ;;
       complete)
-        flags="--status --lang --limit --help -h"
+        flags="--status --limit --all-projects --help -h"
         ;;
     esac
     [[ -n "$flags" ]] && COMPREPLY=( $(compgen -W "$flags" -- "$cur") )
@@ -205,9 +207,12 @@ _lectic_complete_taskboard() {
     COMPREPLY=( $(compgen -f -- "$cur") )
     return 0
   fi
+  if [[ "$prev" == "--project" ]]; then
+    return 0
+  fi
 
   if [[ "$cur" == -* ]]; then
-    COMPREPLY=( $(compgen -W "--db --help -h" -- "$cur") )
+    COMPREPLY=( $(compgen -W "--db --project --all-projects --help -h" -- "$cur") )
     return 0
   fi
 

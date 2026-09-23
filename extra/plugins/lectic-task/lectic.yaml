@@ -19,7 +19,6 @@ kits:
           lectic task create \
             --title "$TITLE" \
             --desc "${DESCRIPTION:-}" \
-            --lang "${LANGUAGE:-general}" \
             --priority "${PRIORITY:-medium}" \
             --effort "${EFFORT_HOURS:-}" \
             --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
@@ -28,7 +27,6 @@ kits:
         schema:
           TITLE: Task title.
           DESCRIPTION: Optional task description.
-          LANGUAGE: general|neovim|latex|typst|meta|markdown
           PRIORITY: low|medium|high|critical
           EFFORT_HOURS: Optional effort estimate in hours.
 
@@ -54,7 +52,7 @@ kits:
           set -euo pipefail
           lectic task attach "$TASK_ID" \
             --kind "$KIND" \
-            --path "$PATH" \
+            --path "$ARTIFACT_PATH" \
             --summary "${SUMMARY:-}" \
             --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
             --session "${RUN_ID:-manual}" \
@@ -62,7 +60,7 @@ kits:
         schema:
           TASK_ID: Numeric task id.
           KIND: report|plan|summary|code|doc|other
-          PATH: Relative artifact path.
+          ARTIFACT_PATH: Relative artifact path.
           SUMMARY: Optional artifact summary.
 
       - name: task_note
@@ -85,6 +83,21 @@ kits:
         schema:
           TASK_ID: Numeric task id.
 
+      - name: task_list
+        usage: List the current project's tasks, optionally filtered.
+        exec: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          lectic task list \
+            --status "${STATUS:-}" \
+            --query "${QUERY:-}" \
+            --limit "${LIMIT:-50}" \
+            --json
+        schema:
+          STATUS: Optional comma-separated status filter.
+          QUERY: Optional substring to match against title, description, or id.
+          LIMIT: Optional maximum number of tasks (default 50).
+
       - name: task_next
         usage: Pick the next actionable task.
         exec: lectic task next --json
@@ -104,7 +117,6 @@ macros:
       lectic task create \
         --title "$TITLE" \
         --desc "${DESC:-}" \
-        --lang "${LANGUAGE:-general}" \
         --priority "${PRIORITY:-medium}" \
         --actor "${LECTIC_INTERLOCUTOR:-assistant}" \
         --session "${RUN_ID:-manual}" \
