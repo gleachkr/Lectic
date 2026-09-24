@@ -171,6 +171,48 @@ process crash or a raw stack trace. The next request can still run; uncertain
 actions must be checked before retrying. With `--keep-history`, backend run
 diagnostics are retained locally.
 
+## YAML voice configuration
+
+The top-level `live` mapping in the seed's `.lec` header (or inherited Lectic
+configuration) sets defaults for the voice interface. It does not change
+`interlocutor.model` or `interlocutor.prompt`, which configure backend runs.
+Explicit `--model` and `--voice` flags override the corresponding YAML keys.
+
+```yaml
+---
+interlocutor:
+  name: Assistant
+  prompt: Help with tasks.
+live:
+  model: gemini-3.8-live
+  voice: Kore
+  prompt: Speak concisely and ask before long investigations.
+---
+```
+
+`live.prompt` supplements the provider-specific voice instructions; it
+cannot replace the delegation and safety protocol. It accepts inline text,
+`file:` (including `file:local:./path`), or `exec:` using ordinary Lectic
+prompt-source syntax. A single-line `exec:` runs directly, not through a
+shell. A multiline script needs a shebang. Sources execute in the invocation
+directory, not the seed's directory. They run **before each new paid voice
+session**, including idle wake; they do not run for backend tasks.
+
+```yaml
+live:
+  prompt: |
+    exec:#!/usr/bin/env bash
+    printf 'Current time: %s\n' "$(date -Is)"
+    cat "$LECTIC_DATA/live-memory.txt"
+```
+
+The resolved prompt is sent to the voice provider. Review scripts and output
+for secrets. Live bounds prompt output to 16 KiB and commands to five seconds;
+a failed or oversized source stops startup before provider creation, without
+an automatic retry. A source is not run when the controller URL is printed;
+it runs when the browser starts (or wakes) a session. The controller uses the
+current seed and configuration on each launch, not saved archive metadata.
+
 ## Options
 
 All duration values are integer seconds from 1 to 3600.
@@ -178,8 +220,10 @@ All duration values are integer seconds from 1 to 3600.
 - `-f PATH`: required, trusted backend seed.
 - `--no-open`: accepted for compatibility; the browser never auto-opens.
 - `--port N`: loopback port, 0–65535; default 0 chooses an available port.
-- `--model NAME`: `gpt-live-1` (default) or `gemini-3.8-live`.
-- `--voice NAME`: provider-specific spelling, preserved exactly. OpenAI uses
+- `--model NAME`: `gpt-live-1` (default) or `gemini-3.8-live`; overrides
+  `live.model`.
+- `--voice NAME`: overrides `live.voice`; provider-specific spelling,
+  preserved exactly. OpenAI uses
   lowercase names and defaults to the API's choice. Gemini defaults to `Kore`;
   use catalog spelling such as `Kore` or `Aoede`. Syntax is checked locally;
   the provider may reject unknown names.

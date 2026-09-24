@@ -1,4 +1,9 @@
 ---
+# Optional voice settings (distinct from the backend interlocutor):
+# live:
+#   model: gemini-3.8-live
+#   voice: Kore
+#   prompt: Speak concisely.
 interlocutor:
   name: Assistant
   provider: openai

@@ -22,7 +22,7 @@ export type GeminiSocket = {
   }) => void) | null
 }
 
-export function geminiSetup(voice = "Kore") {
+export function geminiSetup(voice = "Kore", prompt?: string) {
   if (!/^[A-Z][A-Za-z0-9_-]{0,63}$/.test(voice)) {
     throw new SessionFailure("Invalid Gemini voice name")
   }
@@ -35,7 +35,8 @@ export function geminiSetup(voice = "Kore") {
       },
     },
     inputAudioTranscription: {}, outputAudioTranscription: {},
-    systemInstruction: { parts: [{ text: geminiVoicePrompt }] },
+    systemInstruction: { parts: [{ text: prompt
+      ? `${geminiVoicePrompt}\n\n${prompt}` : geminiVoicePrompt }] },
     tools: [{ functionDeclarations: [{
       name: "delegate", behavior: "NON_BLOCKING",
       description: "Ask the configured Lectic backend to perform a task.",
@@ -58,8 +59,9 @@ export function geminiConnector(
     return socket as unknown as GeminiSocket
   },
   timeoutMs = 15000,
+  prompt?: string,
 ): ProviderConnect {
-  const setup = geminiSetup(voice)
+  const setup = geminiSetup(voice, prompt)
   return async (_sdp, receive, lost, signal, previous) => {
     if (signal.aborted) throw new SessionFailure("Gemini startup cancelled")
     let socket: GeminiSocket

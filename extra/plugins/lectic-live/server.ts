@@ -1,4 +1,5 @@
 import { sendPCM } from "./pcm-relay"
+import { LivePromptFailure } from "./config"
 import type { ServerWebSocket } from "bun"
 import { frameSamples } from "./gemini-audio"
 import { workletScript } from "./gemini-worklet"
@@ -467,7 +468,8 @@ export function startServer(options: ServerOptions) {
                 startup.signal, previousSession,
               ).catch(error => {
                 // Settle accounting before End's wait on creation resolves.
-                if (error instanceof CreationRejected) {
+                if (error instanceof CreationRejected
+                  || error instanceof LivePromptFailure) {
                   confirmed = true
                   usage.rejectCreation()
                 }
@@ -497,7 +499,9 @@ export function startServer(options: ServerOptions) {
               } else if (cancelOnAttach) coordinator.cancel()
             })()
             try { await creation } catch (error) {
-              phase = error instanceof CreationRejected
+              phase = error instanceof LivePromptFailure
+                ? "Live prompt failed — no new session created"
+                : error instanceof CreationRejected
                 ? "Startup rejected — no new session created"
                 : "Startup failed — do not blindly retry; "
                   + "session finalization may be unconfirmed"

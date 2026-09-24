@@ -7,6 +7,7 @@ import { openAIProvider } from "./openai"
 import { startServer } from "./server"
 import { geminiConnector } from "./gemini"
 import { launchController } from "./launcher"
+import { readLiveConfig, resolveLivePrompt, selectVoice } from "./config"
 
 export function parseArgs(args: string[]) {
   const result = {
@@ -15,6 +16,7 @@ export function parseArgs(args: string[]) {
     maxSessionSeconds: 600, backendTimeout: 120, contextSeconds: 300,
     idleTimeout: 30,
     keepHistory: false, resume: undefined as string | undefined,
+    explicit: new Set<string>(),
   }
   for (let n = 0; n < args.length; n++) {
     const arg = args[n]
@@ -29,6 +31,7 @@ export function parseArgs(args: string[]) {
     if (!value || value.startsWith("--")) {
       throw new Error(`Missing value for ${arg}`)
     }
+    result.explicit.add(arg)
     if (arg === "-f") result.seed = value
     else if (arg === "--model") result.model = value
     else if (arg === "--resume") {
@@ -58,9 +61,6 @@ export function parseArgs(args: string[]) {
   if (!["gpt-live-1", "gemini-3.8-live"].includes(result.model)) {
     throw new Error(`Unsupported Live model: ${result.model}`)
   }
-  if (result.voice && !(result.model === "gpt-live-1"
-    ? /^[a-z][a-z0-9_-]{0,63}$/ : /^[A-Z][A-Za-z0-9_-]{0,63}$/
-  ).test(result.voice)) throw new Error("Invalid provider voice name")
   if (!result.seed) throw new Error("Required: -f ./voice-backend.lec")
   return result
 }
@@ -75,6 +75,8 @@ export default async function main() {
   --port N                  Loopback port (default: automatic)
   --model NAME              gpt-live-1 (default) or gemini-3.8-live
   --voice NAME              Voice chosen at session creation
+  live:                     YAML voice settings: model, voice, prompt
+                            prompt accepts inline text, file:, or exec:
   --max-session-seconds N    Voice time budget (default: 600, max: 3600)
   --idle-timeout N           Idle disconnect (default: 30 seconds)
   --backend-timeout N        Backend phase timeout (default: 120 seconds)
@@ -91,13 +93,7 @@ Closing the tab stops the controller (heartbeat fallback: 10 seconds).
 Opening the private URL starts a paid session after microphone permission.`)
     return
   }
-  const options = parseArgs(args)
-  const gemini = options.model === "gemini-3.8-live"
-  const credential = gemini ? "GEMINI_API_KEY" : "OPENAI_API_KEY"
-  const key = process.env[credential]
-  if (!key) throw new Error(`Set ${credential} for the chosen voice provider`)
-  const previousSession = options.resume
-    ? loadHistory(options.resume) : undefined
+  const cli = parseArgs(args)
   if (process.platform === "win32") {
     throw new Error("Lectic Live requires POSIX process groups")
   }
@@ -108,8 +104,17 @@ Opening the private URL starts a paid session after microphone permission.`)
     return
   }
   const cwd = process.cwd()
+  const seed = resolve(cli.seed)
+  const config = await readLiveConfig(seed, cwd)
+  const options = { ...cli, ...selectVoice(config, cli) }
+  const gemini = options.model === "gemini-3.8-live"
+  const credential = gemini ? "GEMINI_API_KEY" : "OPENAI_API_KEY"
+  const key = process.env[credential]
+  if (!key) throw new Error(`Set ${credential} for the chosen voice provider`)
+  const previousSession = options.resume
+    ? loadHistory(options.resume) : undefined
   const runOptions = {
-    cwd, seed: resolve(options.seed),
+    cwd, seed,
     // Keep existing user-configured sandbox profiles working.
     env: { ...process.env, LECTIC_LIVE_WORKSPACE: cwd },
     timeoutMs: options.backendTimeout * 1000,
@@ -129,8 +134,13 @@ Opening the private URL starts a paid session after microphone permission.`)
   const server = startServer({
     ...options, history, previousSession,
     provider: gemini ? "gemini" : "openai",
-    connect: gemini ? geminiConnector(key, options.voice)
-      : openAIProvider(liveConnector(key, options.voice)),
+    connect: async (...args) => {
+      const prompt = await resolveLivePrompt(config.prompt, seed, cwd, args[3])
+      const connect = gemini
+        ? geminiConnector(key, options.voice, undefined, undefined, prompt)
+        : openAIProvider(liveConnector(key, options.voice, undefined, prompt))
+      return connect(...args)
+    },
     backend: async (context, signal) => {
       return runLectic(context, {
         ...runOptions, signal,

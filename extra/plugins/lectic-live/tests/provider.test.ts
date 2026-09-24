@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { Coordinator } from "../coordinator"
 import { parseArgs } from "../lectic-live"
+import { selectVoice } from "../config"
 import { LiveClient } from "../live-client"
 import { openAIComplete, openAIObservation, openAIProvider } from "../openai"
 import { voiceHistory } from "../openai-history"
@@ -334,8 +335,10 @@ test("model selection defaults to OpenAI; Gemini preview preserves voices",
       .toThrow("Unsupported Live model")
     expect(parseArgs(["-f", "seed", "--voice", "Kore",
       "--model", "gemini-3.8-live"]).voice).toBe("Kore")
-    expect(() => parseArgs(["-f", "seed", "--voice", "Kore"]))
-      .toThrow("Invalid provider voice")
+    expect(() => selectVoice({}, parseArgs(["-f", "seed",
+      "--voice", "Kore"]))).toThrow("Invalid provider voice")
+    expect(selectVoice({ model: "gemini-3.8-live" },
+      parseArgs(["-f", "seed", "--voice", "Kore"])).voice).toBe("Kore")
     expect(parseArgs(["-f", "seed", "--model", "gemini-3.8-live",
       "--resume", "a".repeat(36)])).toMatchObject({
       resume: "a".repeat(36), keepHistory: true,

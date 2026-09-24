@@ -131,13 +131,14 @@ export type InitialMessage = { type: "message" } & ({
 
 export function createRequest(
   sdp: string, voice?: string, input: InitialMessage[] = [],
+  prompt?: string,
 ) {
   if (!sdp || Buffer.byteLength(sdp) > MAX_EVENT_BYTES) {
     throw new Error("Invalid SDP offer")
   }
   return {
     session: {
-      instructions: voicePrompt,
+      instructions: prompt ? `${voicePrompt}\n\n${prompt}` : voicePrompt,
       ...(input.length ? { input } : {}),
       ...(voice ? { audio: { output: { voice } } } : {}),
       model: "gpt-live-1", delegation: { type: "client" }, store: false,

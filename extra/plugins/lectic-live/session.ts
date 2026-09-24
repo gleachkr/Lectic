@@ -95,6 +95,7 @@ export function liveConnector(
   io: { fetch: typeof fetch; socket: SocketFactory } = {
     fetch: globalThis.fetch, socket: defaultSocket,
   },
+  prompt?: string,
 ): Connect {
   return async (sdp, receive, lost, signal, previousSession) => {
     const endpoint = "https://api.openai.com/v1/live/sessions"
@@ -104,7 +105,7 @@ export function liveConnector(
         Authorization: `Bearer ${key}`, "Content-Type": "application/json",
       },
       body: JSON.stringify(createRequest(
-        sdp, voice, voiceHistory(previousSession),
+        sdp, voice, voiceHistory(previousSession), prompt,
       )),
       signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
     })

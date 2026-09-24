@@ -5,6 +5,7 @@ import { workspace } from "./helpers"
 import { expect, test } from "bun:test"
 import { startServer, type ServerOptions } from "./openai-fixture"
 import { CreationRejected } from "../session"
+import { LivePromptFailure } from "../config"
 import { LiveClient } from "../live-client"
 import type { LiveEvent } from "../protocol"
 import type { HistoryContext } from "../history"
@@ -619,6 +620,20 @@ for (const endDuringCreation of [false, true]) {
       } finally { await f.server.stop() }
     })
 }
+
+test("local prompt failure does not reserve a paid session", async () => {
+  const f = fixture({ connect: async () => {
+    throw new LivePromptFailure("Could not resolve live.prompt")
+  } })
+  try {
+    const response = await f.request("/start", { sdp: "offer" })
+    expect(response.status).toBe(502)
+    expect((await response.json()).error)
+      .toContain("Live prompt failed — no new session created")
+    expect((await (await f.request("/state")).json()).usage)
+      .toMatchObject({ estimatedBillableSeconds: 0, final: true })
+  } finally { await f.server.stop() }
+})
 
 for (const stage of ["unstarted", "active", "sleeping", "ended"]) {
   test(`tab close stops listener and settles cleanup while ${stage}`,
