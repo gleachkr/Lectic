@@ -1,12 +1,13 @@
 # Lectic Live
 
-A local speech interface to Lectic. GPT-Live handles the conversation and
-asks your configured Lectic backend for tools, actions, or deeper reasoning.
-Greetings and ordinary conversation do not independently run Lectic. You
-can keep speaking while backend work runs. Gemini is also available with
-**delegation, microphone wake, and saved-context resume**. Idle or recoverable
-loss can park for a fresh microphone wake. Production Gemini is
-offline-tested; remaining browser acceptance is pending.
+A local speech interface to Lectic, using OpenAI or Gemini for conversation
+and your configured Lectic backend for tools, actions, or deeper reasoning.
+Greetings and ordinary conversation do not independently run Lectic. Both
+voice providers support delegation, microphone wake, and saved-context
+resume; you can keep speaking while backend work runs.
+
+The implementation is offline-tested. Browser validation was reported by
+its user; provider billing and retention remain subject to their terms.
 
 ## Setup
 
@@ -30,6 +31,33 @@ export LECTIC_RUNTIME="$PWD/extra/plugins"
 lectic live --help
 ```
 
+## Choosing a voice provider
+
+`--model` selects only the voice provider, not your backend model or tools.
+The default remains `gpt-live-1`; an archive never changes this selection.
+
+| Behavior | OpenAI | Gemini |
+| --- | --- | --- |
+| Model | `gpt-live-1` | `gemini-3.8-live` |
+| Voice credential | `OPENAI_API_KEY` | `GEMINI_API_KEY` |
+| Browser audio | WebRTC | Native-rate PCM via local WebSocket |
+| Result receipt | Correlated append acknowledgment | Send only |
+| Usage | Seconds and estimated dollars | Latest partial tokens and time |
+| Unexpected provider loss | Terminal | Local mic wake after safe cleanup |
+| Provider storage option | `store: false` | No equivalent configured |
+
+Voice names are case-sensitive. OpenAI accepts lowercase syntax (for example
+`marin`) and leaves the default to the API. Gemini defaults to `Kore`; other
+catalog examples include `Aoede`. Live validates syntax, not catalog
+membership: an unknown or unavailable voice is rejected by the provider.
+Consult the current [OpenAI session reference][openai-create] or the
+[Gemini voice catalog][gemini-voices] before changing voices. Gemini names
+must start uppercase; names are never silently lowercased or substituted.
+
+[openai-create]:
+  https://developers.openai.com/api/reference/resources/live/methods/create
+[gemini-voices]: https://ai.google.dev/gemini-api/docs/speech-generation
+
 ## Start and stop
 
 Use a trusted Lectic conversation as the backend seed:
@@ -45,11 +73,10 @@ models fail before startup. For Gemini:
 lectic live -f ./my-assistant.lec --model gemini-3.8-live --voice Kore
 ```
 
-Gemini uses its production transport and the same configured Lectic backend,
-not the isolated spike. It exposes only `delegate`. Both providers support
-`--resume ID` as fresh text context, not provider-native resumption. See the
-[delegation checks](GEMINI_DELEGATION.md) and
-[history/lifecycle checks](GEMINI_LIFECYCLE.md) before testing.
+Gemini uses the same configured Lectic backend and exposes only `delegate`.
+Both providers support `--resume ID` as fresh text context, not
+provider-native resumption. See the [adapter contract](CONTRACT.md) for
+transport, delegation and lifecycle behavior.
 
 The seed is never modified. Its location determines configuration discovery;
 launch from the directory where you want backend tools to work. Live uses
@@ -77,7 +104,7 @@ while playback is blocked; close the tab if audio cannot be enabled.
 
 Close the tab to stop capture/playback, cancel local backend work, and
 request session shutdown. Reloading or navigating away also ends the
-session. Ctrl-C stops the local controller; otherwise it stays running.
+session and controller. Ctrl-C also requests local controller shutdown.
 Relaunch after explicit ending, reloading, or an unrecoverable failure.
 Gemini can wait for microphone wake after an established session disconnects;
 see its recovery rules below.
@@ -121,15 +148,22 @@ the URL starts a paid session after microphone permission. Keep the URL
 private.
 A controller whose URL is never opened stays ready until explicitly stopped.
 
-Closing the tab cancels local backend work, closes the provider transport,
-and exits the controller. Missing browser heartbeats trigger the same cleanup
-after about ten seconds, including while sleeping or before paid startup.
-The End button leaves a short window for final diagnostics; the controller
-then exits when the tab closes or its heartbeat expires. Local cleanup does
-not establish rollback of actions or final provider billing.
+Closing the tab or whole browser cancels local backend work, closes the
+provider transport, and exits the controller after cleanup. An authenticated
+page-lifetime WebSocket detects browser exit even if the browser drops its
+final HTTP request. It remains open across idle/wake for both providers.
+Missing browser heartbeats trigger the same cleanup after about ten seconds,
+including while sleeping or before paid startup.
+Terminal failures leave the page open for console diagnostics; the controller
+exits when the tab closes or its heartbeat expires. There is no End button.
+Local cleanup does not establish rollback of actions or final provider
+billing. `--keep-history` affects persistence, not controller lifetime.
 
-Public backend results may contain up to 16 KiB of UTF-8 text. Keep them
-concise and free of private reasoning or tool dumps. Gemini receives a single
+The backend's final `lectic-live-completed`, `lectic-live-clarification`, or
+`lectic-live-failed` code fence contains a plain-text public result; the
+backend model no longer has to escape its summary as JSON. Public backend
+results may contain up to 16 KiB of UTF-8 text. Keep them concise and free
+of private reasoning or tool dumps. Gemini receives a single
 function response. OpenAI receives numbered, acknowledged parts when needed
 to respect its per-append token limit. Interrupted delivery is not retried.
 Backend failures produce a safe failure result for the voice model, not a
@@ -190,8 +224,9 @@ backend files are removed on normal completion, failure, or cancellation;
 a crash can leave them behind. Live does not record raw audio. OpenAI uses
 `store: false`; Gemini has no corresponding setting in this setup. Google's
 paid/unpaid service terms and abuse-monitoring retention apply separately;
-do not assume zero provider retention. See [Gemini contract and policy
-links](GEMINI_CONTRACT.md#terminal-events-accounting-and-retention).
+do not assume zero provider retention. Check Google's current
+[Gemini API documentation](https://ai.google.dev/gemini-api/docs/live)
+and applicable terms before use.
 Configured hooks and Lectic's script cache are independent of these settings.
 
 To save context for another launch:
@@ -273,9 +308,15 @@ uncertain work. An acknowledged result is not proof it was spoken or heard.
 
 - **No microphone or audio:** inspect browser permissions and the console.
   Click or press a key to retry blocked playback or suspended audio analysis.
-- **Backend failure:** inspect the terminal and, if enabled, the archive's
-  run diagnostics. Raw errors are not spoken. An unknown `--no-macros`
-  option means the backend Lectic on PATH needs updating.
+- **Backend failure:** the terminal identifies the task number and a safe
+  reason (for example, process exit code, timeout, or output size limit).
+  The voice model receives that reason but not raw stderr. For the actual
+  backend diagnostic, launch with `--keep-history` and inspect `error.txt`
+  under the printed archive's `runs/` directory. It may contain secrets;
+  review it before sharing. Unknown exceptions report only an unexpected
+  failure. An unknown `--no-macros`
+  option means the backend Lectic on PATH needs updating. Cancellation does
+  not undo completed actions; inspect actual state before retrying.
 - **Wrong plugin version:** avoid duplicate installations. A Nix wrapper
   can prioritize bundled plugins over `LECTIC_RUNTIME`. Select a copy with
   `lectic script /absolute/path/to/lectic-live/lectic-live.ts --help`;
@@ -284,16 +325,36 @@ uncertain work. An acknowledged result is not proof it was spoken or heard.
   triggers a 10-second heartbeat watchdog; shutdown confirmation is distinct
   from local audio cleanup. Unconfirmed finalization does not prove billing
   stopped. Transport loss does not automatically reconnect or replay work.
+- **Gemini setup rejected:** check `GEMINI_API_KEY`, model access, and exact
+  voice spelling. The controller uses v1alpha and never retries another
+  endpoint or model automatically. Credentials for the backend are separate.
+- **Gemini silent or delayed:** inspect the console for suspended WebAudio,
+  worklet errors, or `playback_overload`. Capture uses the actual native
+  AudioContext rate; no client resampler is installed. Interruption drops
+  both queued and scheduled output; lost audio is never replayed.
+- **Gemini gray ring after loss or provider limit:** if closure was confirmed,
+  a short sound requests a fresh text-seeded connection. Wait for the black
+  ring before speaking. Startup/time-budget failures and uncertain closure
+  require an explicit relaunch, not repeated wake attempts.
+- **OpenAI cannot wake:** replacement needs final session usage and room for
+  another 15-second minimum. Unconfirmed finalization is not safe to retry.
+- **Controller takes ten seconds to exit:** older copies relied on a final
+  HTTP request that can be dropped on whole-browser exit. Update the plugin;
+  the page-lifetime socket now triggers cleanup without that request. History
+  retention is unrelated. Check for duplicate installations if the delay
+  persists. The watchdog and Ctrl-C remain fallbacks; cleanup is not skipped
+  to force a faster exit. Report the browser, launch command and plugin path,
+  not the private URL, raw history or provider credentials.
 
 See [CONTRACT.md](CONTRACT.md) for protocol details and implementation limits.
 The visualization is adapted from
 [Roy-05/audio-visualizer](https://github.com/Roy-05/audio-visualizer)
 (MIT, Saket Roy).
 
-## Gemini preview and isolated spike
+## Gemini audio and recovery
 
-Stage 3 adds authenticated binary PCM relay, native-rate microphone capture,
-bounded WebAudio playback, and interruption flushing to `lectic live`.
+Gemini uses authenticated binary PCM relay, native-rate microphone capture,
+bounded WebAudio playback, and interruption flushing.
 A suspended AudioContext pauses capture and drops output rather than queuing
 old speech. Click or press a key to resume the same session. No provider
 connection is opened until microphone permission and initial audio unlock.
@@ -308,20 +369,12 @@ restores saved text context on a new launch; it does not revive the
 connection. The cumulative connection-time cap survives wakes within one
 launch.
 
-The console now distinguishes browser playback/capture overload, protocol
+The console distinguishes browser playback/capture overload, protocol
 validation errors, provider close codes, and known turn rejection reasons.
 Unknown close text is classified, not reflected; no raw provider errors or
 credential URLs are logged. `playback_overload` includes queued seconds and
-source count. Playback now allows five minutes of queued/scheduled audio,
+source count. Playback allows five minutes of queued/scheduled audio,
 with at most 400 ms scheduled ahead and 32 source nodes. Unscheduled PCM16
 is packed into 100 ms blocks allocated as needed (about 14.4 MB at the
 limit, plus browser/object overhead). Interruption, pause and close discard
 both layers. A turn rejection by itself does not force disconnection.
-
-The user reported successful stage 1 duplex audio and delegation using the
-separate spike, and later confirmed the production playback scheduling fix.
-That is not blanket acceptance of all production behavior. Follow the
-[audio checks](GEMINI_TRANSPORT.md) and
-[delegation checks](GEMINI_DELEGATION.md). [PROVIDERS.md](PROVIDERS.md)
-describes the current boundary. [GEMINI_SPIKE.md](GEMINI_SPIKE.md) remains an
-isolated, opt-in harness, not normal startup or production acceptance.

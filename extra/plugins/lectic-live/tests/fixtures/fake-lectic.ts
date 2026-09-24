@@ -12,7 +12,7 @@ import { writeFileSync } from "node:fs"
 mock.module("../../../../../src/backends/util", () => ({
   getBackend: () => ({
     async *evaluate(lectic: Lectic) {
-      const capture = process.env["SPIKE_CAPTURE"]
+      const capture = process.env["LIVE_TEST_CAPTURE"]
       if (capture) writeFileSync(capture, JSON.stringify({
         cwd: process.cwd(),
         prompt: lectic.header.interlocutor.prompt,
@@ -24,7 +24,7 @@ mock.module("../../../../../src/backends/util", () => ({
           directives: m.role === "user" ? m.containedDirectives() : [],
         })),
       }))
-      const mode = process.env["SPIKE_MODE"]
+      const mode = process.env["LIVE_TEST_MODE"]
       if (mode === "throw") throw new Error("Provider failure")
       if (mode === "writable-tool") {
         const tool = lectic.header.interlocutor.registry?.["repository_shell"]
@@ -36,9 +36,7 @@ mock.module("../../../../../src/backends/util", () => ({
         if (!text.includes("written")) {
           throw new Error("Configured tool did not write the file")
         }
-        yield '```lectic-live-result\n' + JSON.stringify({
-          status: "completed", summary: "Wrote evidence.txt.",
-        }) + "\n```\n\n"
+        yield '```lectic-live-completed\nWrote evidence.txt.\n```\n\n'
         return
       }
       yield "Intermediate assistant prose.\n\n"
@@ -48,8 +46,7 @@ mock.module("../../../../../src/backends/util", () => ({
         content: "PRIVATE HOOK OUTPUT", attributes: { final: "false" },
       }) + "\n\n"
       // A candidate final pass followed by another inline hook is not final.
-      yield '```lectic-live-result\n'
-        + '{"status":"completed","summary":"EARLY ANSWER"}\n```\n\n'
+      yield '```lectic-live-completed\nEARLY ANSWER\n```\n\n'
       yield serializeInlineAttachment({
         kind: "hook", command: "test-follow-up", content: "Continue",
         attributes: { final: "false" },
@@ -59,9 +56,12 @@ mock.module("../../../../../src/backends/util", () => ({
         yield "<error>Runaway tool use!</error>\n\n"
       } else if (mode === "malformed") {
         yield "This is not a result envelope.\n\n"
+      } else if (mode === "backslashes") {
+        yield '```lectic-live-completed\n'
+          + ['Listed src: constants, ' + String.fromCharCode(92),
+            'main.ts and tools.'].join('\n') + '\n```\n\n'
       } else {
-        yield '```lectic-live-result\n'
-          + '{"status":"completed","summary":"The answer is 42."}\n```\n\n'
+        yield '```lectic-live-completed\nThe answer is 42.\n```\n\n'
       }
     },
   }),

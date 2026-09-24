@@ -25,22 +25,21 @@ export function extractResult(parsed: unknown): BackendResult {
       throw new Error("Unknown markup or backend error in terminal record")
     }
   }
-  // Structured parsing supplies tool/thought/attachment nodes. Only accept
-  // the final node's explicit envelope, never recover by returning stdout.
+  // The final fence language carries the status. Its body is plain text:
+  // never parse model-authored prose as JSON or fall back to raw stdout.
   const terminal = nodes.at(-1)
-  if (terminal?.["type"] !== "code"
-    || terminal["lang"] !== "lectic-live-result") {
+  if (terminal?.["type"] !== "code") {
     throw new Error("Missing terminal result envelope")
   }
-  const value = record(JSON.parse(text(terminal["value"])))
-  const status = value["status"]
-  if ((status !== "completed" && status !== "clarification"
-    && status !== "failed")
-    || Object.keys(value).sort().join(",") !== "status,summary") {
-    throw new Error("Malformed terminal result envelope")
+  let status: BackendResult["status"]
+  switch (terminal["lang"]) {
+    case "lectic-live-completed": status = "completed"; break
+    case "lectic-live-clarification": status = "clarification"; break
+    case "lectic-live-failed": status = "failed"; break
+    default: throw new Error("Missing terminal result envelope")
   }
-  const summary = text(value["summary"])
-  if (!summary.trim() || Buffer.byteLength(summary) > MAX_RESULT_BYTES) {
+  const summary = text(terminal["value"]).trim()
+  if (!summary || Buffer.byteLength(summary) > MAX_RESULT_BYTES) {
     throw new Error("Terminal result is empty or exceeds 16 KiB")
   }
   return { status, summary }

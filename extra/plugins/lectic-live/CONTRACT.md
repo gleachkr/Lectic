@@ -1,18 +1,32 @@
 # Lectic Live adapter contract
 
-Technical reference for the plugin's `/v1/live` wire adapter and Lectic CLI
-boundary. For installation, operation, permissions, and retention, see the
-[README](README.md). OpenAI details below remain unchanged. Gemini now has
-a production PCM transport and delegation; see the
-[transport notes](GEMINI_TRANSPORT.md) and
-[delegation contract](GEMINI_DELEGATION.md) for bounds and limitations.
-[History/lifecycle policy](GEMINI_LIFECYCLE.md) covers saved-context CLI
-resume and local microphone wake after confirmed transport closure, with
-remote finality and usage explicitly unknown. The checked wire contract
-is in [GEMINI_CONTRACT.md](GEMINI_CONTRACT.md). The isolated stage 1 harness
-is in [GEMINI_SPIKE.md](GEMINI_SPIKE.md).
+Technical reference for the voice-provider adapters and Lectic CLI boundary.
+For installation, operation, permissions, and retention, see the
+[README](README.md). OpenAI uses `/v1/live`; Gemini uses the Live WebSocket
+API. This reference covers transport, delegation, saved-context CLI resume
+and local microphone wake after confirmed transport closure. Remote finality
+and usage after socket closure remain explicitly unknown.
 
-## Session and browser transport
+## Provider boundary and evidence
+
+`provider.ts` carries provider/session ownership, neutral observations,
+explicit request text when available, completion receipts, and independent
+transport/remote-session/usage state. The coordinator never consumes raw
+provider wire messages. The configured Lectic runner is provider-independent;
+voice-provider selection cannot change tool authority.
+
+Only controller-observed requests may start backend work. Browser bootstrap
+copies are OpenAI-specific, bounded and deduplicated; Gemini accepts no
+browser-supplied provider events. Retired observations and audio callbacks
+cannot affect a replacement owner.
+
+Offline fixtures verify the consumed wire shapes, bounds and state machines,
+not provider latency, speech quality, billing or exactly-once remote actions.
+Normal Gemini transcripts are appended exactly as received; optional
+interim updates are ignored. Receipt ordering
+is not authoritative utterance ordering or proof of final transcript text.
+
+## OpenAI session and browser transport
 
 Create with `POST https://api.openai.com/v1/live/sessions`, using:
 
@@ -60,7 +74,7 @@ requests. Browser delegation metadata is not independent authorization.
 Session snapshots can expose configuration; the sideband is not a privacy
 boundary.
 
-## Transcripts and delegation
+## OpenAI transcripts and delegation
 
 `session.input_transcript.delta` and `session.output_transcript.delta`
 carry `delta`, `start_ms`, and `end_ms`. Preserve text exactly, including
@@ -102,27 +116,35 @@ it does not disable tools, hooks, executable sources, or attachment loads.
 
 The completed record is parsed on stdin from the seed directory, not with
 `-f` pointing into managed state. Parsing does not initialize tools or
-execute loaders. Only a terminal structured answer after successful child
-completion is eligible for delivery:
+execute loaders. Only a terminal status fence after successful child completion is eligible
+for delivery:
 
 ````text
-```lectic-live-result
-{"status":"completed","summary":"The answer is 42."}
+```lectic-live-completed
+The answer is 42.
 ```
 ````
 
-The object has exactly `status` and `summary`. Status is `completed`,
-`clarification`, or `failed`; summary is nonempty public text of at most
-16 KiB of UTF-8 text. Malformed results never fall back to raw stdout,
-intermediate prose, thought blocks, or tool records. No model-authored
-progress is automatically forwarded.
+The exact fence language chooses `completed`, `clarification`, or `failed`:
+`lectic-live-completed`, `lectic-live-clarification`, or
+`lectic-live-failed`. Its body is the plain-text public summary, nonempty and
+at most 16 KiB of UTF-8 text. It is not JSON and needs no escaping. The old
+`lectic-live-result` JSON fence is no longer accepted; there is no repair or
+fallback for malformed results. Raw stdout, intermediate prose, thought
+blocks, tool records and model-authored progress are never forwarded. A
+failed parse is not proof that an action did not occur; no work is retried.
 
 Generation output/diagnostics are capped at 1 MiB, parsed records at 4 MiB,
 and the seed at 512 KiB. Backend timeouts apply per subprocess phase.
 Children use process groups with bounded TERM/KILL cleanup; tools escaping
-those groups require their own containment.
+those groups require their own containment. Backend failures return fixed
+reason categories (child exit code, timeout, size limit, startup, invalid
+record, or unexpected failure) to the terminal and voice model. Raw child
+stderr and arbitrary exception messages are never delivered as diagnostics;
+when history is enabled, bounded stderr is saved in the local run's
+`error.txt`. A failed run has no confirmed result and is not retried.
 
-## Appends and acknowledgment
+## OpenAI appends and acknowledgment
 
 The adapter supports `session.thinking.append`, `session.commentary.append`,
 and `session.instructions.append`. Each carries `event_id`, `delegation_id`,
@@ -185,6 +207,45 @@ Provider-native recording/forking is not enabled.
 Usage sums sessions and their separate 15-second minimums. The budget
 excludes disconnected idle time, not startup/close time; each wake requires
 room for its minimum. Terminal snapshots remain authoritative per session.
+
+## Gemini transport, calls, and settlement
+
+The controller owns a v1alpha `BidiGenerateContent` WebSocket and API key.
+Setup fixes the model, voice, audio-only modality, normal input/output
+transcription and one `NON_BLOCKING` function, `delegate`. There is no
+fallback endpoint, native resumption, connection rotation or remote tool
+registry. Await `setupComplete` before history, microphone input or results.
+See the synthetic [wire fixtures](tests/fixtures/gemini/README.md) and
+[Gemini Live API documentation](https://ai.google.dev/gemini-api/docs/live)
+for wire shapes and provider guidance.
+
+The browser has one capture worklet and standard WebAudio playback. It sends
+20 ms mono little-endian PCM16 frames at its actual AudioContext rate over
+an authenticated local binary WebSocket. The controller declares that rate
+in the provider MIME type; output is validated 24 kHz PCM. Host/Origin and
+launch-secret checks protect the upgrade; the secret is a subprotocol value,
+not a URL query or an echoed negotiated protocol. No audio is persisted.
+
+Only one browser/session owns audio. Frames, socket buffers, scheduled
+sources and queued audio are bounded. Playback permits up to five minutes
+of audio, at most 400 ms scheduled ahead and 32 sources; interruption,
+suspension and teardown discard both layers. Sustained overload stops the
+connection rather than buffering without limit or replaying dropped audio.
+
+Explicit task text is capped at 8 KiB and does not wait for transcript
+settling. Shared queue/expiry bounds apply. A new delegation supersedes an
+older result, not its actions; delayed transcripts/backchannels alone do not.
+Cancellation IDs invalidate matching provider calls before stopping matching
+local work. Tombstones survive for that owner, capped at 256 IDs. Unknown
+function names and malformed consumed fields fail closed.
+
+Each locally terminal call settles once: a public result or bounded status
+for rejected, expired, cancelled or superseded work. Provider-cancelled IDs
+receive no response. Responses use top-level `scheduling: WHEN_IDLE` and
+`willContinue: false`; they are never ordinary interrupting content updates.
+A send is not an acknowledgment. Failure during sending records uncertainty,
+with no automatic resend. Completed actions and findings survive for
+reconciliation, even if speech or result delivery is cancelled.
 
 ## Gemini history, replacement, and accounting
 
@@ -249,10 +310,27 @@ Diagnostics go to stderr. Redirected stdout uses a detached controller and
 a short-lived launcher so shell command substitution completes immediately.
 Interactive launches remain in the foreground for Ctrl-C.
 
-Authenticated `/close` ends the session and stops the listener after cleanup;
-pagehide uses a keepalive request to that endpoint. Missing heartbeats also
-stop the listener and controller, even before paid startup or while idle.
-`/end` still permits final diagnostics until tab close or heartbeat expiry.
-No browser attachment means the controller stays ready without paid usage.
+Both browser variants open an authenticated `/lifetime` WebSocket before
+microphone permission or paid startup. It spans idle/recovery, independently
+of the replaceable voice transport. Closing that socket is terminal and
+stops the controller after provider/backend cleanup, without reconnecting.
+Only one lifetime owner is allowed. Host/Origin and secret validation match
+the PCM channel; only `lectic-live-lifetime` is negotiated, never `auth.KEY`.
+The channel carries presence only: application messages terminate it rather
+than authorizing any work. Upgrade URLs, assets and diagnostics contain no
+launch secret.
+
+Authenticated `/close` is retained: pagehide attempts its keepalive request
+and closes the lifetime socket before media teardown, even if teardown fails.
+Whole-browser exit can omit pagehide or discard the final request; socket
+closure no longer depends on either. Missing heartbeats remain a ten-second
+fallback, even before paid startup or while idle. `/end` still permits final
+diagnostics until page close or heartbeat expiry.
+
+`--keep-history` changes persistence only. Archive checkpoints and backend
+cleanup complete before controller exit; no unconditional process exit masks
+unfinished work. No browser attachment means the controller stays ready
+without paid usage. Browser closure is covered by offline regression tests;
+real-provider behavior and billing are not established by those tests.
 Backend exceptions are converted into safe failure results for the voice
 model. They do not terminate the controller or automatically retry work.

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import corpus from "./fixtures/gemini/contract.json"
 
-// Corpus checks only. gemini-wire.test.ts exercises the spike codec.
+// Corpus checks only. gemini-wire.test.ts exercises the production codec.
 // Do not add a second parser here or treat fixtures as live evidence.
 const messages = [...corpus.client, ...corpus.server]
 const fixture = (id: string): any => {

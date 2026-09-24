@@ -14,6 +14,8 @@ import { html, browserScript, geminiBrowserScript, style } from "./web"
 import { Journal, Usage } from "./state"
 import { mergeHistory, type History, type HistoryContext } from "./history"
 
+type SocketData = { kind: "audio" | "lifetime" }
+
 export type ServerOptions = {
   provider?: "openai" | "gemini"
   port?: number
@@ -90,7 +92,9 @@ export function startServer(options: ServerOptions) {
   const maxSeconds = options.maxSessionSeconds ?? 600
   let origin = ""
   let controls = 0
-  let audioOwner: ServerWebSocket<undefined> | undefined
+  let audioOwner: ServerWebSocket<SocketData> | undefined
+  let lifetimeOwner: ServerWebSocket<SocketData> | undefined
+  let lifetimeReserved = false
   let audioReserved = false
   let rate = 0
   let audioTimer: ReturnType<typeof setTimeout> | undefined
@@ -312,7 +316,7 @@ export function startServer(options: ServerOptions) {
     return Buffer.byteLength(token) === Buffer.byteLength(expected)
       && timingSafeEqual(Buffer.from(token), Buffer.from(expected))
   }
-  const server = Bun.serve<undefined>({
+  const server = Bun.serve<SocketData>({
     hostname: "127.0.0.1", port: options.port ?? 0,
     maxRequestBodySize: 128 * 1024,
     idleTimeout: 30,
@@ -325,26 +329,34 @@ export function startServer(options: ServerOptions) {
       if (from && from !== origin) {
         return reply({ error: "Invalid Origin" }, 403)
       }
-      if (request.method === "GET" && url.pathname === "/socket") {
+      if (request.method === "GET"
+        && ["/socket", "/lifetime"].includes(url.pathname)) {
+        const lifetime = url.pathname === "/lifetime"
         const protocols = request.headers.get("sec-websocket-protocol")
           ?.split(",").map(value => value.trim()) ?? []
         const supplied = protocols[1]?.slice(5) ?? ""
         const valid = protocols.length === 2
-          && protocols[0] === "lectic-live-pcm"
+          && protocols[0] === (lifetime
+            ? "lectic-live-lifetime" : "lectic-live-pcm")
           && protocols[1].startsWith("auth.")
           && Buffer.byteLength(supplied) === secret.length
           && timingSafeEqual(Buffer.from(supplied), Buffer.from(secret))
-        if (!pcm || from !== origin || !valid) {
+        if ((!pcm && !lifetime) || from !== origin || !valid) {
           return reply({ error: "Forbidden" }, 403)
         }
-        if (audioReserved || (used && !sleeping) || idling || ending) {
+        if (ending || (lifetime ? lifetimeReserved
+          : audioReserved || (used && !sleeping) || idling)) {
           return reply({ error: "Session already owned" }, 409)
         }
         // Reserve before open. Only the public first protocol is negotiated;
         // the credential never enters a URL, asset, log or response header.
-        audioReserved = true
-        if (server.upgrade(request)) return
-        audioReserved = false
+        if (lifetime) lifetimeReserved = true
+        else audioReserved = true
+        if (server.upgrade(request, {
+          data: { kind: lifetime ? "lifetime" : "audio" },
+        })) return
+        if (lifetime) lifetimeReserved = false
+        else audioReserved = false
         return reply({ error: "Upgrade failed" }, 400)
       }
       if (request.method === "GET" && [
@@ -582,6 +594,13 @@ export function startServer(options: ServerOptions) {
       backpressureLimit: 192000,
       closeOnBackpressureLimit: true,
       open(socket) {
+        if (socket.data.kind === "lifetime") {
+          if (ending || lifetimeOwner) { socket.close(1008); return }
+          lifetimeOwner = socket
+          attached = true
+          heartbeat = Date.now()
+          return
+        }
         if (ending || audioOwner) { socket.close(1008); return }
         audioOwner = socket
         attached = true
@@ -592,6 +611,12 @@ export function startServer(options: ServerOptions) {
         }, 30000)
       },
       message(socket, data) {
+        if (socket.data.kind === "lifetime") {
+          // This channel carries presence only, never provider commands.
+          socket.close(1008)
+          void stop()
+          return
+        }
         if (ending || socket !== audioOwner) {
           socket.close(1008)
           return
@@ -620,6 +645,13 @@ export function startServer(options: ServerOptions) {
         }
       },
       close(socket, code) {
+        if (socket === lifetimeOwner) {
+          // Browser exit can discard pagehide's keepalive fetch entirely.
+          // This owner spans idle/recovery and both voice transports.
+          journal.add("browser_lost")
+          void stop()
+          return
+        }
         if (socket === audioOwner && !ending) {
           journal.add("browser_lost", undefined, {
             source: "transport", code: "Local WebSocket closed",
@@ -660,8 +692,11 @@ export function startServer(options: ServerOptions) {
     stopPromise = (async () => {
       try { await end() } finally {
         audioOwner?.terminate()
+        const lifetime = lifetimeOwner
+        lifetimeOwner = undefined
+        lifetime?.terminate()
         try {
-          if (pcm || audioReserved) {
+          if (pcm || audioReserved || lifetimeReserved) {
             // Bun 1.3 may retain pendingWebSockets after close. Stop
             // synchronously and bound its wait after explicit owner cleanup.
             await Promise.race([server.stop(true), Bun.sleep(100)])

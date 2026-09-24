@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import { decode, historySeed, setup, toolResult } from "../gemini-spike/wire"
+import { geminiSetup } from "../gemini"
+import { decode, toolResult } from "../gemini-wire"
 import corpus from "./fixtures/gemini/contract.json"
 
 for (const fixture of corpus.server) {
@@ -15,16 +16,13 @@ for (const fixture of malformed) {
 }
 
 test("Gemini setup and response match checked wire field placement", () => {
-  const config = setup(false, true).setup
-  expect(config.historyConfig)
-    .toEqual({ initialHistoryInClientContent: true })
+  const config = geminiSetup("Kore").setup
+  expect(config).not.toHaveProperty("historyConfig")
   expect(config.tools[0].functionDeclarations[0].behavior)
     .toBe("NON_BLOCKING")
   expect(config.model).toBe("models/gemini-3.8-live")
   expect(config.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig)
     .toEqual({ voiceName: "Kore" })
-  expect(setup(false, false).setup).not.toHaveProperty("historyConfig")
-  expect(historySeed.clientContent.turnComplete).toBe(true)
   expect<unknown>(toolResult("call-1", "A bounded public summary."))
     .toEqual(corpus.client.find(f => f.id === "result-when-idle")!.wire)
 })

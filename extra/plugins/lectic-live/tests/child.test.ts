@@ -2,10 +2,9 @@ import { expect, test } from "bun:test"
 import { existsSync, readFileSync } from "node:fs"
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { runChild } from "../lectic-runner"
-import { replaySpike } from "../spike"
-import { workspace, fakeCommand } from "./helpers"
-import events from "./fixtures/events.json"
+import { BackendFailure, describeBackendFailure, runChild, runLectic }
+  from "../lectic-runner"
+import { backendContext, workspace, fakeCommand } from "./helpers"
 
 const child = (script: string) => ({
   command: [process.execPath], args: ["-e", script],
@@ -27,6 +26,26 @@ test("stdin closes; nonzero exits and output floods are bounded",
       ...child(''), command: ["/nonexistent/lectic"],
     })).rejects.toThrow("start")
   })
+
+test("backend failure categories exclude raw child diagnostics", async () => {
+  const secret = "https://example.test/?key=private-secret"
+  const error = await runChild(child(
+    `console.error(${JSON.stringify(secret)}); process.exit(23)`,
+  )).then(() => { throw new Error("expected failure") },
+    (failure: unknown) => failure)
+  expect(error).toBeInstanceOf(BackendFailure)
+  expect(String(error)).toContain(secret)
+  expect(describeBackendFailure(error))
+    .toBe("backend process exited with code 23")
+  expect(describeBackendFailure(error)).not.toContain(secret)
+  expect(describeBackendFailure(new Error(secret)))
+    .toBe("unexpected backend failure")
+  const timeout = await runChild({
+    ...child("setInterval(() => {}, 1000)"), timeoutMs: 50,
+  }).then(() => { throw new Error("expected timeout") },
+    (failure: unknown) => failure)
+  expect(describeBackendFailure(timeout)).toBe("backend process timed out")
+})
 
 test("timeout kills a TERM-resistant process group, including grandchildren",
   async () => {
@@ -77,9 +96,10 @@ test("cancellation waits for real CLI cleanup, never releases an early pass",
         "imports:",
       ].join("\n"))
       await writeFile(ws.seed, source)
-      const pending = replaySpike(events.map(e => JSON.stringify(e)), "s", {
+      const pending = runLectic(backendContext(), {
         ...ws, command: fakeCommand, signal: abort.signal,
-        env: { ...ws.env, SPIKE_MODE: "slow", SPIKE_CAPTURE: capture },
+        env: { ...ws.env, LIVE_TEST_MODE: "slow",
+          LIVE_TEST_CAPTURE: capture },
       })
       // Attach rejection handling before cancellation.
       const checked = pending.then(

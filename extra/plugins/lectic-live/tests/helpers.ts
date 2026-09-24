@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import type { ContextEnvelope } from "../transcript"
 
 export const root = resolve(import.meta.dir, "../../../..")
 export const fakeCommand = [process.execPath, join(
@@ -8,8 +9,17 @@ export const fakeCommand = [process.execPath, join(
 )]
 export const realCommand = [process.execPath, join(root, "src/main.ts")]
 
+export const backendContext = (): ContextEnvelope => ({
+  version: 1, conversationId: "test", sessionId: "s",
+  delegationId: "opaque/id:☃", fragments: [
+    { speaker: "user", text: "What is", sequence: 0 },
+    { speaker: "assistant", text: " Let me check.", sequence: 1 },
+    { speaker: "user", text: " the answer?", sequence: 2 },
+  ],
+})
+
 export async function workspace() {
-  const dir = await mkdtemp(join(tmpdir(), "live-spike-test-"))
+  const dir = await mkdtemp(join(tmpdir(), "live-test-"))
   const cwd = join(dir, "workspace")
   const seedDir = join(cwd, "docs")
   const config = join(dir, "config")
@@ -26,7 +36,7 @@ export async function workspace() {
   ].join("\n"))
   await writeFile(join(cwd, "workspace-import.yaml"), [
     'interlocutor:', '  name: Bot', '  provider: ollama',
-    '  model: deterministic-spike', '  prompt: file:./prompt.txt',
+    '  model: deterministic-live', '  prompt: file:./prompt.txt',
   ].join("\n"))
   await writeFile(join(cwd, "prompt.txt"), "Workspace-relative prompt")
   await writeFile(join(seedDir, "document-import.yaml"), [

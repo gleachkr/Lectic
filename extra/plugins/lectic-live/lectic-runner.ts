@@ -14,6 +14,39 @@ export function resolveLectic(): string[] {
   return [executable]
 }
 
+export type BackendFailureKind = "exit" | "timeout" | "size"
+  | "start" | "input" | "cleanup" | "cancelled" | "record" | "seed"
+
+// The message may include child stderr and is local archive material only.
+// The kind and exit code are the only fields safe for public diagnostics.
+export class BackendFailure extends Error {
+  constructor(
+    readonly kind: BackendFailureKind,
+    message: string,
+    readonly exitCode?: number | null,
+    readonly phase?: "generation" | "parse",
+  ) { super(message) }
+}
+
+export function describeBackendFailure(error: unknown): string {
+  if (!(error instanceof BackendFailure)) return "unexpected backend failure"
+  const process = error.phase ? `backend ${error.phase} process`
+    : "backend process"
+  switch (error.kind) {
+    case "exit": return error.exitCode === null
+      ? `${process} ended without an exit code`
+      : `${process} exited with code ${error.exitCode}`
+    case "timeout": return `${process} timed out`
+    case "size": return "backend output exceeded the size limit"
+    case "start": return "backend executable could not start"
+    case "input": return "backend input pipe failed"
+    case "cleanup": return "backend process cleanup failed"
+    case "cancelled": return "backend process was cancelled"
+    case "record": return "backend result record was invalid"
+    case "seed": return "backend seed changed during the run"
+  }
+}
+
 export type ChildOptions = {
   command: string[]
   args: string[]
@@ -24,6 +57,7 @@ export type ChildOptions = {
   timeoutMs?: number
   graceMs?: number
   maxBytes?: number
+  phase?: "generation" | "parse"
 }
 
 export function runChild(options: ChildOptions): Promise<string> {
@@ -42,7 +76,7 @@ export function runChild(options: ChildOptions): Promise<string> {
       cwd: options.cwd, env: options.env ?? process.env,
       detached: true, stdio: ["pipe", "pipe", "pipe"],
     })
-    let failure: Error | undefined
+    let failure: BackendFailure | undefined
     let bytes = 0
     const output: Buffer[] = []
     // Keep a short stderr tail so a nonzero exit is diagnosable (for example
@@ -56,7 +90,8 @@ export function runChild(options: ChildOptions): Promise<string> {
       if (!child.pid) return
       try { process.kill(-child.pid, signal) } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== "ESRCH") {
-          failure ??= new Error("Unable to clean up backend process group")
+          failure ??= new BackendFailure("cleanup",
+            "Unable to clean up backend process group", undefined, options.phase)
         }
       }
     }
@@ -77,41 +112,49 @@ export function runChild(options: ChildOptions): Promise<string> {
       if (failure) reject(failure)
       else if (code !== 0) {
         const detail = diagnostics.trim()
-        reject(new Error(`Backend child failed (exit ${code})`
-          + (detail ? `:\n${detail}` : "")))
+        reject(new BackendFailure("exit",
+          `Backend child failed (exit ${code})`
+            + (detail ? `:\n${detail}` : ""), code, options.phase))
       }
       else resolve(Buffer.concat(output).toString("utf8"))
     }
-    const stop = (reason?: string) => {
-      if (reason) failure ??= new Error(reason)
+    const stop = (reason?: BackendFailure) => {
+      if (reason) failure ??= reason
       if (killTimer) return
       signalGroup("SIGTERM")
       killTimer = setTimeout(() => {
         signalGroup("SIGKILL")
         lastTimer = setTimeout(() => {
-          failure ??= new Error("Backend cleanup exceeded deadline")
+          failure ??= new BackendFailure("cleanup",
+            "Backend cleanup exceeded deadline", undefined, options.phase)
           finish(null)
         }, grace)
       }, grace)
     }
-    const cancel = () => stop("Backend cancelled; remote outcome unknown")
+    const cancel = () => stop(new BackendFailure("cancelled",
+      "Backend cancelled; remote outcome unknown", undefined, options.phase))
     const timeout = setTimeout(
-      () => stop("Backend timed out; remote outcome unknown"),
+      () => stop(new BackendFailure("timeout",
+        "Backend timed out; remote outcome unknown", undefined,
+        options.phase)),
       options.timeoutMs ?? 30_000,
     )
     options.signal?.addEventListener("abort", cancel, { once: true })
     if (options.signal?.aborted) cancel()
     const consume = (chunk: Buffer, retain: boolean) => {
       bytes += chunk.length
-      if (bytes > limit) stop("Backend output exceeds size limit")
+      if (bytes > limit) stop(new BackendFailure("size",
+        "Backend output exceeds size limit", undefined, options.phase))
       else if (retain) output.push(chunk)
       else diagnostics = (diagnostics + chunk.toString("utf8")).slice(-2048)
     }
     child.stdout.on("data", (chunk: Buffer) => consume(chunk, true))
     child.stderr.on("data", (chunk: Buffer) => consume(chunk, false))
-    child.stdin.on("error", () => stop("Backend input pipe failed"))
+    child.stdin.on("error", () => stop(new BackendFailure("input",
+      "Backend input pipe failed", undefined, options.phase)))
     child.on("error", () => {
-      failure = new Error("Could not start backend executable")
+      failure = new BackendFailure("start",
+        "Could not start backend executable", undefined, options.phase)
       finish(null)
     })
     // A leader exiting does not prove its tools/MCP/hook children exited.
@@ -138,7 +181,7 @@ export async function runLectic(
   const seed = resolve(options.cwd, options.seed)
   const original = await readFile(seed, "utf8")
   if (Buffer.byteLength(original) > 512 * 1024) {
-    throw new Error("Seed exceeds spike limit")
+    throw new Error("Seed exceeds size limit")
   }
   const input = `\n\n${backendPrompt}\n${serializeContext(context)}`
   const prefix = `${(original + "\n\n" + input).trim()}\n\n`
@@ -160,26 +203,34 @@ export async function runLectic(
     }
     // No --inplace. Keep both config discovery and LECTIC_FILE tied to seed.
     const completed = await runChild({
-      ...common, cwd: options.cwd,
+      ...common, cwd: options.cwd, phase: "generation",
       args: ["-f", seed, "--no-macros", "--format", "full"], input,
     })
     if (!completed.startsWith(prefix)
       || !completed.slice(prefix.length).startsWith(":::")) {
-      throw new Error("Missing newly generated backend record")
+      throw new BackendFailure("record",
+        "Missing newly generated backend record")
     }
     await writeFile(join(dir, "run.lec"), completed, { mode: 0o600 })
     if (await readFile(seed, "utf8") !== original) {
-      throw new Error("Seed changed during backend run; result withheld")
+      throw new BackendFailure("seed",
+        "Seed changed during backend run; result withheld")
     }
     // Parse the managed record on stdin, not -f state/run.lec. This keeps
     // document-relative imports and workspace discovery at the seed base.
     // Parsing does not initialize tools, load prompts, or expand macros.
     const parsed = await runChild({
-      ...common, cwd: dirname(seed), args: ["parse"], input: completed,
+      ...common, cwd: dirname(seed), phase: "parse",
+      args: ["parse"], input: completed,
       maxBytes: 4 * 1024 * 1024,
     })
     options.signal?.throwIfAborted()
-    return extractResult(JSON.parse(parsed))
+    try {
+      return extractResult(JSON.parse(parsed))
+    } catch (error) {
+      throw new BackendFailure("record",
+        `Invalid backend record: ${String(error)}`)
+    }
   } catch (error) {
     if (options.historyDir) {
       await writeFile(join(dir, "error.txt"), String(error) + "\n",

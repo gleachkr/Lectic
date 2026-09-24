@@ -45,7 +45,7 @@ export type ContextEnvelope = {
 export function serializeContext(context: ContextEnvelope): string {
   const json = JSON.stringify(context)
   if (Buffer.byteLength(json) > 32 * 1024) {
-    throw new Error("Context exceeds spike limit")
+    throw new Error("Context exceeds size limit")
   }
   const runs = json.match(/`+/g) ?? []
   const fence = "`".repeat(Math.max(3, ...runs.map(s => s.length + 1)))

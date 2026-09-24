@@ -14,6 +14,7 @@ function deferred<T>() {
 // This tests lifecycle and drawing inputs, not real browser autoplay policy.
 function browser(options: {
   token?: string; blocked?: boolean; idleTimeout?: number; gemini?: boolean
+  holdLifetime?: boolean
 } = {}) {
   const permission = deferred<any>()
   let ready = deferred<any>()
@@ -121,7 +122,19 @@ function browser(options: {
     }
     close() { this.closed = true; this.channel.onclose?.() }
   }
-  const location = { hash: options.token === "" ? "" : "#private-token" }
+  const location = { hash: options.token === "" ? "" : "#private-token",
+    origin: "http://127.0.0.1:1234" }
+  const lifetimes: Lifetime[] = []
+  class Lifetime {
+    closed = false
+    onopen?: () => void
+    onclose?: () => void
+    onerror?: () => void
+    constructor(readonly url: string, readonly protocols: string[]) {
+      lifetimes.push(this)
+    }
+    close() { this.closed = true; this.onclose?.() }
+  }
   const pcm: {
     paused: boolean; closed: boolean; lost: MediaOptions["lost"]
   }[] = []
@@ -158,7 +171,7 @@ function browser(options: {
       captures++
       return permission.promise
     } } },
-    RTCPeerConnection: Peer, AudioContext: Context,
+    RTCPeerConnection: Peer, AudioContext: Context, WebSocket: Lifetime,
     devicePixelRatio: 2, AbortSignal, performance: { now: () => now },
     console: { log: (...args: any[]) => logs.push(args) },
     async fetch(path: string, init: RequestInit) {
@@ -183,11 +196,13 @@ function browser(options: {
   runInNewContext(options.gemini ? geminiBrowserScript.replace(
     createGeminiMedia.toString(), "makeFakeMedia",
   ) : browserScript, sandbox)
+  if (!options.holdLifetime) lifetimes[0]?.onopen?.()
   const flush = async () => {
     for (let i = 0; i < 40; i++) await Promise.resolve()
   }
   return {
-    pcm, requests, logs, track, audio, remote, canvas, drawing, lines, state,
+    lifetimes, pcm, requests, logs, track, audio, remote, canvas, drawing,
+    lines, state,
     permission, get ready() { return ready }, sleeping,
     ending, timers, frames, location, flush, clones,
     holdReady() { ready = deferred<any>() },
@@ -349,6 +364,7 @@ test("missing token never captures, starts, polls, or sends an end request",
     const b = browser({ token: "" })
     b.event("pagehide")
     expect(b.captures()).toBe(0)
+    expect(b.lifetimes).toEqual([])
     expect(b.requests).toEqual([])
     expect(b.frames.size).toBe(0)
     expect(JSON.stringify(b.logs)).toContain("private URL")
@@ -638,4 +654,81 @@ test("Gemini final diagnostics are logged even if media loss beats polling",
     expect(b.paths()).not.toContain("/recover")
     expect(b.pcm).toHaveLength(1)
     expect(b.track.stopped).toBe(true)
+  })
+
+for (const gemini of [false, true]) {
+  test(`page lifetime gates startup and spans idle (Gemini: ${gemini})`,
+    async () => {
+      const b = browser({ gemini, holdLifetime: true })
+      expect(b.captures()).toBe(0)
+      const lifetime = b.lifetimes[0]
+      expect(lifetime.url).toBe("ws://127.0.0.1:1234/lifetime")
+      expect(lifetime.protocols).toEqual([
+        "lectic-live-lifetime", "auth.private-token",
+      ])
+      lifetime.onopen!()
+      await b.permit()
+      b.ready.resolve({ ok: true })
+      await b.flush()
+      await b.advance(31000)
+      b.sleeping.resolve({ idle: true })
+      await b.flush()
+      expect(b.paths()).toContain("/idle")
+      expect(lifetime.closed).toBe(false)
+      b.event("pagehide")
+      expect(lifetime.closed).toBe(true)
+      expect(b.paths().filter(p => p === "/close")).toHaveLength(1)
+      b.event("pagehide")
+      expect(b.paths().filter(p => p === "/close")).toHaveLength(1)
+    })
+
+  test(`lifetime loss stops media, never retries (Gemini: ${gemini})`,
+    async () => {
+      const b = browser({ gemini })
+      await b.permit()
+      b.ready.resolve({ ok: true })
+      await b.flush()
+      b.ending.resolve({ confirmed: false })
+      b.lifetimes[0].close()
+      await b.flush()
+      expect(b.track.stopped).toBe(true)
+      expect(b.paths()).toContain("/end")
+      expect(b.lifetimes).toHaveLength(1)
+      expect(b.timers.size).toBe(0)
+    })
+}
+
+test("page close notifies even when media teardown throws", async () => {
+  const b = browser()
+  await b.permit()
+  b.track.stop = () => { throw new Error("Media already unavailable") }
+  expect(() => b.event("pagehide")).toThrow("Media already unavailable")
+  expect(b.lifetimes[0].closed).toBe(true)
+  expect(b.paths()).toContain("/close")
+})
+
+test("page close before lifetime opens cannot start microphone or session",
+  async () => {
+    const b = browser({ holdLifetime: true })
+    b.event("pagehide")
+    b.lifetimes[0].onopen!()
+    await b.flush()
+    expect(b.lifetimes[0].closed).toBe(true)
+    expect(b.captures()).toBe(0)
+    expect(b.paths()).not.toContain("/start")
+  })
+
+
+test("lifetime startup failure never captures or creates a paid session",
+  async () => {
+    const b = browser({ holdLifetime: true })
+    b.ending.resolve({ confirmed: true })
+    b.lifetimes[0].onerror!()
+    b.lifetimes[0].onclose!()
+    b.lifetimes[0].onopen!()
+    await b.flush()
+    expect(b.captures()).toBe(0)
+    expect(b.paths()).not.toContain("/start")
+    expect(b.paths().filter(p => p === "/end")).toHaveLength(1)
+    expect(b.timers.size).toBe(0)
   })

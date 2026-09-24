@@ -1,8 +1,34 @@
 import { expect, test } from "bun:test"
-import { readFile, writeFile } from "node:fs/promises"
+import { readFile, readdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { runChild, runLectic } from "../lectic-runner"
+import { describeBackendFailure, runChild, runLectic }
+  from "../lectic-runner"
 import { fakeCommand, root, workspace } from "./helpers"
+
+test("failed generation keeps raw diagnostics in opt-in history only",
+  async () => {
+    const ws = await workspace()
+    try {
+      const historyDir = join(ws.dir, "runs")
+      const secret = "https://example.test/?key=private-secret"
+      const failingScript = join(ws.dir, "failure.ts")
+      await writeFile(failingScript,
+        `console.error(${JSON.stringify(secret)}); process.exit(17)`)
+      const error = await runLectic({
+        version: 1, conversationId: "c", sessionId: "s",
+        delegationId: "d", offsetMs: 0, fragments: [],
+      }, {
+        ...ws, historyDir, command: [process.execPath, failingScript],
+      }).then(() => { throw new Error("expected failure") },
+        (failure: unknown) => failure)
+      expect(describeBackendFailure(error))
+        .toBe("backend generation process exited with code 17")
+      const [run] = await readdir(historyDir)
+      const saved = await readFile(join(historyDir, run, "error.txt"), "utf8")
+      expect(saved).toContain(secret)
+      expect(saved).toContain("exit 17")
+    } finally { await ws.cleanup() }
+  })
 
 // Exercise the public flag through the real CLI with a fake provider.
 // No network access or provider credentials are needed.
@@ -12,7 +38,7 @@ test("ordinary CLI generation still expands macros by default", async () => {
     const capture = join(ws.dir, "capture.json")
     await runChild({
       command: fakeCommand, args: ["-f", ws.seed], input: "",
-      cwd: ws.cwd, env: { ...ws.env, SPIKE_CAPTURE: capture },
+      cwd: ws.cwd, env: { ...ws.env, LIVE_TEST_CAPTURE: capture },
     })
     const seen = JSON.parse(await readFile(capture, "utf8"))
     expect(seen.messages[0].content).toContain("EXPANDED_UNSAFE")
@@ -49,7 +75,7 @@ for (const fromFile of [false, true]) {
           args: ["--no-macros", ...(fromFile ? ["-f", ws.seed] : [])],
           input: fromFile ? '\n:cmd[touch STDIN_RAN]\n' : source,
           cwd: fromFile ? ws.cwd : join(ws.cwd, "docs"),
-          env: { ...ws.env, SPIKE_CAPTURE: capture },
+          env: { ...ws.env, LIVE_TEST_CAPTURE: capture },
         })
         const seen = JSON.parse(await readFile(capture, "utf8"))
         expect(seen.speaker).toBe("Bot")
@@ -78,7 +104,7 @@ test("Live honors inherited hooks, executable prompts, and writable tools",
       await writeFile(join(ws.cwd, "workspace-import.yaml"), [
         'hooks:', '  - on: run_start', '    do: touch HOOK_RAN',
         'interlocutor:', '  name: Bot', '  provider: ollama',
-        '  model: deterministic-spike', '  prompt: exec:echo Loaded prompt',
+        '  model: deterministic-live', '  prompt: exec:echo Loaded prompt',
         '  tools:', '    - exec: bash --norc --noprofile',
         '      name: repository_shell', '      usage: Run shell commands',
       ].join("\n"))
@@ -93,7 +119,7 @@ test("Live honors inherited hooks, executable prompts, and writable tools",
       }, {
         ...ws, command: fakeCommand,
         env: {
-          ...ws.env, SPIKE_MODE: "writable-tool", SPIKE_CAPTURE: capture,
+          ...ws.env, LIVE_TEST_MODE: "writable-tool", LIVE_TEST_CAPTURE: capture,
         },
       })
       expect(result.summary).toBe("Wrote evidence.txt.")
@@ -124,7 +150,7 @@ test("distributed example runs its configured tool through the real CLI",
         }],
       }, {
         ...ws, command: fakeCommand,
-        env: { ...ws.env, SPIKE_MODE: "writable-tool" },
+        env: { ...ws.env, LIVE_TEST_MODE: "writable-tool" },
       })
       expect(result.summary).toBe("Wrote evidence.txt.")
       expect(await readFile(join(ws.cwd, "evidence.txt"), "utf8"))

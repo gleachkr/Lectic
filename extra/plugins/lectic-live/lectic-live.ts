@@ -1,7 +1,6 @@
 #!/usr/bin/env -S lectic script
 import { join, resolve } from "node:path"
 import { History, loadHistory } from "./history"
-import { backendPrompt } from "./prompts"
 import { resolveLectic, runLectic } from "./lectic-runner"
 import { liveConnector } from "./session"
 import { openAIProvider } from "./openai"
@@ -70,12 +69,6 @@ export default async function main() {
   const args = process.argv.slice(2)
   const controller = args[0] === "--controller"
   if (controller) args.shift()
-  if (args.length === 1 && args[0] === "--spike-info") {
-    console.log(JSON.stringify({
-      stage: 3, executable: resolveLectic(), backendPrompt,
-    }))
-    return
-  }
   if (!args.length || (args.length === 1 && args[0] === "--help")) {
     console.log(`lectic live -f ./voice-backend.lec [options]
   --no-open                 Compatibility option; browser never auto-opens

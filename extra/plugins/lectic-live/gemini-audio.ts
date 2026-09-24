@@ -1,4 +1,4 @@
-// Small audio mechanics shared by production and the opt-in spike.
+// PCM capture and playback mechanics for Gemini Live.
 export function frameSamples(rate: number): number {
   if (!Number.isInteger(rate) || rate < 8000 || rate > 96000) {
     throw new Error("Invalid capture rate")

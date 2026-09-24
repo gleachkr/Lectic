@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { Coordinator } from "./openai-fixture"
 import type { LiveEvent } from "../protocol"
+import { BackendFailure } from "../lectic-runner"
 
 const speech = (delta: string): LiveEvent => ({
   type: "session.input_transcript.delta", delta, start_ms: 0, end_ms: 100,
@@ -379,6 +380,29 @@ test("cancelled runs remain uncertain context, never automatic retries",
     expect(contexts[1].backendHistory[0].requestContext).toContain("Write A")
     expect(contexts[1].backendHistory[0].summary)
       .toContain("Check actual state before retrying")
+  })
+
+test("child failure reports a safe reason locally and to the voice model",
+  async () => {
+    const secret = "https://example.test/?key=private-secret"
+    const delivered: string[] = []
+    const logged: string[] = []
+    const original = console.error
+    console.error = (...args) => { logged.push(args.join(" ")) }
+    try {
+      const c = new Coordinator("s", async () => {
+        throw new BackendFailure("exit", `Backend child failed: ${secret}`, 9)
+      }, async (_id, summary) => { delivered.push(summary) }, 0)
+      c.receive(speech("inspect"))
+      c.receive(delegation())
+      await c.idle()
+      expect(logged).toHaveLength(1)
+      expect(logged[0]).toContain("backend task 1 failed: "
+        + "backend process exited with code 9")
+      expect(delivered[0]).toContain("backend process exited with code 9")
+      expect(delivered[0]).toContain("check actual state before retrying")
+      expect(logged.join(" ") + delivered.join(" ")).not.toContain(secret)
+    } finally { console.error = original }
   })
 
 test("backend errors notify the voice model and allow later requests",

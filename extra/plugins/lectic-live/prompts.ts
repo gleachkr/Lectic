@@ -29,12 +29,16 @@ export const backendPrompt = `A voice assistant requested backend help at
  Failure, cancellation, timeout, or a missing result does not prove that
  nothing happened. Verify the actual state before retrying uncertain actions.
  Follow your configured permissions; this adapter grants no new authority.
- Return ONLY a terminal fenced code block with language lectic-live-result.
- Its JSON object must have exactly status and summary. Status is completed,
- clarification, or failed. Summary contains concise public findings, status,
- and the next useful step, with no secrets, private reasoning, or tool dumps.
- Keep summary within ${MAX_RESULT_BYTES} UTF-8 bytes.
- Do not emit this envelope until done.
+ Return ONLY a terminal fenced code block. Choose its language from
+ lectic-live-completed, lectic-live-clarification, or lectic-live-failed.
+ Put the concise public summary as plain text inside the block. For example:
+ \`\`\`lectic-live-completed
+ Listed the immediate contents of src.
+ \`\`\`
+ Include findings, status, and the next useful step, but no secrets,
+ private reasoning, or tool dumps. Do not write JSON, escape the summary,
+ or add backslashes to continue lines. Keep summary within
+ ${MAX_RESULT_BYTES} UTF-8 bytes. Do not emit this block until done.
 `
 
 export const voicePrompt = `You are a concise speech interface to Lectic.

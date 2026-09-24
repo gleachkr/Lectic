@@ -20,6 +20,7 @@ function browserMain(
   const token = location.hash.slice(1)
   history.replaceState(null, "", "/")
   const visualizer = makeVisualizer(canvas)
+  let lifetime: WebSocket | undefined
   let transport: BrowserMedia | undefined
   let media: MediaStream | undefined
   let idle: ReturnType<typeof createIdleMonitor> | undefined
@@ -203,20 +204,25 @@ function browserMain(
     }
   }
   window.addEventListener("pagehide", () => {
+    if (leaving) return
     leaving = true
     ended = true
     finishing = true
-    release()
-    if (!token) return
-    // Authenticated keepalive, not an unauthenticated beacon endpoint.
-    // The heartbeat watchdog covers crashes where pagehide never fires.
-    void fetch("/close", {
-      method: "POST", keepalive: true,
-      headers: {
-        Authorization: `Bearer ${token}`, "Content-Type": "application/json",
-      },
-      body: "{}",
-    }).catch(() => {})
+    // Notify before teardown: even a failed media cleanup must not prevent
+    // shutdown. The lifetime socket also covers browser exits that skip
+    // pagehide or discard keepalive requests; heartbeats remain a fallback.
+    try {
+      if (token) void fetch("/close", {
+        method: "POST", keepalive: true,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      }).catch(() => {})
+    } finally {
+      try { lifetime?.close() } finally { release() }
+    }
   })
   let lastStatus = ""
   let lastCaption = 0
@@ -268,7 +274,17 @@ function browserMain(
     release()
   } else {
     void poll()
-    void start()
+    try {
+      lifetime = new WebSocket(
+        location.origin.replace(/^http/, "ws") + "/lifetime",
+        ["lectic-live-lifetime", `auth.${token}`],
+      )
+      // Never create a paid session without page-lifetime ownership.
+      lifetime.onopen = () => { if (!ended) void start() }
+      lifetime.onclose = lifetime.onerror = () => {
+        if (!ended) void finish("controller_connection_lost")
+      }
+    } catch { void finish("controller_connection_failed") }
   }
 }
 
@@ -287,7 +303,7 @@ export const browserScript = script(createOpenAIMedia.toString(),
 export const geminiBrowserScript = script(
   `(options) => (${createGeminiMedia.toString()})(
     options, ${PCMPlayer.toString()})`,
-  "Lectic Live: Gemini audio-only preview. No delegation. "
+  "Lectic Live: Gemini voice with backend delegation. "
   + "After idle or connection loss, speak to start a text-seeded session. "
   + "Voice is billable; elapsed time is not a spending cap. "
   + "Close this tab or Ctrl-C to stop.", true)

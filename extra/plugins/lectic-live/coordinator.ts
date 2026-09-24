@@ -7,6 +7,7 @@ import {
 import { snapshot, serializeContext, type ContextEnvelope }
   from "./transcript"
 import { MAX_RESULT_BYTES, type BackendResult } from "./result"
+import { describeBackendFailure } from "./lectic-runner"
 import { Journal, type Task } from "./state"
 import { boundHistory, type HistoryContext } from "./history"
 
@@ -403,20 +404,22 @@ export class Coordinator {
           }
           confirmedResult = true
           this.journal.add("backend_completed", task.revision)
-        } catch {
+        } catch (error) {
           const missing = task.outcome !== "running"
+          const reason = describeBackendFailure(error)
           if (!missing && !controller.signal.aborted) {
-            console.error("lectic live: backend task failed; "
-              + "notifying the voice model (no automatic retry)")
+            console.error(`lectic live: backend task ${task.revision} failed: `
+              + `${reason}; no automatic retry. `
+              + "Use --keep-history for local run diagnostics.")
           }
           result = {
             status: missing ? "clarification" : "failed",
             summary: missing
               ? "Please clarify the request; no user context is available."
-              : "The backend encountered an error; no confirmed result. "
-                + "Please tell the user something went wrong. "
-                + "Actions may already have "
-                + "happened; check actual state before retrying.",
+              : `The backend encountered an error (${reason}); `
+                + "no confirmed result. Please tell the user something "
+                + "went wrong. Actions may already have happened; "
+                + "check actual state before retrying.",
           }
           this.journal.add(missing
             ? this.contextLost ? "context_lost" : "context_missing"

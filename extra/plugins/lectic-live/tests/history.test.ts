@@ -9,9 +9,8 @@ import {
 } from "../history"
 import { Coordinator } from "./openai-fixture"
 import { parseArgs } from "../lectic-live"
-import { replaySpike } from "../spike"
-import { fakeCommand, workspace } from "./helpers"
-import events from "./fixtures/events.json"
+import { runLectic } from "../lectic-runner"
+import { backendContext, fakeCommand, workspace } from "./helpers"
 
 const saved = (): HistoryContext => ({
   version: 1, conversationId: randomUUID(), incomplete: false,
@@ -118,9 +117,9 @@ for (const mode of ["ok", "malformed", "throw"]) {
     const ws = await workspace()
     try {
       const historyDir = join(ws.dir, "runs")
-      const run = replaySpike(events.map(e => JSON.stringify(e)), "s", {
+      const run = runLectic(backendContext(), {
         ...ws, command: fakeCommand, historyDir,
-        env: { ...ws.env, SPIKE_MODE: mode },
+        env: { ...ws.env, LIVE_TEST_MODE: mode },
       })
       if (mode === "ok") await run
       else await expect(run).rejects.toThrow()

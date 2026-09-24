@@ -3,7 +3,6 @@ import { cp, mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Script, runInNewContext } from "node:vm"
 import { runChild } from "../lectic-runner"
-import { backendPrompt } from "../prompts"
 import { realCommand, root, workspace } from "./helpers"
 
 test("relocated installed plugin resolves embedded assets and public CLI",
@@ -28,26 +27,28 @@ test("relocated installed plugin resolves embedded assets and public CLI",
         ...ws.env, PATH: `${bin}:${ws.env.PATH}`,
         LECTIC_RUNTIME: join(ws.dir, "installed"),
       }
-      const run = (command: string[]) => runChild({
-        command, args: ["live", "--spike-info"],
-        input: "", cwd: ws.cwd, env, timeoutMs: 30_000,
+      const probe = join(ws.dir, "resolve-cli.ts")
+      await writeFile(probe, `
+import { resolveLectic } from ${JSON.stringify(join(runtime,
+  "lectic-runner.ts"))}
+console.log(JSON.stringify(resolveLectic()))
+`)
+      const run = (command: string[], args: string[]) => runChild({
+        command, args, input: "", cwd: ws.cwd, env, timeoutMs: 30_000,
       })
-      const info = JSON.parse(await run([cli]))
-      expect(info.executable).toEqual([cli])
-      expect(info.backendPrompt).toBe(backendPrompt)
+      expect(JSON.parse(await run([cli], ["script", probe])))
+        .toEqual([cli])
+      expect(await run([cli], ["live", "--help"]))
+        .toContain("gemini-3.8-live")
       // Exercise the installed compiled runtime as well when available.
       const installed = Bun.which("lectic")
       if (installed) {
         // Nix wrappers prepend their bundled runtime, ahead of this test's
         // override. Use an explicit path to test this copy, not the older
         // plugin shipped with the installed executable.
-        const compiledInfo = JSON.parse(await runChild({
-          command: [installed],
-          args: ["script", join(runtime, "lectic-live.ts"), "--spike-info"],
-          input: "", cwd: ws.cwd, env, timeoutMs: 30_000,
-        }))
-        expect(compiledInfo.executable).toEqual([cli])
-        expect(compiledInfo.backendPrompt).toBe(backendPrompt)
+        expect(await run([installed], ["script",
+          join(runtime, "lectic-live.ts"), "--help"]))
+          .toContain("gemini-3.8-live")
       }
       // Bundle the installed copy, remove its sources, then serve both
       // media variants from the relocated single file. No runtime npm build.
@@ -76,6 +77,7 @@ console.log(JSON.stringify(assets))
       await writeFile(installedBundle, await bundle.outputs[0].text())
       await rm(runtime, { recursive: true })
       await rm(entry)
+      await rm(probe)
       const assets = JSON.parse(await runChild({
         command: [process.execPath], args: [installedBundle], input: "",
         cwd: ws.cwd, env, timeoutMs: 30000,

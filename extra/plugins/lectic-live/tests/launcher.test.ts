@@ -1,6 +1,6 @@
 import { History, historyRoot, loadHistory } from "../history"
 import { expect, test } from "bun:test"
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises"
+import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { launchController } from "../launcher"
 import { realCommand, root, workspace } from "./helpers"
@@ -24,7 +24,13 @@ for (const background of [false, true]) {
         await writeFile(cli, '#!/bin/sh\nexec '
           + realCommand.map(s => JSON.stringify(s)).join(" ")
           + ' "$@"\n', { mode: 0o755 })
-        const entry = join(root, "extra/plugins/lectic-live/lectic-live.ts")
+        const runtime = join(ws.dir, "installed")
+        const plugin = join(runtime, "plugins", "lectic-live")
+        await mkdir(plugin, { recursive: true })
+        await cp(join(root, "extra/plugins/lectic-live"), plugin, {
+          recursive: true,
+        })
+        const entry = join(plugin, "lectic-live.ts")
         const old = new History(ws, historyRoot(ws.env))
         old.checkpoint({ version: 1, conversationId: crypto.randomUUID(),
           incomplete: false, fragments: [{ provider: "gemini",
@@ -41,7 +47,7 @@ for (const background of [false, true]) {
         ] : [cli, "script", entry, "--controller", ...args]
         child = Bun.spawn(command, {
           cwd: ws.cwd, env: { ...ws.env, PATH: `${bin}:${ws.env.PATH}`,
-            LECTIC_RUNTIME: join(root, "extra"),
+            LECTIC_RUNTIME: runtime,
             ...(model === "gpt-live-1"
               ? { OPENAI_API_KEY: "unused-no-paid-session" }
               : { GEMINI_API_KEY: "unused-no-paid-session" }),
