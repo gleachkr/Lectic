@@ -80,6 +80,17 @@ OpenAI has two modes in Lectic today.
   like search and code.
 - `openai/chat` selects the legacy Chat Completions API.
 
+### Interrupted Responses streams
+
+For `codex` and `openai`, retryable WebSocket failures can be retried before
+any message text is streamed, or after streamed messages have completed.
+Completed messages and reasoning are included in the next request's context.
+
+If the connection fails during an unfinished streamed message, Lectic stops
+and reports the connection error. The partial text remains in the output;
+Lectic does not regenerate it automatically or try to splice a new answer
+onto it. A fresh generation is not guaranteed to reproduce the same text.
+
 ## Examples
 
 These examples show the minimal configuration for each provider. You can omit

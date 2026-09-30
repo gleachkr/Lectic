@@ -100,13 +100,6 @@ function errorChainText(error: unknown): string {
   return parts.join(": ")
 }
 
-class WebSocketRetryTextDivergenceError extends Error {
-  constructor() {
-    super("WebSocket retry text diverged from the partial response")
-    this.name = "WebSocketRetryTextDivergenceError"
-  }
-}
-
 function isRetryableWebSocketStreamError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === "AbortError") return false
 
@@ -487,7 +480,6 @@ export class OpenAIResponsesBackend extends Backend<
     ): AsyncGenerator<StreamChunk> {
       let thoughtOrder = 0
       let retryCount = 0
-      let retryPrefix = ""
 
       for (;;) {
         // The Codex endpoint sometimes emits a response.completed payload with
@@ -495,8 +487,7 @@ export class OpenAIResponsesBackend extends Backend<
         // does not discard an otherwise complete response.
         let capturedSnapshot: OpenAI.Responses.Response | undefined
         const accumulator: OpenAI.Responses.ResponseOutputItem[] = []
-        let uncommittedText = ""
-        let suppressedRetryText = ""
+        const unfinishedTextItems = new Set<number>()
         let iterationError: unknown
 
         const finalOutcome = stream.finalResponse().then(
@@ -511,32 +502,21 @@ export class OpenAIResponsesBackend extends Backend<
             }
 
             if (event.type === "response.output_text.delta") {
-              const originalDelta = event.delta || ""
-              uncommittedText += originalDelta
-              let delta = originalDelta
-
-              if (retryPrefix.length > 0) {
-                const candidate = suppressedRetryText + originalDelta
-                if (retryPrefix.startsWith(candidate)) {
-                  suppressedRetryText = candidate
-                  continue
-                }
-
-                if (!candidate.startsWith(retryPrefix)) {
-                  throw new WebSocketRetryTextDivergenceError()
-                }
-
-                delta = candidate.slice(retryPrefix.length)
-                retryPrefix = ""
-                suppressedRetryText = ""
+              const delta = event.delta || ""
+              if (delta.length > 0) {
+                unfinishedTextItems.add(event.output_index)
+                yield { kind: "text", text: delta }
               }
-
-              if (delta.length > 0) yield { kind: "text", text: delta }
             }
 
             if (event.type === "response.output_item.done") {
               accumulator[event.output_index] = event.item
-              if (event.item.type === "message") uncommittedText = ""
+              if (
+                event.item.type === "message" &&
+                event.item.status === "completed"
+              ) {
+                unfinishedTextItems.delete(event.output_index)
+              }
             }
 
             if (
@@ -594,19 +574,6 @@ export class OpenAIResponsesBackend extends Backend<
         }
 
         const outcome = await finalOutcome
-        if (
-          outcome.ok &&
-          retryPrefix.length > 0 &&
-          suppressedRetryText !== retryPrefix
-        ) {
-          iterationError = new WebSocketRetryTextDivergenceError()
-        }
-
-        if (iterationError instanceof WebSocketRetryTextDivergenceError) {
-          rejectFinal(iterationError)
-          throw iterationError
-        }
-
         const response = outcome.ok ? outcome.response : capturedSnapshot
         if (response) {
           resolveFinal(normalizeResponseOutput(response, accumulator))
@@ -614,7 +581,10 @@ export class OpenAIResponsesBackend extends Backend<
         }
 
         const error = iterationError ?? (outcome.ok ? undefined : outcome.error)
+        // Text is append-only once yielded. A fresh generation cannot safely
+        // replace an unfinished message or be expected to replay it verbatim.
         const canRetry =
+          unfinishedTextItems.size === 0 &&
           retryCount <= WEBSOCKET_STREAM_MAX_RETRIES &&
           isRetryableWebSocketStreamError(error)
 
@@ -625,7 +595,6 @@ export class OpenAIResponsesBackend extends Backend<
 
         const completedItems = retryContextItems(accumulator)
         if (completedItems.length > 0) messages.push(...completedItems)
-        if (retryPrefix.length === 0) retryPrefix = uncommittedText
 
         // One final immediate attempt lets a transport switch to its HTTPS
         // fallback after the normal WebSocket retry limit is exhausted.

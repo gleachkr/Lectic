@@ -6,7 +6,7 @@ import type { BackendCompletion } from "../types/backend"
 class TestResponsesBackend extends OpenAIResponsesBackend {
   constructor(
     private readonly fakeClientValue: unknown,
-    provider = LLMProvider.OpenAIResponses
+    provider: LLMProvider
   ) {
     super({
       apiKeyEnv: "OPENAI_API_KEY",
@@ -26,28 +26,25 @@ class TestResponsesBackend extends OpenAIResponsesBackend {
   createForTest(messages: unknown[]) {
     return this.createCompletion({
       messages: messages as any,
-      lectic: makeLectic() as any,
+      lectic: {
+        header: {
+          interlocutor: {
+            name: "Assistant",
+            prompt: "Be helpful.",
+            model: "gpt-test",
+            registry: {},
+            tools: [],
+          },
+        },
+      } as any,
     })
-  }
-}
-
-function makeLectic() {
-  return {
-    header: {
-      interlocutor: {
-        name: "Assistant",
-        prompt: "Be helpful.",
-        model: "gpt-test",
-        registry: {},
-        tools: [],
-      },
-    },
   }
 }
 
 type FakeStreamOptions = {
   events: unknown[]
   error?: Error
+  finalError?: Error
   response?: Record<string, unknown>
 }
 
@@ -58,9 +55,54 @@ function fakeStream(options: FakeStreamOptions) {
       if (options.error) throw options.error
     },
     finalResponse() {
-      return options.error
-        ? Promise.reject(options.error)
+      const error = options.finalError ?? options.error
+      return error
+        ? Promise.reject(error)
         : Promise.resolve(options.response ?? { output: [] })
+    },
+  }
+}
+
+function testBackend(provider: LLMProvider, streams: FakeStreamOptions[]) {
+  const requestInputs: unknown[][] = []
+  const backend = new TestResponsesBackend({
+    responses: {
+      stream(args: Record<string, unknown>) {
+        const options = streams[requestInputs.length]
+        requestInputs.push([...(args["input"] as unknown[])])
+        if (!options) throw new Error("Unexpected extra request")
+        return fakeStream(options)
+      },
+    },
+  }, provider)
+  return { backend, requestInputs }
+}
+
+function textDelta(delta: string, output_index = 0) {
+  return { type: "response.output_text.delta", delta, output_index }
+}
+
+function messageDone(
+  text: string,
+  output_index = 0,
+  status: "completed" | "incomplete" = "completed"
+) {
+  return {
+    type: "response.output_item.done",
+    output_index,
+    item: {
+      type: "message" as const,
+      id: `msg_${output_index}`,
+      status,
+      role: "assistant" as const,
+      content: [
+        {
+          type: "output_text" as const,
+          text,
+          annotations: [],
+          logprobs: [],
+        },
+      ],
     },
   }
 }
@@ -75,242 +117,226 @@ async function collectText(
   return text
 }
 
-describe("Responses WebSocket stream retries", () => {
-  test("retries a 1012 close for a non-Codex backend", async () => {
+async function expectInterrupted(
+  completion: BackendCompletion<any>,
+  error: Error,
+  expectedText: string
+) {
+  let visibleText = ""
+  const text = (async () => {
+    for await (const chunk of completion.chunks) {
+      if (chunk.kind === "text") visibleText += chunk.text
+    }
+  })()
+  expect(text).rejects.toBe(error)
+  expect(completion.final).rejects.toBe(error)
+  await Promise.allSettled([text, completion.final])
+  expect(visibleText).toBe(expectedText)
+}
+
+describe.each([LLMProvider.Codex, LLMProvider.OpenAIResponses])(
+  "Responses WebSocket stream retries (%s)",
+  (provider) => {
     const closed = new Error(
       "WebSocket closed before response.completed (code 1012)"
     )
-    const streams = [
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hel" },
-        ],
-        error: closed,
-      }),
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hello" },
-        ],
-        response: { output: [] },
-      }),
-    ]
-    let requests = 0
-    const backend = new TestResponsesBackend({
-      responses: {
-        stream() {
-          return streams[requests++]
-        },
-      },
+
+    test("retries before any text has streamed", async () => {
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [], error: closed },
+        { events: [textDelta("hello")] },
+      ])
+      const completion = await backend.createForTest([])
+
+      expect(await collectText(completion)).toBe("hello")
+      expect((await completion.final).output).toEqual([])
+      expect(requestInputs).toEqual([[], []])
     })
 
-    const completion = await backend.createForTest([])
+    test("an empty delta does not prevent retry", async () => {
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [textDelta("")], error: closed },
+        { events: [textDelta("hello")] },
+      ])
+      const completion = await backend.createForTest([])
 
-    expect(await collectText(completion)).toBe("hello")
-    const final = await completion.final
-    expect(final.output).toEqual([])
-    expect(requests).toBe(2)
-  })
+      expect(await collectText(completion)).toBe("hello")
+      await completion.final
+      expect(requestInputs).toHaveLength(2)
+    })
 
-  test("includes completed items in the retried request context", async () => {
-    const closed = new Error(
-      "WebSocket closed before response.completed (code 1012)"
-    )
-    const completedMessage = {
-      type: "message",
-      id: "msg_1",
-      status: "completed",
-      role: "assistant",
-      content: [
+    test.each([
+      "WebSocket closed before response.completed (code 1012)",
+      "WebSocket stream error",
+      "Idle timeout waiting for WebSocket",
+      "Idle timeout sending WebSocket",
+    ])("stops on interrupted text: %s", async (message) => {
+      const error = new Error(message)
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [textDelta("hel")], error },
+        { events: [textDelta("a different answer")] },
+      ])
+      const completion = await backend.createForTest([])
+
+      await expectInterrupted(completion, error, "hel")
+      expect(requestInputs).toHaveLength(1)
+    })
+
+    test("stops if a retry streams text and then disconnects", async () => {
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [], error: closed },
+        { events: [textDelta("hel")], error: closed },
+        { events: [textDelta("hello")] },
+      ])
+      const completion = await backend.createForTest([])
+
+      await expectInterrupted(completion, closed, "hel")
+      expect(requestInputs).toHaveLength(2)
+    })
+
+    test("retries with a completed message in context", async () => {
+      const done = messageDone("First.")
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [textDelta("First."), done], error: closed },
+        { events: [textDelta(" Second.")] },
+      ])
+      const user = { role: "user", content: "Continue." }
+      const completion = await backend.createForTest([user])
+
+      expect(await collectText(completion)).toBe("First. Second.")
+      await completion.final
+      expect(requestInputs).toEqual([[user], [user, done.item]])
+    })
+
+    test("stops if a later message is interrupted", async () => {
+      const { backend, requestInputs } = testBackend(provider, [
         {
-          type: "output_text",
-          text: "First.",
-          annotations: [],
-          logprobs: [],
+          events: [
+            textDelta("First."),
+            messageDone("First."),
+            textDelta(" Sec", 1),
+          ],
+          error: closed,
         },
-      ],
-    }
-    const streams = [
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "First." },
-          {
+      ])
+      const messages: unknown[] = []
+      const completion = await backend.createForTest(messages)
+
+      await expectInterrupted(completion, closed, "First. Sec")
+      expect(requestInputs).toHaveLength(1)
+      expect(messages).toEqual([])
+    })
+
+    test("another item's completion cannot clear partial text", async () => {
+      const { backend, requestInputs } = testBackend(provider, [
+        {
+          events: [
+            textDelta("First."),
+            textDelta(" Sec", 1),
+            messageDone("First."),
+          ],
+          error: closed,
+        },
+      ])
+      const completion = await backend.createForTest([])
+
+      await expectInterrupted(completion, closed, "First. Sec")
+      expect(requestInputs).toHaveLength(1)
+    })
+
+    test("an incomplete done item does not permit retry", async () => {
+      const { backend, requestInputs } = testBackend(provider, [
+        {
+          events: [textDelta("hel"), messageDone("hel", 0, "incomplete")],
+          error: closed,
+        },
+      ])
+      const completion = await backend.createForTest([])
+
+      await expectInterrupted(completion, closed, "hel")
+      expect(requestInputs).toHaveLength(1)
+    })
+
+    test("retains completed reasoning when retrying", async () => {
+      const reasoning = {
+        type: "reasoning",
+        id: "rs_1",
+        status: "completed",
+        summary: [{ type: "summary_text", text: "Thinking." }],
+      }
+      const { backend, requestInputs } = testBackend(provider, [
+        {
+          events: [{
             type: "response.output_item.done",
             output_index: 0,
-            item: completedMessage,
-          },
-        ],
-        error: closed,
-      }),
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: " Second." },
-        ],
-        response: { output: [] },
-      }),
-    ]
-    const requestInputs: unknown[] = []
-    let requests = 0
-    const backend = new TestResponsesBackend({
-      responses: {
-        stream(args: Record<string, unknown>) {
-          requestInputs.push([...(args["input"] as unknown[])])
-          return streams[requests++]
+            item: reasoning,
+          }],
+          error: closed,
         },
-      },
+        { events: [textDelta("hello")] },
+      ])
+      const completion = await backend.createForTest([])
+      const chunks = []
+      for await (const chunk of completion.chunks) chunks.push(chunk)
+      await completion.final
+
+      expect(chunks.map((chunk) => chunk.kind)).toEqual(["thought", "text"])
+      expect(requestInputs).toEqual([[], [reasoning]])
     })
 
-    const completion = await backend.createForTest([
-      { role: "user", content: "Continue." },
-    ])
-
-    expect(await collectText(completion)).toBe("First. Second.")
-    await completion.final
-    expect(requestInputs).toHaveLength(2)
-    expect(requestInputs[1]).toContainEqual(completedMessage)
-  })
-
-  test("fails when retried text diverges", async () => {
-    const closed = new Error(
-      "WebSocket closed before response.completed (code 1012)"
-    )
-    const streams = [
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hel" },
-        ],
-        error: closed,
-      }),
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hey" },
-        ],
-        response: { output: [] },
-      }),
-    ]
-    let requests = 0
-    const backend = new TestResponsesBackend({
-      responses: {
-        stream() {
-          return streams[requests++]
+    test("preserves completed-snapshot recovery", async () => {
+      const done = messageDone("hello")
+      const { backend, requestInputs } = testBackend(provider, [
+        {
+          events: [
+            textDelta("hello"),
+            done,
+            { type: "response.completed", response: {} },
+          ],
+          finalError: new Error("SDK parser error: missing output"),
         },
-      },
+      ])
+      const completion = await backend.createForTest([])
+
+      expect(await collectText(completion)).toBe("hello")
+      expect((await completion.final).output).toEqual([{
+        ...done.item,
+        content: done.item.content.map((part) => ({ ...part, parsed: null })),
+      }])
+      expect(requestInputs).toHaveLength(1)
     })
 
-    const completion = await backend.createForTest([])
-    const text = collectText(completion)
+    test("keeps the retry budget and final fallback attempt", async () => {
+      const { backend, requestInputs } = testBackend(provider, [
+        ...Array.from({ length: 6 }, () => ({ events: [], error: closed })),
+        { events: [textDelta("hello")] },
+      ])
+      const completion = await backend.createForTest([])
 
-    expect(text).rejects.toThrow(
-      "WebSocket retry text diverged from the partial response"
-    )
-    expect(completion.final).rejects.toThrow(
-      "WebSocket retry text diverged from the partial response"
-    )
-    await Promise.allSettled([text, completion.final])
-    expect(requests).toBe(2)
-  })
-
-  test("keeps the original prefix across repeated disconnects", async () => {
-    const closed = new Error(
-      "WebSocket closed before response.completed (code 1012)"
-    )
-    const streams = [
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hello" },
-        ],
-        error: closed,
-      }),
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hel" },
-        ],
-        error: closed,
-      }),
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "help" },
-        ],
-        response: { output: [] },
-      }),
-    ]
-    let requests = 0
-    const backend = new TestResponsesBackend({
-      responses: {
-        stream() {
-          return streams[requests++]
-        },
-      },
+      expect(await collectText(completion)).toBe("hello")
+      await completion.final
+      expect(requestInputs).toHaveLength(7)
     })
 
-    const completion = await backend.createForTest([])
-    const text = collectText(completion)
+    test("stops when the retry budget is exhausted", async () => {
+      const { backend, requestInputs } = testBackend(provider,
+        Array.from({ length: 7 }, () => ({ events: [], error: closed }))
+      )
+      const completion = await backend.createForTest([])
 
-    expect(text).rejects.toThrow(
-      "WebSocket retry text diverged from the partial response"
-    )
-    expect(completion.final).rejects.toThrow(
-      "WebSocket retry text diverged from the partial response"
-    )
-    await Promise.allSettled([text, completion.final])
-    expect(requests).toBe(3)
-  })
-
-  test("fails when a successful retry is shorter", async () => {
-    const closed = new Error(
-      "WebSocket closed before response.completed (code 1012)"
-    )
-    const streams = [
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hello" },
-        ],
-        error: closed,
-      }),
-      fakeStream({
-        events: [
-          { type: "response.output_text.delta", delta: "hell" },
-        ],
-        response: { output: [] },
-      }),
-    ]
-    let requests = 0
-    const backend = new TestResponsesBackend({
-      responses: {
-        stream() {
-          return streams[requests++]
-        },
-      },
+      await expectInterrupted(completion, closed, "")
+      expect(requestInputs).toHaveLength(7)
     })
 
-    const completion = await backend.createForTest([])
-    const text = collectText(completion)
+    test("does not retry non-transport errors", async () => {
+      const error = new Error("400 invalid request")
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [], error },
+      ])
+      const completion = await backend.createForTest([])
 
-    expect(text).rejects.toThrow(
-      "WebSocket retry text diverged from the partial response"
-    )
-    expect(completion.final).rejects.toThrow(
-      "WebSocket retry text diverged from the partial response"
-    )
-    await Promise.allSettled([text, completion.final])
-    expect(requests).toBe(2)
-  })
-
-  test("does not retry non-transport errors", async () => {
-    const rejected = new Error("400 invalid request")
-    let requests = 0
-    const backend = new TestResponsesBackend({
-      responses: {
-        stream() {
-          requests++
-          return fakeStream({ events: [], error: rejected })
-        },
-      },
+      await expectInterrupted(completion, error, "")
+      expect(requestInputs).toHaveLength(1)
     })
-
-    const completion = await backend.createForTest([])
-
-    expect(collectText(completion)).rejects.toBe(rejected)
-    expect(completion.final).rejects.toBe(rejected)
-    expect(requests).toBe(1)
-  })
-})
+  }
+)
