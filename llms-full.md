@@ -1146,6 +1146,19 @@ OpenAI has two modes in Lectic today.
   tools like search and code.
 - `openai/chat` selects the legacy Chat Completions API.
 
+### Interrupted Responses streams
+
+For `codex` and `openai`, retryable WebSocket failures can be retried
+before any message text is streamed, or after streamed messages have
+completed. Completed messages and reasoning are included in the next
+request’s context.
+
+If the connection fails during an unfinished streamed message, Lectic
+stops and reports the connection error. The partial text remains in the
+output; Lectic does not regenerate it automatically or try to splice a
+new answer onto it. A fresh generation is not guaranteed to reproduce
+the same text.
+
 ## Examples
 
 These examples show the minimal configuration for each provider. You can
@@ -4633,6 +4646,11 @@ lectic [FLAGS] [OPTIONS] [SUBCOMMAND] [ARGS...]
   - `-f`, `--file <PATH>`: Path to the `.lec` file to parse. If omitted,
     reads from standard input.
   - `--yaml`: Emit YAML instead of JSON.
+  - `--effective-header`: Report merged system, workspace, imported, and
+    document configuration in `header`, rather than the raw document
+    header. Does not initialize tools, execute loaders, or expand
+    macros. Output can contain configured secrets. Cannot be used with
+    `--reverse`.
   - `--reverse`: Ingest JSON (or YAML) output and reconstruct the
     original lectic file.
 
@@ -4723,6 +4741,15 @@ guide for details.
     view used when replaying one interlocutor’s prior assistant turn to
     another.
   - `none`: print nothing
+
+- `--no-macros` Skip all user-message macro evaluation, including
+  built-in directives such as `:cmd`, `:fetch`, `:env`, `:merge_yaml`,
+  `:ask`, and `:reset`. Directive syntax stays literal in both prior
+  messages and new input. Configured tools, hooks, executable
+  configuration sources, and ordinary Markdown attachment loading are
+  unaffected. This is not a sandbox. The flag applies to this generation
+  only; it is not saved in the file. `lectic live` always supplies it
+  for delegated backend runs.
 
 - `-l`, `--log <PATH>` Write detailed debug logs to the given file.
 

@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-56a7063a21dd4c20fbc96590a1db8d87.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-24c09a13944ec7e1f31d2917b1251fc2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -450,6 +450,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <ul>
 <li><code>-f</code>, <code>--file &lt;PATH&gt;</code>: Path to the <code>.lec</code> file to parse. If omitted, reads from standard input.</li>
 <li><code>--yaml</code>: Emit YAML instead of JSON.</li>
+<li><code>--effective-header</code>: Report merged system, workspace, imported, and document configuration in <code>header</code>, rather than the raw document header. Does not initialize tools, execute loaders, or expand macros. Output can contain configured secrets. Cannot be used with <code>--reverse</code>.</li>
 <li><code>--reverse</code>: Ingest JSON (or YAML) output and reconstruct the original lectic file.</li>
 </ul></li>
 <li><p><code>lectic models</code> List available models for providers with detected credentials.</p>
@@ -496,6 +497,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>clean</code>: stream only assistant text, stripping tool calls, thought blocks, and inline attachments. This is similar to the prose-only view used when replaying one interlocutor’s prior assistant turn to another.</li>
 <li><code>none</code>: print nothing</li>
 </ul></li>
+<li><p><code>--no-macros</code> Skip all user-message macro evaluation, including built-in directives such as <code>:cmd</code>, <code>:fetch</code>, <code>:env</code>, <code>:merge_yaml</code>, <code>:ask</code>, and <code>:reset</code>. Directive syntax stays literal in both prior messages and new input. Configured tools, hooks, executable configuration sources, and ordinary Markdown attachment loading are unaffected. This is not a sandbox. The flag applies to this generation only; it is not saved in the file. <code>lectic live</code> always supplies it for delegated backend runs.</p></li>
 <li><p><code>-l</code>, <code>--log &lt;PATH&gt;</code> Write detailed debug logs to the given file.</p></li>
 <li><p><code>-h</code>, <code>--help</code> Show help for all flags and options.</p></li>
 </ul>

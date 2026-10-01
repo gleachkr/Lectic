@@ -80,7 +80,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-56a7063a21dd4c20fbc96590a1db8d87.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-24c09a13944ec7e1f31d2917b1251fc2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -420,7 +420,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#picking-a-default-provider" id="toc-picking-a-default-provider" class="nav-link" data-scroll-target="#picking-a-default-provider">Picking a default provider</a></li>
   <li><a href="#chatgpt-subscription-no-api-key" id="toc-chatgpt-subscription-no-api-key" class="nav-link" data-scroll-target="#chatgpt-subscription-no-api-key">ChatGPT subscription (no API key)</a></li>
   <li><a href="#discover-models" id="toc-discover-models" class="nav-link" data-scroll-target="#discover-models">Discover models</a></li>
-  <li><a href="#openai-two-provider-strings" id="toc-openai-two-provider-strings" class="nav-link" data-scroll-target="#openai-two-provider-strings">OpenAI: two provider strings</a></li>
+  <li><a href="#openai-two-provider-strings" id="toc-openai-two-provider-strings" class="nav-link" data-scroll-target="#openai-two-provider-strings">OpenAI: two provider strings</a>
+  <ul class="collapse">
+  <li><a href="#interrupted-responses-streams" id="toc-interrupted-responses-streams" class="nav-link" data-scroll-target="#interrupted-responses-streams">Interrupted Responses streams</a></li>
+  </ul></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#capabilities-and-media" id="toc-capabilities-and-media" class="nav-link" data-scroll-target="#capabilities-and-media">Capabilities and media</a></li>
   </ul></li>
@@ -502,6 +505,11 @@ Note
 <li><code>openai</code> selects the Responses API. Choose this when you want native tools like search and code.</li>
 <li><code>openai/chat</code> selects the legacy Chat Completions API.</li>
 </ul>
+<section id="interrupted-responses-streams" class="level3">
+<h3 class="anchored" data-anchor-id="interrupted-responses-streams">Interrupted Responses streams</h3>
+<p>For <code>codex</code> and <code>openai</code>, retryable WebSocket failures can be retried before any message text is streamed, or after streamed messages have completed. Completed messages and reasoning are included in the next request’s context.</p>
+<p>If the connection fails during an unfinished streamed message, Lectic stops and reports the connection error. The partial text remains in the output; Lectic does not regenerate it automatically or try to splice a new answer onto it. A fresh generation is not guaranteed to reproduce the same text.</p>
+</section>
 </section>
 <section id="examples" class="level2">
 <h2 class="anchored" data-anchor-id="examples">Examples</h2>
