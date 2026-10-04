@@ -1,8 +1,7 @@
-import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, realpathSync, rmSync } from "node:fs"
+import { createHash, randomUUID } from "node:crypto"
+import { mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import {
-  createConnection as createNetConnection,
   createServer,
   type Server,
   type Socket,
@@ -115,6 +114,25 @@ export function editorBridgeSocketPath(
   return join(stateDir, "lsp", `editor-${hash}.sock`)
 }
 
+// Each LSP owns a socket, independently of its workspace roots. Root
+// registrations are discovery hints, not shared listeners or ownership locks.
+export function editorBridgeInstanceSocketPath(
+  instanceId: string,
+  stateDir: string = lecticStateDir()
+): string {
+  if (process.platform === "win32") {
+    return `\\\\.\\pipe\\lectic-editor-${instanceId}`
+  }
+  return join(stateDir, "lsp", `editor-${instanceId}.sock`)
+}
+
+export function editorBridgeRegistryDir(
+  root: string,
+  stateDir: string = lecticStateDir()
+): string {
+  return join(stateDir, "lsp", "roots", socketHash(root))
+}
+
 export function editorBridgeCandidateRoots(startDir: string): string[] {
   const roots: string[] = []
   let current = normalizeRoot(startDir)
@@ -147,24 +165,6 @@ function formatPromptMessage(title: string, message: string | undefined): string
   if (!trimmedMessage) return trimmedTitle
   if (!trimmedTitle) return trimmedMessage
   return `${trimmedTitle}\n\n${trimmedMessage}`
-}
-
-async function canConnectToSocket(path: string): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    const socket = createNetConnection(path)
-    let settled = false
-
-    const finish = (value: boolean) => {
-      if (settled) return
-      settled = true
-      socket.destroy()
-      resolve(value)
-    }
-
-    socket.once("connect", () => finish(true))
-    socket.once("error", () => finish(false))
-    socket.setTimeout(150, () => finish(false))
-  })
 }
 
 async function listenOnServer(server: Server, path: string): Promise<void> {
@@ -524,8 +524,13 @@ class EditorBridgeHandler {
 
 export class EditorBridgeManager {
   private readonly handler: EditorBridgeHandler
-  private readonly roots = new Set<string>()
-  private readonly servers = new Map<string, Server>()
+  private readonly instanceId = randomUUID()
+  private readonly registrations = new Set<string>()
+  private readonly sockets = new Set<Socket>()
+  private server?: Server
+  private starting?: Promise<string | undefined>
+  private disposing?: Promise<void>
+  private disposed = false
 
   constructor(
     connection: LspBridgeConnection,
@@ -545,59 +550,71 @@ export class EditorBridgeManager {
     return this.opt.enabled ?? true
   }
 
-  async ensureRoot(root: string): Promise<void> {
-    if (!this.enabled) return
+  get socketPath(): string | undefined {
+    if (!this.server || this.disposed) return undefined
+    return editorBridgeInstanceSocketPath(this.instanceId, this.opt.stateDir)
+  }
 
-    const normalized = normalizeRoot(root)
-    if (this.roots.has(normalized)) return
-    this.roots.add(normalized)
+  start(): Promise<string | undefined> {
+    if (!this.enabled || this.disposed) return Promise.resolve(undefined)
+    this.starting ??= this.startServer()
+    return this.starting
+  }
 
-    const path = editorBridgeSocketPath(normalized, this.opt.stateDir)
+  private async startServer(): Promise<string | undefined> {
+    const path = editorBridgeInstanceSocketPath(
+      this.instanceId, this.opt.stateDir
+    )
     const server = createServer((socket) => {
+      this.sockets.add(socket)
+      socket.once("close", () => this.sockets.delete(socket))
       this.handleSocket(socket)
     })
-
     server.on("error", (error) => {
       Logger.debug("editor bridge socket error", {
-        root: normalized,
         path,
         error: error instanceof Error ? error.message : String(error),
       })
     })
-
-    if (process.platform !== "win32") {
-      mkdirSync(dirname(path), { recursive: true })
-      if (existsSync(path)) {
-        if (await canConnectToSocket(path)) {
-          Logger.debug("editor bridge socket already active", {
-            root: normalized,
-            path,
-          })
-          server.close()
-          return
-        }
-        rmSync(path, { force: true })
-      }
-    }
-
     try {
+      mkdirSync(join(this.opt.stateDir ?? lecticStateDir(), "lsp"), {
+        recursive: true,
+        mode: 0o700,
+      })
       await listenOnServer(server, path)
-      this.servers.set(normalized, server)
+      this.server = server
+      return path
     } catch (error) {
       Logger.debug("failed to start editor bridge", {
-        root: normalized,
         path,
         error: error instanceof Error ? error.message : String(error),
       })
-      if (process.platform !== "win32" && existsSync(path)) {
-        rmSync(path, { force: true })
-      }
+      // A failed bind never owns the path. Do not unlink another listener.
       server.close()
+      return undefined
+    }
+  }
+
+  async ensureRoot(root: string): Promise<void> {
+    if (!(await this.start()) || this.disposed) return
+    const directory = editorBridgeRegistryDir(root, this.opt.stateDir)
+    const registration = join(directory, this.instanceId)
+    if (this.registrations.has(registration)) return
+    try {
+      mkdirSync(directory, { recursive: true, mode: 0o700 })
+      writeFileSync(registration, "", { flag: "wx", mode: 0o600 })
+      this.registrations.add(registration)
+    } catch (error) {
+      // Explicit socket selection still works if discovery is unavailable.
+      Logger.debug("failed to register editor bridge root", {
+        root,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
   async noteDocumentUri(uri: string): Promise<void> {
-    if (!this.enabled || this.roots.size > 0) return
+    if (!this.enabled || this.registrations.size > 0) return
     try {
       const parsed = new URL(uri)
       if (parsed.protocol !== "file:") return
@@ -607,20 +624,26 @@ export class EditorBridgeManager {
     }
   }
 
-  async dispose(): Promise<void> {
-    const stateDir = this.opt.stateDir
-    const closes = [...this.servers.entries()].map(async ([root, server]) => {
-      const path = editorBridgeSocketPath(root, stateDir)
-      await new Promise<void>((resolve) => {
-        server.close(() => resolve())
-      })
-      if (process.platform !== "win32") {
-        rmSync(path, { force: true })
-      }
-    })
-    await Promise.all(closes)
-    this.servers.clear()
-    this.roots.clear()
+  dispose(): Promise<void> {
+    this.disposing ??= this.disposeServer()
+    return this.disposing
+  }
+
+  private async disposeServer(): Promise<void> {
+    this.disposed = true
+    await this.starting
+    for (const registration of this.registrations) {
+      rmSync(registration, { force: true })
+    }
+    this.registrations.clear()
+    for (const socket of this.sockets) socket.destroy()
+    if (this.server) {
+      const server = this.server
+      this.server = undefined
+      // Node removes its Unix socket on close. An extra unlink here could
+      // delete a replacement listener's socket.
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
   }
 
   private handleSocket(socket: Socket): void {

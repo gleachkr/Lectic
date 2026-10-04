@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { existsSync, realpathSync } from "node:fs"
+import { existsSync, readdirSync, realpathSync } from "node:fs"
 import { createConnection as createNetConnection } from "node:net"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -195,6 +195,23 @@ async function connectAndRequest(
   })
 }
 
+function registeredSockets(root: string): string[] {
+  const directory = join(lecticStateDir(), "lsp", "roots", socketHash(root))
+  let entries: string[]
+  try {
+    entries = readdirSync(directory)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return []
+    throw error
+  }
+  return entries.sort().filter((id) =>
+    /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(id)
+  ).map((id) => process.platform === "win32"
+    ? `\\\\.\\pipe\\lectic-editor-${id}`
+    : join(lecticStateDir(), "lsp", `editor-${id}.sock`)
+  )
+}
+
 async function findSocketPath(explicitPath?: string): Promise<string> {
   if (explicitPath) return explicitPath
 
@@ -203,10 +220,20 @@ async function findSocketPath(explicitPath?: string): Promise<string> {
 
   const startDir = commandStartDir()
   for (const root of candidateRoots(startDir)) {
-    const socketPath = socketPathForRoot(root)
-    if (!(await socketExists(socketPath))) continue
-    if (!(await canConnect(socketPath))) continue
-    return socketPath
+    // Include the old deterministic path for compatibility with older LSPs.
+    const candidates = [socketPathForRoot(root), ...registeredSockets(root)]
+    const active: string[] = []
+    for (const path of candidates) {
+      if (!(await socketExists(path))) continue
+      if (await canConnect(path)) active.push(path)
+    }
+    if (active.length > 1) {
+      throw new Error(
+        `multiple active Lectic editor bridges for ${root}; `
+        + "use --socket or LECTIC_EDITOR_SOCKET to select the editor"
+      )
+    }
+    if (active.length === 1) return active[0]
   }
 
   throw new Error(

@@ -279,16 +279,23 @@ export function registerLspHandlers(
     supportsWorkDoneProgress: () => clientSupportsWorkDoneProgress,
   })
 
+  connection.onShutdown(() => editorBridge.dispose())
+  connection.onExit(() => { void editorBridge.dispose() })
+
   connection.onInitialize(async (params: InitializeParams)
     : Promise<InitializeResult> => {
     workspaceRoots = extractWorkspaceRoots(params)
     clientSupportsWorkDoneProgress =
       params.capabilities.window?.workDoneProgress === true
+    await editorBridge.start()
     for (const root of workspaceRoots) {
       await editorBridge.ensureRoot(root)
     }
     return {
       capabilities: {
+        experimental: {
+          lecticEditorBridgeSocket: editorBridge.socketPath,
+        },
         textDocumentSync: TextDocumentSyncKind.Full,
         completionProvider: {
           triggerCharacters: [":", "[", "-"]

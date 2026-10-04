@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtempSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, rmSync } from "node:fs"
 import { createConnection as createNetConnection } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -7,7 +7,6 @@ import { PassThrough } from "stream"
 import { createMessageConnection } from "vscode-jsonrpc"
 import { StreamMessageReader, StreamMessageWriter } from "vscode-jsonrpc/node"
 
-import { editorBridgeSocketPath } from "./editorBridge"
 import { startLspWithStreams } from "./server"
 
 async function requestBridge(
@@ -88,7 +87,7 @@ describe("LSP editor bridge", () => {
       })
       client.listen()
 
-      await client.sendRequest("initialize", {
+      const initialized = await client.sendRequest("initialize", {
         processId: null,
         clientInfo: { name: "test" },
         rootUri: `file://${workspaceRoot}`,
@@ -99,7 +98,9 @@ describe("LSP editor bridge", () => {
         },
       })
 
-      const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+      const socketPath = (initialized as {
+        capabilities: { experimental: { lecticEditorBridgeSocket: string } }
+      }).capabilities.experimental.lecticEditorBridgeSocket
       const response = await requestBridge(socketPath, {
         id: "progress-1",
         type: "progress.begin",
@@ -128,6 +129,7 @@ describe("LSP editor bridge", () => {
         },
       ])
 
+      await client.sendRequest("shutdown")
       client.dispose()
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true })
@@ -168,7 +170,7 @@ describe("LSP editor bridge", () => {
       })
       client.listen()
 
-      await client.sendRequest("initialize", {
+      const initialized = await client.sendRequest("initialize", {
         processId: null,
         clientInfo: { name: "test" },
         rootUri: `file://${workspaceRoot}`,
@@ -179,7 +181,9 @@ describe("LSP editor bridge", () => {
         },
       })
 
-      const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+      const socketPath = (initialized as {
+        capabilities: { experimental: { lecticEditorBridgeSocket: string } }
+      }).capabilities.experimental.lecticEditorBridgeSocket
       const endResponse = await requestBridge(socketPath, {
         id: "progress-end-1",
         type: "progress.end",
@@ -227,6 +231,7 @@ describe("LSP editor bridge", () => {
         },
       ])
 
+      await client.sendRequest("shutdown")
       client.dispose()
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true })
@@ -267,7 +272,7 @@ describe("LSP editor bridge", () => {
       })
       client.listen()
 
-      await client.sendRequest("initialize", {
+      const initialized = await client.sendRequest("initialize", {
         processId: null,
         clientInfo: { name: "test" },
         rootUri: `file://${workspaceRoot}`,
@@ -278,7 +283,9 @@ describe("LSP editor bridge", () => {
         },
       })
 
-      const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+      const socketPath = (initialized as {
+        capabilities: { experimental: { lecticEditorBridgeSocket: string } }
+      }).capabilities.experimental.lecticEditorBridgeSocket
       const reportResponse = await requestBridge(socketPath, {
         id: "progress-report-1",
         type: "progress.report",
@@ -328,6 +335,7 @@ describe("LSP editor bridge", () => {
         },
       ])
 
+      await client.sendRequest("shutdown")
       client.dispose()
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true })
@@ -364,14 +372,16 @@ describe("LSP editor bridge", () => {
       })
       client.listen()
 
-      await client.sendRequest("initialize", {
+      const initialized = await client.sendRequest("initialize", {
         processId: null,
         clientInfo: { name: "test" },
         rootUri: `file://${workspaceRoot}`,
         capabilities: {},
       })
 
-      const socketPath = editorBridgeSocketPath(workspaceRoot, stateDir)
+      const socketPath = (initialized as {
+        capabilities: { experimental: { lecticEditorBridgeSocket: string } }
+      }).capabilities.experimental.lecticEditorBridgeSocket
       const response = await requestBridge(socketPath, {
         id: "pick-1",
         type: "query.pick",
@@ -404,10 +414,71 @@ describe("LSP editor bridge", () => {
         },
       ])
 
+      await client.sendRequest("shutdown")
       client.dispose()
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true })
       rmSync(stateDir, { recursive: true, force: true })
     }
   })
+})
+
+
+test("two LSP clients own independent bridges for the same root", async () => {
+  const stateDir = mkdtempSync(join(tmpdir(), "lectic-two-lsp-state-"))
+  const root = mkdtempSync(join(tmpdir(), "lectic-two-lsp-root-"))
+  const clients: ReturnType<typeof createMessageConnection>[] = []
+  const start = async (title: string) => {
+    const c2s = new PassThrough()
+    const s2c = new PassThrough()
+    startLspWithStreams(
+      new StreamMessageReader(c2s), new StreamMessageWriter(s2c),
+      { enableEditorBridge: true, editorBridgeStateDir: stateDir }
+    )
+    const client = createMessageConnection(
+      new StreamMessageReader(s2c), new StreamMessageWriter(c2s)
+    )
+    clients.push(client)
+    client.onRequest("window/showMessageRequest", () => ({ title }))
+    client.listen()
+    const initialized: {
+      capabilities: { experimental: { lecticEditorBridgeSocket: string } }
+    } = await client.sendRequest("initialize", {
+      processId: null, rootUri: `file://${root}`, capabilities: {},
+    })
+    return {
+      client,
+      socket: initialized.capabilities.experimental.lecticEditorBridgeSocket,
+    }
+  }
+  const pick = (socket: string) => requestBridge(socket, {
+    id: "pick", type: "query.pick",
+    params: { title: "Which editor?", options: ["A", "B"] },
+  })
+  try {
+    const a = await start("A")
+    const b = await start("B")
+    expect(a.socket).not.toBe(b.socket)
+    expect(await pick(a.socket)).toEqual({
+      id: "pick", ok: true, result: { choice: "A" },
+    })
+    expect(await pick(b.socket)).toEqual({
+      id: "pick", ok: true, result: { choice: "B" },
+    })
+    await a.client.sendRequest("shutdown")
+    if (process.platform !== "win32") {
+      expect(existsSync(a.socket)).toBe(false)
+      expect(existsSync(b.socket)).toBe(true)
+    }
+    expect(await pick(b.socket)).toEqual({
+      id: "pick", ok: true, result: { choice: "B" },
+    })
+  } finally {
+    for (const client of clients) {
+      await client.sendRequest("shutdown")
+      client.dispose()
+    }
+    rmSync(root, { recursive: true, force: true })
+    rmSync(stateDir, { recursive: true, force: true })
+  }
 })

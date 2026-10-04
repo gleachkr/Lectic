@@ -1,10 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
+import { randomUUID } from "node:crypto"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 
-import { editorBridgeSocketPath } from "../../../src/lsp/editorBridge"
+import {
+  EditorBridgeManager,
+  editorBridgeRegistryDir,
+  editorBridgeSocketPath,
+} from "../../../src/lsp/editorBridge"
 
 import {
   maybeChecktimeParentNvim,
@@ -336,6 +341,75 @@ describe("lectic editor plugin", () => {
       })
     } finally {
       rmSync(workspaceRoot, { recursive: true, force: true })
+      rmSync(stateDir, { recursive: true, force: true })
+    }
+  })
+})
+
+
+describe("editor bridge ownership", () => {
+  test("isolates editors and discovers the survivor after shutdown", async () => {
+    const stateDir = mkdtempSync(join(tmpdir(), "lectic-owner-state-"))
+    const root = mkdtempSync(join(tmpdir(), "lectic-owner-root-"))
+    const calls: string[] = []
+    const manager = (name: string) => new EditorBridgeManager({
+      sendRequest: async () => {
+        calls.push(name)
+        return { title: name }
+      },
+      sendNotification: () => {},
+    }, { stateDir })
+    const a = manager("A")
+    const b = manager("B")
+    const run = (socket?: string, args: string[] = []) => runTsScript(
+      editorScriptPath,
+      ["pick", "--title", "Editor?", "--option", "A", "--option", "B",
+        ...args],
+      { cwd: root, env: {
+        LECTIC_STATE: stateDir,
+        LECTIC_FILE: undefined,
+        LECTIC_EDITOR_SOCKET: socket,
+      } }
+    )
+    try {
+      // Concurrent registration must not create duplicate listeners/markers.
+      await Promise.all([a.ensureRoot(root), a.ensureRoot(root),
+        b.ensureRoot(root)])
+      expect(a.socketPath).toBeDefined()
+      expect(b.socketPath).toBeDefined()
+      expect(a.socketPath).not.toBe(b.socketPath)
+
+      const ambiguous = await run()
+      expect(ambiguous.exitCode).toBe(1)
+      expect(ambiguous.stderr).toContain("multiple active")
+      expect(calls).toEqual([])
+
+      const selectedA = await run(a.socketPath)
+      expect(selectedA.exitCode).toBe(0)
+      expect(selectedA.stdout.trim()).toBe("A")
+      const selectedB = await run(b.socketPath)
+      expect(selectedB.exitCode).toBe(0)
+      expect(selectedB.stdout.trim()).toBe("B")
+      const explicit = await run(a.socketPath,
+        ["--socket", b.socketPath!])
+      expect(explicit.stdout.trim()).toBe("B")
+
+      const deadSocket = a.socketPath
+      await a.dispose()
+      // Stale registrations (e.g. SIGKILL) do not hide a live bridge.
+      writeFileSync(join(editorBridgeRegistryDir(root, stateDir),
+        randomUUID()), "")
+      const survivor = await run()
+      expect(survivor.exitCode).toBe(0)
+      expect(survivor.stdout.trim()).toBe("B")
+      const pinned = await run(deadSocket)
+      expect(pinned.exitCode).toBe(1)
+      expect(calls).toEqual(["A", "B", "B", "B"])
+      const stillB = await run(b.socketPath)
+      expect(stillB.stdout.trim()).toBe("B")
+    } finally {
+      await Promise.all([a.dispose(), b.dispose()])
+      rmSync(root, { recursive: true, force: true })
       rmSync(stateDir, { recursive: true, force: true })
     }
   })

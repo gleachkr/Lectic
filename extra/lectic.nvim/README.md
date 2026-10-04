@@ -124,6 +124,12 @@ to Neovim—for example, to send notifications when the assistant finishes a
 long-running task, or give a coding agent the ability to call some Neovim 
 function.
 
+The plugin also sets `LECTIC_EDITOR_SOCKET` from the buffer's attached Lectic
+LSP. Progress and approval hooks therefore use this editor's bridge even when
+another Neovim instance has the same workspace open. Submitting while the
+attached LSP is initializing asks you to retry; multiple attached Lectic LSPs
+are reported as an error rather than selecting one arbitrarily.
+
 Here's an example hook that sends a Neovim notification when tool use
 completes:
 

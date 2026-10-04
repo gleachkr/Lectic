@@ -2,6 +2,7 @@ local M = {}
 
 local spinner = require('lectic.spinner')
 local highlight = require('lectic.highlight')
+local bridge = require('lectic.bridge')
 local process
 
 local ns_id = highlight.ns_id
@@ -18,9 +19,13 @@ function M.submit_lectic()
         return
     end
 
-    local the_spinner = spinner.create_spinner(ns_id)
-
     local buf = vim.api.nvim_get_current_buf()
+    local env, bridge_error = bridge.environment(buf)
+    if not env then
+        vim.notify(bridge_error, vim.log.levels.ERROR)
+        return
+    end
+    local the_spinner = spinner.create_spinner(ns_id)
     if not vim.api.nvim_buf_get_lines(buf, -2,-1, false)[1]:match("^%s*$") then -- make sure we end in a blank line
         vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""})
     end
@@ -98,9 +103,6 @@ function M.submit_lectic()
         end
     end
 
-    local env = vim.fn.environ()
-    env.NVIM = vim.v.servername
-
     vim.api.nvim_buf_set_lines(buf, -1, -1, false, {""}) -- start a new line to work on
 
     vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
@@ -109,6 +111,7 @@ function M.submit_lectic()
       stdin = true,
       stdout = on_stdout,
       env = env,
+      clear_env = true,
       cwd = vim.fn.expand('%:h') == '' and nil or vim.fn.expand('%:h')
     }, on_exit)
 
