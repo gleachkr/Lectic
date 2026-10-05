@@ -4,16 +4,19 @@ import remarkDirective from "remark-directive"
 import { buildDiagnostics } from "./diagnostics"
 import { buildFoldingRangesFromText } from "./folding"
 import { buildBundleFromAst } from "./analysis"
-import { splitChunks, hashChunk, shiftPositions, mergeChunkAsts } from "./chunking"
+import {
+  splitChunks, hashChunk, shiftPositions, mergeChunkAsts,
+} from "./chunking"
+import { ChunkAstCache } from "./chunkCache"
 import type { Root } from "mdast"
 import type { FoldResult, DiagnosticsResult, WorkerMessage, BundleResult } from "./analysisTypes"
 
 // ── Chunk cache and cooperative cancellation ────────────────────────
 
-const chunkCache = new Map<string, Root>()
 let latestVersion = 0
 
 const parser = remark().use(remarkDirective)
+const chunkCache = new ChunkAstCache(text => parser.parse(text))
 
 async function handleWorkerMessage(
   ev: MessageEvent<WorkerMessage>
@@ -47,18 +50,18 @@ async function handleWorkerMessage(
   // 2) Chunked AST parse for bundle and diagnostics
   try {
     const chunks = splitChunks(msg.text)
+    const hashes = chunks.map(chunk => hashChunk(chunk.text))
+    // Evict obsolete prefixes before parsing their replacements. Streaming
+    // grows a chunk repeatedly; retaining every version leaks its ASTs.
+    chunkCache.retain(new Set(hashes))
     const shifted: Root[] = []
 
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i]
       // Cooperative cancellation: bail if a newer request arrived
       if (latestVersion !== msg.version) return
 
-      const hash = hashChunk(chunk.text)
-      let ast = chunkCache.get(hash)
-      if (!ast) {
-        ast = parser.parse(chunk.text)
-        chunkCache.set(hash, ast)
-      }
+      const ast = chunkCache.get(hashes[i], chunk.text)
       shifted.push(shiftPositions(ast, chunk.offset, chunk.lineOffset))
     }
 
