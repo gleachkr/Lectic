@@ -23,6 +23,14 @@ class TestResponsesBackend extends OpenAIResponsesBackend {
     return 0
   }
 
+  appendForTest(messages: unknown[], output: unknown[]) {
+    this.appendAssistantMessage(
+      messages as any,
+      { output } as any,
+      {} as any
+    )
+  }
+
   createForTest(messages: unknown[]) {
     return this.createCompletion({
       messages: messages as any,
@@ -140,6 +148,88 @@ describe.each([LLMProvider.Codex, LLMProvider.OpenAIResponses])(
     const closed = new Error(
       "WebSocket closed before response.completed (code 1012)"
     )
+
+    test.each([
+      { content: [] },
+      { content: [{ type: "reasoning_text", text: "Saved reasoning." }] },
+      { content: null },
+    ])("normalizes reasoning content on input: %j", async ({ content }) => {
+      const reasoning = {
+        type: "reasoning",
+        id: "rs_saved",
+        status: "completed",
+        summary: [{ type: "summary_text", text: "Thinking." }],
+        encrypted_content: "opaque-state",
+        content,
+      }
+      const { content: _content, ...codexReasoning } = reasoning
+      const user = {
+        role: "user",
+        content: [{ type: "input_text", text: "Continue." }],
+      }
+      const assistant = messageDone("Earlier answer.").item
+      const call = {
+        type: "function_call",
+        call_id: "call_1",
+        name: "test_tool",
+        arguments: "{}",
+      }
+      const result = {
+        type: "function_call_output",
+        call_id: "call_1",
+        output: "result",
+      }
+      const messages = [user, reasoning, assistant, call, result]
+      const original = structuredClone(messages)
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [] },
+      ])
+      const completion = await backend.createForTest(messages)
+      await collectText(completion)
+      await completion.final
+
+      expect(requestInputs).toEqual([[
+        user,
+        provider === LLMProvider.Codex ? codexReasoning : reasoning,
+        assistant,
+        call,
+        result,
+      ]])
+      expect(messages).toEqual(original)
+    })
+
+    test("normalizes reasoning replayed after a tool call", async () => {
+      const reasoning = {
+        type: "reasoning",
+        id: "rs_tool",
+        summary: [],
+        content: [],
+        encrypted_content: "opaque-state",
+      }
+      const { content: _content, ...codexReasoning } = reasoning
+      const call = {
+        type: "function_call",
+        call_id: "call_1",
+        name: "test_tool",
+        arguments: "{}",
+      }
+      const output = [reasoning, call]
+      const { backend, requestInputs } = testBackend(provider, [
+        { events: [] },
+      ])
+      const messages: unknown[] = []
+      backend.appendForTest(messages, output)
+      const completion = await backend.createForTest(messages)
+      await collectText(completion)
+      await completion.final
+
+      expect(requestInputs).toEqual([[
+        provider === LLMProvider.Codex ? codexReasoning : reasoning,
+        call,
+      ]])
+      expect(reasoning.content).toEqual([])
+      expect(messages).toEqual(output)
+    })
 
     test("retries before any text has streamed", async () => {
       const { backend, requestInputs } = testBackend(provider, [
@@ -263,7 +353,10 @@ describe.each([LLMProvider.Codex, LLMProvider.OpenAIResponses])(
         id: "rs_1",
         status: "completed",
         summary: [{ type: "summary_text", text: "Thinking." }],
+        content: [{ type: "reasoning_text", text: "Reasoning output." }],
+        encrypted_content: "opaque-state",
       }
+      const { content: _content, ...codexReasoning } = reasoning
       const { backend, requestInputs } = testBackend(provider, [
         {
           events: [{
@@ -281,7 +374,16 @@ describe.each([LLMProvider.Codex, LLMProvider.OpenAIResponses])(
       await completion.final
 
       expect(chunks.map((chunk) => chunk.kind)).toEqual(["thought", "text"])
-      expect(requestInputs).toEqual([[], [reasoning]])
+      expect(requestInputs).toEqual([[], [
+        provider === LLMProvider.Codex ? codexReasoning : reasoning,
+      ]])
+      expect(chunks[0]).toMatchObject({
+        kind: "thought",
+        block: {
+          content: ["Reasoning output."],
+          opaque: { encrypted_content: "opaque-state" },
+        },
+      })
     })
 
     test("preserves completed-snapshot recovery", async () => {

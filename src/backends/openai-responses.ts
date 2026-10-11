@@ -81,6 +81,18 @@ function thoughtBlockToReasoningItem(
   }
 }
 
+function codexInputItem(
+  item: OpenAI.Responses.ResponseInputItem
+): OpenAI.Responses.ResponseInputItem {
+  if (item.type !== "reasoning") return item
+
+  // Codex rejects reasoning `content` on input, including an empty array
+  // echoed from output. Keep summaries and encrypted state, and do not
+  // mutate the output item: its content still belongs in saved thoughts.
+  const { content: _content, ...input } = item
+  return input
+}
+
 function errorChainText(error: unknown): string {
   const parts: string[] = []
   const seen = new Set<unknown>()
@@ -445,7 +457,9 @@ export class OpenAIResponsesBackend extends Backend<
 
     const startStream = () => this.client.responses.stream({
       instructions: systemPrompt(lectic),
-      input: messages,
+      input: this.provider === LLMProvider.Codex
+        ? messages.map(codexInputItem)
+        : messages,
       model,
       include: ["reasoning.encrypted_content", "code_interpreter_call.outputs"],
       prompt_cache_key: lectic.header.id,
