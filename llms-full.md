@@ -5363,9 +5363,20 @@ That plugin can:
 - ask for allow/deny approval
 - ask the editor to pick from a list of options
 
-The bridge is discovered by a deterministic socket path derived from the
-workspace root (or, for single-file sessions, the opened file
-directory), so it does not require a separate metadata file.
+Every LSP instance owns an independent socket, advertised in the
+initialize response as
+`capabilities.experimental.lecticEditorBridgeSocket`. Editors should
+pass that path as `LECTIC_EDITOR_SOCKET` when launching Lectic runs. The
+Neovim plugin selects the socket of the buffer’s attached Lectic LSP.
+
+Standalone commands can discover bridges by searching upward from the
+active Lectic file directory (or cwd). Each LSP registers its socket’s
+instance ID for its workspace root, or the opened file directory in
+single-file sessions. If several bridges are active at the nearest
+registered root, discovery fails rather than choosing an arbitrary
+editor. Select one with `--socket` or `LECTIC_EDITOR_SOCKET`. An
+explicit selection never falls back to another editor if its own LSP has
+stopped.
 
 ## Features
 
