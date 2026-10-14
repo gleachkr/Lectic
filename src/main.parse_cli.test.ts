@@ -64,20 +64,19 @@ async function waitFor<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
     ])
 }
 
-async function tryListen(server: Server, port: number): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-        server.once('error', (error: NodeJS.ErrnoException) => {
-            if (error.code === 'EADDRINUSE') {
-                resolve(false)
-                return
-            }
-            reject(error)
-        })
-        server.listen(port, '127.0.0.1', () => {
-            server.removeAllListeners('error')
-            resolve(true)
+async function listenForOpenAI(server: Server): Promise<string> {
+    await new Promise<void>((resolve, reject) => {
+        server.once('error', reject)
+        server.listen(0, '127.0.0.1', () => {
+            server.removeListener('error', reject)
+            resolve()
         })
     })
+    const address = server.address()
+    if (!address || typeof address === 'string') {
+        throw new Error('Expected a TCP server address')
+    }
+    return `http://127.0.0.1:${address.port}/v1`
 }
 
 async function closeServer(server: Server): Promise<void> {
@@ -265,8 +264,7 @@ describe('main generate CLI flags', () => {
             writeOpenAIStreamChunk(res, '[DONE]')
             res.end()
         })
-        const listening = await tryListen(server, 11434)
-        if (!listening) return
+        const baseURL = await listenForOpenAI(server)
 
         try {
             writeFileSync(
@@ -290,8 +288,8 @@ describe('main generate CLI flags', () => {
                     'interlocutor:',
                     '  name: Assistant',
                     '  prompt: hi',
-                    '  provider: ollama',
-                    '  model: llama3.2',
+                    '  provider: openai/chat',
+                    '  model: gpt-test',
                     '  tools:',
                     '    - name: slow_tool',
                     '      exec: bash -lc "sleep 0.05; echo TOOL_DONE"',
@@ -309,6 +307,8 @@ describe('main generate CLI flags', () => {
                 env: {
                     ...process.env,
                     LECTIC_CONFIG: 'not-a-directory',
+                    OPENAI_API_KEY: 'test-key',
+                    OPENAI_BASE_URL: baseURL,
                     LECTIC_CACHE: cacheDir,
                     LECTIC_STATE: stateDir,
                 },
@@ -348,8 +348,7 @@ describe('main generate CLI flags', () => {
         const server = createServer((req) => {
             if (req.url?.includes('/v1/chat/completions')) sawRequest()
         })
-        const listening = await tryListen(server, 11434)
-        if (!listening) return
+        const baseURL = await listenForOpenAI(server)
 
         try {
             writeFileSync(
@@ -367,8 +366,8 @@ describe('main generate CLI flags', () => {
                     'interlocutor:',
                     '  name: Assistant',
                     '  prompt: hi',
-                    '  provider: ollama',
-                    '  model: llama3.2',
+                    '  provider: openai/chat',
+                    '  model: gpt-test',
                     '---',
                     '',
                     'hello',
@@ -383,6 +382,8 @@ describe('main generate CLI flags', () => {
                 env: {
                     ...process.env,
                     LECTIC_CONFIG: 'not-a-directory',
+                    OPENAI_API_KEY: 'test-key',
+                    OPENAI_BASE_URL: baseURL,
                     LECTIC_CACHE: cacheDir,
                     LECTIC_STATE: stateDir,
                 },

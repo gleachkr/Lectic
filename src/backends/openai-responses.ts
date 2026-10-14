@@ -84,13 +84,50 @@ function thoughtBlockToReasoningItem(
 function codexInputItem(
   item: OpenAI.Responses.ResponseInputItem
 ): OpenAI.Responses.ResponseInputItem {
-  if (item.type !== "reasoning") return item
+  if (item.type === "reasoning") {
+    // Codex/OpenCode replay summaries and encrypted state, not output-only
+    // reasoning content or status. Leave the saved thought untouched.
+    const { content: _content, status: _status, ...input } = item
+    return input
+  }
 
-  // Codex rejects reasoning `content` on input, including an empty array
-  // echoed from output. Keep summaries and encrypted state, and do not
-  // mutate the output item: its content still belongs in saved thoughts.
-  const { content: _content, ...input } = item
-  return input
+  if (item.type === "function_call" && "parsed_arguments" in item) {
+    const { parsed_arguments: _parsed, ...input } = item
+    return input
+  }
+
+  if (
+    (item.type === "message" || item.type === undefined) && "role" in item
+  ) {
+    // The Codex protocol uses tagged messages and arrays of content parts,
+    // rather than the public API's untagged/string shorthand. Assistant
+    // history is output_text; user/developer/system text is input_text.
+    const textPart = (text: string) => item.role === "assistant"
+      ? { type: "output_text" as const, text, annotations: [] }
+      : { type: "input_text" as const, text }
+    const content = typeof item.content === "string"
+      ? [textPart(item.content)]
+      : item.content.map((part) => {
+          if (item.role === "assistant" && part.type === "input_text") {
+            return textPart(part.text)
+          }
+          // The SDK adds parsed even without a structured output schema.
+          // Preserve wire metadata (citations, logprobs, etc.), not this
+          // SDK-only value, when replaying output after tools or retries.
+          if ("parsed" in part) {
+            const { parsed: _parsed, ...input } = part
+            return input
+          }
+          return part
+        })
+
+    // The SDK requires id/status on output messages, unlike Codex input
+    // messages. Keep existing ids, phase, status, and opaque metadata.
+    return { ...item, type: "message", content } as
+      OpenAI.Responses.ResponseInputItem
+  }
+
+  return item
 }
 
 function errorChainText(error: unknown): string {
@@ -668,16 +705,19 @@ export class OpenAIResponsesBackend extends Backend<
     _lectic: Lectic
   ) {
     for (const output of final.output) {
-      if (output.type === "function_call" && "parsed_arguments" in output) {
-        delete output.parsed_arguments
-      }
-    }
-
-    for (const o of final.output) {
-      if (o.type === "apply_patch_call_output" || o.type === "apply_patch_call") {
+      if (
+        output.type === "apply_patch_call_output" ||
+        output.type === "apply_patch_call"
+      ) {
         continue
       }
-      messages.push(o as OpenAI.Responses.ResponseInputItem)
+      // Strip SDK bookkeeping from the replay copy, not the final response.
+      if (output.type === "function_call" && "parsed_arguments" in output) {
+        const { parsed_arguments: _parsed, ...input } = output
+        messages.push(input)
+      } else {
+        messages.push(output as OpenAI.Responses.ResponseInputItem)
+      }
     }
   }
 
