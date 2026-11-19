@@ -11,6 +11,9 @@ const OPENAI_BETA_RESPONSES = "responses=experimental"
 const CODEX_ACCOUNT_ID_HEADER = "chatgpt-account-id"
 const ORIGINATOR_HEADER = "originator"
 const ORIGINATOR_CODEX = "codex_cli_rs"
+// The catalog is version-gated. Pin the Codex client version whose response
+// format we support, rather than sending Lectic's unrelated package version.
+const CODEX_CLIENT_VERSION = "0.169.0"
 
 function base64UrlDecode(input: string): string {
   const base64 = input.replace(/-/g, "+").replace(/_/g, "/")
@@ -43,7 +46,10 @@ export class CodexBackend extends OpenAIResponsesBackend {
   private _client?: OpenAI
   private _webSocketFetch?: CodexWebSocketFetch
 
-  constructor(account?: string) {
+  constructor(
+    account?: string,
+    private readonly authOptions: { interactive?: boolean } = {},
+  ) {
     super({
       apiKeyEnv: "CODEX_ACCESS_TOKEN",
       provider: LLMProvider.Codex,
@@ -52,6 +58,31 @@ export class CodexBackend extends OpenAIResponsesBackend {
     this.account = account
     this.auth = new CodexAuth(account)
     this.cache_retention = false
+  }
+
+  override async listModels(): Promise<string[]> {
+    try {
+      // Codex returns { models: [{ slug, visibility, ... }] }, not an
+      // OpenAI models page. Use the same authenticated client as generation.
+      const catalog = await this.client.get<unknown>("/models", {
+        query: { client_version: CODEX_CLIENT_VERSION },
+        maxRetries: this.authOptions.interactive === false ? 0 : undefined,
+      })
+      if (!isObjectRecord(catalog) || !Array.isArray(catalog["models"])) {
+        return []
+      }
+
+      const models: string[] = []
+      for (const model of catalog["models"]) {
+        if (!isObjectRecord(model) || model["visibility"] !== "list") continue
+        const slug = model["slug"]
+        if (typeof slug === "string" && slug.length > 0) models.push(slug)
+      }
+      return models
+    } catch (_e) {
+      // Model discovery is best-effort, as with the other backends.
+      return []
+    }
   }
 
   get client() {
@@ -65,7 +96,7 @@ export class CodexBackend extends OpenAIResponsesBackend {
       apiKey: "chatgpt",
       baseURL: CODEX_CODEX_BASE_URL,
       fetch: async (input, init) => {
-        const token = await this.auth.getAccessToken()
+        const token = await this.auth.getAccessToken(this.authOptions)
         const accountId = getCodexAccountId(token)
 
         const headers = new Headers(init?.headers)

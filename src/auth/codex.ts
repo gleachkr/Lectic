@@ -84,20 +84,17 @@ export class CodexAuth {
 
   constructor(account?: string) {
     this.tokenPath = codexAuthTokenPath(account)
-    const tokenDir = dirname(this.tokenPath)
-    if (!existsSync(tokenDir)) {
-      mkdirSync(tokenDir, { recursive: true })
-    }
   }
 
   isAuthenticated(): boolean {
     return existsSync(this.tokenPath)
   }
 
-  async getAccessToken(): Promise<string> {
+  async getAccessToken({ interactive = true } = {}): Promise<string> {
     let tokens = this.loadTokens()
 
     if (!tokens) {
+      if (!interactive) throw new Error("No saved Codex credentials")
       console.error("No Codex tokens found. Initiating login...")
       tokens = await this.login()
       this.saveTokens(tokens)
@@ -108,6 +105,7 @@ export class CodexAuth {
         tokens = await this.refresh(tokens)
         this.saveTokens(tokens)
       } catch (error) {
+        if (!interactive) throw error
         Logger.debug("auth", [
           "Failed to refresh token, re-initiating login.",
           error,
@@ -131,6 +129,7 @@ export class CodexAuth {
   }
 
   private saveTokens(tokens: TokenSet) {
+    mkdirSync(dirname(this.tokenPath), { recursive: true })
     writeFileSync(this.tokenPath, JSON.stringify(tokens, null, 2))
   }
 

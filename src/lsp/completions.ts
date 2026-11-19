@@ -182,6 +182,10 @@ export async function computeCompletions(
       if (provider) {
         const models = modelRegistry.get(provider) ?? []
         const { prefixLc, range } = computeValueEdit(lineText, pos)
+        // A completion triggered at `model:` needs a YAML space separator.
+        const needsSpace = /^\s*(?:-\s+)?model\s*:$/.test(
+          lineText.slice(0, range.start.character),
+        )
         for (const m of models) {
           if (prefixLc && !startsWithCI(m, prefixLc)) continue
           items.push({
@@ -189,8 +193,7 @@ export async function computeCompletions(
             kind: CompletionItemKind.Value,
             detail: `model (${provider})`,
             insertTextFormat: InsertTextFormat.PlainText,
-            // Let client replace the typed prefix
-            textEdit: prefixLc ? { range, newText: m } : undefined,
+            textEdit: { range, newText: needsSpace ? ` ${m}` : m },
           })
         }
         return items

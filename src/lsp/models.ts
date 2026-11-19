@@ -5,6 +5,8 @@ import { AnthropicBackend } from "../backends/anthropic"
 import { GeminiBackend } from "../backends/gemini"
 import { OpenAIBackend } from "../backends/openai"
 import { OpenAIResponsesBackend } from "../backends/openai-responses"
+import { CodexBackend } from "../backends/codex"
+import { CodexAuth } from "../auth/codex"
 import { buildHeaderRangeIndex } from "./yamlRanges"
 import { getYaml } from "../parsing/parse"
 import { parseYaml, getValue, stringOf } from "./utils/yamlAst"
@@ -96,6 +98,14 @@ class ModelRegistry {
       })
       tasks.push(or.listModels().then(ms => {
         this.cache.set(LLMProvider.OpenRouter, ms)
+      }).catch(() => { /* ignore */ }))
+    }
+
+    // Codex uses the saved default account, like `lectic models`.
+    if (new CodexAuth().isAuthenticated()) {
+      const codex = new CodexBackend(undefined, { interactive: false })
+      tasks.push(codex.listModels().then(ms => {
+        this.cache.set(LLMProvider.Codex, ms)
       }).catch(() => { /* ignore */ }))
     }
 
